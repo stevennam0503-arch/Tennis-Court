@@ -1,0 +1,7 @@
+import React,{useState} from 'react';
+import {useCourtly} from '../context';
+import {Title,Panel,Table,Chip,Button} from '../components/UI';
+export default function AccountsPage(){
+ const {data,show}=useCourtly();const [query,setQuery]=useState('');const list=data.accounts.filter(a=>`${a.name} ${a.email} ${a.phone}`.toLowerCase().includes(query.toLowerCase()));
+ return <><Title subtitle="Danh bạ khách hàng và thông tin vai trò." action={<Button className="primary" onClick={()=>show({type:'entity',collection:'accounts'})}>Thêm tài khoản</Button>}>Khách hàng & tài khoản</Title><Panel title="Danh sách tài khoản" action={<div className="tools"><input className="search" placeholder="Tìm tên, email, số điện thoại" value={query} onChange={e=>setQuery(e.target.value)}/></div>}><Table headings={['Họ tên','Liên hệ','Vai trò','Trạng thái','']} empty={!list.length}>{list.map(a=><tr key={a.id}><td className="name">{a.name}</td><td>{a.email}<small>{a.phone}</small></td><td><Chip status={a.role}/></td><td><Chip status={a.status}/></td><td><div className="row-actions"><Button className="sm" onClick={()=>show({type:'entity',collection:'accounts',row:a})}>Sửa</Button><Button className="sm" onClick={()=>show({type:'customer-history',id:a.id})}>Lịch sử</Button></div></td></tr>)}</Table></Panel><div className="notice warn" style={{marginTop:20}}>Danh bạ nghiệp vụ. Đăng nhập khách hàng, xác thực email và phân quyền API chưa triển khai trong bản này.</div></>;
+}

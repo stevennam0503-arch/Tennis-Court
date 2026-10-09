@@ -1,0 +1,29 @@
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: never
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/courtly}
+    username: ${DB_USERNAME:courtly}
+    password: ${DB_PASSWORD:courtly_local}
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+  jackson:
+    default-property-inclusion: non_null
+courtly:
+  seed-demo: ${SEED_DEMO:true}
+  allowed-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+logging:
+  level:
+    org.hibernate.SQL: warn

@@ -1,0 +1,31 @@
+import React, {useState,useCallback,useRef,useEffect} from 'react';
+import {CalendarDays,ClipboardList,Wallet,Grid2X2,Package,Users,Trophy,ChartColumn,Settings,Bell,Menu} from 'lucide-react';
+import {CourtlyContext} from './context';
+import {useClub} from './hooks/useClub';
+import {today,dateLabel} from './utils/format';
+import {Button} from './components/UI';
+import DialogHost from './components/DialogHost';
+import CalendarPage from './pages/CalendarPage';
+import OrdersPage from './pages/OrdersPage';
+import PaymentsPage from './pages/PaymentsPage';
+import CourtsPage from './pages/CourtsPage';
+import ProductsPage from './pages/ProductsPage';
+import StaffPage from './pages/StaffPage';
+import AccountsPage from './pages/AccountsPage';
+import TournamentsPage from './pages/TournamentsPage';
+import ReportsPage from './pages/ReportsPage';
+import SystemPage from './pages/SystemPage';
+import NotificationsPage from './pages/NotificationsPage';
+const menu=[['calendar',CalendarDays,'Lịch sân'],['orders',ClipboardList,'Đơn đặt sân'],['payments',Wallet,'Thu tiền & hoàn tiền'],['courts',Grid2X2,'Sân & bảng giá'],['products',Package,'Đồ uống & đồ thuê'],['staff',Users,'Nhân sự'],['tournaments',Trophy,'Giải đấu'],['accounts',Users,'Khách hàng & tài khoản'],['reports',ChartColumn,'Báo cáo'],['system',Settings,'Hệ thống & module']];
+const pages={calendar:CalendarPage,orders:OrdersPage,payments:PaymentsPage,courts:CourtsPage,products:ProductsPage,staff:StaffPage,tournaments:TournamentsPage,accounts:AccountsPage,reports:ReportsPage,system:SystemPage,notifications:NotificationsPage};
+export default function App(){
+ const [date,setDate]=useState(today),[route,setRoute]=useState(()=>pages[location.hash.slice(1)]?location.hash.slice(1):'calendar');
+ const [dialog,setDialog]=useState(null),[mobile,setMobile]=useState(false),[toast,setToast]=useState('');const toastTimer=useRef();
+ const club=useClub(date);
+ const notify=useCallback(text=>{clearTimeout(toastTimer.current);setToast(text);toastTimer.current=setTimeout(()=>setToast(''),4500);},[]);
+ useEffect(()=>()=>clearTimeout(toastTimer.current),[]);
+ const navigate=useCallback(r=>{setRoute(r);setMobile(false);setDialog(null);history.replaceState(null,'','#'+r);},[]);
+ const close=useCallback(()=>setDialog(null),[]);
+ const Page=pages[route]||CalendarPage;
+ return <CourtlyContext.Provider value={{...club,date,setDate,navigate,show:setDialog,notify}}><div className="layout"><aside className={`sidebar ${mobile?'open':''}`}><div className="brand"><img src="/favicon.svg" alt="" width="34" height="34"/><div>Courtly<em>TENNIS CLUB</em></div></div><div className="nav-caption">ĐIỀU HÀNH</div><nav className="nav">{menu.map(([id,Icon,label])=><button key={id} className={route===id?'active':''} onClick={()=>navigate(id)}><Icon size={19}/>{label}</button>)}</nav><div className="side-foot"><div style={{display:'flex',alignItems:'center',gap:10}}><span className="avatar">QL</span><div>Quản lý câu lạc bộ<small style={{display:'block',color:'#9fb7aa'}}>Bản phát triển</small></div></div></div></aside><div className="content"><header className="topbar"><div style={{display:'flex',alignItems:'center',gap:10}}><button className="mobile-menu" aria-label="Mở menu" onClick={()=>setMobile(!mobile)}><Menu size={20}/></button><span className="crumb">Câu lạc bộ <span style={{margin:'0 10px',color:'#b4c0b9'}}>/</span>{menu.find(x=>x[0]===route)?.[2]||'Thông báo'}</span></div><div className="right"><span className="date-label meta">{dateLabel(today())}</span><button aria-label="Thông báo" onClick={()=>navigate('notifications')}><Bell size={20}/></button><span className="avatar">QL</span></div></header><main className="main">{club.error&&<div className="error" role="alert">{club.error} <Button className="sm" onClick={()=>club.refresh().catch(()=>{})}>Thử lại</Button></div>}{club.loading?<div className="loading">Đang tải dữ liệu…</div>:club.data?<Page key={route}/>:<div className="empty">Không thể kết nối backend. Kiểm tra Spring Boot và PostgreSQL.</div>}</main></div></div>{club.data&&dialog&&<DialogHost key={`${dialog.type}-${dialog.id||dialog.collection||''}`} dialog={dialog} onClose={close}/>}<div aria-live="polite">{toast&&<div className="toast">{toast}</div>}</div></CourtlyContext.Provider>;
+}
