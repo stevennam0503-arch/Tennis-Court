@@ -1,0 +1,235 @@
+package com.courtly.service;
+
+import static com.courtly.util.Rules.*;
+
+import com.courtly.entity.Account;
+import com.courtly.exception.BusinessException;
+import com.courtly.repository.AccountRepository;
+import jakarta.servlet.http.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Instant;
+import java.util.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+@Service
+@RequiredArgsConstructor
+public class AuthService {
+  private final AccountRepository accounts;
+  private final PasswordEncoder encoder;
+  private final HttpSessionSecurityContextRepository contexts;
+  private final DocumentService documents;
+
+  @Value("${courtly.admin-email:admin@courtly.local}")
+  private String adminEmail;
+
+  private final java.util.concurrent.ConcurrentHashMap<String, long[]> failures =
+      new java.util.concurrent.ConcurrentHashMap<>();
+
+  public Account current(HttpServletRequest req) {
+    var session = req.getSession(false);
+    if (session == null || session.getAttribute("accountId") == null)
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Vui lòng đăng nhập");
+    var a =
+        accounts
+            .findById((UUID) session.getAttribute("accountId"))
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+    if (!"ACTIVE".equals(a.getStatus())
+        || !Objects.equals(session.getAttribute("authVersion"), a.getAuthVersion())) {
+      session.invalidate();
+      throw new ResponseStatusException(
+          HttpStatus.UNAUTHORIZED, "Phiên đã bị thu hồi hoặc tài khoản bị khóa");
+    }
+    return a;
+  }
+
+  public void admin(Account a) {
+    if (!"ADMIN".equals(a.getRole()))
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN, "Chỉ quản trị viên được thực hiện thao tác này");
+  }
+
+  public boolean owner(Account a) {
+    return a.getEmail().equalsIgnoreCase(adminEmail);
+  }
+
+  public Map<String, Object> user(Account a) {
+    return map(
+        "id",
+        a.getId(),
+        "accountId",
+        a.getId(),
+        "name",
+        a.getFullName(),
+        "email",
+        a.getEmail(),
+        "phone",
+        a.getPhone(),
+        "role",
+        a.getRole(),
+        "isOwner",
+        owner(a));
+  }
+
+  public Map<String, Object> session(HttpServletRequest req) {
+    if (req.getSession(false) == null || req.getSession(false).getAttribute("accountId") == null)
+      return map("authenticated", false, "ownerSetupAvailable", false);
+    return map("authenticated", true, "user", user(current(req)), "ownerSetupAvailable", false);
+  }
+
+  private Map<String, Object> signIn(Account a, HttpServletRequest req, HttpServletResponse res) {
+    req.getSession(true);
+    req.changeSessionId();
+    req.getSession().setAttribute("accountId", a.getId());
+    req.getSession().setAttribute("authVersion", a.getAuthVersion());
+    var context = SecurityContextHolder.createEmptyContext();
+    context.setAuthentication(
+        new UsernamePasswordAuthenticationToken(
+            a.getId().toString(),
+            null,
+            List.of(new SimpleGrantedAuthority("ROLE_" + a.getRole()))));
+    SecurityContextHolder.setContext(context);
+    contexts.saveContext(context, req, res);
+    return map("authenticated", true, "user", user(a));
+  }
+
+  private String email(Object v) {
+    String e = text((String) v, "Email").toLowerCase(Locale.ROOT);
+    require(e.length() <= 254 && e.matches("[^\\s@]+@[^\\s@]+\\.[^\\s@]+"), "Email không hợp lệ");
+    return e;
+  }
+
+  private String password(Object v) {
+    require(v instanceof String, "Mật khẩu không hợp lệ");
+    String p = (String) v;
+    require(
+        p.length() >= 12 && p.length() <= 128 && p.getBytes(StandardCharsets.UTF_8).length <= 72,
+        "Mật khẩu từ 12 ký tự, tối đa 72 byte UTF-8");
+    return p;
+  }
+
+  public static String hash(String value) {
+    try {
+      return HexFormat.of()
+          .formatHex(
+              MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
+    } catch (Exception e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  @Transactional
+  public Map<String, Object> action(
+      String action, Map<String, Object> b, HttpServletRequest req, HttpServletResponse res) {
+    if (action.equals("logout")) {
+      if (req.getSession(false) != null) req.getSession(false).invalidate();
+      SecurityContextHolder.clearContext();
+      return map("authenticated", false);
+    }
+    if (action.equals("login")) {
+      String e = email(b.get("email")), key = req.getRemoteAddr() + ":" + e;
+      long t = System.currentTimeMillis();
+      long[] tries =
+          failures.compute(
+              key, (k, old) -> old == null || t - old[0] > 900000 ? new long[] {t, 0} : old);
+      require(tries[1] < 10, "Đã thử quá nhiều lần. Vui lòng thử lại sau 15 phút.");
+      var found = accounts.findByEmailIgnoreCase(e);
+      String supplied = String.valueOf(b.getOrDefault("password", ""));
+      if (found.isEmpty()
+          || found.get().getPasswordHash() == null
+          || !encoder.matches(supplied, found.get().getPasswordHash())
+          || !"ACTIVE".equals(found.get().getStatus())) {
+        synchronized (tries) {
+          tries[1]++;
+        }
+        throw new BusinessException("Email hoặc mật khẩu không đúng, hoặc tài khoản đã bị khóa.");
+      }
+      failures.remove(key);
+      return signIn(found.get(), req, res);
+    }
+    if (action.equals("register")) {
+      String e = email(b.get("email")), p = password(b.get("password"));
+      require(
+          accounts.findByEmailIgnoreCase(e).isEmpty(),
+          "Email đã có tài khoản. Hãy đăng nhập hoặc liên hệ quầy.");
+      Account a = new Account();
+      a.setFullName(text((String) b.get("name"), "Họ tên"));
+      a.setEmail(e);
+      a.setPhone("");
+      a.setRole("CUSTOMER");
+      a.setPasswordHash(encoder.encode(p));
+      accounts.saveAndFlush(a);
+      return signIn(a, req, res);
+    }
+    if (action.equals("activate")) {
+      String token = text((String) b.get("token"), "Mã kích hoạt"),
+          key = "activation:" + hash(token);
+      var row = documents.lock(key);
+      var info = documents.read(row);
+      require(
+          info.containsKey("accountId")
+              && !Boolean.TRUE.equals(info.get("used"))
+              && Instant.parse((String) info.get("expiresAt")).isAfter(Instant.now()),
+          "Mã không hợp lệ, đã dùng hoặc hết hạn");
+      Account a =
+          accounts.findForUpdate(UUID.fromString((String) info.get("accountId"))).orElseThrow();
+      require("ACTIVE".equals(a.getStatus()), "Tài khoản đã bị khóa");
+      a.setPasswordHash(encoder.encode(password(b.get("password"))));
+      a.setAuthVersion(a.getAuthVersion() + 1);
+      info.put("used", true);
+      documents.save(row, info);
+      return signIn(a, req, res);
+    }
+    if (action.equals("ticket"))
+      return activation(current(req), UUID.fromString((String) b.get("accountId")));
+    if (action.equals("password")) {
+      Account a = current(req);
+      require(
+          a.getPasswordHash() != null
+              && encoder.matches(String.valueOf(b.get("currentPassword")), a.getPasswordHash()),
+          "Mật khẩu hiện tại không đúng");
+      a.setPasswordHash(encoder.encode(password(b.getOrDefault("newPassword", b.get("password")))));
+      a.setAuthVersion(a.getAuthVersion() + 1);
+      return signIn(a, req, res);
+    }
+    throw new BusinessException("Thao tác tài khoản không hỗ trợ");
+  }
+
+  @Transactional
+  public Map<String, Object> activation(Account actor, UUID id) {
+    admin(actor);
+    documents.mutationLock();
+    for (var old : documents.list("activation:"))
+      if (id.toString().equals(old.get("accountId")) && !Boolean.TRUE.equals(old.get("used"))) {
+        old.put("used", true);
+        if (old.get("documentKey") instanceof String key) documents.put(key, old);
+      }
+    Account a = accounts.findForUpdate(id).orElseThrow();
+    require(
+        !owner(a) || a.getId().equals(actor.getId()),
+        "Không cấp mã của chủ hệ thống cho người khác");
+    String token = UUID.randomUUID() + "." + UUID.randomUUID();
+    documents.put(
+        "activation:" + hash(token),
+        map(
+            "documentKey",
+            "activation:" + hash(token),
+            "accountId",
+            id.toString(),
+            "used",
+            false,
+            "expiresAt",
+            Instant.now().plusSeconds(86400).toString()));
+    return map("token", token, "expiresAt", Instant.now().plusSeconds(86400).toString());
+  }
+}

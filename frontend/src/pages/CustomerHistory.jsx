@@ -1,0 +1,48 @@
+import React,{useState} from 'react';
+import {useCourtly} from '../context';
+import {Title,Panel,Button,Chip,Table,Tabs} from '../components/UI';
+import OrderActions,{canRent} from '../components/OrderActions';
+import {money,labels,localDate} from '../utils/format';
+const dateLabel=d=>d?.split('-').reverse().join('/');
+const timeLabel=d=>d?new Date(d).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}):'—';
+export function OrderTimeline({order,courts}){
+ const events=order.history?.length?order.history:[];
+ const names={CREATED:'Tạo đơn đặt sân',SCHEDULE:'Đổi lịch sân',CANCEL:'Hủy lịch đặt',SERVICES:'Thêm dịch vụ thuê',PRODUCTS:'Thêm sản phẩm',STAFF:'Thêm nhân sự','CHECK-IN':'Check-in','CHECK-OUT':'Hoàn tất buổi chơi',RETURN:'Trả thiết bị',INVOICE:'Xuất phiếu thu',EXPIRED:'Hết hạn giữ chỗ'};
+ const slots=e=>`${dateLabel(e.date)} · ${e.slots?.map(s=>`${courts.find(c=>c.id===s.court)?.name||s.court} ${s.hour}:00–${s.hour+1}:00`).join(', ')}`;
+ if(!events.length)return <p className="notice">Đơn cũ chưa có nhật ký chi tiết. Các thông tin hiện tại vẫn được giữ nguyên.</p>;
+ return <ol className="order-timeline">{[...events].reverse().map(e=><li key={e.id}><div><b>{names[e.type]||e.type}</b><time>{timeLabel(e.at)}</time></div>{e.type==='SCHEDULE'&&e.previous&&<p><span>Trước: </span>{slots(e.previous)}</p>}<p>{slots(e)}</p>{e.total!==undefined&&<small>Tổng đơn tại thời điểm này: {money(e.total)}</small>}</li>)}</ol>;
+}
+export function MyHistory(){
+ const {data,show,isAdmin}=useCourtly();const [query,setQuery]=useState('');const [from,setFrom]=useState(''),[to,setTo]=useState(''),[status,setStatus]=useState('');
+ const rows=data.orders.filter(o=>`${o.id} ${isAdmin?o.name:''}`.toLowerCase().includes(query.toLowerCase())&&(!from||o.date>=from)&&(!to||o.date<=to)&&(!status||o.status===status)).sort((a,b)=>b.date.localeCompare(a.date));
+ return <><Title subtitle="Tra cứu mọi lịch đã đặt, kể cả đơn đã hủy hoặc hết hạn.">Lịch sử đặt sân</Title><div className="history-filters"><label>{isAdmin?'Tên khách / mã đơn':'Mã đơn'}<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Tìm đơn đặt sân…"/></label><label>Từ ngày<input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>Đến ngày<input type="date" min={from} value={to} onChange={e=>setTo(e.target.value)}/></label><label>Trạng thái<select value={status} onChange={e=>setStatus(e.target.value)}><option value="">Tất cả</option>{['HOLDING','CONFIRMED','CHECKED_IN','COMPLETED','CANCELLED','EXPIRED'].map(s=><option key={s} value={s}>{labels[s]}</option>)}</select></label></div><p className="subtitle">{rows.length} lịch đặt phù hợp</p><div className="history-list">{rows.map(o=><article className="customer-order" key={o.id}><div className="customer-order-top"><div><h2>{dateLabel(o.date)}</h2><small>{o.id.slice(0,8).toUpperCase()}{isAdmin?` · ${o.name}`:''}</small></div><Chip status={o.status}/></div><p className="subtitle">{o.slots.map(s=>`${data.courts.find(c=>c.id===s.court)?.name} · ${s.hour}:00–${s.hour+1}:00`).join(' / ')}</p><OrderActions order={o}/><details className="history-details"><summary>Xem các lần cập nhật</summary><OrderTimeline order={o} courts={data.courts}/></details></article>)}</div>{!rows.length&&<p className="empty">Chưa có lịch đặt trong khoảng đã chọn.</p>}</>;
+}
+export function MyPayments(){
+ const {data,show,isAdmin,navigate}=useCourtly();
+ const allPayments=[...data.payments,...(data.membershipPayments||[]).map(p=>({...p,type:"MEMBERSHIP_FEE"}))];const [query,setQuery]=useState(''),[from,setFrom]=useState(''),[to,setTo]=useState('');
+ const received=allPayments.reduce((n,p)=>n+p.amount,0),refunded=data.refunds.reduce((n,p)=>n+p.amount,0);
+ const rows=[...allPayments.map(p=>({...p,kind:'PAYMENT'})),...data.refunds.map(r=>{const p=data.payments.find(p=>p.id===r.paymentId);return {...r,kind:'REFUND',orderId:p?.orderId,registrationId:p?.registrationId,method:p?.method};})].filter(p=>(!from||localDate(p.createdAt)>=from)&&(!to||localDate(p.createdAt)<=to)&&`${p.id} ${p.orderId||''} ${p.transactionCode||''} ${isAdmin?data.orders.find(o=>o.id===p.orderId)?.name||'':''}`.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+ return <><Title subtitle={isAdmin?'Tra cứu giao dịch của mọi khách hàng, bao gồm khoản thu và hoàn tiền.':'Các khoản thực tế đã được quầy ghi nhận cho tài khoản của bạn.'}>Lịch sử thanh toán</Title><div className="payment-summary"><div><small>Tổng đã thanh toán</small><b>{money(received)}</b></div><div><small>Tổng đã hoàn</small><b>{money(refunded)}</b></div><div><small>Thanh toán sau hoàn</small><b>{money(received-refunded)}</b></div></div><div className="history-filters"><label>Từ ngày<input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>Đến ngày<input type="date" min={from} value={to} onChange={e=>setTo(e.target.value)}/></label></div><Panel title="Thu tiền & hoàn tiền" action={<input aria-label="Tìm giao dịch" placeholder={isAdmin?'Tên khách, mã đơn hoặc giao dịch':'Mã đơn hoặc mã giao dịch'} value={query} onChange={e=>setQuery(e.target.value)}/>}><Table headings={['Thời điểm','Nội dung','Phương thức','Số tiền','Đơn liên quan']} empty={!rows.length}>{rows.map(p=><tr key={p.kind+p.id}><td>{timeLabel(p.createdAt)}<small>{p.transactionCode||p.id}</small></td><td>{p.kind==='REFUND'?'Hoàn tiền':p.type==='MEMBERSHIP_FEE'?'Phí membership':p.type==='TOURNAMENT_FEE'?'Phí giải đấu':p.type==='DEPOSIT'?'Tiền cọc':'Thanh toán đơn'}</td><td>{labels[p.method]||p.method||'—'}</td><td className={p.kind==='REFUND'?'refund-amount':''}>{p.kind==='REFUND'?'−':''}{money(p.amount)}</td><td>{isAdmin&&p.orderId&&<small>{data.orders.find(o=>o.id===p.orderId)?.name}</small>}{p.membershipId?<Button className="sm" onClick={()=>navigate(isAdmin?'membership':'profile-membership')}>{p.planName||'Membership'}</Button>:p.orderId?<Button className="sm" onClick={()=>show({type:'order',id:p.orderId})}>{p.orderId.slice(0,8).toUpperCase()}</Button>:<Button className="sm" onClick={()=>show({type:'tournament',id:data.registrations.find(r=>r.id===p.registrationId)?.tournamentId})}>{data.registrations.find(r=>r.id===p.registrationId)?.name||'Đăng ký giải'}</Button>}</td></tr>)}</Table></Panel><p className="notice" style={{marginTop:20}}>Hủy lịch không tự chuyển tiền hoàn về ngân hàng. Khoản hoàn chỉ xuất hiện sau khi quầy xử lý và ghi nhận.</p></>;
+}
+export function MyServices(){
+ const {data,show,navigate,isAdmin}=useCourtly();
+ const [tab,setTab]=useState('available'),[query,setQuery]=useState('');
+ const eligible=data.orders.filter(canRent);
+ const rented=data.orders.filter(o=>o.products.some(p=>p.type==='RENTAL')||o.staff.length);
+ const orders=(tab==='available'?eligible:rented).filter(o=>`${o.id} ${o.date} ${isAdmin?o.name:''}`.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>tab==='available'?a.date.localeCompare(b.date):b.date.localeCompare(a.date));
+ return <>
+  <Title subtitle={isAdmin?'Thuê dịch vụ cho khách, theo dõi thiết bị và phân công trọng tài theo đơn.':'Chọn trọng tài, vợt và thiết bị cho lịch sân của bạn. Xem giá trước khi xác nhận.'} action={<Button onClick={()=>navigate('orders')}>Xem đơn hàng</Button>}>Dịch vụ tại quầy</Title>
+  <div className="rental-intro"><article><h2>Thuê trọng tài</h2><p>Chọn trọng tài có lịch làm việc bao phủ giờ chơi, không trùng buổi khác. Chi phí tính theo số giờ sử dụng.</p></article><article><h2>Thuê đồ theo giờ</h2><p>Chọn thiết bị, số lượng và thời lượng thuê. Hệ thống kiểm tra tồn thiết bị đúng khoảng thời gian đã đặt.</p></article></div>
+  {isAdmin&&<div className="step-row"><Button onClick={()=>navigate('staff')}>Quản lý trọng tài & lịch làm việc</Button><Button onClick={()=>navigate('products')}>Quản lý thiết bị & giá thuê</Button></div>}
+  <Tabs value={tab} onChange={setTab} options={[["available",`Đặt thêm dịch vụ (${eligible.length})`],["rented",`Lịch sử thuê (${rented.length})`]]}/>
+  <div className="history-filters"><label>{isAdmin?'Tìm khách, mã đơn hoặc ngày':'Tìm mã đơn hoặc ngày'}<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Tìm đơn thuê…"/></label></div>
+  <div className="history-list">{orders.map(o=><article className="customer-order" key={o.id}>
+   <div className="customer-order-top"><div><h2>{dateLabel(o.date)}</h2><small>{o.id.slice(0,8).toUpperCase()}{isAdmin?` · ${o.name}`:''}</small></div><Chip status={o.status}/></div>
+   <p className="subtitle">{o.slots.map(s=>`${data.courts.find(c=>c.id===s.court)?.name} ${s.hour}:00–${s.hour+1}:00`).join(' / ')}</p>
+   {o.products.filter(p=>p.type==='RENTAL').map(p=><div className="order-line" key={p.id}><span>{p.name} × {p.quantity} · {p.hours} giờ<small>{p.condition==='DAMAGED'?'Hỏng, đang cách ly':p.condition==='MISSING'?'Thiếu / chưa trả':p.returned?'Đã trả thiết bị':['CANCELLED','EXPIRED'].includes(o.status)&&!p.issuedAt?'Đã giải phóng lượt thuê':'Chưa trả thiết bị'}</small></span><b>{money(p.lineTotal)}</b></div>)}
+   {o.staff.map(st=><div className="order-line" key={st.id}><span>{st.name} · {st.hours} giờ</span><b>{money(st.rate*st.hours)}</b></div>)}
+   <OrderActions order={o}/>
+  </article>)}</div>
+  {!orders.length&&<div className="empty"><h3>{query?'Không tìm thấy đơn phù hợp':tab==='rented'?'Chưa có lịch sử thuê dịch vụ':'Chưa có lịch sân phù hợp để thuê'}</h3><p>{tab==='available'?'Cần có đơn sắp tới, chưa check-in. Chọn lịch sân trước để kiểm tra trọng tài và thiết bị còn trống.':'Dịch vụ sau khi xác nhận sẽ được lưu cùng đơn đặt sân tại đây.'}</p>{tab==='available'&&<Button className="primary" onClick={()=>navigate('calendar')}>Đặt sân</Button>}</div>}
+ </>;
+}

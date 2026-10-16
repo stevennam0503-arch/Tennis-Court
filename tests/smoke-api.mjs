@@ -1,66 +1,66 @@
-// Run only against a disposable development database. This creates test records.
 import assert from 'node:assert/strict';
-import { pathToFileURL } from 'node:url';
-export async function runSmoke(base = 'http://localhost:8080/api') {
-  let count=0;
-  const call=async(path,body,method='POST',expected=200)=>{
-    const response=await fetch(base+path,{method,headers:{'content-type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
-    const text=await response.text();let result;try{result=text?JSON.parse(text):null;}catch{result=text;}
-    assert.equal(response.status,expected,`${method} ${path}: ${JSON.stringify(result)}`);count++;return result;
-  };
-  const read=path=>call(path,undefined,'GET');
-  const save=(collection,body)=>call(`/catalog/${collection}`,body);
-  const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-  const unique=crypto.randomUUID().slice(0,8);
-  await read('/health');
-  const court=await save('courts',{name:`Test ${unique}`,type:'HARD',status:'ACTIVE',price:100000});
-  await call('/schedules/generate',{date});
-  let state=await read(`/overview?date=${date}`);
-  const slot=hour=>state.schedules.find(x=>x.court===court.id&&x.hour===hour).id;
-  const order=await call('/orders',{name:'API Test',phone:'0900000000',scheduleIds:[slot(9),slot(10)]});
-  await call('/orders',{name:'Overlap',phone:'0900000000',scheduleIds:[slot(9)]},'POST',400);
-  await call('/payments',{orderId:order.id,amount:200001,method:'CASH',transactionCode:crypto.randomUUID()},'POST',400);
-  const first=await call('/payments',{orderId:order.id,amount:100000,method:'CASH',transactionCode:crypto.randomUUID()});
-  state=await read(`/overview?date=${date}`);assert.equal(state.orders.find(o=>o.id===order.id).status,'CONFIRMED');
-  const drink=await save('drinks',{name:`Water ${unique}`,price:10000,stock:5,status:'ACTIVE'});
-  await call(`/orders/${order.id}/products`,{productId:drink.id,type:'DRINK',quantity:3,hours:1});
-  await call(`/orders/${order.id}/products`,{productId:drink.id,type:'DRINK',quantity:3,hours:1},'POST',400);
-  const rental=await save('rentals',{name:`Racket ${unique}`,price:15000,stock:2,status:'ACTIVE'});
-  await call(`/orders/${order.id}/products`,{productId:rental.id,type:'RENTAL',quantity:2,hours:2});
-  await call(`/orders/${order.id}/products`,{productId:rental.id,type:'RENTAL',quantity:1,hours:2},'POST',400);
-  const person=await save('staff',{name:`Referee ${unique}`,phone:'0900000000',type:'REFEREE',rate:20000,status:'ACTIVE'});
-  await save('staff-schedules',{staff:person.id,date,start:9,end:15});
-  await call(`/orders/${order.id}/staff`,{staffId:person.id});
-  await call(`/orders/${order.id}/check-in`);
-  await call(`/orders/${order.id}/check-out`,undefined,'POST',400);
-  state=await read(`/overview?date=${date}`);let o=state.orders.find(o=>o.id===order.id);assert.equal(o.total,330000);assert.equal(o.paid,100000);
-  assert.equal(state.products.find(p=>p.id===drink.id).stock,2);
-  await call('/payments',{orderId:order.id,amount:o.total-o.paid,method:'BANK_TRANSFER',transactionCode:crypto.randomUUID()});
-  await call(`/orders/${order.id}/check-out`);
-  await call(`/orders/${order.id}/invoice`);
-  await call(`/payments/${first.id}/refunds`,{amount:100001,reason:'Too much'},'POST',400);
-  await call(`/payments/${first.id}/refunds`,{amount:10000,reason:'Test refund'});
-  state=await read(`/overview?date=${date}`);o=state.orders.find(o=>o.id===order.id);assert.equal(o.status,'COMPLETED');assert.equal(o.slots.length,2);assert.equal(o.paid,320000);
-  const move=await call('/orders',{name:'Move',phone:'0900000000',scheduleIds:[slot(11)]});
-  await call(`/orders/${move.id}/schedule`,{scheduleIds:[slot(12)]},'PATCH');
-  state=await read(`/overview?date=${date}`);assert.equal(state.orders.find(o=>o.id===move.id).slots[0].hour,12);assert.equal(state.schedules.find(s=>s.id===slot(11)).status,'AVAILABLE');
-  const tour=await save('tournaments',{name:`Open ${unique}`,format:'SINGLES',status:'OPEN',startDate:date,endDate:date,deadline:date,fee:30000,max:2,location:'Test club'});
-  const regs=[];
-  for(let i=0;i<2;i++){
-    const account=await save('accounts',{name:`Player ${i}`,email:`${unique}-${i}@example.com`,phone:'0900000000',role:'CUSTOMER',status:'ACTIVE'});
-    const reg=await call(`/tournaments/${tour.id}/registrations`,{accountId:account.id,name:`Player ${i}`,members:[]});regs.push(reg.id);
-    await call('/payments',{registrationId:reg.id,amount:30000,method:'CASH',transactionCode:crypto.randomUUID()});
+import {randomUUID} from 'node:crypto';
+export async function runSmoke(base=process.env.COURTLY_API_URL||'http://localhost:8080/api'){
+ let requests=0;const results=[];
+ class Client {
+  cookies=new Map();csrf=null;
+  async call(path,method='GET',body,expected=200){
+   if(!['GET','HEAD'].includes(method)&&!this.csrf){const r=await this.call('/csrf');this.csrf=r;}
+   const r=await fetch(base+path,{method,headers:{'content-type':'application/json',origin:new URL(base).origin,cookie:[...this.cookies].map(([k,v])=>k+'='+v).join('; '),...(this.csrf?{[this.csrf.headerName]:this.csrf.token}:{})},...(body===undefined?{}:{body:JSON.stringify(body)})});requests++;
+   for(const raw of r.headers.getSetCookie()){const pair=raw.split(';')[0],index=pair.indexOf('=');this.cookies.set(pair.slice(0,index),pair.slice(index+1));}
+   const text=await r.text();let data;try{data=text?JSON.parse(text):{};}catch{data={raw:text.slice(0,300)};}
+   if(expected!==null)assert.equal(r.status,expected,`${method} ${path}: ${r.status} ${JSON.stringify(data)}`);
+   return expected===null?{status:r.status,body:data}:data;
   }
-  await call(`/tournaments/${tour.id}/draw`);
-  state=await read(`/overview?date=${date}`);const match=state.matches.find(m=>m.tournamentId===tour.id);
-  await call(`/matches/${match.id}/schedule`,{scheduleIds:[slot(12)]},'PUT',400);
-  await call(`/matches/${match.id}/schedule`,{scheduleIds:[slot(13)],staffId:person.id},'PUT');
-  await call('/orders',{name:'Blocked by match',phone:'0900000000',scheduleIds:[slot(13)]},'POST',400);
-  await call(`/matches/${match.id}/result`,{winnerId:regs[0],score:'6-4, 6-3'});
-  await call(`/orders/${move.id}/cancel`);
-  state=await read(`/overview?date=${date}`);assert.equal(state.tournaments.find(t=>t.id===tour.id).status,'FINISHED');assert.equal(state.schedules.find(s=>s.id===slot(13)).status,'AVAILABLE');
-  assert(state.payments.filter(p=>regs.includes(p.registrationId)).every(p=>!p.orderId));
-  console.log(`PASS: ${count} API requests, bookings, money, stock, rental overlap, staff, move, invoices, refund, cancellation, tournament fees and matches.`);
-  return {requests:count,date,state};
+ }
+ const anon=new Client(),admin=new Client(),alice=new Client(),bob=new Client();
+ const date=new Date(Date.now()+2*86400000).toISOString().slice(0,10),suffix=randomUUID().slice(0,8),password='CourtlyCustomer!2026';
+ const emailA=`alice-${suffix}@example.com`,emailB=`bob-${suffix}@example.com`;
+ assert.equal((await anon.call('/auth/session')).authenticated,false);
+ const pub=await anon.call('/public/overview?date='+date);assert.equal(pub.accounts.length,0);assert.equal(pub.orders.length,0);assert(pub.courts.length>=2);results.push('Public overview does not expose private records');
+ await anon.call('/overview?date='+date,'GET',undefined,401);
+ await admin.call('/auth/login','POST',{email:process.env.ADMIN_EMAIL||'admin@courtly.local',password:process.env.ADMIN_PASSWORD||'CourtlyLocal!2026'});
+ const sa=await alice.call('/auth/register','POST',{name:'Alice Test',email:emailA,password});const sb=await bob.call('/auth/register','POST',{name:'Bob Test',email:emailB,password});assert.equal(sa.user.role,'CUSTOMER');
+ await alice.call('/catalog/courts','POST',{name:'Unauthorized'},403);results.push('Registration, cookie sessions, role enforcement');
+ const raw=await admin.call('/overview?date='+date);assert(raw.viewer.role==='ADMIN');const c1=raw.courts.find(c=>c.status==='ACTIVE'),c2=raw.courts.find(c=>c.status==='ACTIVE'&&c.id!==c1.id),ref=raw.staff.find(s=>s.type==='REFEREE');
+ await admin.call('/catalog/staff-schedules','POST',{staff:ref.id,date,start:6,end:23});
+ const slot=(c,h)=>raw.schedules.find(s=>s.court===c.id&&s.hour===h).id;
+ const selected=[slot(c1,18),slot(c1,19)],assignment={scheduleId:selected[1],staffId:ref.id};
+ const opt=await alice.call('/booking/options','POST',{scheduleIds:selected});assert(opt.staffSlots[1].staff.find(s=>s.id===ref.id).available);
+ const payload={requestId:randomUUID(),scheduleIds:selected,assignments:[assignment]};const order=await alice.call('/orders','POST',payload);assert.equal((await alice.call('/orders','POST',payload)).id,order.id);assert.equal((await alice.call('/orders','POST',{assignments:payload.assignments,scheduleIds:payload.scheduleIds,requestId:payload.requestId})).id,order.id);
+ await alice.call('/orders','POST',{...payload,scheduleIds:[slot(c1,20)]},400);
+ let snapshot=await alice.call('/overview?date='+date),o=snapshot.orders.find(o=>o.id===order.id);assert.equal(o.staff.length,1);assert.equal(o.staff[0].scheduleId,selected[1]);assert.equal(o.staff[0].hours,1);assert.equal(snapshot.accounts.length,1);assert.equal(snapshot.staff.length,0);assert.equal(o.total,o.slots.reduce((n,s)=>n+s.price,0)+ref.rate);
+ await bob.call(`/orders/${order.id}/cancel`,'POST',{},403);await alice.call(`/orders/${order.id}/services`,'GET',undefined,403);
+ const conflict=await bob.call('/orders','POST',{requestId:randomUUID(),scheduleIds:selected,assignments:[]},null);assert([400,409].includes(conflict.status));results.push('Continuous multi-slot booking, exact referee slot, idempotency, ownership, conflict');
+ const receipt=await admin.call('/payments','POST',{orderId:order.id,amount:o.total,method:'CASH',transactionCode:'full-'+suffix});
+ o=(await alice.call('/overview?date='+date)).orders.find(o=>o.id===order.id);assert.equal(o.status,'CONFIRMED');assert.equal(o.finance.paymentStatus,'PAID');
+ await admin.call(`/orders/${order.id}/invoice`,'POST',{});
+ const move={requestId:randomUUID(),scheduleIds:[slot(c1,15)],assignments:[]};const preview=await alice.call(`/orders/${order.id}/preview`,'POST',move);assert(preview.reviewAmount>0);await alice.call(`/orders/${order.id}/schedule`,'PATCH',move);
+ o=(await alice.call('/overview?date='+date)).orders.find(o=>o.id===order.id);assert.equal(o.staff.length,0);assert(o.invoiceSnapshot);assert.equal(o.paid,o.invoiceSnapshot.total);assert(o.history.some(x=>x.type==='SCHEDULE'));
+ const excess=o.paid-o.total;const refund={requestId:randomUUID(),amount:excess,reason:'Actual cash refund in test'};const refunded=await admin.call(`/payments/${receipt.id}/refunds`,'POST',refund);assert.equal((await admin.call(`/payments/${receipt.id}/refunds`,'POST',refund)).id,refunded.id);results.push('Verified receipts, cheaper atomic reschedule, preserved invoice, idempotent refund');
+ await admin.call(`/orders/${order.id}/check-in`,'POST',{reason:'Test authorized early check-in'});await alice.call(`/orders/${order.id}/cancel`,'POST',{},400);await admin.call(`/orders/${order.id}/check-out`,'POST',{});
+ const bo=await bob.call('/orders','POST',{requestId:randomUUID(),scheduleIds:[slot(c2,18),slot(c2,19)],assignments:[]});const rental=raw.products.find(p=>p.type==='RENTAL');await admin.call(`/orders/${bo.id}/services`,'POST',{requestId:randomUUID(),rentals:[{productId:rental.id,quantity:1,hours:2}],staffIds:[]});
+ let bOrder=(await bob.call('/overview?date='+date)).orders.find(o=>o.id===bo.id);assert.equal(bOrder.products.length,1);await admin.call(`/orders/${bo.id}/products/${bOrder.products[0].id}/return`,'POST',{condition:'GOOD'});results.push('Cash-desk rental and separate equipment return retained');
+ const fb=await alice.call('/feedback','POST',{requestId:randomUUID(),rating:5,topic:'WEBSITE',message:'This is a private test feedback message.',publishConsent:false});await admin.call('/content/feedback/'+fb.id,'PATCH',{status:'PUBLISHED',reply:'Thanks'},400);
+ const publicFb=await bob.call('/feedback','POST',{requestId:randomUUID(),rating:4,topic:'COURT',message:'This is a publishable test feedback message.',publishConsent:true});await admin.call('/content/feedback/'+publicFb.id,'PATCH',{status:'PUBLISHED',reply:'Thanks'});
+ const publicContent=await anon.call('/public/content');assert(publicContent.feedback.some(f=>f.id===publicFb.id));assert(!publicContent.feedback.some(f=>f.id===fb.id));assert(!JSON.stringify(publicContent.feedback).includes(sa.user.accountId));
+ const article=await admin.call('/content/articles','POST',{title:'Test news',excerpt:'Test excerpt',body:'Plain text article',category:'NEWS',status:'PUBLISHED',tournamentId:''});assert((await anon.call('/public/content')).articles.some(a=>a.id===article.id));results.push('Content publishing, own feedback, consent and private-data isolation');
+ const draft=await admin.call('/content/articles','POST',{title:'Draft test',excerpt:'Draft excerpt',body:'Draft body',category:'NEWS',status:'DRAFT',tournamentId:''});await admin.call('/content/articles/'+draft.id,'PUT',{title:'Published draft',excerpt:'Published excerpt',body:'Published body',category:'NEWS',status:'PUBLISHED',tournamentId:''});assert((await anon.call('/public/content')).articles.find(a=>a.id===draft.id).publishedAt);
+ const csrfDenied=await fetch(base+'/profile',{method:'PATCH',headers:{'content-type':'application/json',origin:new URL(base).origin,cookie:[...alice.cookies].map(([k,v])=>k+'='+v).join('; ')},body:JSON.stringify({name:'Forged',phone:''})});requests++;assert.equal(csrfDenied.status,403);
+ const memberships=await alice.call('/overview?date='+date);assert(memberships.membershipPlans.length>=2);const plan=memberships.membershipPlans.find(p=>p.id==='club');
+ const application=await alice.call('/membership/requests','POST',{requestId:randomUUID(),planId:plan.id});await alice.call(`/membership/requests/${application.id}/activate`,'POST',{requestId:randomUUID(),amount:plan.price,method:'CASH',transactionCode:'forged',collected:true},403);
+ await admin.call(`/membership/requests/${application.id}/activate`,'POST',{requestId:randomUUID(),amount:plan.price,method:'CASH',transactionCode:'unverified-'+suffix,collected:false},400);
+ const activation={requestId:randomUUID(),amount:plan.price,method:'CASH',transactionCode:'membership-'+suffix,collected:true};await admin.call(`/membership/requests/${application.id}/activate`,'POST',activation);await admin.call(`/membership/requests/${application.id}/activate`,'POST',activation);
+ const memberView=await alice.call('/overview?date='+date);assert(memberView.memberships.some(m=>m.id===application.id&&m.status==='ACTIVE'));assert.equal(memberView.membershipPayments.length,1);assert.equal((await bob.call('/overview?date='+date)).memberships.length,0);
+ const memberSlots=[slot(c1,20)];const memberQuote=await alice.call('/booking/options','POST',{scheduleIds:memberSlots});assert(memberQuote.courtQuote.discount>0);const mo=await alice.call('/orders','POST',{requestId:randomUUID(),scheduleIds:memberSlots,assignments:[]});const discounted=(await alice.call('/overview?date='+date)).orders.find(o=>o.id===mo.id);assert.equal(discounted.total,memberQuote.courtQuote.net);assert.equal(discounted.membershipBenefit.discount,memberQuote.courtQuote.discount);
+ results.push('Membership registration, verified activation, exact-once receipt, private data and server discount');
+ const tournament=await admin.call('/catalog/tournaments','POST',{name:'Test Singles '+suffix,format:'SINGLES',status:'OPEN',startDate:date,endDate:date,deadline:date,location:'Test Club',fee:0,max:2});
+ await alice.call(`/tournaments/${tournament.id}/registrations`,'POST',{accountId:sb.user.accountId,name:'Forged',members:[]},400);
+ const regA=await alice.call(`/tournaments/${tournament.id}/registrations`,'POST',{accountId:sa.user.accountId,name:'Alice',members:[]});await bob.call(`/tournaments/${tournament.id}/registrations`,'POST',{accountId:sb.user.accountId,name:'Bob',members:[]});await alice.call(`/tournaments/${tournament.id}/draw`,'POST',{},403);await admin.call(`/tournaments/${tournament.id}/draw`,'POST',{});
+ const tourView=await admin.call('/overview?date='+date);const match=tourView.matches.find(m=>m.tournamentId===tournament.id);await admin.call(`/matches/${match.id}/schedule`,'PUT',{scheduleIds:[slot(c2,12)],staffId:ref.id});await admin.call(`/matches/${match.id}/result`,'POST',{winnerId:regA.id,score:'6-4, 6-3'});assert.equal((await admin.call('/overview?date='+date)).tournaments.find(t=>t.id===tournament.id).status,'FINISHED');results.push('Tournament registration ownership, bracket, court/referee allocation and result progression');
+ const contenders=await Promise.all([alice,bob].map(client=>client.call('/orders','POST',{requestId:randomUUID(),scheduleIds:[slot(c2,21)],assignments:[]},null)));assert.deepEqual(contenders.map(r=>r.status).sort(),[200,400]);results.push('Concurrent bookings commit exactly one allocation');
+ await alice.call('/profile','PATCH',{name:'Alice Updated',phone:'0900000000'});assert.equal((await alice.call('/auth/session')).user.name,'Alice Updated');await alice.call('/profile','PATCH',{name:'Alice',phone:'',role:'ADMIN'},400);
+ const ticket=await admin.call('/auth/ticket','POST',{accountId:sa.user.accountId});const activated=new Client();await activated.call('/auth/activate','POST',{token:ticket.token,password:'NewCustomerPass!2026'});await new Client().call('/auth/activate','POST',{token:ticket.token,password:'AnotherPass!2026'},400);await alice.call('/overview?date='+date,'GET',undefined,401);results.push('Profile field allowlist, single-use reset ticket and old-session revocation');
+ const state=await admin.call('/overview?date='+date);console.log('PASS',results.length,'groups,',requests,'HTTP requests');return {passed:true,requests,groups:results,state};
 }
-if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) await runSmoke(process.env.COURTLY_API_URL||'http://localhost:8080/api');
+if(import.meta.url===new URL(process.argv[1]||'', 'file:').href)await runSmoke();

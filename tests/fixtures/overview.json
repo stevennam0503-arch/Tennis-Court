@@ -1,0 +1,1778 @@
+{
+  "courts": [
+    {
+      "id": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "name": "Sân 01",
+      "type": "HARD",
+      "status": "ACTIVE",
+      "price": 180000,
+      "address": "",
+      "amenities": "",
+      "imageIsIllustration": true
+    },
+    {
+      "id": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "name": "Sân 02",
+      "type": "HARD",
+      "status": "ACTIVE",
+      "price": 180000,
+      "address": "",
+      "amenities": "",
+      "imageIsIllustration": true
+    },
+    {
+      "id": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "name": "Sân 03",
+      "type": "CLAY",
+      "status": "ACTIVE",
+      "price": 220000,
+      "address": "",
+      "amenities": "",
+      "imageIsIllustration": true
+    },
+    {
+      "id": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "name": "Sân 04",
+      "type": "GRASS",
+      "status": "MAINTENANCE",
+      "price": 220000,
+      "address": "",
+      "amenities": "",
+      "imageIsIllustration": true
+    }
+  ],
+  "prices": [],
+  "schedules": [
+    {
+      "id": "d6be79c8-3827-4916-9c30-b020129485e4",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 6,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "4bed396a-1b02-49bd-9fed-c5508f938b87",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 6,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "bfe8b4b1-7d78-4fe4-9aa6-7cf75ab8d6a8",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 6,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "c237b192-72fb-455d-a352-214914920a08",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 6,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "80cae44b-6612-4a27-871b-118eaf51279c",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 7,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "ac1ee201-12e5-44d5-892d-a628bf96e066",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 7,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "b52644c9-5628-4e4d-8a0e-d354c33c8882",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 7,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "23e284a4-1135-4eff-a810-aae58cdc57f6",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 7,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "59847422-6ac2-41bf-8e04-c8aa3f6654d3",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 8,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "0f8d8b5a-7c63-4b2f-ac4c-72142fb07ebd",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 8,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "9d5a9b1c-6ddc-46b0-a436-44820fe20762",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 8,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "d414a398-bde9-4cf2-b370-a28998fe5120",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 8,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "6ab77276-3415-4a94-bfa5-f3a107111e6d",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 9,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "3c2e9582-b798-4a42-b442-1fa51ecf5df9",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 9,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "dbc01a5d-840d-406e-a1dc-38d828628d59",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 9,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "9b894f60-12bf-42e8-936f-dde9507382f1",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 9,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "107d8b32-3963-4367-9cf7-adc500109fd3",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 10,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "5aedafc0-a08e-47cb-af96-fc7a8067e538",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 10,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "e9e3b3f1-b6d6-4464-aa6e-df785abd5773",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 10,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "2a3b86c2-93a3-46bf-9bda-d8429b6653e4",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 10,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "7f49ec76-c2fa-4cb1-af6b-8de579e1aa92",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 11,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "beccaf51-2f76-41f7-ad88-c307f51a907c",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 11,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "889e5fd6-19af-4ec8-807f-f23dc2ff1236",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 11,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "45e3f383-49a5-4610-b913-ae404cdb6ac9",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 11,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "fcd48693-6916-440b-a26d-595204359e5b",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 12,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 2
+    },
+    {
+      "id": "31393772-14c7-4974-a4ff-d2c0ff0a13be",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 12,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "fed47869-d720-47b5-88a4-b75ac449e2af",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 12,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "6a78f994-3ca3-4aab-96c7-97c3adfda33d",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 12,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "382a13c8-c566-4d13-977a-7ac1fa377780",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 13,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "b6d5bd9f-dc87-4fe2-9b34-eafaa01a9408",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 13,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "afc4d0a9-68f1-413c-b54d-901d4861fdbc",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 13,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "84963c50-9c45-4fcc-ae67-51eabf4f9aa0",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 13,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "6da48015-c25b-4b1c-a6bf-db34d9f2b9c4",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 14,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "2729a0dc-c29a-4082-bf9c-65e00801e914",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 14,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "7b54fb93-66fe-4488-b4e5-c2cea60ae473",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 14,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "57e34431-83f2-420f-87a6-8f323d9063db",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 14,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "e16351a7-6061-4c20-bffd-47e91a0df21b",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 15,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "aed8b588-b1e7-4cb9-ab19-a328e04d3fef",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 15,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "7a127e94-2ce7-4d8b-b99c-6fa201fe0bb9",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 15,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 2
+    },
+    {
+      "id": "0cc66701-4433-4592-969b-fb80672a6ef7",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 15,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "8db6abb3-6ed1-4bd6-a47a-4a659bc27c96",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 16,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "787e5347-c7e3-4b1f-8d26-7a618d2a1dc5",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 16,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "6a298367-d042-4399-b601-08e8022567c7",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 16,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "4da60edb-eb95-436a-9fd3-e5606915053b",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 16,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "aa986b9f-1993-4916-9cc9-4dce8f33829e",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 17,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "afecbe51-637c-4e93-b1d8-dbae7dc08bf3",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 17,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "146600fb-95eb-48f9-8fa6-a237cf193ea0",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 17,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "582e01fd-6250-4631-8af2-324069b1c55f",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 17,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "c74d29ab-dc3c-4544-821c-07b4504d46b8",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 18,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 3
+    },
+    {
+      "id": "aed134c8-4d2b-4533-8fd8-f128186c181c",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 18,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "1982158e-3e51-4ded-ad09-88f5f165c056",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 18,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "3b16addc-1808-4c71-bc13-2f393cd41add",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 18,
+      "price": 180000,
+      "status": "LOCKED",
+      "version": 1
+    },
+    {
+      "id": "7ade5e66-a4df-465d-b450-9999d7b4a709",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 19,
+      "price": 180000,
+      "status": "LOCKED",
+      "version": 1
+    },
+    {
+      "id": "f1ccaad9-7763-41d5-a515-97d0cd841bbe",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 19,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 3
+    },
+    {
+      "id": "7cae506f-029a-48ec-bd43-0b5cc0fbee16",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 19,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "5ad00ad3-562c-4ba5-9d8c-3a5e866c8141",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 19,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "f61289f6-0b25-4e01-a251-71bbaae86c5c",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 20,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "a3f62f71-0838-4342-b629-fcb42a8b7d34",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 20,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "6857c705-1893-475b-b9fc-91f4ff5fe804",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 20,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "e5d8aec6-55be-4a2b-9d5f-0f6da42d3921",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 20,
+      "price": 180000,
+      "status": "LOCKED",
+      "version": 1
+    },
+    {
+      "id": "40e1b5ea-c089-4f8b-97ef-28711d4a3965",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 21,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "114eb801-08d8-470c-823d-97d435b1b4a3",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 21,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "1abf5f49-0d68-447a-a73a-3dd05bb491c2",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 21,
+      "price": 180000,
+      "status": "LOCKED",
+      "version": 1
+    },
+    {
+      "id": "7e280f11-f65e-4c41-b968-a50ff1c6b8cb",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 21,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "f7a09215-3ec1-4a02-b8f9-9c6912b25d10",
+      "court": "bcbc5897-b358-4889-93f9-7feb87fde453",
+      "date": "2026-10-17",
+      "hour": 22,
+      "price": 220000,
+      "status": "BLOCKED",
+      "version": 0
+    },
+    {
+      "id": "774f2943-58d4-49b9-b604-f02c2b0f4cea",
+      "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+      "date": "2026-10-17",
+      "hour": 22,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "9e10432a-8940-4491-babd-ce01232f76e2",
+      "court": "a5684dd6-e559-4789-9eb9-641336222d7e",
+      "date": "2026-10-17",
+      "hour": 22,
+      "price": 220000,
+      "status": "AVAILABLE",
+      "version": 0
+    },
+    {
+      "id": "5270a44d-d28c-4aef-b47b-3fecdb089f22",
+      "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+      "date": "2026-10-17",
+      "hour": 22,
+      "price": 180000,
+      "status": "AVAILABLE",
+      "version": 0
+    }
+  ],
+  "accounts": [
+    {
+      "id": "7cba9ba1-d820-4dcd-ac6a-fd79f2ff3b2e",
+      "name": "Quản trị Courtly",
+      "email": "admin@courtly.local",
+      "phone": "",
+      "role": "ADMIN",
+      "status": "ACTIVE",
+      "loginLinked": true,
+      "isOwner": true
+    },
+    {
+      "id": "448f7efe-53c7-40e0-8485-8217ade3e5f1",
+      "name": "Nguyễn Minh Anh",
+      "email": "demo1@example.com",
+      "phone": "0900000000",
+      "role": "CUSTOMER",
+      "status": "ACTIVE",
+      "loginLinked": false,
+      "isOwner": false
+    },
+    {
+      "id": "75e4ba00-7a99-4a25-9acc-bd976d2aab2e",
+      "name": "Trần Hoàng Nam",
+      "email": "demo2@example.com",
+      "phone": "0900000001",
+      "role": "CUSTOMER",
+      "status": "ACTIVE",
+      "loginLinked": false,
+      "isOwner": false
+    },
+    {
+      "id": "9c68fa05-3b72-481d-a1f9-80122e72caf4",
+      "name": "Lê Thu Hà",
+      "email": "demo3@example.com",
+      "phone": "0900000002",
+      "role": "CUSTOMER",
+      "status": "ACTIVE",
+      "loginLinked": false,
+      "isOwner": false
+    },
+    {
+      "id": "9a69cd9d-ffb9-4ddd-b96b-be26edc0a725",
+      "name": "Bob Test",
+      "email": "bob-a34cdd9a@example.com",
+      "phone": "",
+      "role": "CUSTOMER",
+      "status": "ACTIVE",
+      "loginLinked": true,
+      "isOwner": false
+    },
+    {
+      "id": "d82056f9-1b21-4d04-9144-8f7eacd4b34e",
+      "name": "Alice Updated",
+      "email": "alice-a34cdd9a@example.com",
+      "phone": "0900000000",
+      "role": "CUSTOMER",
+      "status": "ACTIVE",
+      "loginLinked": true,
+      "isOwner": false
+    }
+  ],
+  "staff": [
+    {
+      "id": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "name": "Phạm Quốc Huy",
+      "phone": "0910000000",
+      "type": "REFEREE",
+      "rate": 120000,
+      "status": "ACTIVE"
+    },
+    {
+      "id": "7ef02f4d-793c-4e31-b591-200bb10135fd",
+      "name": "Vũ Thanh Bình",
+      "phone": "0910000001",
+      "type": "COACH",
+      "rate": 250000,
+      "status": "ACTIVE"
+    },
+    {
+      "id": "776792a4-b076-42dc-839d-cd0fe5840bcd",
+      "name": "Ngô Đức Long",
+      "phone": "0910000002",
+      "type": "BALL_BOY",
+      "rate": 60000,
+      "status": "ACTIVE"
+    }
+  ],
+  "staffSchedules": [
+    {
+      "id": "f3e32f2a-6dd8-4d11-b68b-1901ffb8d702",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 6,
+      "end": 7,
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "678334fb-6960-446d-a12d-9a8af2de02d2",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 7,
+      "end": 8,
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "6c5b41e2-ef74-40db-9810-27ed6063518e",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 8,
+      "end": 9,
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "37033f68-416d-4d24-a632-7345ac9f5c7b",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 9,
+      "end": 10,
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "15da3149-2041-4083-a888-8ecf0e2c576f",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 10,
+      "end": 11,
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "d82ba207-c731-42e6-986f-73d0c6befd32",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 11,
+      "end": 12,
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "e04bfdc7-3cd9-46b9-a9a4-76de11678d31",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 13,
+      "end": 14,
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "1e7b606b-da4e-4a9f-a005-9be8b26ca0ca",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 14,
+      "end": 15,
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "b101fbc7-f53e-4828-8c8b-15046902813a",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 15,
+      "end": 16,
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "f9b46236-412b-444d-96d5-cb39ab842d55",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 16,
+      "end": 17,
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "da7e9842-8aab-42a9-b6a7-3a51b3a91ef1",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 17,
+      "end": 18,
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "986d6f9e-2d19-4337-b730-30ee3783e195",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 18,
+      "end": 19,
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "5cb1ffdd-72ff-45c7-ac74-58e8322d4a16",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 20,
+      "end": 21,
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "f6623911-f35d-4bf1-9ba5-4bb68503dc17",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 21,
+      "end": 22,
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "bde404e5-2730-49dd-9a10-11a8702073bb",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 22,
+      "end": 23,
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "2ebbcc86-3fcf-42db-9d1d-707aad84790f",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 19,
+      "end": 20,
+      "status": "AVAILABLE"
+    },
+    {
+      "id": "a7d2c126-f217-41d4-a5dd-8f8f1c98e49a",
+      "staff": "193b356a-e83e-4258-9ee2-a54e4f44782e",
+      "date": "2026-10-17",
+      "start": 12,
+      "end": 13,
+      "status": "AVAILABLE"
+    }
+  ],
+  "orders": [
+    {
+      "id": "6bf4e074-204e-461b-b281-50fcba55d30b",
+      "bookingId": "cb84911a-1fc8-435f-b7ea-13888fb93e8b",
+      "name": "Bob Test",
+      "phone": "",
+      "accountId": "9a69cd9d-ffb9-4ddd-b96b-be26edc0a725",
+      "date": "2026-10-17",
+      "status": "HOLDING",
+      "total": 180000,
+      "paid": 0,
+      "deposit": 90000,
+      "createdAt": "2026-10-15T10:16:47.163945Z",
+      "holdUntil": "2026-10-15T10:26:47.164275Z",
+      "slots": [
+        {
+          "id": "1abf5f49-0d68-447a-a73a-3dd05bb491c2",
+          "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+          "hour": 21,
+          "price": 180000
+        }
+      ],
+      "products": [],
+      "staff": [],
+      "history": [
+        {
+          "at": "2026-10-15T10:16:47.178455150Z",
+          "date": "2026-10-17",
+          "id": "6bdba5b9-a944-4945-8a51-26ddea047793",
+          "slots": [
+            {
+              "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+              "hour": 21,
+              "id": "1abf5f49-0d68-447a-a73a-3dd05bb491c2",
+              "price": 180000
+            }
+          ],
+          "staff": [],
+          "status": "HOLDING",
+          "total": 180000,
+          "type": "CREATED"
+        }
+      ],
+      "membershipBenefit": {
+        "discount": 0,
+        "discountPercent": 0,
+        "gross": 180000,
+        "net": 180000
+      },
+      "finance": {
+        "grossReceived": 0,
+        "refunded": 0,
+        "netPaid": 0,
+        "due": 180000,
+        "excess": 0,
+        "refundPending": 0,
+        "balanceNeedsReconciliation": false,
+        "paymentStatus": "UNPAID"
+      }
+    },
+    {
+      "id": "565caf6f-8c52-4da9-b86f-c8914ff6177e",
+      "bookingId": "cddfff3e-3ef9-480e-b7e2-7e56e25c54c7",
+      "name": "Alice Test",
+      "phone": "",
+      "accountId": "d82056f9-1b21-4d04-9144-8f7eacd4b34e",
+      "date": "2026-10-17",
+      "status": "HOLDING",
+      "total": 162000,
+      "paid": 0,
+      "deposit": 81000,
+      "createdAt": "2026-10-15T10:16:46.733131Z",
+      "holdUntil": "2026-10-15T10:26:46.733799Z",
+      "slots": [
+        {
+          "id": "e5d8aec6-55be-4a2b-9d5f-0f6da42d3921",
+          "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+          "hour": 20,
+          "price": 180000
+        }
+      ],
+      "products": [],
+      "staff": [],
+      "history": [
+        {
+          "at": "2026-10-15T10:16:46.751229665Z",
+          "date": "2026-10-17",
+          "id": "c3742251-5c9f-484c-863c-b0a052fa1d38",
+          "slots": [
+            {
+              "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+              "hour": 20,
+              "id": "e5d8aec6-55be-4a2b-9d5f-0f6da42d3921",
+              "price": 180000
+            }
+          ],
+          "staff": [],
+          "status": "HOLDING",
+          "total": 162000,
+          "type": "CREATED"
+        }
+      ],
+      "membershipBenefit": {
+        "discount": 18000,
+        "discountPercent": 10,
+        "gross": 180000,
+        "membershipId": "9487e231-8ab8-49cf-a3ab-eb83cafbb8ae",
+        "net": 162000,
+        "planName": "Club"
+      },
+      "finance": {
+        "grossReceived": 0,
+        "refunded": 0,
+        "netPaid": 0,
+        "due": 162000,
+        "excess": 0,
+        "refundPending": 0,
+        "balanceNeedsReconciliation": false,
+        "paymentStatus": "UNPAID"
+      }
+    },
+    {
+      "id": "5f93befc-d9d0-4e41-aefc-2424b82b4949",
+      "bookingId": "c7de1c3e-cef8-4d1e-b2f7-de46bdd0a44b",
+      "name": "Bob Test",
+      "phone": "",
+      "accountId": "9a69cd9d-ffb9-4ddd-b96b-be26edc0a725",
+      "date": "2026-10-17",
+      "status": "HOLDING",
+      "total": 460000,
+      "paid": 0,
+      "deposit": 180000,
+      "createdAt": "2026-10-15T10:16:46.042834Z",
+      "holdUntil": "2026-10-15T10:26:46.043284Z",
+      "slots": [
+        {
+          "id": "3b16addc-1808-4c71-bc13-2f393cd41add",
+          "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+          "hour": 18,
+          "price": 180000
+        },
+        {
+          "id": "7ade5e66-a4df-465d-b450-9999d7b4a709",
+          "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+          "hour": 19,
+          "price": 180000
+        }
+      ],
+      "products": [
+        {
+          "id": "cdc720da-03f2-49f3-9910-a0ac5ff9bed4",
+          "productId": "88daa085-a957-435e-bed7-81b1b0a128ac",
+          "name": "Vợt Wilson",
+          "type": "RENTAL",
+          "quantity": 1,
+          "price": 50000,
+          "lineTotal": 100000,
+          "hours": 2,
+          "returned": true,
+          "condition": "GOOD"
+        }
+      ],
+      "staff": [],
+      "history": [
+        {
+          "at": "2026-10-15T10:16:46.066179646Z",
+          "date": "2026-10-17",
+          "id": "ab2fc036-03b3-408c-bea5-ae91812ed949",
+          "slots": [
+            {
+              "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+              "hour": 18,
+              "id": "3b16addc-1808-4c71-bc13-2f393cd41add",
+              "price": 180000
+            },
+            {
+              "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+              "hour": 19,
+              "id": "7ade5e66-a4df-465d-b450-9999d7b4a709",
+              "price": 180000
+            }
+          ],
+          "staff": [],
+          "status": "HOLDING",
+          "total": 360000,
+          "type": "CREATED"
+        },
+        {
+          "at": "2026-10-15T10:16:46.119958474Z",
+          "date": "2026-10-17",
+          "id": "3bf96b53-aac4-49dc-94e5-52fd9c10e8df",
+          "slots": [
+            {
+              "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+              "hour": 18,
+              "id": "3b16addc-1808-4c71-bc13-2f393cd41add",
+              "price": 180000
+            },
+            {
+              "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+              "hour": 19,
+              "id": "7ade5e66-a4df-465d-b450-9999d7b4a709",
+              "price": 180000
+            }
+          ],
+          "staff": [],
+          "status": "HOLDING",
+          "total": 460000,
+          "type": "SERVICES"
+        },
+        {
+          "at": "2026-10-15T10:16:46.216606792Z",
+          "date": "2026-10-17",
+          "id": "67406705-5b6b-45ea-9696-0e1a943f9e47",
+          "slots": [
+            {
+              "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+              "hour": 18,
+              "id": "3b16addc-1808-4c71-bc13-2f393cd41add",
+              "price": 180000
+            },
+            {
+              "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+              "hour": 19,
+              "id": "7ade5e66-a4df-465d-b450-9999d7b4a709",
+              "price": 180000
+            }
+          ],
+          "staff": [],
+          "status": "HOLDING",
+          "total": 460000,
+          "type": "RETURN"
+        }
+      ],
+      "membershipBenefit": {
+        "discount": 0,
+        "discountPercent": 0,
+        "gross": 360000,
+        "net": 360000
+      },
+      "finance": {
+        "grossReceived": 0,
+        "refunded": 0,
+        "netPaid": 0,
+        "due": 460000,
+        "excess": 0,
+        "refundPending": 0,
+        "balanceNeedsReconciliation": false,
+        "paymentStatus": "UNPAID"
+      }
+    },
+    {
+      "id": "b8b37325-ea51-492d-bf9b-e6c7be01d4e3",
+      "bookingId": "e841bc71-2c8f-41bb-bc19-cefa6424a849",
+      "name": "Alice Test",
+      "phone": "",
+      "accountId": "d82056f9-1b21-4d04-9144-8f7eacd4b34e",
+      "date": "2026-10-17",
+      "status": "COMPLETED",
+      "total": 180000,
+      "paid": 180000,
+      "deposit": 90000,
+      "createdAt": "2026-10-15T10:16:45.159133Z",
+      "holdUntil": "2026-10-15T10:26:45.160277Z",
+      "checkInAt": "2026-10-15T10:16:45.959186Z",
+      "checkOutAt": "2026-10-15T10:16:46.012226Z",
+      "invoice": "INV-b8b37325-ea51-492d-bf9b-e6c7be01d4e3",
+      "issuedAt": "2026-10-15T10:16:45.634453Z",
+      "slots": [
+        {
+          "id": "7a127e94-2ce7-4d8b-b99c-6fa201fe0bb9",
+          "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+          "hour": 15,
+          "price": 180000
+        }
+      ],
+      "products": [],
+      "staff": [],
+      "history": [
+        {
+          "at": "2026-10-15T10:16:45.261689105Z",
+          "date": "2026-10-17",
+          "id": "dc8d7a7a-939b-47ba-9d4c-3ec82056be08",
+          "slots": [
+            {
+              "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+              "hour": 18,
+              "id": "c74d29ab-dc3c-4544-821c-07b4504d46b8",
+              "price": 180000
+            },
+            {
+              "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+              "hour": 19,
+              "id": "f1ccaad9-7763-41d5-a515-97d0cd841bbe",
+              "price": 180000
+            }
+          ],
+          "staff": [
+            {
+              "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+              "date": "2026-10-17",
+              "hour": 19,
+              "hours": 1,
+              "id": "3651880c-364b-4fb9-90f3-4a2e11b836ae",
+              "legacyNeedsReview": false,
+              "name": "Phạm Quốc Huy",
+              "rate": 120000,
+              "scheduleId": "f1ccaad9-7763-41d5-a515-97d0cd841bbe",
+              "staffId": "193b356a-e83e-4258-9ee2-a54e4f44782e"
+            }
+          ],
+          "status": "HOLDING",
+          "total": 480000,
+          "type": "CREATED"
+        },
+        {
+          "at": "2026-10-15T10:16:45.652938435Z",
+          "date": "2026-10-17",
+          "id": "7c03b6df-5f8f-478b-9222-94a0122e55e3",
+          "slots": [
+            {
+              "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+              "hour": 18,
+              "id": "c74d29ab-dc3c-4544-821c-07b4504d46b8",
+              "price": 180000
+            },
+            {
+              "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+              "hour": 19,
+              "id": "f1ccaad9-7763-41d5-a515-97d0cd841bbe",
+              "price": 180000
+            }
+          ],
+          "staff": [
+            {
+              "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+              "date": "2026-10-17",
+              "hour": 19,
+              "hours": 1,
+              "id": "3651880c-364b-4fb9-90f3-4a2e11b836ae",
+              "legacyNeedsReview": false,
+              "name": "Phạm Quốc Huy",
+              "rate": 120000,
+              "scheduleId": "f1ccaad9-7763-41d5-a515-97d0cd841bbe",
+              "staffId": "193b356a-e83e-4258-9ee2-a54e4f44782e"
+            }
+          ],
+          "status": "CONFIRMED",
+          "total": 480000,
+          "type": "INVOICE"
+        },
+        {
+          "at": "2026-10-15T10:16:45.785356223Z",
+          "date": "2026-10-17",
+          "id": "8c7e7d13-f94d-474c-87b3-d81f90b42707",
+          "previous": {
+            "accountId": "d82056f9-1b21-4d04-9144-8f7eacd4b34e",
+            "bookingId": "e841bc71-2c8f-41bb-bc19-cefa6424a849",
+            "createdAt": "2026-10-15T10:16:45.159133Z",
+            "date": "2026-10-17",
+            "deposit": 240000,
+            "holdUntil": "2026-10-15T10:26:45.160277Z",
+            "id": "b8b37325-ea51-492d-bf9b-e6c7be01d4e3",
+            "invoice": "INV-b8b37325-ea51-492d-bf9b-e6c7be01d4e3",
+            "issuedAt": "2026-10-15T10:16:45.634453Z",
+            "name": "Alice Test",
+            "paid": 480000,
+            "phone": "",
+            "products": [],
+            "slots": [
+              {
+                "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+                "hour": 18,
+                "id": "c74d29ab-dc3c-4544-821c-07b4504d46b8",
+                "price": 180000
+              },
+              {
+                "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+                "hour": 19,
+                "id": "f1ccaad9-7763-41d5-a515-97d0cd841bbe",
+                "price": 180000
+              }
+            ],
+            "staff": [
+              {
+                "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+                "date": "2026-10-17",
+                "hour": 19,
+                "hours": 1,
+                "id": "3651880c-364b-4fb9-90f3-4a2e11b836ae",
+                "legacyNeedsReview": false,
+                "name": "Phạm Quốc Huy",
+                "rate": 120000,
+                "scheduleId": "f1ccaad9-7763-41d5-a515-97d0cd841bbe",
+                "staffId": "193b356a-e83e-4258-9ee2-a54e4f44782e"
+              }
+            ],
+            "status": "CONFIRMED",
+            "total": 480000
+          },
+          "slots": [
+            {
+              "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+              "hour": 15,
+              "id": "7a127e94-2ce7-4d8b-b99c-6fa201fe0bb9",
+              "price": 180000
+            }
+          ],
+          "staff": [],
+          "status": "CONFIRMED",
+          "total": 180000,
+          "type": "SCHEDULE"
+        },
+        {
+          "at": "2026-10-15T10:16:45.968259871Z",
+          "date": "2026-10-17",
+          "id": "53982835-c4ad-4a38-a149-677aa36119c5",
+          "slots": [
+            {
+              "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+              "hour": 15,
+              "id": "7a127e94-2ce7-4d8b-b99c-6fa201fe0bb9",
+              "price": 180000
+            }
+          ],
+          "staff": [],
+          "status": "CHECKED_IN",
+          "total": 180000,
+          "type": "CHECK-IN"
+        },
+        {
+          "at": "2026-10-15T10:16:46.023977699Z",
+          "date": "2026-10-17",
+          "id": "1e3b3589-ff85-43e2-983c-9ff30e42775c",
+          "slots": [
+            {
+              "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+              "hour": 15,
+              "id": "7a127e94-2ce7-4d8b-b99c-6fa201fe0bb9",
+              "price": 180000
+            }
+          ],
+          "staff": [],
+          "status": "COMPLETED",
+          "total": 180000,
+          "type": "CHECK-OUT"
+        }
+      ],
+      "invoiceSnapshot": {
+        "accountId": "d82056f9-1b21-4d04-9144-8f7eacd4b34e",
+        "bookingId": "e841bc71-2c8f-41bb-bc19-cefa6424a849",
+        "createdAt": "2026-10-15T10:16:45.159133Z",
+        "date": "2026-10-17",
+        "deposit": 240000,
+        "history": [
+          {
+            "at": "2026-10-15T10:16:45.261689105Z",
+            "date": "2026-10-17",
+            "id": "dc8d7a7a-939b-47ba-9d4c-3ec82056be08",
+            "slots": [
+              {
+                "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+                "hour": 18,
+                "id": "c74d29ab-dc3c-4544-821c-07b4504d46b8",
+                "price": 180000
+              },
+              {
+                "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+                "hour": 19,
+                "id": "f1ccaad9-7763-41d5-a515-97d0cd841bbe",
+                "price": 180000
+              }
+            ],
+            "staff": [
+              {
+                "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+                "date": "2026-10-17",
+                "hour": 19,
+                "hours": 1,
+                "id": "3651880c-364b-4fb9-90f3-4a2e11b836ae",
+                "legacyNeedsReview": false,
+                "name": "Phạm Quốc Huy",
+                "rate": 120000,
+                "scheduleId": "f1ccaad9-7763-41d5-a515-97d0cd841bbe",
+                "staffId": "193b356a-e83e-4258-9ee2-a54e4f44782e"
+              }
+            ],
+            "status": "HOLDING",
+            "total": 480000,
+            "type": "CREATED"
+          }
+        ],
+        "holdUntil": "2026-10-15T10:26:45.160277Z",
+        "id": "b8b37325-ea51-492d-bf9b-e6c7be01d4e3",
+        "invoice": "INV-b8b37325-ea51-492d-bf9b-e6c7be01d4e3",
+        "issuedAt": "2026-10-15T10:16:45.634452865Z",
+        "membershipBenefit": {
+          "discount": 0,
+          "discountPercent": 0,
+          "gross": 360000,
+          "net": 360000
+        },
+        "name": "Alice Test",
+        "paid": 480000,
+        "phone": "",
+        "products": [],
+        "slots": [
+          {
+            "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+            "hour": 18,
+            "id": "c74d29ab-dc3c-4544-821c-07b4504d46b8",
+            "price": 180000
+          },
+          {
+            "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+            "hour": 19,
+            "id": "f1ccaad9-7763-41d5-a515-97d0cd841bbe",
+            "price": 180000
+          }
+        ],
+        "staff": [
+          {
+            "court": "74a0d31a-873a-4797-ad42-c4b2ab6f2ae9",
+            "date": "2026-10-17",
+            "hour": 19,
+            "hours": 1,
+            "id": "3651880c-364b-4fb9-90f3-4a2e11b836ae",
+            "legacyNeedsReview": false,
+            "name": "Phạm Quốc Huy",
+            "rate": 120000,
+            "scheduleId": "f1ccaad9-7763-41d5-a515-97d0cd841bbe",
+            "staffId": "193b356a-e83e-4258-9ee2-a54e4f44782e"
+          }
+        ],
+        "status": "CONFIRMED",
+        "total": 480000
+      },
+      "membershipBenefit": {
+        "discount": 0,
+        "discountPercent": 0,
+        "gross": 180000,
+        "net": 180000
+      },
+      "finance": {
+        "grossReceived": 480000,
+        "refunded": 300000,
+        "netPaid": 180000,
+        "due": 0,
+        "excess": 0,
+        "refundPending": 0,
+        "balanceNeedsReconciliation": false,
+        "paymentStatus": "PARTIAL_REFUND"
+      }
+    }
+  ],
+  "products": [
+    {
+      "id": "4220c0cf-76ca-4dc8-b1a8-8318158eab67",
+      "name": "Nước suối 500ml",
+      "type": "DRINK",
+      "price": 15000,
+      "stock": 48,
+      "status": "ACTIVE"
+    },
+    {
+      "id": "ddb289d7-9ea7-4084-bcc1-43691d98c9f8",
+      "name": "Nước điện giải",
+      "type": "DRINK",
+      "price": 25000,
+      "stock": 6,
+      "status": "ACTIVE"
+    },
+    {
+      "id": "88daa085-a957-435e-bed7-81b1b0a128ac",
+      "name": "Vợt Wilson",
+      "type": "RENTAL",
+      "price": 50000,
+      "stock": 8,
+      "status": "ACTIVE"
+    },
+    {
+      "id": "161fdee5-ce56-40e5-8e9a-ab1efe0c3351",
+      "name": "Bóng tennis (bộ 3)",
+      "type": "RENTAL",
+      "price": 30000,
+      "stock": 12,
+      "status": "ACTIVE"
+    }
+  ],
+  "payments": [
+    {
+      "id": "eadf4496-42d9-432e-a904-2fa414063c8d",
+      "orderId": "b8b37325-ea51-492d-bf9b-e6c7be01d4e3",
+      "amount": 480000,
+      "method": "CASH",
+      "type": "DEPOSIT",
+      "createdAt": "2026-10-15T10:16:45.503004Z",
+      "transactionCode": "full-a34cdd9a",
+      "refundable": 180000
+    }
+  ],
+  "refunds": [
+    {
+      "id": "cf108ae0-2df5-4d31-896a-938796e38cc5",
+      "paymentId": "eadf4496-42d9-432e-a904-2fa414063c8d",
+      "amount": 300000,
+      "reason": "Actual cash refund in test",
+      "createdAt": "2026-10-15T10:16:45.887838Z"
+    }
+  ],
+  "tournaments": [
+    {
+      "id": "b820b925-d263-420f-927b-2d3979ce6c24",
+      "name": "Courtly Open",
+      "format": "DOUBLES",
+      "start": "2026-10-22",
+      "end": "2026-10-24",
+      "deadline": "2026-10-22",
+      "fee": 300000,
+      "max": 16,
+      "status": "OPEN",
+      "location": "CLB Courtly",
+      "registeredCount": 0
+    },
+    {
+      "id": "315ba44c-3e7a-4873-89bb-edb4186ec203",
+      "name": "Test Singles a34cdd9a",
+      "format": "SINGLES",
+      "start": "2026-10-17",
+      "end": "2026-10-17",
+      "deadline": "2026-10-17",
+      "fee": 0,
+      "max": 2,
+      "status": "FINISHED",
+      "location": "Test Club",
+      "registeredCount": 2
+    }
+  ],
+  "registrations": [
+    {
+      "id": "9bec5163-4554-442c-855d-cbbcac446db4",
+      "tournamentId": "315ba44c-3e7a-4873-89bb-edb4186ec203",
+      "accountId": "d82056f9-1b21-4d04-9144-8f7eacd4b34e",
+      "name": "Alice",
+      "status": "CONFIRMED",
+      "paid": 0,
+      "members": [
+        "Alice Test"
+      ]
+    },
+    {
+      "id": "56140b6b-1d45-4de2-9fec-0c0ceefc0ecd",
+      "tournamentId": "315ba44c-3e7a-4873-89bb-edb4186ec203",
+      "accountId": "9a69cd9d-ffb9-4ddd-b96b-be26edc0a725",
+      "name": "Bob",
+      "status": "CONFIRMED",
+      "paid": 0,
+      "members": [
+        "Bob Test"
+      ]
+    }
+  ],
+  "matches": [
+    {
+      "id": "afa68d97-2d7c-425f-90b9-462b2037e073",
+      "tournamentId": "315ba44c-3e7a-4873-89bb-edb4186ec203",
+      "round": 1,
+      "index": 0,
+      "roundName": "Chung kết",
+      "reg1": "56140b6b-1d45-4de2-9fec-0c0ceefc0ecd",
+      "reg2": "9bec5163-4554-442c-855d-cbbcac446db4",
+      "winner": "9bec5163-4554-442c-855d-cbbcac446db4",
+      "score": "6-4, 6-3",
+      "status": "FINISHED",
+      "slots": [
+        {
+          "id": "fcd48693-6916-440b-a26d-595204359e5b",
+          "court": "2c4b271f-dbe3-4fba-ae82-a52b208f77cb",
+          "hour": 12,
+          "price": 0
+        }
+      ],
+      "date": "2026-10-17",
+      "staffId": "193b356a-e83e-4258-9ee2-a54e4f44782e"
+    }
+  ],
+  "audit": [
+    {
+      "id": "1841ed45-9fa5-4cfe-a3a1-9dc5c89152cf",
+      "actor": "9a69cd9d-ffb9-4ddd-b96b-be26edc0a725",
+      "action": "TẠO ĐƠN",
+      "detail": "6bf4e074-204e-461b-b281-50fcba55d30b",
+      "at": "2026-10-15T10:16:47.173271Z"
+    },
+    {
+      "id": "48965901-e169-46a4-b441-a62d75e8d5f6",
+      "actor": "7cba9ba1-d820-4dcd-ac6a-fd79f2ff3b2e",
+      "action": "KẾT QUẢ TRẬN",
+      "detail": "afa68d97-2d7c-425f-90b9-462b2037e073",
+      "at": "2026-10-15T10:16:47.086882Z"
+    },
+    {
+      "id": "5ea5c8e2-08e1-4402-b3db-b6f5fbf771cb",
+      "actor": "7cba9ba1-d820-4dcd-ac6a-fd79f2ff3b2e",
+      "action": "XẾP TRẬN",
+      "detail": "afa68d97-2d7c-425f-90b9-462b2037e073",
+      "at": "2026-10-15T10:16:47.056842Z"
+    },
+    {
+      "id": "2e8e0cda-c4f4-4895-8a41-ca63ea990ae8",
+      "actor": "7cba9ba1-d820-4dcd-ac6a-fd79f2ff3b2e",
+      "action": "BỐC THĂM",
+      "detail": "315ba44c-3e7a-4873-89bb-edb4186ec203",
+      "at": "2026-10-15T10:16:46.932017Z"
+    },
+    {
+      "id": "ed489f71-a899-4cd6-80b0-363b3b9aadb5",
+      "actor": "9a69cd9d-ffb9-4ddd-b96b-be26edc0a725",
+      "action": "ĐĂNG KÝ GIẢI",
+      "detail": "56140b6b-1d45-4de2-9fec-0c0ceefc0ecd",
+      "at": "2026-10-15T10:16:46.901009Z"
+    },
+    {
+      "id": "d616e72c-e431-4695-97d1-84d1d3d88135",
+      "actor": "d82056f9-1b21-4d04-9144-8f7eacd4b34e",
+      "action": "ĐĂNG KÝ GIẢI",
+      "detail": "9bec5163-4554-442c-855d-cbbcac446db4",
+      "at": "2026-10-15T10:16:46.874299Z"
+    },
+    {
+      "id": "a23c4712-5e3e-4d4f-a1c3-d1052d899b4e",
+      "actor": "7cba9ba1-d820-4dcd-ac6a-fd79f2ff3b2e",
+      "action": "LƯU TOURNAMENTS",
+      "detail": "315ba44c-3e7a-4873-89bb-edb4186ec203",
+      "at": "2026-10-15T10:16:46.821399Z"
+    },
+    {
+      "id": "b9eb7a0a-cf30-44bf-8f81-2c4ec8b51337",
+      "actor": "d82056f9-1b21-4d04-9144-8f7eacd4b34e",
+      "action": "TẠO ĐƠN",
+      "detail": "565caf6f-8c52-4da9-b86f-c8914ff6177e",
+      "at": "2026-10-15T10:16:46.745320Z"
+    },
+    {
+      "id": "e5e9f361-6b48-4037-a32c-563079a9e168",
+      "actor": "7cba9ba1-d820-4dcd-ac6a-fd79f2ff3b2e",
+      "action": "XỬ LÝ THIẾT BỊ",
+      "detail": "cdc720da-03f2-49f3-9910-a0ac5ff9bed4: GOOD null",
+      "at": "2026-10-15T10:16:46.202589Z"
+    },
+    {
+      "id": "64282422-9188-43c9-af21-4d941b714b53",
+      "actor": "7cba9ba1-d820-4dcd-ac6a-fd79f2ff3b2e",
+      "action": "THÊM SẢN PHẨM",
+      "detail": "5f93befc-d9d0-4e41-aefc-2424b82b4949",
+      "at": "2026-10-15T10:16:46.113417Z"
+    },
+    {
+      "id": "c995ce25-da54-4062-866c-4bc54b577dfd",
+      "actor": "9a69cd9d-ffb9-4ddd-b96b-be26edc0a725",
+      "action": "TẠO ĐƠN",
+      "detail": "5f93befc-d9d0-4e41-aefc-2424b82b4949",
+      "at": "2026-10-15T10:16:46.059055Z"
+    },
+    {
+      "id": "0c49ac2a-3a66-4358-884f-053571142078",
+      "actor": "7cba9ba1-d820-4dcd-ac6a-fd79f2ff3b2e",
+      "action": "CHECK-OUT",
+      "detail": "b8b37325-ea51-492d-bf9b-e6c7be01d4e3",
+      "at": "2026-10-15T10:16:46.015926Z"
+    },
+    {
+      "id": "b5862efb-0ce1-49cd-bbed-a75fe436e07e",
+      "actor": "7cba9ba1-d820-4dcd-ac6a-fd79f2ff3b2e",
+      "action": "CHECK-IN",
+      "detail": "b8b37325-ea51-492d-bf9b-e6c7be01d4e3",
+      "at": "2026-10-15T10:16:45.960606Z"
+    },
+    {
+      "id": "1aa656fa-b92c-4fc5-b5b5-c18d7c18df57",
+      "actor": "7cba9ba1-d820-4dcd-ac6a-fd79f2ff3b2e",
+      "action": "HOÀN TIỀN",
+      "detail": "cf108ae0-2df5-4d31-896a-938796e38cc5",
+      "at": "2026-10-15T10:16:45.890207Z"
+    },
+    {
+      "id": "c7179ecb-a4f6-4f5d-a725-605f9ac9a881",
+      "actor": "d82056f9-1b21-4d04-9144-8f7eacd4b34e",
+      "action": "ĐỔI LỊCH",
+      "detail": "b8b37325-ea51-492d-bf9b-e6c7be01d4e3",
+      "at": "2026-10-15T10:16:45.775566Z"
+    },
+    {
+      "id": "f5648a73-6b31-4ac7-9afd-6b4329a27fb1",
+      "actor": "7cba9ba1-d820-4dcd-ac6a-fd79f2ff3b2e",
+      "action": "THU TIỀN",
+      "detail": "eadf4496-42d9-432e-a904-2fa414063c8d",
+      "at": "2026-10-15T10:16:45.515776Z"
+    },
+    {
+      "id": "9244f17a-dfdb-4e84-810c-38c90f6211e0",
+      "actor": "d82056f9-1b21-4d04-9144-8f7eacd4b34e",
+      "action": "TẠO ĐƠN",
+      "detail": "b8b37325-ea51-492d-bf9b-e6c7be01d4e3",
+      "at": "2026-10-15T10:16:45.240324Z"
+    },
+    {
+      "id": "48e0157d-78ea-4576-a4f9-9a16abd31570",
+      "actor": "7cba9ba1-d820-4dcd-ac6a-fd79f2ff3b2e",
+      "action": "LƯU STAFF-SCHEDULES",
+      "detail": "f3e32f2a-6dd8-4d11-b68b-1901ffb8d702",
+      "at": "2026-10-15T10:16:45.051251Z"
+    }
+  ],
+  "settings": {
+    "holdMinutes": 10,
+    "depositPercent": 50,
+    "cancelRefundPercent": 100,
+    "policies": {}
+  },
+  "club": {
+    "name": "Courtly · Tennis Club",
+    "tagline": "Tennis bắt đầu từ một cuộc hẹn.",
+    "intro": "Khám phá giờ trống, chủ động lịch chơi và kết nối qua những giải đấu. Courtly giúp bạn chuẩn bị cho buổi tennis tiếp theo ngay từ khi chọn sân.",
+    "story": "Một lịch chơi rõ ràng để bạn tập trung vào trận đấu. Tại Courtly, bạn có thể xem sân, giá và giờ trống trước khi đặt; theo dõi lịch hẹn và tìm hiểu các giải đấu trong cùng một không gian.",
+    "mission": "Đặt trải nghiệm của người chơi ở trung tâm: thông tin dễ tìm, lựa chọn rõ ràng và phản hồi luôn có nơi tiếp nhận.",
+    "address": "",
+    "phone": "",
+    "email": "",
+    "openingHours": "",
+    "mapUrl": "",
+    "socialUrl": "",
+    "paymentInstructions": "Liên hệ quầy để thanh toán tiền cọc trong thời gian giữ chỗ. Đơn được xác nhận khi quầy ghi nhận đủ cọc. Khoản hoàn tiền được quầy xử lý và ghi nhận riêng."
+  },
+  "sample": true,
+  "membershipPlans": [
+    {
+      "id": "club",
+      "name": "Club",
+      "price": 299000,
+      "days": 30,
+      "discountPercent": 10,
+      "enabled": true,
+      "description": "Cho nhịp chơi đều đặn."
+    },
+    {
+      "id": "plus",
+      "name": "Plus",
+      "price": 599000,
+      "days": 30,
+      "discountPercent": 15,
+      "enabled": true,
+      "description": "Dành cho người mê tennis."
+    }
+  ],
+  "memberships": [
+    {
+      "accountId": "d82056f9-1b21-4d04-9144-8f7eacd4b34e",
+      "createdAt": "2026-10-15T10:16:46.537429716Z",
+      "days": 30,
+      "discountPercent": 10,
+      "endsAt": "2026-11-14T10:16:46.578779671Z",
+      "id": "9487e231-8ab8-49cf-a3ab-eb83cafbb8ae",
+      "name": "Alice Test",
+      "paymentId": "1cdd3257-fabf-45d4-beaf-1b3d7b2d567b",
+      "planId": "club",
+      "planName": "Club",
+      "price": 299000,
+      "startsAt": "2026-10-15T10:16:46.578749195Z",
+      "status": "ACTIVE"
+    }
+  ],
+  "membershipPayments": [
+    {
+      "accountId": "d82056f9-1b21-4d04-9144-8f7eacd4b34e",
+      "amount": 299000,
+      "createdAt": "2026-10-15T10:16:46.578861284Z",
+      "id": "1cdd3257-fabf-45d4-beaf-1b3d7b2d567b",
+      "membershipId": "9487e231-8ab8-49cf-a3ab-eb83cafbb8ae",
+      "method": "CASH",
+      "planName": "Club",
+      "transactionCode": "membership-a34cdd9a"
+    }
+  ],
+  "viewer": {
+    "id": "7cba9ba1-d820-4dcd-ac6a-fd79f2ff3b2e",
+    "accountId": "7cba9ba1-d820-4dcd-ac6a-fd79f2ff3b2e",
+    "name": "Quản trị Courtly",
+    "email": "admin@courtly.local",
+    "phone": "",
+    "role": "ADMIN",
+    "isOwner": true
+  }
+}

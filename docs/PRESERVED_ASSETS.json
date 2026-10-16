@@ -1,0 +1,7 @@
+{
+  "note": "Original Courtly logo and baseline admin stylesheet preserved byte-for-byte",
+  "sha256": {
+    "frontend/public/favicon.svg": "820a92175d99002c42cbbe2799578073c43f0ad0d1e0ff5e3e48aed53e434488",
+    "frontend/src/styles.css": "394af1e157e567cf82e0beda8d9bdf50b06313fe10daed458ee5dbeffb48ec73"
+  }
+}

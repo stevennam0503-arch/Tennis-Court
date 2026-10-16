@@ -1,42 +1,46 @@
-# Kết quả kiểm tra — 09/10/2026
+# Kết quả kiểm tra — 15/10/2026
 
-Các kết quả dưới đây là kiểm tra đã thực sự chạy trên source trong ZIP.
+Kết quả áp dụng cho source trong gói ZIP này.
 
 | Hạng mục | Kết quả | Phạm vi |
 | --- | --- | --- |
-| Backend Maven `clean verify` | Đạt | Java 17, Spring Boot 3.5.16; biên dịch và đóng gói executable JAR. |
-| Unit test | 9/9 đạt | 5 test thanh toán/hoàn tiền, 2 test điều kiện sân, 2 test tính tiền sản phẩm. Không bỏ qua test. |
-| Frontend `npm run build` | Đạt | React 19.3, Vite 8.3.3; 1.751 module, bundle được tạo thành công. |
-| Migration SQL V1 và V2 | Đạt | Thực thi SQL trực tiếp trên PostgreSQL engine của PGlite, gồm 23 bảng, extension btree_gist, FK, CHECK, index và trigger. |
-| Spring Boot + JDBC + Hibernate | Đạt | Khởi động ứng dụng, `ddl-auto=validate`, khởi tạo dữ liệu mẫu và gọi REST API trên database thử nghiệm. |
-| API nghiệp vụ | 45 lượt yêu cầu đạt | Kịch bản trong `tests/smoke-api.mjs`; kiểm tra cả phản hồi thành công và từ chối theo nghiệp vụ. |
-| Render React với dữ liệu API | 11/11 trang đạt | Server-side render các trang lịch sân, đơn, tiền, sân, sản phẩm, nhân sự, khách, giải, báo cáo, hệ thống, thông báo. |
+| Maven `clean verify` | Đạt | Java 17, Spring Boot 3.5.16; compile và đóng gói executable JAR |
+| JUnit | 9/9 đạt | Thanh toán/hoàn tiền, điều kiện lịch sân, tiền sản phẩm; không bỏ qua test |
+| React/Vite build | Đạt | React 19.3, Vite 8.3.3; bundle production tạo thành công |
+| Migration SQL V1–V3 | Đạt | Áp dụng trực tiếp PostgreSQL engine của PGlite: 24 bảng, btree_gist, FK, CHECK, index và trigger |
+| Spring Boot/JDBC/Hibernate | Đạt | Khởi động JAR, `ddl-auto=validate`, khởi tạo database và tài khoản quản trị local |
+| HTTP tích hợp | 80 yêu cầu đạt | Kịch bản `tests/smoke-api.mjs`; gồm cả thành công và các từ chối mong đợi |
+| Render React | 20 màn + 2 shell đạt | SSR với fixture tổng hợp lấy từ API thử nghiệm; kiểm tra shell admin/customer riêng |
+| Logo và CSS admin | Giữ nguyên | Favicon và styles.css được đối chiếu byte với source Courtly trước chuyển đổi; CSS khách tách file |
 
-## Luồng API đã kiểm tra
+## Các luồng HTTP đã kiểm tra
 
-- Tạo sân, sinh slot, đặt nhiều slot; từ chối đặt trùng sân.
-- Thu cọc để xác nhận, từ chối thu dư; tính tổng tiền sân + đồ uống + thuê đồ + nhân sự.
-- Trừ tồn đồ uống và từ chối vượt tồn; kiểm tra đồ thuê chồng giờ.
-- Tạo lịch nhân sự, phân công; check-in và từ chối check-out khi còn thiếu tiền.
-- Thu phần còn lại, check-out, cấp số phiếu thu; từ chối hoàn vượt khoản đã thu, hoàn một phần.
-- Đổi lịch và nhả slot cũ; hủy đơn và nhả slot đang giữ.
-- Tạo giải, hai đăng ký và phí giải; sinh nhánh, xếp sân/trọng tài, chặn trùng với khách đặt, nhập kết quả, hoàn tất giải.
-- Xác nhận phí giải không bị gắn nhầm vào đơn sân.
+- Public overview không lộ danh bạ/đơn; khách chưa đăng nhập không được gọi private overview.
+- Đăng ký, đăng nhập, session cookie, CSRF; tài khoản khách không được sửa danh mục hoặc dữ liệu của khách khác.
+- Chọn hai slot liên tiếp, trọng tài chỉ một slot; server tự tính giá, lịch trùng bị từ chối.
+- Gửi lại cùng requestId trả cùng kết quả, kể cả thứ tự khóa JSON thay đổi; thay payload với mã cũ bị từ chối.
+- Thu đủ tiền, xác nhận đơn; đổi lịch rẻ hơn có đối soát, snapshot phiếu thu và tiền thực thu được giữ nguyên; hoàn lặp không tạo thêm giao dịch.
+- Check-in ngoại lệ có lý do; khách không hủy sau check-in. Check-out và ghi nhận trả thiết bị là các thao tác riêng.
+- Thuê thiết bị chỉ tại quầy; nhận trả thiết bị được lưu đúng dòng đơn.
+- Feedback riêng không xuất bản khi thiếu consent; feedback được đồng ý và duyệt mới công khai; tin nháp chuyển xuất bản có publishedAt.
+- Profile chỉ nhận các trường được phép; mã đặt lại dùng một lần và thu hồi phiên cũ.
+- Membership chờ xác nhận; khách không tự kích hoạt; admin phải xác minh đủ phí; receipt không ghi lặp; người khác không nhìn thấy gói riêng; giảm tiền sân do server tính.
+- Đăng ký giải đúng tài khoản, bốc thăm, xếp sân/trọng tài, nhập kết quả và hoàn tất giải.
+- Hai yêu cầu đặt cùng slot đồng thời chỉ có một yêu cầu được chấp nhận.
 
-Trong quá trình kiểm tra đã sửa lỗi khởi tạo `@Version`: các entity dùng `Long version` để giá trị ban đầu là `null`, cho phép Spring Data nhận diện entity mới. Hibernate tự gán version khi persist. Luồng tạo đơn/slot/lịch nhân sự/thiết bị đã chạy lại sau khi sửa.
+## Giới hạn kiểm tra
 
-## Giới hạn của lần kiểm tra này
+Môi trường không chạy Docker/PostgreSQL 16 native. Harness dùng **PGlite PostgreSQL 18.3 engine**, kết nối JDBC qua PostgreSQL wire protocol, một connection. Migration được thực thi trực tiếp trước khi khởi động Java, và Flyway chỉ tắt trong harness. Source bàn giao vẫn bật Flyway. Chưa chạy thử Compose hoặc vòng đời Flyway đầy đủ trên PostgreSQL 16 native, kiểm tra tải/đa connection hoặc thao tác bằng trình duyệt.
 
-- Môi trường không có Docker. Chưa chạy toàn bộ Compose hoặc PostgreSQL 16 native. Database kiểm tra là **PGlite (PostgreSQL 18.3 engine)**, kết nối JDBC qua PostgreSQL wire protocol với một connection trong pool.
-- Do giới hạn đa kết nối của harness PGlite, SQL migration được áp dụng trực tiếp trước khi chạy Java; Flyway chỉ bị tắt bằng tham số của harness. **Source ứng dụng vẫn bật Flyway**. Chưa xác nhận vòng đời migration của Flyway khi chạy cùng PostgreSQL 16 native.
-- Kịch bản API chạy tuần tự. Các ràng buộc và khóa đã được triển khai, nhưng chưa chạy bài kiểm tra tranh chấp đồng thời trên PostgreSQL native hoặc kiểm tra tải.
-- Render React kiểm tra component và dữ liệu API. Chưa có kiểm tra tự động thao tác trình duyệt, ảnh chụp giao diện hay ma trận thiết bị.
-- Đăng nhập/phân quyền, QR/callback ngân hàng và các phần được ghi trong mục “Phạm vi còn lại” của README chưa được triển khai; kết quả test không có nghĩa toàn bộ 50 module đã hoàn tất.
+SSR kiểm tra cấu trúc component và dữ liệu API, không chứng nhận responsive hoặc accessibility bằng trình duyệt. Chưa kiểm tra toàn bộ ma trận thiết bị, thao tác bàn phím và zoom 200%.
 
-## Chạy lại trên máy bạn
+Các tích hợp ngân hàng/email/SMS và module còn ghi rõ trong README chưa được kết nối. Kết quả trên không có nghĩa mọi module đã đạt production.
 
-1. Tại thư mục gốc: `docker compose up --build`.
-2. Chờ API `http://localhost:8080/api/health` trả `UP`.
-3. Chạy `node tests/smoke-api.mjs` từ thư mục gốc trên database thử nghiệm. Script tạo dữ liệu và không tự xóa; không dùng với dữ liệu đang vận hành.
-4. Với môi trường phát triển riêng, chạy `./mvnw verify` trong `backend`, và `npm ci` rồi `npm run build` trong `frontend`.
+## Tái chạy
 
+- `backend/`: `./mvnw verify`
+- `frontend/`: `npm ci` rồi `npm run build`
+- Sau khi backend và database thử nghiệm chạy: `node tests/smoke-api.mjs`
+- Sau khi cài frontend dependencies: `node tests/render-pages.mjs`
+
+Smoke test tạo dữ liệu; dùng database thử riêng. Fixture SSR là dữ liệu tổng hợp của bài kiểm tra, không phải dữ liệu người dùng trên website cũ.

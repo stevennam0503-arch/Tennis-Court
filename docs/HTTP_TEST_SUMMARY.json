@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "requests": 80,
+  "groups": [
+    "Public overview does not expose private records",
+    "Registration, cookie sessions, role enforcement",
+    "Continuous multi-slot booking, exact referee slot, idempotency, ownership, conflict",
+    "Verified receipts, cheaper atomic reschedule, preserved invoice, idempotent refund",
+    "Cash-desk rental and separate equipment return retained",
+    "Content publishing, own feedback, consent and private-data isolation",
+    "Membership registration, verified activation, exact-once receipt, private data and server discount",
+    "Tournament registration ownership, bracket, court/referee allocation and result progression",
+    "Concurrent bookings commit exactly one allocation",
+    "Profile field allowlist, single-use reset ticket and old-session revocation"
+  ]
+}

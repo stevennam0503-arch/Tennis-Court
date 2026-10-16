@@ -1,717 +1,125 @@
 {
-  "Account": {
-    "table": "accounts",
-    "fields": [
-      [
-        "fullName",
-        "String"
-      ],
-      [
-        "email",
-        "String"
-      ],
-      [
-        "phone",
-        "String"
-      ],
-      [
-        "passwordHash",
-        "String"
-      ],
-      [
-        "role",
-        "String"
-      ],
-      [
-        "status",
-        "String"
-      ],
-      [
-        "createdAt",
-        "Instant"
-      ]
-    ]
-  },
-  "Court": {
-    "table": "courts",
-    "fields": [
-      [
-        "name",
-        "String"
-      ],
-      [
-        "type",
-        "String"
-      ],
-      [
-        "description",
-        "String"
-      ],
-      [
-        "imageUrl",
-        "String"
-      ],
-      [
-        "status",
-        "String"
-      ],
-      [
-        "basePrice",
-        "BigDecimal"
-      ]
-    ]
-  },
-  "CourtPrice": {
-    "table": "court_prices",
-    "fields": [
-      [
-        "court",
-        "Court"
-      ],
-      [
-        "dayType",
-        "String"
-      ],
-      [
-        "startTime",
-        "LocalTime"
-      ],
-      [
-        "endTime",
-        "LocalTime"
-      ],
-      [
-        "pricePerHour",
-        "BigDecimal"
-      ]
-    ]
-  },
-  "CourtSchedule": {
-    "table": "court_schedules",
-    "fields": [
-      [
-        "court",
-        "Court"
-      ],
-      [
-        "scheduleDate",
-        "LocalDate"
-      ],
-      [
-        "startTime",
-        "LocalTime"
-      ],
-      [
-        "endTime",
-        "LocalTime"
-      ],
-      [
-        "price",
-        "BigDecimal"
-      ],
-      [
-        "status",
-        "String"
-      ],
-      [
-        "version",
-        "Long"
-      ]
-    ]
-  },
-  "CustomerOrder": {
-    "table": "orders",
-    "fields": [
-      [
-        "customerAccount",
-        "Account"
-      ],
-      [
-        "createdByAccount",
-        "Account"
-      ],
-      [
-        "customerName",
-        "String"
-      ],
-      [
-        "customerPhone",
-        "String"
-      ],
-      [
-        "status",
-        "String"
-      ],
-      [
-        "holdExpiresAt",
-        "Instant"
-      ],
-      [
-        "subtotal",
-        "BigDecimal"
-      ],
-      [
-        "totalAmount",
-        "BigDecimal"
-      ],
-      [
-        "depositRequired",
-        "BigDecimal"
-      ],
-      [
-        "paidAmount",
-        "BigDecimal"
-      ],
-      [
-        "paymentStatus",
-        "String"
-      ],
-      [
-        "invoiceNumber",
-        "String"
-      ],
-      [
-        "issuedAt",
-        "Instant"
-      ],
-      [
-        "createdAt",
-        "Instant"
-      ],
-      [
-        "version",
-        "Long"
-      ]
-    ]
-  },
-  "Booking": {
-    "table": "bookings",
-    "fields": [
-      [
-        "order",
-        "CustomerOrder"
-      ],
-      [
-        "status",
-        "String"
-      ],
-      [
-        "checkInAt",
-        "Instant"
-      ],
-      [
-        "checkOutAt",
-        "Instant"
-      ],
-      [
-        "createdAt",
-        "Instant"
-      ]
-    ]
-  },
-  "BookingSlot": {
-    "table": "booking_slots",
-    "fields": [
-      [
-        "booking",
-        "Booking"
-      ],
-      [
-        "schedule",
-        "CourtSchedule"
-      ],
-      [
-        "unitPrice",
-        "BigDecimal"
-      ],
-      [
-        "releasedAt",
-        "Instant"
-      ]
-    ]
-  },
-  "BookingStaff": {
-    "table": "booking_staff",
-    "fields": [
-      [
-        "booking",
-        "Booking"
-      ],
-      [
-        "staffSchedule",
-        "StaffSchedule"
-      ],
-      [
-        "unitPrice",
-        "BigDecimal"
-      ],
-      [
-        "releasedAt",
-        "Instant"
-      ]
-    ]
-  },
-  "Drink": {
-    "table": "drinks",
-    "fields": [
-      [
-        "name",
-        "String"
-      ],
-      [
-        "unit",
-        "String"
-      ],
-      [
-        "unitPrice",
-        "BigDecimal"
-      ],
-      [
-        "stockQuantity",
-        "Integer"
-      ],
-      [
-        "status",
-        "String"
-      ]
-    ]
-  },
-  "RentalItem": {
-    "table": "rental_items",
-    "fields": [
-      [
-        "name",
-        "String"
-      ],
-      [
-        "category",
-        "String"
-      ],
-      [
-        "brand",
-        "String"
-      ],
-      [
-        "pricePerHour",
-        "BigDecimal"
-      ],
-      [
-        "stockQuantity",
-        "Integer"
-      ],
-      [
-        "status",
-        "String"
-      ],
-      [
-        "version",
-        "Long"
-      ]
-    ]
-  },
-  "OrderProduct": {
-    "table": "order_products",
-    "fields": [
-      [
-        "order",
-        "CustomerOrder"
-      ],
-      [
-        "booking",
-        "Booking"
-      ],
-      [
-        "itemType",
-        "String"
-      ],
-      [
-        "drink",
-        "Drink"
-      ],
-      [
-        "rentalItem",
-        "RentalItem"
-      ],
-      [
-        "quantity",
-        "Integer"
-      ],
-      [
-        "rentStartAt",
-        "Instant"
-      ],
-      [
-        "rentEndAt",
-        "Instant"
-      ],
-      [
-        "returnedAt",
-        "Instant"
-      ],
-      [
-        "unitPrice",
-        "BigDecimal"
-      ]
-    ]
-  },
-  "Payment": {
-    "table": "payments",
-    "fields": [
-      [
-        "order",
-        "CustomerOrder"
-      ],
-      [
-        "registration",
-        "TournamentRegistration"
-      ],
-      [
-        "receivedByAccount",
-        "Account"
-      ],
-      [
-        "type",
-        "String"
-      ],
-      [
-        "method",
-        "String"
-      ],
-      [
-        "amount",
-        "BigDecimal"
-      ],
-      [
-        "transactionCode",
-        "String"
-      ],
-      [
-        "qrContent",
-        "String"
-      ],
-      [
-        "qrExpiresAt",
-        "Instant"
-      ],
-      [
-        "status",
-        "String"
-      ],
-      [
-        "paidAt",
-        "Instant"
-      ]
-    ]
-  },
-  "Refund": {
-    "table": "refunds",
-    "fields": [
-      [
-        "payment",
-        "Payment"
-      ],
-      [
-        "amount",
-        "BigDecimal"
-      ],
-      [
-        "reason",
-        "String"
-      ],
-      [
-        "status",
-        "String"
-      ],
-      [
-        "processedByAccount",
-        "Account"
-      ],
-      [
-        "refundedAt",
-        "Instant"
-      ]
-    ]
-  },
-  "Staff": {
-    "table": "staff",
-    "fields": [
-      [
-        "fullName",
-        "String"
-      ],
-      [
-        "phone",
-        "String"
-      ],
-      [
-        "type",
-        "String"
-      ],
-      [
-        "level",
-        "String"
-      ],
-      [
-        "hourlyRate",
-        "BigDecimal"
-      ],
-      [
-        "status",
-        "String"
-      ]
-    ]
-  },
-  "StaffSchedule": {
-    "table": "staff_schedules",
-    "fields": [
-      [
-        "staff",
-        "Staff"
-      ],
-      [
-        "workDate",
-        "LocalDate"
-      ],
-      [
-        "startTime",
-        "LocalTime"
-      ],
-      [
-        "endTime",
-        "LocalTime"
-      ],
-      [
-        "status",
-        "String"
-      ],
-      [
-        "version",
-        "Long"
-      ]
-    ]
-  },
-  "Tournament": {
-    "table": "tournaments",
-    "fields": [
-      [
-        "organizerAccount",
-        "Account"
-      ],
-      [
-        "name",
-        "String"
-      ],
-      [
-        "format",
-        "String"
-      ],
-      [
-        "startDate",
-        "LocalDate"
-      ],
-      [
-        "endDate",
-        "LocalDate"
-      ],
-      [
-        "location",
-        "String"
-      ],
-      [
-        "registrationFee",
-        "BigDecimal"
-      ],
-      [
-        "registrationDeadline",
-        "LocalDate"
-      ],
-      [
-        "maxParticipants",
-        "Integer"
-      ],
-      [
-        "status",
-        "String"
-      ]
-    ]
-  },
-  "TournamentRegistration": {
-    "table": "tournament_registrations",
-    "fields": [
-      [
-        "tournament",
-        "Tournament"
-      ],
-      [
-        "account",
-        "Account"
-      ],
-      [
-        "registeredByAccount",
-        "Account"
-      ],
-      [
-        "teamName",
-        "String"
-      ],
-      [
-        "skillLevel",
-        "String"
-      ],
-      [
-        "status",
-        "String"
-      ],
-      [
-        "registeredAt",
-        "Instant"
-      ]
-    ]
-  },
-  "TeamMember": {
-    "table": "team_members",
-    "fields": [
-      [
-        "registration",
-        "TournamentRegistration"
-      ],
-      [
-        "tournament",
-        "Tournament"
-      ],
-      [
-        "account",
-        "Account"
-      ],
-      [
-        "memberName",
-        "String"
-      ],
-      [
-        "phone",
-        "String"
-      ]
-    ]
-  },
-  "TournamentMatch": {
-    "table": "matches",
-    "fields": [
-      [
-        "tournament",
-        "Tournament"
-      ],
-      [
-        "registration1",
-        "TournamentRegistration"
-      ],
-      [
-        "registration2",
-        "TournamentRegistration"
-      ],
-      [
-        "winnerRegistration",
-        "TournamentRegistration"
-      ],
-      [
-        "roundNumber",
-        "Integer"
-      ],
-      [
-        "bracketIndex",
-        "Integer"
-      ],
-      [
-        "roundName",
-        "String"
-      ],
-      [
-        "score",
-        "String"
-      ],
-      [
-        "status",
-        "String"
-      ],
-      [
-        "updatedByAccount",
-        "Account"
-      ]
-    ]
-  },
-  "MatchSlot": {
-    "table": "match_slots",
-    "fields": [
-      [
-        "match",
-        "TournamentMatch"
-      ],
-      [
-        "schedule",
-        "CourtSchedule"
-      ],
-      [
-        "releasedAt",
-        "Instant"
-      ]
-    ]
-  },
-  "MatchStaff": {
-    "table": "match_staff",
-    "fields": [
-      [
-        "match",
-        "TournamentMatch"
-      ],
-      [
-        "staffSchedule",
-        "StaffSchedule"
-      ],
-      [
-        "role",
-        "String"
-      ],
-      [
-        "releasedAt",
-        "Instant"
-      ]
-    ]
-  },
-  "AuditLog": {
-    "table": "audit_logs",
-    "fields": [
-      [
-        "actor",
-        "String"
-      ],
-      [
-        "action",
-        "String"
-      ],
-      [
-        "detail",
-        "String"
-      ],
-      [
-        "createdAt",
-        "Instant"
-      ]
-    ]
-  },
-  "ClubSettings": {
-    "table": "club_settings",
-    "fields": [
-      [
-        "holdMinutes",
-        "Integer"
-      ],
-      [
-        "depositPercent",
-        "Integer"
-      ],
-      [
-        "cancelRefundPercent",
-        "Integer"
-      ]
-    ]
-  }
+  "applicationTableCount": 24,
+  "entities": [
+    {
+      "entity": "Account",
+      "table": "accounts",
+      "source": "backend/src/main/java/com/courtly/entity/Account.java"
+    },
+    {
+      "entity": "AppDocument",
+      "table": "app_documents",
+      "source": "backend/src/main/java/com/courtly/entity/AppDocument.java"
+    },
+    {
+      "entity": "AuditLog",
+      "table": "audit_logs",
+      "source": "backend/src/main/java/com/courtly/entity/AuditLog.java"
+    },
+    {
+      "entity": "Booking",
+      "table": "bookings",
+      "source": "backend/src/main/java/com/courtly/entity/Booking.java"
+    },
+    {
+      "entity": "BookingSlot",
+      "table": "booking_slots",
+      "source": "backend/src/main/java/com/courtly/entity/BookingSlot.java"
+    },
+    {
+      "entity": "BookingStaff",
+      "table": "booking_staff",
+      "source": "backend/src/main/java/com/courtly/entity/BookingStaff.java"
+    },
+    {
+      "entity": "ClubSettings",
+      "table": "club_settings",
+      "source": "backend/src/main/java/com/courtly/entity/ClubSettings.java"
+    },
+    {
+      "entity": "Court",
+      "table": "courts",
+      "source": "backend/src/main/java/com/courtly/entity/Court.java"
+    },
+    {
+      "entity": "CourtPrice",
+      "table": "court_prices",
+      "source": "backend/src/main/java/com/courtly/entity/CourtPrice.java"
+    },
+    {
+      "entity": "CourtSchedule",
+      "table": "court_schedules",
+      "source": "backend/src/main/java/com/courtly/entity/CourtSchedule.java"
+    },
+    {
+      "entity": "CustomerOrder",
+      "table": "orders",
+      "source": "backend/src/main/java/com/courtly/entity/CustomerOrder.java"
+    },
+    {
+      "entity": "Drink",
+      "table": "drinks",
+      "source": "backend/src/main/java/com/courtly/entity/Drink.java"
+    },
+    {
+      "entity": "MatchSlot",
+      "table": "match_slots",
+      "source": "backend/src/main/java/com/courtly/entity/MatchSlot.java"
+    },
+    {
+      "entity": "MatchStaff",
+      "table": "match_staff",
+      "source": "backend/src/main/java/com/courtly/entity/MatchStaff.java"
+    },
+    {
+      "entity": "OrderProduct",
+      "table": "order_products",
+      "source": "backend/src/main/java/com/courtly/entity/OrderProduct.java"
+    },
+    {
+      "entity": "Payment",
+      "table": "payments",
+      "source": "backend/src/main/java/com/courtly/entity/Payment.java"
+    },
+    {
+      "entity": "Refund",
+      "table": "refunds",
+      "source": "backend/src/main/java/com/courtly/entity/Refund.java"
+    },
+    {
+      "entity": "RentalItem",
+      "table": "rental_items",
+      "source": "backend/src/main/java/com/courtly/entity/RentalItem.java"
+    },
+    {
+      "entity": "Staff",
+      "table": "staff",
+      "source": "backend/src/main/java/com/courtly/entity/Staff.java"
+    },
+    {
+      "entity": "StaffSchedule",
+      "table": "staff_schedules",
+      "source": "backend/src/main/java/com/courtly/entity/StaffSchedule.java"
+    },
+    {
+      "entity": "TeamMember",
+      "table": "team_members",
+      "source": "backend/src/main/java/com/courtly/entity/TeamMember.java"
+    },
+    {
+      "entity": "Tournament",
+      "table": "tournaments",
+      "source": "backend/src/main/java/com/courtly/entity/Tournament.java"
+    },
+    {
+      "entity": "TournamentMatch",
+      "table": "matches",
+      "source": "backend/src/main/java/com/courtly/entity/TournamentMatch.java"
+    },
+    {
+      "entity": "TournamentRegistration",
+      "table": "tournament_registrations",
+      "source": "backend/src/main/java/com/courtly/entity/TournamentRegistration.java"
+    }
+  ]
 }

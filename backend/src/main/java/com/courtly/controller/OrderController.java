@@ -1,24 +1,62 @@
 package com.courtly.controller;
 
-import com.courtly.dto.request.*;
-import com.courtly.service.OrderService;
+import com.courtly.dto.request.BookingRequest;
+import com.courtly.service.*;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-import java.util.*;
 
 @RestController
-@RequestMapping("/api/orders")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 public class OrderController {
-    private final OrderService service;
-    @PostMapping public Map<String,UUID> create(@Valid @RequestBody BookingRequest request) { return Map.of("id",service.create(request)); }
-    @PostMapping("/{id}/cancel") public void cancel(@PathVariable UUID id) { service.cancel(id); }
-    @PostMapping("/{id}/check-in") public void checkIn(@PathVariable UUID id) { service.checkIn(id); }
-    @PostMapping("/{id}/check-out") public void checkOut(@PathVariable UUID id) { service.checkOut(id); }
-    @PatchMapping("/{id}/schedule") public void move(@PathVariable UUID id, @Valid @RequestBody MoveBookingRequest request) { service.move(id,request); }
-    @PostMapping("/{id}/products") public void product(@PathVariable UUID id, @Valid @RequestBody AddProductRequest request) { service.addProduct(id,request); }
-    @PostMapping("/{id}/products/{lineId}/return") public void returnProduct(@PathVariable UUID id, @PathVariable UUID lineId) { service.returnProduct(id,lineId); }
-    @PostMapping("/{id}/staff") public void staff(@PathVariable UUID id, @Valid @RequestBody AssignStaffRequest request) { service.assignStaff(id,request); }
-    @PostMapping("/{id}/invoice") public void invoice(@PathVariable UUID id) { service.invoice(id); }
+  private final OrderApplicationService service;
+  private final AuthService auth;
+
+  @PostMapping("/orders")
+  public Map<String, Object> create(@Valid @RequestBody BookingRequest b, HttpServletRequest r) {
+    return service.create(b, auth.current(r));
+  }
+
+  @PostMapping("/booking/options")
+  public Map<String, Object> options(@RequestBody Map<String, Object> b, HttpServletRequest r) {
+    return service.options(b, auth.current(r));
+  }
+
+  @PostMapping("/orders/{id}/preview")
+  public Map<String, Object> preview(
+      @PathVariable UUID id, @RequestBody Map<String, Object> b, HttpServletRequest r) {
+    return service.preview(id, b, auth.current(r));
+  }
+
+  @PatchMapping("/orders/{id}/schedule")
+  public Map<String, Object> move(
+      @PathVariable UUID id, @RequestBody Map<String, Object> b, HttpServletRequest r) {
+    return service.move(id, b, auth.current(r));
+  }
+
+  @PostMapping("/orders/{id}/{action}")
+  public Map<String, Object> action(
+      @PathVariable UUID id,
+      @PathVariable String action,
+      @RequestBody(required = false) Map<String, Object> b,
+      HttpServletRequest r) {
+    return service.action(id, action, b, auth.current(r));
+  }
+
+  @PostMapping("/orders/{id}/products/{lineId}/return")
+  public Map<String, Object> returned(
+      @PathVariable UUID id,
+      @PathVariable UUID lineId,
+      @RequestBody Map<String, Object> b,
+      HttpServletRequest r) {
+    return service.returned(id, lineId, b, auth.current(r));
+  }
+
+  @GetMapping("/orders/{id}/services")
+  public Map<String, Object> services(@PathVariable UUID id, HttpServletRequest r) {
+    return service.services(id, auth.current(r));
+  }
 }

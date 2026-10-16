@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableScheduling
 public class CourtlyApplication {
-    public static void main(String[] args) {
-        SpringApplication.run(CourtlyApplication.class, args);
-    }
+  public static void main(String[] args) {
+    SpringApplication.run(CourtlyApplication.class, args);
+  }
 }

@@ -20,7 +20,10 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-courtly}
       DB_USERNAME: ${POSTGRES_USER:-courtly}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-courtly_local}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@courtly.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-CourtlyLocal!2026}
       SEED_DEMO: ${SEED_DEMO:-true}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       FRONTEND_ORIGIN: http://localhost:3000
     ports:
       - "127.0.0.1:8080:8080"

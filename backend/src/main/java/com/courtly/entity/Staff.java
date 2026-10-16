@@ -1,11 +1,11 @@
 package com.courtly.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "staff")
@@ -13,22 +13,21 @@ import java.time.*;
 @Setter
 @NoArgsConstructor
 public class Staff extends BaseEntity {
-    @Column(name = "full_name", nullable = false)
-    private String fullName;
+  @Column(name = "full_name", nullable = false)
+  private String fullName;
 
-    @Column(name = "phone", nullable = false)
-    private String phone;
+  @Column(name = "phone", nullable = false)
+  private String phone;
 
-    @Column(name = "type", nullable = false)
-    private String type = "REFEREE";
+  @Column(name = "type", nullable = false)
+  private String type = "REFEREE";
 
-    @Column(name = "level", nullable = true)
-    private String level;
+  @Column(name = "level", nullable = true)
+  private String level;
 
-    @Column(name = "hourly_rate", nullable = false, precision = 14, scale = 2)
-    private BigDecimal hourlyRate = BigDecimal.ZERO;
+  @Column(name = "hourly_rate", nullable = false, precision = 14, scale = 2)
+  private BigDecimal hourlyRate = BigDecimal.ZERO;
 
-    @Column(name = "status", nullable = false)
-    private String status = "ACTIVE";
-
+  @Column(name = "status", nullable = false)
+  private String status = "ACTIVE";
 }
