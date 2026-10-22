@@ -20,9 +20,10 @@ public class SettingsService {
         .orElseGet(
             () -> {
               ClubSettings settings = new ClubSettings();
-              settings.setHoldMinutes(10);
+              settings.setHoldMinutes(5);
               settings.setDepositPercent(50);
               settings.setCancelRefundPercent(100);
+              settings.setPolicies("{\"cancelCutoffMinutes\":1440,\"changeCutoffMinutes\":1440}");
               return repository.save(settings);
             });
   }

@@ -154,8 +154,12 @@ public class PaymentService {
       if (documents != null) {
         var extra = documents.decode(order.getMetadata());
         var pending = PresentationService.decimal(extra.get("refundPending"));
-        if (pending.signum() > 0)
-          extra.put("refundPending", pending.subtract(amount).max(BigDecimal.ZERO));
+        if (pending.signum() > 0) {
+          var remaining = pending.subtract(amount).max(BigDecimal.ZERO);
+          extra.put("refundPending", remaining);
+          if (remaining.signum() == 0 && "REFUND_PENDING".equals(extra.get("financialReview")))
+            extra.put("financialReview", null);
+        }
         order.setMetadata(documents.encode(extra));
       }
       order.setPaidAmount(order.getPaidAmount().subtract(amount));

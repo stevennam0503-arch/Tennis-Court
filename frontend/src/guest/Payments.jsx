@@ -1,6 +1,6 @@
 import React,{useState,useEffect,useRef} from 'react';
 import QRCode from 'qrcode';
-import {Copy,CheckCircle2,Zap,Pause,Play,ArrowRight} from 'lucide-react';
+import {Copy,CheckCircle2,ArrowRight} from 'lucide-react';
 import {api} from '../services/api';
 import {useGuest,Action,State,Empty,money} from './context';
 
@@ -11,8 +11,7 @@ export function PaymentDialog({intent,onClose}){
   const [qr,setQr]=useState('');
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
-  const [countdown,setCountdown]=useState(8);
-  const [autoPay,setAutoPay]=useState(true);
+
 
   // Generate standard VietQR QR canvas from EMVCo payload
   useEffect(()=>{
@@ -41,17 +40,6 @@ export function PaymentDialog({intent,onClose}){
     return()=>{live=false;clearInterval(timer)};
   },[intent.id,refresh]);
 
-  // Auto-demo countdown for seamless presentation
-  useEffect(()=>{
-    if(!autoPay||current.status==='CONFIRMED')return;
-    if(countdown<=0){
-      action('confirm');
-      return;
-    }
-    const timer=setTimeout(()=>setCountdown(c=>c-1),1000);
-    return()=>clearTimeout(timer);
-  },[countdown,autoPay,current.status]);
-
   const action=async(path,b={})=>{
     setBusy(true);setError('');
     try{
@@ -59,7 +47,7 @@ export function PaymentDialog({intent,onClose}){
       setCurrent(updated);
       await refresh();
       if(updated.status==='CONFIRMED'){
-        notify(t('Thanh toán thành công! Đơn hàng đã được xác nhận.'));
+        notify(t('Khoản chuyển đã được xác minh. Vui lòng kiểm tra số dư của đơn.'));
       }
     }catch(e){
       setError(e.message);
@@ -89,10 +77,10 @@ export function PaymentDialog({intent,onClose}){
           {t('GIAO DỊCH THÀNH CÔNG')}
         </span>
         <h2 style={{fontSize:24,margin:'8px 0 12px 0',color:'#173c32'}}>
-          {t('ĐÃ THANH TOÁN HOÀN TẤT')}
+          {t('KHOẢN CHUYỂN ĐÃ XÁC MINH')}
         </h2>
         <p style={{fontSize:13,color:'#555',margin:'0 auto 20px auto',maxWidth:380}}>
-          {t('Hệ thống đã nhận được tiền chuyển khoản. Đơn hàng và lịch đặt sân của bạn đã được kích hoạt thành công!')}
+          {t('Khoản chuyển đã được xác minh. Xem đơn để biết số dư còn lại và trạng thái lịch đặt.')}
         </p>
 
         <div style={{background:'#f0f4ec',border:'1px solid #d2dec8',borderRadius:6,padding:'14px 18px',marginBottom:22,textAlign:'left',fontSize:13}}>
@@ -109,8 +97,8 @@ export function PaymentDialog({intent,onClose}){
             <span>Chuyển khoản VietQR (Napas 247)</span>
           </div>
           <div style={{display:'flex',justifyContent:'space-between'}}>
-            <span style={{color:'#666'}}>{t('Trạng thái đơn')}:</span>
-            <span style={{background:'#2e7d32',color:'#fff',padding:'2px 8px',borderRadius:4,fontSize:11,fontWeight:600}}>CONFIRMED</span>
+            <span style={{color:'#666'}}>{t('Trạng thái giao dịch')}:</span>
+            <State value={current.status}/>
           </div>
         </div>
 
@@ -130,45 +118,10 @@ export function PaymentDialog({intent,onClose}){
         <State value={current.status}/>
       </div>
 
-      {/* Auto-pay demo notification box */}
-      <div style={{background:'#edf7ed',border:'1px solid #b7dfb9',borderRadius:6,padding:'10px 14px',marginBottom:14,fontSize:12,display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-        <div style={{display:'flex',alignItems:'center',gap:6,color:'#1e4620'}}>
-          <Zap size={15} style={{color:'#e65100'}}/>
-          {autoPay ? (
-            <span>Tự động duyệt sau <b>{countdown}s</b> (Demo)</span>
-          ) : (
-            <span>Đã tạm dừng tự động duyệt</span>
-          )}
-        </div>
-        <div style={{display:'flex',gap:6}}>
-          <button
-            type="button"
-            onClick={()=>setAutoPay(p=>!p)}
-            style={{background:'none',border:'1px solid #99c99c',borderRadius:4,padding:'3px 8px',fontSize:11,display:'flex',alignItems:'center',gap:4}}
-          >
-            {autoPay ? <><Pause size={12}/> Tạm dừng</> : <><Play size={12}/> Tiếp tục</>}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={()=>action('confirm')}
-            style={{background:'#2e7d32',color:'#fff',border:'none',borderRadius:4,padding:'3px 10px',fontSize:11,fontWeight:600,cursor:'pointer'}}
-          >
-            Duyệt ngay
-          </button>
-        </div>
-      </div>
-
+      <p className="gx-notice">{t('Chỉ ngân hàng xác minh tiền chuyển khoản. Nút thông báo đã chuyển tiền không xác nhận thu tiền và không gia hạn giữ chỗ.')}</p>
       {/* VietQR Display */}
       <div className="gx-qr" style={{textAlign:'center',margin:'10px 0'}}>
-        {current.qrImageUrl ? (
-          <img
-            src={current.qrImageUrl}
-            alt="Mã VietQR thanh toán"
-            style={{maxWidth:'280px',width:'100%',borderRadius:8,border:'1px solid #ddd',boxShadow:'0 2px 8px rgba(0,0,0,0.08)'}}
-            onError={(e)=>{if(qr)e.currentTarget.src=qr;}}
-          />
-        ) : qr ? (
+        {qr ? (
           <img src={qr} width="240" height="240" alt="Mã VietQR thanh toán" style={{borderRadius:6}}/>
         ) : (
           <Empty>{t('Đang tạo mã VietQR...')}</Empty>
@@ -199,8 +152,8 @@ export function PaymentDialog({intent,onClose}){
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 0',borderBottom:'1px dashed #e4e2d8'}}>
           <span style={{color:'#666'}}>{t('Số tài khoản')}:</span>
           <div style={{display:'flex',alignItems:'center',gap:6}}>
-            <b style={{fontSize:13,letterSpacing:'.5px'}}>{current.accountNumber || '0345678999'}</b>
-            <button type="button" onClick={()=>copy(current.accountNumber||'0345678999',t('số tài khoản'))} style={{border:'none',background:'none',cursor:'pointer',padding:2}}>
+            <b style={{fontSize:13,letterSpacing:'.5px'}}>{current.accountNumber || '—'}</b>
+            <button type="button" onClick={()=>copy(current.accountNumber||'',t('số tài khoản'))} style={{border:'none',background:'none',cursor:'pointer',padding:2}}>
               <Copy size={13}/>
             </button>
           </div>
@@ -224,15 +177,6 @@ export function PaymentDialog({intent,onClose}){
 
       {/* Action Buttons */}
       <div style={{display:'grid',gap:8}}>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={()=>action('confirm')}
-          style={{background:'#173c32',color:'#fff',border:'none',borderRadius:4,padding:'12px',fontWeight:600,fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}
-        >
-          <Zap size={16} style={{color:'#e3f47a'}}/> {t('⚡ Xác nhận đã thanh toán (Duyệt ngay)')}
-        </button>
-
         {['PENDING','CHECKING'].includes(current.status)&&(
           <button
             type="button"
@@ -248,6 +192,12 @@ export function PaymentDialog({intent,onClose}){
       </div>
     </div>
   );
+}
+
+export function PaymentChoice({onChoose}){
+ const {t}=useGuest();const [busy,setBusy]=useState(false),[online,setOnline]=useState(null);
+ useEffect(()=>{let live=true;api('/public/payment-config').then(c=>{if(live)setOnline(c.onlineEnabled&&c.bankConfigured)}).catch(()=>{if(live)setOnline(false)});return()=>{live=false}},[]);
+ return <div className="gx-form"><h2>{t('Chọn phương thức thanh toán')}</h2><p>{t('Tiền chỉ được ghi nhận khi nhân viên thu tiền mặt hoặc ngân hàng gửi xác minh chuyển khoản.')}</p><Action disabled={busy||!online} onClick={async()=>{setBusy(true);try{await onChoose('BANK_TRANSFER')}finally{setBusy(false)}}}>{t('Chuyển khoản VietQR')}</Action>{online===false&&<p>{t('Chuyển khoản hiện chưa khả dụng. Vui lòng thanh toán tại quầy.')}</p>}<Action secondary disabled={busy} onClick={()=>onChoose('CASH')}>{t('Tiền mặt tại quầy')}</Action></div>;
 }
 
 export default function Payments(){

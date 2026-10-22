@@ -6,14 +6,16 @@ import {toMinutes, clock, rangeSlots, canEndAt, timePoints} from './bookingTime.
 import CourtMap from './CourtMap';
 
 export default function Booking() {
-  const {t, lang, data, date, setDate, user, login, preferredZone, refresh, navigate, pay, moveOrder, setMoveOrder, notify} = useGuest();
+  const {t, lang, data, date, setDate, user, login, preferredZone, setPreferredZone, refresh, navigate, pay, moveOrder, setMoveOrder, notify} = useGuest();
   const [courtId, setCourtId] = useState('');
   const [start, setStart] = useState(null), [end, setEnd] = useState(null), [hover, setHover] = useState(null);
   const [phase, setPhase] = useState('start'), [options, setOptions] = useState(null);
   const [error, setError] = useState(''), [saving, setSaving] = useState(false);
   const [wantReferee, setWantReferee] = useState(false), [refStart, setRefStart] = useState(''), [refEnd, setRefEnd] = useState(''), [refId, setRefId] = useState('');
+  const [preview,setPreview]=useState(null);
   const req = useRef(requestId());
-  const courts = data?.courts || [];
+  const allCourts = data?.courts || [];
+  const courts = preferredZone==='ALL'?allCourts:allCourts.filter(c=>zone(c)===preferredZone);
   const court = courts.find(c => c.id === courtId) || courts.find(c => zone(c) === preferredZone && c.status === 'ACTIVE') || courts[0];
   const rowsFor = c => (data?.schedules || []).filter(s => s.court === c?.id && s.date === date).sort((a,b) => a.start.localeCompare(b.start));
   const rows = rowsFor(court);
@@ -22,8 +24,9 @@ export default function Booking() {
   const valid = court?.status === 'ACTIVE' && end !== null && canEndAt(rows, start, end, available);
   const chosen = valid ? rangeSlots(rows, start, end) : [];
   const signature = chosen.map(s => s.id).join(',');
-  const reset = () => {setStart(null); setEnd(null); setHover(null); setPhase('start'); setRefId(''); setOptions(null); setError('');};
+  const reset = () => {setStart(null); setEnd(null); setHover(null); setPhase('start'); setRefId(''); setOptions(null); setPreview(null); setError('');};
   useEffect(reset, [court?.id, date, moveOrder?.id]);
+  useEffect(()=>setPreview(null),[signature,refId,refStart,refEnd,wantReferee]);
   useEffect(() => {setCourtId('');}, [preferredZone]);
   useEffect(() => {setRefStart(start === null ? '' : clock(start)); setRefEnd(end === null ? '' : clock(end)); setRefId(''); req.current = requestId();}, [start, end, court?.id, date]);
   useEffect(() => {
@@ -63,7 +66,11 @@ export default function Booking() {
     try {
       const assignments = referee ? refSlots.map(s => ({scheduleId:s.id, staffId:referee.id})) : [];
       if (moveOrder) {
-        await api(`/orders/${moveOrder.id}/schedule`, 'PATCH', {scheduleIds:chosen.map(s => s.id), assignments, reason:'Khách đổi lịch', requestId:req.current});
+        if(!preview){
+          const result=await api(`/orders/${moveOrder.id}/preview`,'POST',{scheduleIds:chosen.map(s=>s.id),assignments});
+          setPreview(result);return;
+        }
+        await api(`/orders/${moveOrder.id}/schedule`, 'PATCH', {scheduleIds:chosen.map(s => s.id), assignments, reason:'Khách đổi lịch', expectedTotal:preview.next.total, requestId:req.current});
         setMoveOrder(null); navigate('orders'); notify(t('Đã đổi lịch')); await refresh();
       } else {
         const result = await api('/orders', 'POST', {name:user.name, phone:'', accountId:user.id, scheduleIds:chosen.map(s => s.id), assignments, requestId:req.current});
@@ -76,6 +83,7 @@ export default function Booking() {
     <header className="gx-booking-heading"><div><span className="ct-eyebrow">COURTLY / {t('ĐẶT SÂN')}</span><h1>{t('Chọn sân. Hẹn giờ chơi.')}</h1><p>{t('Một buổi tennis, bắt đầu bằng một cuộc hẹn.')}</p></div><span className="gx-opening"><Clock size={16}/> 06:00–23:00 · {t('Mỗi ngày')}</span></header>
     {moveOrder && <div className="gx-notice">{t('Đang đổi lịch đơn')} #{moveOrder.id.slice(0,8)} <button onClick={() => setMoveOrder(null)}>{t('Bỏ đổi lịch')}</button></div>}
     <div className="gx-date-bar"><label>{t('Ngày chơi')}<input aria-label={t('Ngày chơi')} type="date" min={dateToday()} max={new Date(Date.now()+90*86400000).toISOString().slice(0,10)} value={date} onChange={e => {if (e.target.value) {reset(); setDate(e.target.value);}}}/></label><p><Clock size={16}/>{t('Chọn theo mốc 30 phút. Giá hiển thị theo giờ.')}</p></div>
+    <label className="gx-zone-filter">{t('Loại sân')}<select aria-label={t('Loại sân')} value={preferredZone} onChange={e=>{setPreferredZone(e.target.value);setCourtId('');reset();}}>{[['ALL','Tất cả'],['A','Ngoài trời'],['B','Trong nhà'],['V','VIP']].map(([id,label])=><option key={id} value={id}>{t(label)}</option>)}</select></label>
     <CourtMap courts={courts} selected={court} onSelect={c => {if (c.id !== court?.id) {reset(); setCourtId(c.id);}}} rangeLabel={rangeLabel} availability={c => valid ? canEndAt(rowsFor(c), start, end, available) : null}/>
     <div className="gx-book-layout">
       <section className="gx-play-panel" aria-labelledby="guest-time-title">
@@ -118,9 +126,11 @@ export default function Booking() {
         <div className="gx-quote-range"><Clock size={18}/><div><strong>{rangeLabel || t('Chưa chọn giờ')}</strong><span>{valid?`${end-start} ${t('phút')}`:t('Chọn giờ bắt đầu và kết thúc')}</span></div></div>
         <dl><div><dt>{t('Tiền sân')}</dt><dd>{money(gross)}</dd></div><div><dt>{t('Ưu đãi hội viên')}</dt><dd>−{money(discount)}</dd></div><div><dt>{t('Trọng tài')}</dt><dd>{money(refFee)}</dd></div><div className="gx-total"><dt>{t('Tổng tiền')}</dt><dd>{money(net+refFee)}</dd></div></dl>
         <div className="gx-deposit"><div><span>{t('Cọc 50% tiền sân')}</span><strong>{money(Math.round(net/2))}</strong></div><p>{t('Phí trọng tài nằm trong phần thanh toán còn lại.')}</p></div>
+        {preview&&<div className="gx-notice" role="status"><h3>{t('Xem trước đổi lịch')}</h3><p>{t('Tổng cũ')}: {money(preview.previous.total)} → {t('Tổng mới')}: {money(preview.next.total)}</p><p>{t('Chênh lệch')}: {money(preview.difference)}</p><p>{t('Còn thanh toán')}: {money(preview.additionalDue)}</p><p>{t('Chờ hoàn / đối soát')}: {money(preview.reviewAmount)}</p></div>}
+        {!user&&<p className="gx-notice">{t('Đăng nhập để tạo đơn gắn với tài khoản của bạn. Lựa chọn hiện tại được giữ khi đăng nhập.')}</p>}
         {error && <div className="gx-error" role="alert">{t(error)}</div>}
-        <Action disabled={!ready} onClick={submit}>{t(saving?'Đang xử lý…':moveOrder?'Xác nhận đổi lịch':'Tiếp tục thanh toán')}<ArrowUpRight size={18}/></Action>
-        <p className="gx-quote-note">{t('Lựa chọn chưa giữ chỗ. Sân được kiểm tra lại khi tạo đơn.')}</p>
+        <Action disabled={!ready} onClick={submit}>{t(saving?'Đang xử lý…':!user?'Đăng nhập để đặt sân':moveOrder?(preview?'Xác nhận đổi lịch':'Xem trước đổi lịch'):'Tiếp tục thanh toán')}<ArrowUpRight size={18}/></Action>
+        <p className="gx-quote-note">{t('Lựa chọn chưa giữ chỗ. Sân được kiểm tra lại khi tạo đơn.')} {t('Thời gian giữ chỗ')}: {data?.settings?.holdMinutes??5} {t('phút')}. <button onClick={()=>navigate('pricing')}>{t('Bảng giá & chính sách')}</button></p>
       </aside>
     </div>
   </div>;

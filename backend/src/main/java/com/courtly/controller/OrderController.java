@@ -25,6 +25,11 @@ public class OrderController {
     return service.options(b, auth.current(r));
   }
 
+  @GetMapping("/orders/{id}/cancellation-preview")
+  public Map<String, Object> cancellationPreview(@PathVariable UUID id, HttpServletRequest r) {
+    return service.cancellationPreview(id, auth.current(r));
+  }
+
   @PostMapping("/orders/{id}/preview")
   public Map<String, Object> preview(
       @PathVariable UUID id, @RequestBody Map<String, Object> b, HttpServletRequest r) {

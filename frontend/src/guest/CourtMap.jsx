@@ -13,7 +13,7 @@ export default function CourtMap({courts, selected, onSelect, availability, rang
   return <section className="gx-map-section" aria-labelledby="guest-court-map-title">
     <div className="gx-block-heading"><div><span className="gx-step">01</span><h2 id="guest-court-map-title">{t('Chọn sân của bạn')}</h2></div><span>{rangeLabel || t('Chạm vào sân để xem giờ trống')}</span></div>
     <div className="dg-board" aria-label={t('Bản đồ sân')}>
-      {zones.map(({id, name, style, Icon}) => {
+      {zones.filter(z=>courts.some(c=>zone(c)===z.id)).map(({id, name, style, Icon}) => {
         const items = courts.filter(court => zone(court) === id);
         return <section className={`dg-zone dg-${style}`} key={id} aria-label={`${t('Khu')} ${id} · ${t(name)}`}>
           <div className="dg-zone-head"><Icon aria-hidden="true"/><div><h3>{t(name)}</h3><span>{t('Khu')} {id} · {items.length} {t('sân')}</span></div></div>

@@ -205,9 +205,9 @@ public class BookingSupportService {
     next.put("membershipBenefit", benefit);
     next.put(
         "deposit",
-        total
-            .multiply(BigDecimal.valueOf(settings.get().getDepositPercent()))
-            .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP));
+        "ADMIN".equals(a.getRole())
+            ? total.multiply(BigDecimal.valueOf(settings.get().getDepositPercent())).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP)
+            : PresentationService.decimal(benefit.get("net")).multiply(new BigDecimal("0.5")).setScale(0, RoundingMode.HALF_UP));
     return map(
         "next",
         next,

@@ -85,9 +85,9 @@ public class OverviewService {
                             "dayType",
                             p.getDayType(),
                             "start",
-                            p.getStartTime().getHour(),
+                            p.getStartTime().getHour() + p.getStartTime().getMinute() / 60.0,
                             "end",
-                            p.getEndTime().getHour(),
+                            p.getEndTime().getHour() + p.getEndTime().getMinute() / 60.0,
                             "price",
                             p.getPricePerHour()))
                 .toList(),
@@ -286,9 +286,9 @@ public class OverviewService {
                             "dayType",
                             p.getDayType(),
                             "start",
-                            p.getStartTime().getHour(),
+                            p.getStartTime().getHour() + p.getStartTime().getMinute() / 60.0,
                             "end",
-                            p.getEndTime().getHour(),
+                            p.getEndTime().getHour() + p.getEndTime().getMinute() / 60.0,
                             "price",
                             p.getPricePerHour()))
                 .toList(),

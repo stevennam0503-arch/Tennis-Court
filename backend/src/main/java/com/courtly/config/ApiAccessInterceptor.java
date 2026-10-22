@@ -26,8 +26,11 @@ public class ApiAccessInterceptor implements HandlerInterceptor {
     var a = auth.current(req);
     req.setAttribute("actor", a);
     boolean admin = "ADMIN".equals(a.getRole());
+    boolean cashDesk = (p.equals("/api/payments") && req.getMethod().equals("POST"))
+        || (p.equals("/api/payments/cash-desk") && req.getMethod().equals("GET"));
+    if (cashDesk) auth.cashier(a);
     if (p.startsWith("/api/catalog/")
-        || p.startsWith("/api/payments")
+        || p.startsWith("/api/payments") && !cashDesk
         || p.equals("/api/settings")
         || p.startsWith("/api/matches/")
         || p.matches("/api/tournaments/[^/]+/draw")
@@ -41,7 +44,7 @@ public class ApiAccessInterceptor implements HandlerInterceptor {
       if (o.getCustomerAccount() == null || !o.getCustomerAccount().getId().equals(a.getId()))
         throw new ResponseStatusException(
             HttpStatus.FORBIDDEN, "Bạn chỉ được xem và sửa đơn của mình");
-      if (parts.length < 5 || !Set.of("cancel", "schedule", "preview").contains(parts[4]))
+      if (parts.length < 5 || !Set.of("cancel", "schedule", "preview", "cancellation-preview").contains(parts[4]))
         throw new ResponseStatusException(
             HttpStatus.FORBIDDEN, "Dịch vụ và vận hành đơn chỉ xử lý tại quầy");
     }

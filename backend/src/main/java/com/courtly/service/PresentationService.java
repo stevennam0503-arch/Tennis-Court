@@ -27,6 +27,7 @@ public class PresentationService {
   private final AccountRepository accounts;
   private final SettingsService settings;
   private final MembershipService membership;
+  private final StaffRepository staff;
 
   @Value("${courtly.seed-demo:false}")
   private boolean sample;
@@ -71,12 +72,8 @@ public class PresentationService {
           v.get("schedules"),
           "tournaments",
           tournaments.stream().filter(t -> !"DRAFT".equals(t.get("status"))).toList(),
-          "settings",
-          map(
-              "holdMinutes",
-              settings.get().getHoldMinutes(),
-              "depositPercent",
-              settings.get().getDepositPercent()),
+          "refereeRates", refereeRates(),
+          "settings", publicSettings(),
           "orders",
           List.of(),
           "accounts",
@@ -151,7 +148,9 @@ public class PresentationService {
       boolean ended = Set.of("CANCELLED", "EXPIRED").contains(o.get("status"));
       var excess = paid.subtract(total).max(BigDecimal.ZERO);
       var review = o.get("financialReview");
-      if (review == null && (excess.signum() > 0 || ended && paid.signum() > 0))
+      boolean policyRetained = o.get("cancellationSettlement") instanceof Map<?, ?> settlement
+          && paid.compareTo(decimal(settlement.get("retainedAmount"))) == 0;
+      if (review == null && (excess.signum() > 0 || ended && paid.signum() > 0 && !policyRetained))
         review = "POLICY_REVIEW";
       o.put(
           "finance",
@@ -181,6 +180,7 @@ public class PresentationService {
     }
     ((Map<String, Object>) v.get("settings"))
         .put("policies", docs.decode(settings.get().getPolicies()));
+    v.put("refereeRates", refereeRates());
     v.put("club", content.club());
     v.put("sample", sample);
 
@@ -230,6 +230,19 @@ public class PresentationService {
     for (String key : List.of("staff", "staffSchedules", "products", "matches", "audit"))
       v.put(key, List.of());
     return v;
+  }
+
+  private List<Map<String, Object>> refereeRates() {
+    return staff.findAll().stream()
+        .filter(s -> "REFEREE".equals(s.getType()) && "ACTIVE".equals(s.getStatus()))
+        .map(s -> map("name", s.getFullName(), "level", s.getLevel(), "rate", s.getHourlyRate()))
+        .toList();
+  }
+
+  private Map<String, Object> publicSettings() {
+    var s = settings.get();
+    return map("holdMinutes", s.getHoldMinutes(), "depositPercent", 50,
+        "cancelRefundPercent", s.getCancelRefundPercent(), "policies", docs.decode(s.getPolicies()));
   }
 
   public void history(CustomerOrder o, String type, Map<String, Object> before) {

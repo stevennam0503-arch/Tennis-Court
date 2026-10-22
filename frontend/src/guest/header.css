@@ -79,3 +79,12 @@
   #courtly-balanced-amenities .ct-header.ct-original-header .ct-original-wordmark {font-size:20px;line-height:23px;}
   #courtly-balanced-amenities .ct-header.ct-original-header .cl-header-tools {gap:6px;}
 }
+/* Eight primary destinations need room before switching to the mobile menu. */
+@media(min-width:1180px) {
+ #courtly-balanced-amenities .ct-header.ct-original-header {grid-template-columns:auto minmax(0,1fr) auto;gap:20px}
+ #courtly-balanced-amenities .ct-header.ct-original-header nav {gap:12px;flex-wrap:wrap}
+ #courtly-balanced-amenities .ct-header.ct-original-header nav>button {font-size:16px}
+}
+@media(min-width:601px) and (max-width:1179px) {
+ #courtly-balanced-amenities .ct-header.ct-original-header nav.gx-nav-open {grid-template-columns:repeat(4,minmax(0,1fr))}
+}

@@ -31,3 +31,13 @@
   #courtly-balanced-amenities .ct-quick-book {padding:22px 18px;}
   #courtly-balanced-amenities .ct-footer {padding:34px 18px 20px;}
 }
+#courtly-balanced-amenities .gx-price-scroll {overflow:auto;margin:18px 0;max-height:480px}
+#courtly-balanced-amenities .gx-price-scroll table {width:100%;border-collapse:collapse;font-size:14px}
+#courtly-balanced-amenities .gx-price-scroll th,#courtly-balanced-amenities .gx-price-scroll td {padding:10px 8px;text-align:left;border-bottom:1px solid #dce2d7;white-space:nowrap}
+#courtly-balanced-amenities .gx-price-scroll th small {display:block;font-weight:400}
+#courtly-balanced-amenities .gx-price-scroll caption {text-align:left;margin-bottom:10px}
+#courtly-balanced-amenities .gx-policy-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-top:32px}
+#courtly-balanced-amenities .gx-policy-grid article {padding:24px;background:#f1f4eb;border-radius:10px;line-height:1.7}
+#courtly-balanced-amenities .gx-zone-filter {display:flex;gap:16px;align-items:center;margin:20px 0}
+#courtly-balanced-amenities .gx-zone-filter select {padding:10px;border:1px solid #c3cebc;border-radius:6px}
+@media(max-width:1000px){#courtly-balanced-amenities .gx-policy-grid {grid-template-columns:1fr}}

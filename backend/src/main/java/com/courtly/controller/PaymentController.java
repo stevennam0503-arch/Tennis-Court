@@ -15,14 +15,33 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class PaymentController {
   private final PaymentService service;
+  private final com.courtly.repository.CustomerOrderRepository orders;
+  private final OrderService booking;
   private final RequestService requests;
   private final AuthService auth;
   private final ObjectMapper mapper;
   private final jakarta.validation.Validator validator;
 
+  @GetMapping("/cash-desk")
+  @org.springframework.transaction.annotation.Transactional
+  public List<Map<String, Object>> cashDesk(HttpServletRequest r) {
+    auth.cashier(auth.current(r));
+    booking.expireHolds();
+    return orders.findAllWithCustomerAccount().stream()
+        .filter(o -> Set.of("HOLDING", "CONFIRMED", "CHECKED_IN", "COMPLETED").contains(o.getStatus())
+            && o.getTotalAmount().compareTo(o.getPaidAmount()) > 0)
+        .limit(100)
+        .map(o -> map("id", o.getId(), "name", o.getCustomerName(), "status", o.getStatus(),
+            "total", o.getTotalAmount(), "paid", o.getPaidAmount(), "deposit", o.getDepositRequired(),
+            "due", o.getTotalAmount().subtract(o.getPaidAmount()), "holdUntil", o.getHoldExpiresAt()))
+        .toList();
+  }
+
   @PostMapping
   public Map<String, Object> collect(@RequestBody Map<String, Object> b, HttpServletRequest r) {
     var a = auth.current(r);
+    auth.cashier(a);
+    require("CASH".equals(b.get("method")), "Chuyển khoản chỉ được ghi nhận qua webhook ngân hàng");
     return requests.execute(
         a.getId(),
         "receipt:" + AuthService.hash(text((String) b.get("transactionCode"), "Mã giao dịch")),
@@ -35,6 +54,7 @@ public class PaymentController {
   public Map<String, Object> refund(
       @PathVariable UUID id, @RequestBody Map<String, Object> b, HttpServletRequest r) {
     var a = auth.current(r);
+    auth.admin(a);
     require(b.get("requestId") instanceof String, "Thiếu mã yêu cầu hoàn tiền");
     return requests.execute(
         a.getId(),

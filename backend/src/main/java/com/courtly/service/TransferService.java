@@ -30,16 +30,16 @@ public class TransferService {
   private final OrderService booking;
   private final MembershipService memberships;
 
-  @Value("${courtly.payment.mode:DEMO}")
+  @Value("${courtly.payment.mode:MANUAL}")
   private String mode;
 
-  @Value("${courtly.payment.bank-bin:970422}")
+  @Value("${courtly.payment.bank-bin:}")
   private String bankBin;
 
-  @Value("${courtly.payment.account-number:0345678999}")
+  @Value("${courtly.payment.account-number:}")
   private String accountNumber;
 
-  @Value("${courtly.payment.account-name:CLB TENNIS COURTLY}")
+  @Value("${courtly.payment.account-name:}")
   private String accountName;
 
   @Value("${courtly.payment.webhook-key:}")
@@ -49,27 +49,28 @@ public class TransferService {
   private String adminEmail;
 
   public String getMode() {
-    return mode != null && !mode.isBlank() ? mode : "DEMO";
+    return mode != null && !mode.isBlank() ? mode : "MANUAL";
   }
 
   public String getBankBin() {
-    return bankBin != null && bankBin.matches("\\d{6}") ? bankBin : "970422";
+    return bankBin != null && bankBin.matches("\\d{6}") ? bankBin : "";
   }
 
   public String getAccountNumber() {
-    return accountNumber != null && !accountNumber.isBlank() ? accountNumber : "0345678999";
+    return accountNumber != null && !accountNumber.isBlank() ? accountNumber : "";
   }
 
   public String getAccountName() {
-    return accountName != null && !accountName.isBlank() ? accountName : "CLB TENNIS COURTLY";
+    return accountName != null && !accountName.isBlank() ? accountName : "";
   }
 
   public Map<String, Object> config() {
     return map(
         "mode", getMode(),
-        "bankConfigured", true,
+        "onlineEnabled", "LIVE".equals(getMode()) && webhookKey != null && !webhookKey.isBlank(),
+        "bankConfigured", getBankBin().matches("\\d{6}") && getAccountNumber().matches("\\d{6,30}") && !getAccountName().isBlank(),
         "bankBin", getBankBin(),
-        "bankName", "MB Bank",
+        "bankName", "970422".equals(getBankBin()) ? "MB Bank" : getBankBin(),
         "accountNumber", getAccountNumber(),
         "accountName", getAccountName());
   }
@@ -105,7 +106,11 @@ public class TransferService {
   }
 
   public Map<String, Object> create(Account a, Map<String, Object> b) {
+    docs.mutationLock();
     booking.expireHolds();
+    require("LIVE".equals(getMode()) || "SANDBOX".equals(getMode()) && "ADMIN".equals(a.getRole()), "Chuyển khoản hiện chưa khả dụng; vui lòng thanh toán tại quầy");
+    require(Boolean.TRUE.equals(config().get("bankConfigured")), "Chưa cấu hình tài khoản nhận chuyển khoản; vui lòng thanh toán tại quầy");
+    require(!"LIVE".equals(getMode()) || !webhookKey.isBlank(), "Chưa cấu hình xác minh ngân hàng; vui lòng thanh toán tại quầy");
     String type = oneOf((String) b.get("type"), "ORDER", "TOURNAMENT", "MEMBERSHIP"),
         target = text((String) b.get("targetId"), "Mã đơn");
     String purpose = "BALANCE".equals(b.get("purpose")) ? "BALANCE" : "DEPOSIT";
@@ -182,6 +187,7 @@ public class TransferService {
   }
 
   public Map<String, Object> declared(Account a, String id) {
+    docs.mutationLock();
     var x = docs.get("transfer:" + id);
     own(a, x.get("accountId"));
     if ("PENDING".equals(view(x).get("status"))) {
@@ -192,28 +198,20 @@ public class TransferService {
   }
 
   public Map<String, Object> confirm(Account a, String id) {
-    var x = docs.get("transfer:" + id);
-    own(a, x.get("accountId"));
-    var due = PresentationService.decimal(x.get("remaining"));
-    require(due.signum() > 0, "Giao dịch đã được thanh toán đủ");
-    String event = "auto-pay:" + id + ":" + System.currentTimeMillis();
-    receive(event, (String) x.get("reference"), due, (String) x.getOrDefault("mode", "DEMO"));
-    return view(docs.get("transfer:" + id));
+    throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+        "Khách hàng không được xác nhận tiền đã thu; chờ xác minh từ ngân hàng");
   }
 
   public Map<String, Object> adminConfirm(String id) {
-    var x = docs.get("transfer:" + id);
-    require(!x.isEmpty(), "Không tìm thấy yêu cầu thanh toán");
-    var due = PresentationService.decimal(x.get("remaining"));
-    require(due.signum() > 0, "Giao dịch đã được thanh toán đủ");
-    String event = "admin-pay:" + id + ":" + System.currentTimeMillis();
-    receive(event, (String) x.get("reference"), due, "ADMIN");
-    return view(docs.get("transfer:" + id));
+    throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+        "Chuyển khoản được xác minh qua webhook; thu tiền mặt qua phiếu thu tại quầy");
   }
 
   public Map<String, Object> sandbox(Account a, String id, Map<String, Object> b) {
+    if (!"ADMIN".equals(a.getRole()) || !"SANDBOX".equals(getMode()))
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mô phỏng chỉ dành cho quản trị trong SANDBOX");
+    docs.mutationLock();
     var x = docs.get("transfer:" + id);
-    own(a, x.get("accountId"));
     String scenario = oneOf((String) b.get("scenario"), "SUCCESS", "PARTIAL", "DUPLICATE", "LATE");
     String event = "sandbox:" + id + ":" + scenario;
     if (!docs.get("bank-event:" + event).isEmpty()) return docs.get("transfer:" + id);
@@ -238,14 +236,14 @@ public class TransferService {
   }
 
   public Map<String, Object> webhook(String authorization, Map<String, Object> b) {
-    if (!webhookKey.isBlank()) {
-      if (authorization == null
-          || !MessageDigest.isEqual(
-              ("Apikey " + webhookKey).getBytes(StandardCharsets.UTF_8),
-              authorization.getBytes(StandardCharsets.UTF_8))) {
-        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid webhook key");
-      }
-    }
+    if (!"LIVE".equals(getMode()) || webhookKey.isBlank())
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Webhook thanh toán chưa được cấu hình");
+    if (authorization == null || !MessageDigest.isEqual(
+        ("Apikey " + webhookKey).getBytes(StandardCharsets.UTF_8),
+        authorization.getBytes(StandardCharsets.UTF_8)))
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid webhook key");
+    require(Boolean.TRUE.equals(config().get("bankConfigured")), "Chưa cấu hình tài khoản nhận tiền");
+    require(getAccountNumber().equals(String.valueOf(b.get("accountNumber"))), "Sai tài khoản nhận tiền");
     if (!"in".equals(b.get("transferType"))) return map("success", true, "ignored", true);
     String providerId = String.valueOf(b.getOrDefault("id", ""));
     require(providerId.matches("[0-9]{1,30}"), "Mã giao dịch ngân hàng không hợp lệ");
@@ -259,6 +257,7 @@ public class TransferService {
   }
 
   private void receive(String event, String reference, BigDecimal received, String source) {
+    docs.mutationLock();
     var prior = docs.get("bank-event:" + event);
     if (!prior.isEmpty()) {
       require(

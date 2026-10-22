@@ -37,6 +37,7 @@ public class OrderApplicationService {
         "create-order",
         r,
         () -> {
+          service.expireHolds();
           BookingRequest effective = r;
           if (!"ADMIN".equals(a.getRole())) {
             require(
@@ -94,23 +95,33 @@ public class OrderApplicationService {
     require(
         Set.of("HOLDING", "CONFIRMED").contains(o.getStatus()), "Chỉ thay đổi trước khi check-in");
     service.future(service.allocated(service.booking(o)));
+    if ("HOLDING".equals(o.getStatus())) return;
     var p = docs.decode(settings.get().getPolicies());
-    Object cutoff = p.get(action + "CutoffMinutes");
-    if (cutoff instanceof Number n) {
-      var start =
-          service.allocated(service.booking(o)).stream()
-              .map(s -> at(s.getScheduleDate(), s.getStartTime()))
-              .min(Comparator.naturalOrder())
-              .orElseThrow();
-      require(
-          start.isAfter(Instant.now().plusSeconds(n.longValue() * 60))
-              || start.equals(Instant.now().plusSeconds(n.longValue() * 60)),
-          "Đã qua hạn đổi/hủy; liên hệ quầy");
-    }
+    var configured = p.get(action + "CutoffMinutes");
+    long cutoff = configured instanceof Number n ? n.longValue() : 1440;
+    var start = service.allocated(service.booking(o)).stream()
+        .map(s -> at(s.getScheduleDate(), s.getStartTime()))
+        .min(Comparator.naturalOrder()).orElseThrow();
+    require(!start.isBefore(Instant.now().plusSeconds(cutoff * 60)),
+        "Đã qua hạn đổi/hủy; liên hệ quầy");
+  }
+
+  public Map<String, Object> cancellationPreview(UUID id, Account actor) {
+    support.owns(actor, id);
+    var o = service.lock(id);
+    customerPolicy(actor, o, "cancel");
+    var percent = settings.get().getCancelRefundPercent();
+    var refund = o.getPaidAmount().multiply(java.math.BigDecimal.valueOf(percent))
+        .divide(java.math.BigDecimal.valueOf(100), 0, java.math.RoundingMode.HALF_UP);
+    return map("paid", o.getPaidAmount(), "refundPercent", percent, "refundAmount", refund,
+        "retainedAmount", o.getPaidAmount().subtract(refund),
+        "status", refund.signum() > 0 ? "REFUND_PENDING" : "NO_REFUND",
+        "requestedAt", Instant.now().toString());
   }
 
   public Map<String, Object> preview(UUID id, Map<String, Object> b, Account actor) {
     var a = actor;
+    customerPolicy(a, service.lock(id), "change");
     return support.preview(
         id,
         new MoveBookingRequest(
@@ -129,6 +140,7 @@ public class OrderApplicationService {
         "move:" + id,
         b,
         () -> {
+          support.owns(a, id);
           var o = service.lock(id);
           customerPolicy(a, o, "change");
           if (!"ADMIN".equals(a.getRole())) memberships.checkWindow(a.getId(), support.selected(ids(b.get("scheduleIds"))));
@@ -140,10 +152,19 @@ public class OrderApplicationService {
                   assignments(b),
                   (String) b.get("reason"),
                   (String) b.get("requestId"));
-          support.preview(id, r, a);
-          if (!"ADMIN".equals(a.getRole())) memberships.consumeChange(a.getId(), service.allocated(service.booking(o)), support.selected(r.scheduleIds()));
+          var preview = support.preview(id, r, a);
+          if (b.get("expectedTotal") != null)
+            require(PresentationService.decimal(((Map<?, ?>) preview.get("next")).get("total"))
+                .compareTo(PresentationService.decimal(b.get("expectedTotal"))) == 0,
+                "Giá đã thay đổi; vui lòng xem trước lịch mới lại");
+          if (!"ADMIN".equals(a.getRole()) && "CONFIRMED".equals(o.getStatus())) memberships.consumeChange(a.getId(), service.allocated(service.booking(o)), support.selected(r.scheduleIds()));
           service.move(id, r);
           if (!"ADMIN".equals(a.getRole())) customerDeposit(o);
+          var extra = docs.decode(o.getMetadata());
+          var excess = o.getPaidAmount().subtract(o.getTotalAmount()).max(java.math.BigDecimal.ZERO);
+          extra.put("refundPending", excess);
+          extra.put("financialReview", excess.signum() > 0 ? "REFUND_PENDING" : null);
+          o.setMetadata(docs.encode(extra));
           presentation.history(o, "SCHEDULE", old);
           return map("id", id);
         });
@@ -159,13 +180,20 @@ public class OrderApplicationService {
         action + ":" + id,
         b,
         () -> {
+          support.owns(a, id);
           var o = service.lock(id);
           var before = views.order(o);
           switch (action) {
             case "cancel" -> {
               customerPolicy(a, o, "cancel");
               if ("ADMIN".equals(a.getRole())) text((String) b.get("reason"), "Lý do hủy");
+              var settlement = cancellationPreview(id, a);
               service.cancel(id);
+              var extra = docs.decode(o.getMetadata());
+              extra.put("cancellationSettlement", settlement);
+              extra.put("refundPending", settlement.get("refundAmount"));
+              extra.put("financialReview", PresentationService.decimal(settlement.get("refundAmount")).signum() > 0 ? "REFUND_PENDING" : null);
+              o.setMetadata(docs.encode(extra));
             }
             case "check-in" -> {
               var early = docs.decode(settings.get().getPolicies()).get("checkInEarlyMinutes");
@@ -242,7 +270,7 @@ public class OrderApplicationService {
                     "Thao tác chưa được hỗ trợ: " + action);
           }
           presentation.history(
-              o, action.toUpperCase(Locale.ROOT), action.equals("restore") ? before : null);
+              o, action.toUpperCase(Locale.ROOT), Set.of("restore", "cancel").contains(action) ? before : null);
           return map("id", id);
         });
   }

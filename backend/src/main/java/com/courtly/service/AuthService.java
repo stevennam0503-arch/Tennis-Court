@@ -60,6 +60,11 @@ public class AuthService {
           HttpStatus.FORBIDDEN, "Chỉ quản trị viên được thực hiện thao tác này");
   }
 
+  public void cashier(Account a) {
+    if (!Set.of("ADMIN", "STAFF").contains(a.getRole()))
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ nhân viên thu ngân hoặc quản trị được thu tiền mặt");
+  }
+
   public boolean owner(Account a) {
     return a.getEmail().equalsIgnoreCase(adminEmail);
   }
