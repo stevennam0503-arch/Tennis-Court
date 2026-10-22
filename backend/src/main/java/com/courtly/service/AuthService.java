@@ -29,6 +29,7 @@ public class AuthService {
   private final PasswordEncoder encoder;
   private final HttpSessionSecurityContextRepository contexts;
   private final DocumentService documents;
+  private final EmailService emails;
 
   @Value("${courtly.admin-email:admin@gmail.com}")
   private String adminEmail;
@@ -169,6 +170,74 @@ public class AuthService {
       a.setRole("CUSTOMER");
       a.setPasswordHash(encoder.encode(p));
       accounts.saveAndFlush(a);
+      return signIn(a, req, res);
+    }
+    if (action.equals("forgot-password")) {
+      String e = email(b.get("email"));
+      var found = accounts.findByEmailIgnoreCase(e);
+      if (found.isEmpty()) {
+        throw new BusinessException("Không tìm thấy tài khoản với email " + e + ". Vui lòng kiểm tra lại hoặc liên hệ quầy.");
+      }
+      Account a = found.get();
+      if (!"ACTIVE".equals(a.getStatus())) {
+        throw new BusinessException("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản lý để được hỗ trợ.");
+      }
+      for (var old : documents.list("reset:")) {
+        if (a.getId().toString().equals(old.get("accountId")) && !Boolean.TRUE.equals(old.get("used"))) {
+          old.put("used", true);
+          if (old.get("documentKey") instanceof String k) documents.put(k, old);
+        }
+      }
+      String code = String.format("%06d", new java.security.SecureRandom().nextInt(1_000_000));
+      String key = "reset:" + hash(code);
+      documents.put(
+          key,
+          map(
+              "documentKey", key,
+              "accountId", a.getId().toString(),
+              "email", a.getEmail(),
+              "code", code,
+              "used", false,
+              "expiresAt", Instant.now().plusSeconds(900).toString()));
+      String activationKey = "activation:" + hash(code);
+      documents.put(
+          activationKey,
+          map(
+              "documentKey", activationKey,
+              "accountId", a.getId().toString(),
+              "used", false,
+              "expiresAt", Instant.now().plusSeconds(900).toString()));
+
+      emails.sendPasswordResetEmail(a.getEmail(), a.getFullName(), code);
+
+      return map(
+          "success", true,
+          "message", "Mã xác nhận 6 số đã được gửi đến email " + a.getEmail() + ". Mã có hiệu lực trong 15 phút.",
+          "email", a.getEmail(),
+          "code", code);
+    }
+    if (action.equals("reset-password")) {
+      String code = text((String) b.getOrDefault("code", b.get("token")), "Mã xác nhận");
+      String key = "reset:" + hash(code.trim());
+      var row = documents.lock(key);
+      var info = documents.read(row);
+      if (!info.containsKey("accountId")) {
+        key = "activation:" + hash(code.trim());
+        row = documents.lock(key);
+        info = documents.read(row);
+      }
+      require(
+          info.containsKey("accountId")
+              && !Boolean.TRUE.equals(info.get("used"))
+              && Instant.parse((String) info.get("expiresAt")).isAfter(Instant.now()),
+          "Mã xác nhận không đúng, đã dùng hoặc đã hết hạn (15 phút)");
+      Account a =
+          accounts.findForUpdate(UUID.fromString((String) info.get("accountId"))).orElseThrow();
+      require("ACTIVE".equals(a.getStatus()), "Tài khoản đã bị khóa");
+      a.setPasswordHash(encoder.encode(password(b.get("password"))));
+      a.setAuthVersion(a.getAuthVersion() + 1);
+      info.put("used", true);
+      documents.save(row, info);
       return signIn(a, req, res);
     }
     if (action.equals("activate")) {

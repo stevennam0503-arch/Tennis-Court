@@ -39,6 +39,13 @@ courtly:
   admin-password: ${ADMIN_PASSWORD:}
   seed-demo: ${SEED_DEMO:true}
   allowed-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    from: ${SMTP_FROM:no-reply@courtly.vn}
+    from-name: ${SMTP_FROM_NAME:Courtly Tennis Club}
 logging:
   level:
     org.hibernate.SQL: warn
