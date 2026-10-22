@@ -12,11 +12,11 @@ await page.getByLabel('Email',{exact:true}).fill('minh.anh@example.com');await p
 await page.locator('.ct-header nav').getByRole('button',{name:'Đặt sân',exact:true}).click();
 const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+2*86400000));
 await page.locator('.gx-booking').getByLabel('Ngày chơi',{exact:true}).fill(day);
-await page.locator('.gx-zone-courts button').filter({hasText:'A03'}).click();
-await page.getByLabel('Giờ bắt đầu',{exact:true}).selectOption('18:00');await page.getByLabel('Giờ kết thúc',{exact:true}).selectOption('19:30');
+await page.locator('[data-court-id="A03"]').click();
+await page.locator('[data-time="18:00"]').click();assert.equal(await page.locator('[data-range-end]').innerText(),'— — : — —');await page.locator('[data-time="19:30"]').click();
 await page.locator('.gx-quote').getByRole('button',{name:'Tiếp tục thanh toán',exact:true}).waitFor();
 await page.getByRole('button',{name:'EN',exact:true}).click();
-assert.equal(await page.getByLabel('Start time',{exact:true}).inputValue(),'18:00');assert.equal(await page.getByLabel('End time',{exact:true}).inputValue(),'19:30');
+assert.equal(await page.locator('[data-range-start]').innerText(),'18:00');assert.equal(await page.locator('[data-range-end]').innerText(),'19:30');
 await page.getByRole('button',{name:'VI',exact:true}).click();
 await page.screenshot({path:output+'/booking.png',fullPage:true});
 await page.locator('.gx-quote').getByRole('button',{name:'Tiếp tục thanh toán',exact:true}).click();

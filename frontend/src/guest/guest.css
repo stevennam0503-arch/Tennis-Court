@@ -11,3 +11,23 @@
 #courtly-balanced-amenities .ct-account-menu .ca-avatar{width:34px;height:34px;display:grid;place-items:center;background:#e6eddb;border-radius:50%;font-weight:600}
 @media(max-width:800px){#courtly-balanced-amenities .ct-header.ct-original-header nav{position:absolute;transform:none}#courtly-balanced-amenities .ct-header.ct-original-header .gx-menu{width:44px}}
 @media(max-width:380px){#courtly-balanced-amenities .ct-header.ct-original-header{flex-wrap:wrap;justify-content:center}#courtly-balanced-amenities .ct-original-header .cl-header-tools{width:100%;margin:0;justify-content:space-between}}
+
+/* Consistent customer-page scale, without zooming the interface or touching admin. */
+#courtly-balanced-amenities .ct-pad {padding:56px max(24px,calc((100vw - 1180px)/2));}
+#courtly-balanced-amenities .gx-heading {margin-bottom:30px;max-width:760px;}
+#courtly-balanced-amenities .gx-heading h1 {font-size:clamp(30px,3.5vw,44px);line-height:1.15;letter-spacing:-1.2px;margin:12px 0 16px;}
+#courtly-balanced-amenities .gx-heading p {font-size:14px;line-height:1.7;}
+#courtly-balanced-amenities .haus-hero {min-height:480px;padding:28px max(24px,calc((100vw - 1280px)/2));}
+#courtly-balanced-amenities .haus-hero-center {padding:38px 0;}
+#courtly-balanced-amenities .haus-hero h1 {font-size:clamp(44px,6.4vw,88px);line-height:1.06;letter-spacing:-3px;}
+#courtly-balanced-amenities .haus-section-head h2 {font-size:clamp(30px,3.3vw,46px);line-height:1.15;letter-spacing:-1.3px;}
+#courtly-balanced-amenities .ct-quick-book {padding:24px max(24px,calc((100vw - 1180px)/2));}
+#courtly-balanced-amenities .ct-footer {padding:48px max(24px,calc((100vw - 1180px)/2)) 24px;}
+#courtly-balanced-amenities .gx-footer-word {font-size:clamp(62px,13vw,170px);padding:22px 0;}
+@media(max-width:600px){
+  #courtly-balanced-amenities .ct-pad {padding:36px 18px;}
+  #courtly-balanced-amenities .haus-hero {min-height:420px;padding:22px 18px;}
+  #courtly-balanced-amenities .haus-hero h1 {font-size:clamp(40px,10.7vw,58px);letter-spacing:-1.6px;}
+  #courtly-balanced-amenities .ct-quick-book {padding:22px 18px;}
+  #courtly-balanced-amenities .ct-footer {padding:34px 18px 20px;}
+}

@@ -1,0 +1,144 @@
+/* Live booking layout: original handoff court illustrations, balanced reading sizes. */
+#courtly-balanced-amenities .gx-booking {max-width:1240px;margin:auto;padding:38px 32px 64px;}
+#courtly-balanced-amenities .gx-booking-heading {display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:26px;}
+#courtly-balanced-amenities .gx-booking-heading h1 {font-size:clamp(28px,3vw,40px);line-height:1.18;letter-spacing:-1.3px;margin:12px 0 10px;}
+#courtly-balanced-amenities .gx-booking-heading p {font-size:14px;color:#637269;margin:0;}
+#courtly-balanced-amenities .gx-opening {display:flex;align-items:center;gap:8px;font-size:12px;white-space:nowrap;color:#637269;}
+#courtly-balanced-amenities .gx-date-bar {display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px 22px;background:#fffefa;border:1px solid #dbe1d5;border-radius:10px;margin-bottom:30px;}
+#courtly-balanced-amenities .gx-date-bar label {display:flex;align-items:center;gap:16px;font-size:13px;font-weight:600;}
+#courtly-balanced-amenities .gx-date-bar input {width:170px;min-height:42px;padding:9px 12px;border-radius:6px;font-size:14px;}
+#courtly-balanced-amenities .gx-date-bar p {display:flex;align-items:center;gap:8px;font-size:12px;color:#637269;margin:0;}
+#courtly-balanced-amenities .gx-block-heading {display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;}
+#courtly-balanced-amenities .gx-block-heading>div {display:flex;align-items:center;gap:10px;}
+#courtly-balanced-amenities .gx-block-heading h2 {font-size:20px;letter-spacing:-.45px;margin:0;line-height:1.3;}
+#courtly-balanced-amenities .gx-block-heading>span {font-size:12px;color:#637269;}
+#courtly-balanced-amenities .gx-step {width:28px;height:28px;display:grid;place-items:center;flex-shrink:0;border:1px solid #cbd4c4;border-radius:50%;font-size:11px;font-weight:600;}
+#courtly-balanced-amenities .gx-map-section .dg-board {gap:16px;padding:18px;border-radius:12px;background:#e9eddf;}
+#courtly-balanced-amenities .gx-map-section .dg-zone {padding:16px;border-radius:8px;}
+#courtly-balanced-amenities .gx-map-section .dg-zone-head {margin-bottom:17px;min-height:36px;}
+#courtly-balanced-amenities .gx-map-section .dg-zone-head h3 {font-size:16px;}
+#courtly-balanced-amenities .gx-map-section .dg-zone-courts {gap:17px 20px;}
+#courtly-balanced-amenities .gx-map-section .dg-art {aspect-ratio:1.23;min-height:100px;transition:box-shadow .15s,transform .15s;}
+#courtly-balanced-amenities .gx-map-section .dg-court:hover:not(:disabled) .dg-art {transform:translateY(-2px);box-shadow:3px 7px 0 #526d442b;}
+#courtly-balanced-amenities .gx-map-section .dg-court-caption {margin-top:9px;min-height:20px;}
+#courtly-balanced-amenities .gx-map-section .dg-court .gm-court-state {font-size:10px;}
+#courtly-balanced-amenities .gx-map-section .dg-court.gm-busy .dg-art {filter:saturate(.5);}
+#courtly-balanced-amenities .gx-map-price {font-size:11px;font-weight:600;margin-top:4px;}
+#courtly-balanced-amenities .gx-map-price>span {font-weight:400;color:#59675d;}
+#courtly-balanced-amenities .gx-map-note {font-size:12px;color:#637269;margin:12px 0 0;line-height:1.6;}
+#courtly-balanced-amenities .gx-map-empty {font-size:12px;line-height:1.6;}
+#courtly-balanced-amenities .gx-booking .gx-book-layout {grid-template-columns:minmax(0,1fr) 330px;gap:28px;margin-top:32px;}
+#courtly-balanced-amenities .gx-play-panel {padding:24px;background:#fffefa;border:1px solid #d7dfd1;border-radius:12px;min-width:0;}
+#courtly-balanced-amenities .gx-selected-court {display:flex;align-items:center;gap:14px;border-block:1px solid #e2e6dc;padding:18px 0;margin-bottom:20px;}
+#courtly-balanced-amenities .gx-selected-court img {width:68px;height:70px;border-radius:6px;object-fit:cover;}
+#courtly-balanced-amenities .gx-selected-court>div {min-width:0;}
+#courtly-balanced-amenities .gx-selected-court>div>span {font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:#637269;}
+#courtly-balanced-amenities .gx-selected-court h3 {font-size:25px;line-height:1.2;margin:3px 0 4px;}
+#courtly-balanced-amenities .gx-selected-court p {font-size:12px;margin:0;color:#637269;}
+#courtly-balanced-amenities .gx-selected-court>strong {margin-left:auto;text-align:right;font-size:16px;white-space:nowrap;}
+#courtly-balanced-amenities .gx-selected-court>strong small {display:block;font-size:11px;font-weight:400;margin-top:4px;color:#637269;}
+#courtly-balanced-amenities .gx-range-head {display:grid;grid-template-columns:1fr 16px 1fr 40px;align-items:center;gap:10px;}
+#courtly-balanced-amenities .gx-range-head>button:not(.gx-range-reset) {border:1px solid #d2dbca;border-radius:8px;background:#f7f8f2;display:grid;gap:7px;text-align:left;padding:12px 14px;}
+#courtly-balanced-amenities .gx-range-head>button[aria-pressed=true] {border-color:#173c32;background:#eef3e3;box-shadow:inset 0 0 0 1px #173c32;}
+#courtly-balanced-amenities .gx-range-head>button>span {font-size:11px;color:#637269;}
+#courtly-balanced-amenities .gx-range-head strong {font-size:25px;line-height:1.2;font-variant-numeric:tabular-nums;letter-spacing:-.5px;}
+#courtly-balanced-amenities .gx-range-head>svg {width:16px;}
+#courtly-balanced-amenities .gx-range-reset {display:grid;justify-items:center;gap:5px;padding:10px 0;}
+#courtly-balanced-amenities .gx-range-reset>span {font-size:9px!important;white-space:nowrap;}
+#courtly-balanced-amenities .gx-time-instruction {display:flex;align-items:center;gap:8px;min-height:36px;font-size:12px;line-height:1.6;margin:12px 0;}
+#courtly-balanced-amenities .gx-time-instruction>span {width:6px;height:6px;border-radius:50%;background:#a37d40;flex-shrink:0;}
+#courtly-balanced-amenities .gx-time-instruction .gx-complete-dot {background:#41754c;}
+#courtly-balanced-amenities .gx-booking .gx-time-grid {grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;}
+#courtly-balanced-amenities .gx-booking .gx-time-grid button {min-height:59px;padding:9px 3px;gap:4px;justify-items:center;align-content:center;font-size:13px;border-color:#d0dac7;border-radius:6px;background:#fffefa;transition:background .12s,border-color .12s;}
+#courtly-balanced-amenities .gx-time-grid button strong {font-size:13px;font-variant-numeric:tabular-nums;}
+#courtly-balanced-amenities .gx-time-grid button small {font-size:9px;line-height:1.3;min-height:12px;color:inherit;}
+#courtly-balanced-amenities .gx-booking .gx-time-grid button:disabled {opacity:1;color:#8b9386;background:#eeefe9;border-color:#e2e5dc;}
+#courtly-balanced-amenities .gx-booking .gx-time-grid button:not(:disabled):hover {border-color:#173c32;box-shadow:inset 0 0 0 1px #173c32;}
+#courtly-balanced-amenities .gx-booking .gx-time-grid .gx-time-between,#courtly-balanced-amenities .gx-booking .gx-time-grid .gx-time-preview {background:#e9f0d9;border-color:#c0d3a6;color:#30583d;}
+#courtly-balanced-amenities .gx-booking .gx-time-grid .gx-time-start {background:#173c32;border-color:#173c32;color:#fffefa;}
+#courtly-balanced-amenities .gx-booking .gx-time-grid .gx-time-end {background:#def46a;border-color:#a5bb57;color:#173c32;}
+#courtly-balanced-amenities .gx-time-legend {display:flex;flex-wrap:wrap;gap:12px 16px;margin-top:16px;}
+#courtly-balanced-amenities .gx-time-legend>span {display:flex;align-items:center;gap:6px;font-size:10px;color:#637269;}
+#courtly-balanced-amenities .gx-time-legend i {width:9px;height:9px;background:#fffefa;border:1px solid #bdcbb0;border-radius:2px;}
+#courtly-balanced-amenities .gx-time-legend .gx-legend-busy {background:#e3e5dc;border-color:#d0d6c7;}
+#courtly-balanced-amenities .gx-time-legend .gx-legend-range {background:#def46a;border-color:#a9bb70;}
+#courtly-balanced-amenities .gx-range-help {font-size:11px;line-height:1.7;color:#637269;margin:14px 0 0;}
+#courtly-balanced-amenities .gx-referee-section {border-top:1px solid #e0e5d9;margin-top:24px;padding-top:20px;}
+#courtly-balanced-amenities .gx-referee-toggle {display:flex;align-items:center;gap:10px;cursor:pointer;}
+#courtly-balanced-amenities .gx-referee-toggle input {width:17px;min-height:17px;margin:0;accent-color:#173c32;flex-shrink:0;}
+#courtly-balanced-amenities .gx-referee-toggle>svg {width:20px;flex-shrink:0;}
+#courtly-balanced-amenities .gx-referee-toggle>span {display:grid;gap:5px;}
+#courtly-balanced-amenities .gx-referee-toggle strong {font-size:13px;}
+#courtly-balanced-amenities .gx-referee-toggle small {font-size:11px;font-weight:400;color:#637269;line-height:1.5;}
+#courtly-balanced-amenities .gx-referee-toggle .gx-optional {margin-left:auto;font-size:10px;white-space:nowrap;}
+#courtly-balanced-amenities .gx-referee-panel {margin-top:22px;}
+#courtly-balanced-amenities .gx-referees button:first-child {grid-column:auto;}
+#courtly-balanced-amenities .gx-referees button {border-radius:8px;position:relative;}
+#courtly-balanced-amenities .gx-referees button>svg {position:absolute;top:12px;right:12px;}
+#courtly-balanced-amenities .gx-booking .gx-quote {top:102px;background:#f0f2e8;border:1px solid #d1dac4;border-radius:12px;padding:26px;}
+#courtly-balanced-amenities .gx-booking .gx-quote h2 {font-size:30px;letter-spacing:-.8px;line-height:1.2;margin:16px 0 4px;}
+#courtly-balanced-amenities .gx-booking .gx-quote .gx-quote-date {margin:0;color:#637269;}
+#courtly-balanced-amenities .gx-quote-range {display:flex;align-items:center;gap:12px;padding:17px 0;margin-top:14px;border-block:1px solid #d1dac4;}
+#courtly-balanced-amenities .gx-quote-range>div {display:grid;gap:5px;}
+#courtly-balanced-amenities .gx-quote-range strong {font-size:18px;font-variant-numeric:tabular-nums;}
+#courtly-balanced-amenities .gx-quote-range span {font-size:11px;color:#637269;}
+#courtly-balanced-amenities .gx-quote dl {margin:14px 0;}
+#courtly-balanced-amenities .gx-quote dl>div {border:0;font-size:12px;padding:9px 0;}
+#courtly-balanced-amenities .gx-quote dl>.gx-total {font-size:17px;border-top:1px solid #d1dac4;margin-top:9px;padding-top:16px;}
+#courtly-balanced-amenities .gx-quote dl>.gx-total dd {font-size:23px;letter-spacing:-.6px;}
+#courtly-balanced-amenities .gx-deposit {padding:14px;background:#e3eacd;border-radius:7px;}
+#courtly-balanced-amenities .gx-deposit>div {display:flex;justify-content:space-between;gap:12px;font-size:12px;}
+#courtly-balanced-amenities .gx-booking .gx-deposit p {margin:8px 0 0;font-size:10px;line-height:1.6;color:#52654a;}
+#courtly-balanced-amenities .gx-booking .gx-quote .ct-primary {justify-content:space-between;min-height:48px;padding:13px 18px;font-size:13px;margin-top:20px;}
+#courtly-balanced-amenities .gx-booking .gx-quote-note {font-size:10px;line-height:1.7;color:#637269;text-align:center;margin-bottom:0;}
+@media(min-width:1600px){#courtly-balanced-amenities .gx-booking {padding-inline:32px;}}
+@media(max-width:1000px){
+  #courtly-balanced-amenities .gx-booking {padding:32px 24px 48px;}
+  #courtly-balanced-amenities .gx-booking .gx-book-layout {grid-template-columns:minmax(0,1fr) 290px;gap:20px;}
+  #courtly-balanced-amenities .gx-play-panel {padding:20px;}
+  #courtly-balanced-amenities .gx-booking .gx-time-grid {grid-template-columns:repeat(5,minmax(0,1fr));}
+  #courtly-balanced-amenities .gx-map-section .dg-board {gap:12px;padding:14px;}
+  #courtly-balanced-amenities .gx-map-section .dg-zone {padding:12px;}
+  #courtly-balanced-amenities .gx-map-section .dg-zone-courts {gap:15px 14px;}
+  #courtly-balanced-amenities .gx-map-section .dg-art {min-height:90px;}
+}
+@media(max-width:800px){
+  #courtly-balanced-amenities .gx-booking .gx-book-layout {grid-template-columns:1fr;}
+  #courtly-balanced-amenities .gx-booking .gx-quote {position:static;}
+  #courtly-balanced-amenities .gx-booking-heading {align-items:start;}
+  #courtly-balanced-amenities .gx-opening {display:none;}
+  #courtly-balanced-amenities .gx-date-bar {align-items:start;flex-direction:column;gap:12px;}
+  #courtly-balanced-amenities .gx-booking .gx-time-grid {grid-template-columns:repeat(6,minmax(0,1fr));}
+}
+@media(max-width:600px){
+  #courtly-balanced-amenities .gx-booking {padding:26px 16px 40px;}
+  #courtly-balanced-amenities .gx-booking-heading h1 {font-size:29px;letter-spacing:-.8px;}
+  #courtly-balanced-amenities .gx-booking-heading p {font-size:12px;}
+  #courtly-balanced-amenities .gx-date-bar {padding:14px;gap:9px;margin-bottom:24px;}
+  #courtly-balanced-amenities .gx-date-bar p {font-size:10px;}
+  #courtly-balanced-amenities .gx-block-heading {align-items:start;flex-wrap:wrap;gap:9px;}
+  #courtly-balanced-amenities .gx-block-heading h2 {font-size:18px;}
+  #courtly-balanced-amenities .gx-block-heading>span {font-size:11px;}
+  #courtly-balanced-amenities .gx-map-section .dg-board {grid-template-columns:1fr;padding:12px;gap:12px;}
+  #courtly-balanced-amenities .gx-map-section .dg-zone {padding:14px;}
+  #courtly-balanced-amenities .gx-map-section .dg-zone-head {min-height:30px;margin-bottom:14px;}
+  #courtly-balanced-amenities .gx-map-section .dg-zone-head h3 {font-size:15px;}
+  #courtly-balanced-amenities .gx-map-section .dg-vip .dg-zone-courts {grid-template-columns:repeat(2,minmax(0,1fr));}
+  #courtly-balanced-amenities .gx-map-section .dg-art {aspect-ratio:1.5;min-height:76px;}
+  #courtly-balanced-amenities .gx-play-panel {padding:18px 14px;}
+  #courtly-balanced-amenities .gx-range-head {grid-template-columns:1fr 12px 1fr 28px;gap:7px;}
+  #courtly-balanced-amenities .gx-range-head>button:not(.gx-range-reset) {padding:10px;}
+  #courtly-balanced-amenities .gx-range-head>button>span {font-size:10px;}
+  #courtly-balanced-amenities .gx-range-head strong {font-size:22px;}
+  #courtly-balanced-amenities .gx-booking .gx-time-grid {grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;}
+  #courtly-balanced-amenities .gx-booking .gx-time-grid button {min-height:53px;font-size:12px;}
+  #courtly-balanced-amenities .gx-time-grid button small {font-size:8px;}
+  #courtly-balanced-amenities .gx-selected-court {gap:10px;}
+  #courtly-balanced-amenities .gx-selected-court img {width:50px;height:62px;}
+  #courtly-balanced-amenities .gx-selected-court>strong {font-size:14px;}
+  #courtly-balanced-amenities .gx-referee-toggle .gx-optional {display:none;}
+}
+@media(max-width:360px){
+  #courtly-balanced-amenities .gx-booking .gx-time-grid {grid-template-columns:repeat(4,minmax(0,1fr));}
+  #courtly-balanced-amenities .gx-selected-court img {display:none;}
+}

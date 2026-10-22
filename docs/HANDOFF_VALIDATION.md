@@ -44,3 +44,25 @@ Webhook: dùng backend test riêng cổng 8084 với `PAYMENT_MODE=LIVE`, BIN `9
 ## Giới hạn đã biết
 
 Chưa kiểm tra chuyển tiền thật hoặc cấp quyền SePay thực tế; xem `PAYMENTS.md`. Không tự gửi email/SMS, không tự chuyển khoản hoàn tiền. Ngày và thông tin liên hệ trong fixtures là dữ liệu giả lập. Giao diện khách phân trang lịch sử nhưng API overview/admin vẫn nạp tập dữ liệu theo thiết kế hiện có, chưa phải giải pháp tải lớn. Các công cụ admin/giải nâng cao ngoài phạm vi handoff giữ mức hỗ trợ cũ.
+
+## Chỉnh UX chọn sân — 22/10/2026
+
+- Khôi phục sơ đồ sân minh họa của handoff: hàng rào/đèn khu A, mái che khu B, khung vàng khu VIP; mỗi sân dùng tên, giá và trạng thái từ API. Trạng thái trống/bận trên sơ đồ xét theo khoảng giờ đã chọn.
+- Cân lại chiều rộng nội dung, cỡ tiêu đề, hero và footer của luồng khách. Trang đặt sân tách sơ đồ sân, bảng giờ và phần tổng tiền; trên điện thoại các phần xếp dọc.
+- Nhấn mốc đầu chọn giờ bắt đầu, nhấn mốc tiếp theo chọn đúng giờ kết thúc. Ví dụ 18:00 → 19:30 là 90 phút. Nhấn mốc khác sau khi hoàn tất sẽ bắt đầu chọn lại. Đổi sân/ngày xóa khoảng giờ cũ.
+- Chặn khoảng đi qua giờ đã đặt hoặc lịch bị thiếu; cho phép kết thúc ngay đầu đơn khác và lúc đóng cửa 23:00. Dùng ranh giới thực tế từ API để đọc được cả slot cũ 60 phút.
+- Trọng tài là lựa chọn mở rộng sau khi chọn đủ giờ; điều chỉnh giờ bắt đầu trọng tài luôn giữ giờ kết thúc hợp lệ.
+- Không thay schema/API hay mã admin; không cần migration hoặc nạp lại SQL.
+
+Kiểm tra đã đạt trên bản sửa này:
+
+| Kiểm tra | Kết quả |
+| --- | --- |
+| `npm --prefix frontend run build` | Thành công; vẫn còn cảnh báo bundle lớn hơn 500 kB |
+| `node --test tests/booking-time.test.mjs` | 7 bài kiểm thử ranh giới giờ, khoảng bị chặn và slot cũ đều đạt |
+| `node tests/booking-ux-browser.mjs` | Bàn phím, hai lần nhấn, mốc 23:00, đổi sân/ngày, giờ trọng tài; booking 1440/1024/768/650/390/320 px và overview 1440/1024/768/390/320 px không tràn ngang; không tạo đơn |
+| `COURTLY_TEST_WRITE=1 node tests/handoff-browser.mjs` | Đăng nhập, đặt 90 phút, chuyển VI/EN giữ lựa chọn, thanh toán sandbox, tải lại còn đơn, feedback/tin tức/liên hệ đạt trên database test |
+| `node tests/handoff-admin-browser.mjs` | 17 trang admin, lịch nửa giờ và kiểm tra không có layout khách đều đạt |
+| Rà ảnh giao diện | Đã xem overview và đặt sân ở 1440 px và 390 px |
+
+Script UX dùng tài khoản demo và lịch mẫu tương lai từ `database/test_data.sql`; không gửi thanh toán hay tạo đơn. `COURTLY_WEB_URL`, `CHROMIUM_PATH`, `COURTLY_SCREENSHOTS` cấu hình địa chỉ, trình duyệt và thư mục ảnh giống các script trên.
