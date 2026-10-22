@@ -25,8 +25,9 @@ public class ScheduleService {
     String dayType = date.getDayOfWeek().getValue() >= 6 ? "WEEKEND" : "WEEKDAY";
     for (Court item :
         courts.findAll().stream().sorted(Comparator.comparing(Court::getId)).toList()) {
+      var existing = schedules.findByCourtIdAndScheduleDate(item.getId(), date);
+      if (existing.size() >= 34) continue;
       Court court = courts.findForUpdate(item.getId()).orElseThrow();
-      var existing = schedules.findByCourtIdAndScheduleDate(court.getId(), date);
       var tariff = prices.findByCourtId(court.getId());
       for (int minute = 360; minute < 1380; minute += 30) {
         LocalTime start = LocalTime.of(minute / 60, minute % 60);

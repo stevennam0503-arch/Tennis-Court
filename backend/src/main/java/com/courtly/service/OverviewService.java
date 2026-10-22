@@ -4,9 +4,11 @@ import static com.courtly.util.Rules.*;
 
 import com.courtly.entity.*;
 import com.courtly.repository.*;
+import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +42,111 @@ public class OverviewService {
   private final ClubSettingsRepository settings;
   private final PaymentService paymentService;
   private final OrderTotalsService totals;
+
+  public Map<String, Object> publicGet(LocalDate date) {
+    ClubSettings s = settings.findAll().stream().findFirst().orElseThrow();
+    return map(
+        "courts",
+            courts.findAll().stream()
+                .sorted(Comparator.comparing(Court::getName))
+                .map(
+                    c ->
+                        map(
+                            "id",
+                            c.getId(),
+                            "name",
+                            c.getName(),
+                            "type",
+                            c.getType(),
+                            "status",
+                            c.getStatus(),
+                            "price",
+                            c.getBasePrice(),
+                            "description",
+                            c.getDescription(),
+                            "address",
+                            c.getAddress(),
+                            "amenities",
+                            c.getAmenities(),
+                            "imageUrl",
+                            c.getImageUrl(),
+                            "imageIsIllustration",
+                            c.isImageIsIllustration()))
+                .toList(),
+        "prices",
+            prices.findAllWithCourt().stream()
+                .map(
+                    p ->
+                        map(
+                            "id",
+                            p.getId(),
+                            "court",
+                            p.getCourt().getId(),
+                            "dayType",
+                            p.getDayType(),
+                            "start",
+                            p.getStartTime().getHour(),
+                            "end",
+                            p.getEndTime().getHour(),
+                            "price",
+                            p.getPricePerHour()))
+                .toList(),
+        "schedules",
+            schedules.findByScheduleDateOrderByStartTime(date).stream()
+                .map(
+                    p ->
+                        map(
+                            "id",
+                            p.getId(),
+                            "court",
+                            p.getCourt().getId(),
+                            "date",
+                            p.getScheduleDate(),
+                            "start", p.getStartTime(), "end", p.getEndTime(),
+                            "hour",
+                            p.getStartTime().getHour() + p.getStartTime().getMinute() / 60.0,
+                            "price",
+                            p.getPrice(),
+                            "status",
+                            !"ACTIVE".equals(p.getCourt().getStatus()) ? "BLOCKED" : p.getStatus(),
+                            "version",
+                            p.getVersion()))
+                .toList(),
+        "tournaments",
+            tournaments.findAll().stream()
+                .map(
+                    t ->
+                        map(
+                            "id",
+                            t.getId(),
+                            "name",
+                            t.getName(),
+                            "format",
+                            t.getFormat(),
+                            "start",
+                            t.getStartDate(),
+                            "end",
+                            t.getEndDate(),
+                            "deadline",
+                            t.getRegistrationDeadline(),
+                            "fee",
+                            t.getRegistrationFee(),
+                            "max",
+                            t.getMaxParticipants(),
+                            "status",
+                            t.getStatus(),
+                            "location",
+                            t.getLocation()))
+                .toList(),
+        "settings",
+            map(
+                "holdMinutes",
+                s.getHoldMinutes(),
+                "depositPercent",
+                s.getDepositPercent(),
+                "cancelRefundPercent",
+                s.getCancelRefundPercent()));
+  }
 
   public Map<String, Object> get(LocalDate date) {
     List<Map<String, Object>> items = new ArrayList<>();
@@ -80,6 +187,65 @@ public class OverviewService {
                         "status",
                         p.getStatus())));
     ClubSettings s = settings.findAll().stream().findFirst().orElseThrow();
+
+    var allBookings = bookings.findAllWithOrder();
+    var allSlots = bookingSlots.findAllWithDetails();
+    var allProducts = products.findAllWithDetails();
+    var allStaff = bookingStaff.findAllWithDetails();
+
+    Map<UUID, List<Booking>> bookingsByOrder =
+        allBookings.stream()
+            .filter(b -> b.getOrder() != null)
+            .collect(Collectors.groupingBy(b -> b.getOrder().getId()));
+
+    Map<UUID, List<BookingSlot>> slotsByBooking =
+        allSlots.stream()
+            .filter(bs -> bs.getBooking() != null)
+            .collect(Collectors.groupingBy(bs -> bs.getBooking().getId()));
+
+    Map<UUID, List<OrderProduct>> productsByOrder =
+        allProducts.stream()
+            .filter(op -> op.getOrder() != null)
+            .collect(Collectors.groupingBy(op -> op.getOrder().getId()));
+
+    Map<UUID, List<BookingStaff>> staffByBooking =
+        allStaff.stream()
+            .filter(bs -> bs.getBooking() != null)
+            .collect(Collectors.groupingBy(bs -> bs.getBooking().getId()));
+
+    var allRefunds = refunds.findAllWithPayment();
+    Map<UUID, BigDecimal> refundsByPayment =
+        allRefunds.stream()
+            .filter(r -> r.getPayment() != null)
+            .collect(
+                Collectors.groupingBy(
+                    r -> r.getPayment().getId(),
+                    Collectors.reducing(BigDecimal.ZERO, Refund::getAmount, BigDecimal::add)));
+
+    var allPayments = payments.findAllWithOrderAndRegistration();
+    Map<UUID, List<Payment>> paymentsByRegistration =
+        allPayments.stream()
+            .filter(p -> p.getRegistration() != null)
+            .collect(Collectors.groupingBy(p -> p.getRegistration().getId()));
+
+    var allMembers = members.findAllWithRegistration();
+    Map<UUID, List<TeamMember>> membersByRegistration =
+        allMembers.stream()
+            .filter(m -> m.getRegistration() != null)
+            .collect(Collectors.groupingBy(m -> m.getRegistration().getId()));
+
+    var allMatchSlots = matchSlots.findAllWithDetails();
+    Map<UUID, List<MatchSlot>> matchSlotsByMatch =
+        allMatchSlots.stream()
+            .filter(ms -> ms.getMatch() != null)
+            .collect(Collectors.groupingBy(ms -> ms.getMatch().getId()));
+
+    var allMatchStaff = matchStaff.findAllWithDetails();
+    Map<UUID, List<MatchStaff>> matchStaffByMatch =
+        allMatchStaff.stream()
+            .filter(ms -> ms.getMatch() != null)
+            .collect(Collectors.groupingBy(ms -> ms.getMatch().getId()));
+
     return map(
         "courts",
             courts.findAll().stream()
@@ -109,7 +275,7 @@ public class OverviewService {
                             c.isImageIsIllustration()))
                 .toList(),
         "prices",
-            prices.findAll().stream()
+            prices.findAllWithCourt().stream()
                 .map(
                     p ->
                         map(
@@ -139,7 +305,7 @@ public class OverviewService {
                             p.getScheduleDate(),
                             "start", p.getStartTime(), "end", p.getEndTime(),
                             "hour",
-                            p.getStartTime().getHour()+p.getStartTime().getMinute()/60.0,
+                            p.getStartTime().getHour() + p.getStartTime().getMinute() / 60.0,
                             "price",
                             p.getPrice(),
                             "status",
@@ -184,7 +350,7 @@ public class OverviewService {
                             a.getStatus()))
                 .toList(),
         "staffSchedules",
-            staffSchedules.findAll().stream()
+            staffSchedules.findByWorkDateOrderByStartTime(date).stream()
                 .map(
                     x ->
                         map(
@@ -195,21 +361,26 @@ public class OverviewService {
                             "date",
                             x.getWorkDate(),
                             "start",
-                            x.getStartTime().getHour() + x.getStartTime().getMinute()/60.0,
+                            x.getStartTime().getHour() + x.getStartTime().getMinute() / 60.0,
                             "end",
-                            x.getEndTime().getHour() + x.getEndTime().getMinute()/60.0,
+                            x.getEndTime().getHour() + x.getEndTime().getMinute() / 60.0,
                             "status",
                             x.getStatus()))
                 .toList(),
         "orders",
-            orders.findAll().stream()
-                .sorted(Comparator.comparing(CustomerOrder::getCreatedAt).reversed())
-                .map(this::order)
+            orders.findAllWithCustomerAccount().stream()
+                .map(
+                    o ->
+                        order(
+                            o,
+                            bookingsByOrder,
+                            slotsByBooking,
+                            productsByOrder,
+                            staffByBooking))
                 .toList(),
         "products", items,
         "payments",
-            payments.findAll().stream()
-                .sorted(Comparator.comparing(Payment::getPaidAt).reversed())
+            allPayments.stream()
                 .map(
                     p ->
                         map(
@@ -230,11 +401,13 @@ public class OverviewService {
                             "transactionCode",
                             p.getTransactionCode(),
                             "refundable",
-                            paymentService.net(p)))
+                            p.getAmount()
+                                .subtract(
+                                    refundsByPayment.getOrDefault(
+                                        p.getId(), BigDecimal.ZERO))))
                 .toList(),
         "refunds",
-            refunds.findAll().stream()
-                .sorted(Comparator.comparing(Refund::getRefundedAt).reversed())
+            allRefunds.stream()
                 .map(
                     p ->
                         map(
@@ -276,33 +449,47 @@ public class OverviewService {
                             t.getLocation()))
                 .toList(),
         "registrations",
-            registrations.findAll().stream()
+            registrations.findAllWithTournamentAndAccount().stream()
                 .map(
-                    r ->
-                        map(
-                            "id",
-                            r.getId(),
-                            "tournamentId",
-                            r.getTournament().getId(),
-                            "accountId",
-                            r.getAccount().getId(),
-                            "name",
-                            r.getTeamName(),
-                            "status",
-                            r.getStatus(),
-                            "paid",
-                            paymentService.registrationPaid(r.getId()),
-                            "members",
-                            members.findByRegistrationId(r.getId()).stream()
-                                .map(TeamMember::getMemberName)
-                                .toList()))
+                    r -> {
+                      var rPayments =
+                          paymentsByRegistration.getOrDefault(r.getId(), List.of());
+                      var paid =
+                          rPayments.stream()
+                              .map(
+                                  p ->
+                                      p.getAmount()
+                                          .subtract(
+                                              refundsByPayment.getOrDefault(
+                                                  p.getId(), BigDecimal.ZERO)))
+                              .reduce(BigDecimal.ZERO, BigDecimal::add);
+                      var rMembers =
+                          membersByRegistration.getOrDefault(r.getId(), List.of()).stream()
+                              .map(TeamMember::getMemberName)
+                              .toList();
+                      return map(
+                          "id",
+                          r.getId(),
+                          "tournamentId",
+                          r.getTournament().getId(),
+                          "accountId",
+                          r.getAccount().getId(),
+                          "name",
+                          r.getTeamName(),
+                          "status",
+                          r.getStatus(),
+                          "paid",
+                          paid,
+                          "members",
+                          rMembers);
+                    })
                 .toList(),
         "matches",
             matches.findAll().stream()
                 .sorted(
                     Comparator.comparing(TournamentMatch::getRoundNumber)
                         .thenComparing(TournamentMatch::getBracketIndex))
-                .map(this::match)
+                .map(m -> match(m, matchSlotsByMatch, matchStaffByMatch))
                 .toList(),
         "audit",
             audit.findTop100ByOrderByCreatedAtDesc().stream()
@@ -345,6 +532,40 @@ public class OverviewService {
   public Map<String, Object> order(CustomerOrder o) {
     Booking b = bookings.findByOrderId(o.getId()).stream().findFirst().orElseThrow();
     var slots = currentLinks(bookingSlots.findByBookingId(b.getId()), BookingSlot::getReleasedAt);
+    return buildOrderMap(
+        o,
+        b,
+        slots,
+        products.findByOrderId(o.getId()),
+        bookingStaff.findByBookingId(b.getId()));
+  }
+
+  public Map<String, Object> order(
+      CustomerOrder o,
+      Map<UUID, List<Booking>> bookingsByOrder,
+      Map<UUID, List<BookingSlot>> slotsByBooking,
+      Map<UUID, List<OrderProduct>> productsByOrder,
+      Map<UUID, List<BookingStaff>> staffByBooking) {
+    List<Booking> bList = bookingsByOrder.getOrDefault(o.getId(), List.of());
+    if (bList.isEmpty()) {
+      return order(o);
+    }
+    Booking b = bList.get(0);
+    var slots = currentLinks(slotsByBooking.getOrDefault(b.getId(), List.of()), BookingSlot::getReleasedAt);
+    return buildOrderMap(
+        o,
+        b,
+        slots,
+        productsByOrder.getOrDefault(o.getId(), List.of()),
+        staffByBooking.getOrDefault(b.getId(), List.of()));
+  }
+
+  private Map<String, Object> buildOrderMap(
+      CustomerOrder o,
+      Booking b,
+      List<BookingSlot> slots,
+      List<OrderProduct> orderProducts,
+      List<BookingStaff> staffList) {
     return map(
         "id",
         o.getId(),
@@ -378,10 +599,12 @@ public class OverviewService {
         o.getInvoiceNumber(),
         "issuedAt",
         o.getIssuedAt(),
+        "metadataRaw",
+        o.getMetadata(),
         "slots",
         slots.stream().map(x -> slot(x.getSchedule(), x.getUnitPrice())).toList(),
         "products",
-        products.findByOrderId(o.getId()).stream()
+        orderProducts.stream()
             .map(
                 x ->
                     map(
@@ -411,7 +634,7 @@ public class OverviewService {
                         x.getIssuedAt()))
             .toList(),
         "staff",
-        bookingStaff.findByBookingId(b.getId()).stream()
+        staffList.stream()
             .filter(
                 x ->
                     x.getReleasedAt() == null
@@ -445,7 +668,7 @@ public class OverviewService {
                             : x.getCourtSchedule().getCourt().getId(),
                         "start", x.getStaffSchedule().getStartTime(), "end", x.getStaffSchedule().getEndTime(),
                         "hour",
-                        x.getStaffSchedule().getStartTime().getHour() + x.getStaffSchedule().getStartTime().getMinute()/60.0,
+                        x.getStaffSchedule().getStartTime().getHour() + x.getStaffSchedule().getStartTime().getMinute() / 60.0,
                         "date",
                         x.getStaffSchedule().getWorkDate()))
             .toList());
@@ -464,9 +687,18 @@ public class OverviewService {
         price);
   }
 
-  private Map<String, Object> match(TournamentMatch m) {
-    var slots = currentLinks(matchSlots.findByMatchId(m.getId()), MatchSlot::getReleasedAt);
-    var staff = currentLinks(matchStaff.findByMatchId(m.getId()), MatchStaff::getReleasedAt);
+  private Map<String, Object> match(
+      TournamentMatch m,
+      Map<UUID, List<MatchSlot>> matchSlotsByMatch,
+      Map<UUID, List<MatchStaff>> matchStaffByMatch) {
+    var slots =
+        currentLinks(
+            matchSlotsByMatch.getOrDefault(m.getId(), List.of()),
+            MatchSlot::getReleasedAt);
+    var staff =
+        currentLinks(
+            matchStaffByMatch.getOrDefault(m.getId(), List.of()),
+            MatchStaff::getReleasedAt);
     return map(
         "id",
         m.getId(),

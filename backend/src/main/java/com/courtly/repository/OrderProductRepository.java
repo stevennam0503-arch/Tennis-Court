@@ -6,6 +6,10 @@ public interface OrderProductRepository extends LockingRepository<OrderProduct> 
   java.util.List<OrderProduct> findByOrderId(java.util.UUID id);
 
   @org.springframework.data.jpa.repository.Query(
+      "select op from OrderProduct op left join fetch op.drink left join fetch op.rentalItem")
+  java.util.List<OrderProduct> findAllWithDetails();
+
+  @org.springframework.data.jpa.repository.Query(
       "select coalesce(sum(p.quantity),0) from OrderProduct p where p.rentalItem.id=:item and"
           + " p.returnedAt is null and p.order.status not in ('CANCELLED','EXPIRED','COMPLETED')"
           + " and p.rentStartAt < :end and p.rentEndAt > :start")

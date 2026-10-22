@@ -7,6 +7,7 @@ import com.courtly.repository.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -48,7 +49,46 @@ public class PresentationService {
             && !date.isBefore(LocalDate.now(ZONE).minusYears(10))
             && !date.isAfter(LocalDate.now(ZONE).plusDays(90)),
         "Ngày ngoài khoảng hỗ trợ");
-    docs.mutationLock();
+
+    if (viewer == null) {
+      require(!date.isBefore(LocalDate.now(ZONE)), "Chọn ngày hôm nay hoặc ngày sắp tới");
+      orders.expireHolds();
+      schedules.generate(date);
+      var v = overview.publicGet(date);
+      var tournaments = rows(v, "tournaments");
+      return map(
+          "membershipPlans",
+          membership.plans().stream().filter(p -> Boolean.TRUE.equals(p.get("enabled"))).toList(),
+          "club",
+          content.club(),
+          "sample",
+          sample,
+          "courts",
+          v.get("courts"),
+          "prices",
+          v.get("prices"),
+          "schedules",
+          v.get("schedules"),
+          "tournaments",
+          tournaments.stream().filter(t -> !"DRAFT".equals(t.get("status"))).toList(),
+          "settings",
+          map(
+              "holdMinutes",
+              settings.get().getHoldMinutes(),
+              "depositPercent",
+              settings.get().getDepositPercent()),
+          "orders",
+          List.of(),
+          "accounts",
+          List.of(),
+          "registrations",
+          List.of(),
+          "payments",
+          List.of(),
+          "refunds",
+          List.of());
+    }
+
     orders.expireHolds();
     schedules.generate(date);
     var v = overview.get(date);
@@ -63,25 +103,48 @@ public class PresentationService {
                       same(r.get("tournamentId"), t.get("id"))
                           && !"CANCELLED".equals(r.get("status")))
               .count());
+
+    Map<UUID, Account> accountEntities =
+        accounts.findAll().stream().collect(Collectors.toMap(Account::getId, a -> a));
     for (var a : rows(v, "accounts")) {
-      var account = accounts.findById(UUID.fromString(a.get("id").toString())).orElseThrow();
-      a.put("loginLinked", account.getPasswordHash() != null);
-      a.put("isOwner", auth.owner(account));
+      var account = accountEntities.get(UUID.fromString(a.get("id").toString()));
+      if (account != null) {
+        a.put("loginLinked", account.getPasswordHash() != null);
+        a.put("isOwner", auth.owner(account));
+      }
     }
+
+    Map<String, List<Map<String, Object>>> paymentsByOrder =
+        rows(v, "payments").stream()
+            .filter(p -> p.get("orderId") != null)
+            .collect(Collectors.groupingBy(p -> p.get("orderId").toString()));
+
+    Map<String, BigDecimal> refundsByPayment =
+        rows(v, "refunds").stream()
+            .filter(r -> r.get("paymentId") != null)
+            .collect(
+                Collectors.groupingBy(
+                    r -> r.get("paymentId").toString(),
+                    Collectors.reducing(
+                        BigDecimal.ZERO, r -> decimal(r.get("amount")), BigDecimal::add)));
+
     for (var o : rows(v, "orders")) {
-      var entity = orderRepo.findById(UUID.fromString(o.get("id").toString())).orElseThrow();
-      o.putAll(docs.decode(entity.getMetadata()));
-      var receipts =
-          rows(v, "payments").stream().filter(p -> same(p.get("orderId"), o.get("id"))).toList();
+      var rawMeta = o.get("metadataRaw");
+      if (rawMeta != null) {
+        o.putAll(docs.decode(rawMeta.toString()));
+      } else {
+        var entity = orderRepo.findById(UUID.fromString(o.get("id").toString())).orElseThrow();
+        o.putAll(docs.decode(entity.getMetadata()));
+      }
+      var receipts = paymentsByOrder.getOrDefault(o.get("id").toString(), List.of());
       var ids = receipts.stream().map(p -> p.get("id").toString()).toList();
       var gross =
           receipts.stream()
               .map(p -> decimal(p.get("amount")))
               .reduce(BigDecimal.ZERO, BigDecimal::add);
       var refunded =
-          rows(v, "refunds").stream()
-              .filter(r -> ids.contains(r.get("paymentId").toString()))
-              .map(r -> decimal(r.get("amount")))
+          ids.stream()
+              .map(id -> refundsByPayment.getOrDefault(id, BigDecimal.ZERO))
               .reduce(BigDecimal.ZERO, BigDecimal::add);
       var total = decimal(o.get("total"));
       var paid = decimal(o.get("paid"));
@@ -120,40 +183,7 @@ public class PresentationService {
         .put("policies", docs.decode(settings.get().getPolicies()));
     v.put("club", content.club());
     v.put("sample", sample);
-    if (viewer == null) {
-      require(!date.isBefore(LocalDate.now(ZONE)), "Chọn ngày hôm nay hoặc ngày sắp tới");
-      return map(
-          "membershipPlans",
-          membership.plans().stream().filter(p -> Boolean.TRUE.equals(p.get("enabled"))).toList(),
-          "club",
-          content.club(),
-          "sample",
-          sample,
-          "courts",
-          v.get("courts"),
-          "prices",
-          v.get("prices"),
-          "schedules",
-          v.get("schedules"),
-          "tournaments",
-          tournaments.stream().filter(t -> !"DRAFT".equals(t.get("status"))).toList(),
-          "settings",
-          map(
-              "holdMinutes",
-              settings.get().getHoldMinutes(),
-              "depositPercent",
-              settings.get().getDepositPercent()),
-          "orders",
-          List.of(),
-          "accounts",
-          List.of(),
-          "registrations",
-          List.of(),
-          "payments",
-          List.of(),
-          "refunds",
-          List.of());
-    }
+
     v.putAll(membership.view(viewer));
     v.put("viewer", auth.user(viewer));
     if ("ADMIN".equals(viewer.getRole())) return v;
