@@ -1,163 +1,840 @@
--- TEST DATA ONLY. Explicit opt-in required in the SAME psql session:
--- psql ... -c "SET courtly.allow_test_data='on'" -f database/test_data.sql
--- Relative dates follow Asia/Ho_Chi_Minh. Rerunning does not duplicate fixtures.
+-- ====================================================================
+-- COURTLY TENNIS CLUB - COMPREHENSIVE REAL-WORLD BUSINESS DEMO (2 MONTHS)
+-- ====================================================================
+
 BEGIN;
 SET LOCAL TIME ZONE 'Asia/Ho_Chi_Minh';
+
 DO $$ BEGIN
- IF current_setting('courtly.allow_test_data',true) IS DISTINCT FROM 'on' THEN
+ IF current_setting('courtly.allow_test_data', true) IS DISTINCT FROM 'on' THEN
   RAISE EXCEPTION 'Test fixtures require SET courtly.allow_test_data=on; use a disposable database';
  END IF;
 END $$;
+
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
-CREATE FUNCTION pg_temp.demo_id(key text) RETURNS uuid LANGUAGE sql IMMUTABLE AS $$ SELECT md5('courtly-handoff-demo:'||key)::uuid $$;
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+-- Clean existing operational data cleanly in reverse foreign key order
+DELETE FROM app_documents;
+DELETE FROM audit_logs;
+DELETE FROM refunds;
+DELETE FROM payments;
+DELETE FROM match_staff;
+DELETE FROM match_slots;
+DELETE FROM matches;
+DELETE FROM team_members;
+DELETE FROM tournament_registrations;
+DELETE FROM tournaments;
+DELETE FROM order_products;
+DELETE FROM booking_staff;
+DELETE FROM booking_slots;
+DELETE FROM bookings;
+DELETE FROM orders;
+DELETE FROM staff_schedules;
+DELETE FROM staff;
+DELETE FROM rental_items;
+DELETE FROM drinks;
+DELETE FROM court_schedules;
+DELETE FROM court_prices;
+DELETE FROM courts;
+DELETE FROM club_settings;
+DELETE FROM accounts WHERE lower(email) <> 'admin@gmail.com';
+
+CREATE OR REPLACE FUNCTION pg_temp.seed_uuid(key text) RETURNS uuid LANGUAGE sql IMMUTABLE AS $$
+  SELECT md5('courtly-business-v2:' || key)::uuid
+$$;
+
 DO $$
 DECLARE
- n int; d int; k int; h int; c uuid; a uuid; o uuid; b uuid; s uuid; p uuid; r uuid; tr uuid; total numeric; paid numeric;
- state text; code text; rate numeric; day date; admin uuid; demo uuid; passwd text;
+  v_admin_id uuid;
+  v_demo_id uuid;
+  v_passwd text;
+  v_now timestamptz := now();
+  v_today date := CURRENT_DATE;
 BEGIN
- IF EXISTS(SELECT FROM app_documents WHERE document_key='fixture:handoff-v1') THEN RAISE NOTICE 'Demo already installed; no data changed'; RETURN; END IF;
- SELECT id INTO admin FROM accounts WHERE lower(email)='admin@gmail.com';
- IF admin IS NULL THEN RAISE EXCEPTION 'Apply V4 admin migration first'; END IF;
- passwd:=crypt('CourtlyDemo2026',gen_salt('bf',12));
- demo:=pg_temp.demo_id('user:1');
- FOR n IN 1..30 LOOP
-  a:=pg_temp.demo_id('user:'||n);
-  INSERT INTO accounts(id,full_name,email,phone,password_hash,role,status,created_at,auth_version)
-  VALUES(a,CASE n WHEN 1 THEN 'Nguyễn Minh Anh' ELSE 'Khách demo '||n END,
-    CASE n WHEN 1 THEN 'minh.anh@example.com' ELSE 'player'||n||'@courtly.example' END,
-    '090'||lpad(n::text,7,'0'),passwd,'CUSTOMER',CASE WHEN n=30 THEN 'LOCKED' ELSE 'ACTIVE' END,now()-interval '60 days',0);
- END LOOP;
- INSERT INTO club_settings(id,hold_minutes,deposit_percent,cancel_refund_percent,policies)
- SELECT pg_temp.demo_id('settings'),15,50,50,'{"cancelCutoffMinutes":60,"changeCutoffMinutes":60,"checkInEarlyMinutes":30}' WHERE NOT EXISTS(SELECT FROM club_settings);
- FOR n IN 1..10 LOOP
-  c:=pg_temp.demo_id('court:'||n);code:=CASE WHEN n<=4 THEN 'A'||lpad(n::text,2,'0') WHEN n<=8 THEN 'B'||lpad((n-4)::text,2,'0') ELSE 'V'||lpad((n-8)::text,2,'0') END;
-  rate:=CASE WHEN n<=4 THEN 200000 WHEN n<=8 THEN 300000 ELSE 500000 END;
-  INSERT INTO courts(id,name,type,description,image_url,status,base_price,address,amenities,image_is_illustration)
-  VALUES(c,code,'HARD','Sân mẫu phục vụ kiểm thử, không phải cơ sở thực tế',CASE WHEN n<=4 THEN '/guest/zone-a-outdoor.webp' WHEN n<=8 THEN '/guest/zone-b-indoor.webp' ELSE '/guest/zone-v-lounge.webp' END,'ACTIVE',rate,'DEMO · Khu thể thao Courtly','Phòng tắm, bãi xe, khu nghỉ',true);
-  FOR k IN 1..2 LOOP INSERT INTO court_prices(id,court_id,day_type,start_time,end_time,price_per_hour) VALUES(pg_temp.demo_id('price:'||n||':'||k),c,CASE k WHEN 1 THEN 'WEEKDAY' ELSE 'WEEKEND' END,'06:00','23:00',rate);END LOOP;
-  FOR d IN -30..30 LOOP
-   FOR h IN 12..45 LOOP
-    INSERT INTO court_schedules(id,court_id,schedule_date,start_time,end_time,price,status,version)
-    VALUES(pg_temp.demo_id('slot:'||n||':'||d||':'||h),c,CURRENT_DATE+d,(time '00:00'+h*interval '30 minutes')::time,(time '00:00'+(h+1)*interval '30 minutes')::time,rate/2,'AVAILABLE',0);
-   END LOOP;
-  END LOOP;
- END LOOP;
- FOR n IN 1..8 LOOP
-  a:=pg_temp.demo_id('staff:'||n);
-  INSERT INTO staff(id,full_name,phone,type,level,hourly_rate,status) VALUES(a,
-   CASE n WHEN 1 THEN 'Trọng tài Quốc Huy' WHEN 2 THEN 'Trọng tài Thanh Bình' WHEN 3 THEN 'Trọng tài Hoài An' ELSE 'Nhân sự demo '||n END,
-   '091'||lpad(n::text,7,'0'),CASE WHEN n<=3 THEN 'REFEREE' ELSE 'COACH' END,
-   CASE n WHEN 1 THEN '5 năm · Giải phong trào, đơn và đôi' WHEN 2 THEN '8 năm · Giải cấp câu lạc bộ' ELSE '3 năm · Trận giao lưu và thi đấu' END,
-   CASE n WHEN 1 THEN 150000 WHEN 2 THEN 180000 ELSE 200000 END,'ACTIVE');
-  FOR d IN -7..30 LOOP FOR h IN 12..45 LOOP
-   INSERT INTO staff_schedules(id,staff_id,work_date,start_time,end_time,status,version)
-   VALUES(pg_temp.demo_id('shift:'||n||':'||d||':'||h),a,CURRENT_DATE+d,(time '00:00'+h*interval '30 minutes')::time,(time '00:00'+(h+1)*interval '30 minutes')::time,'AVAILABLE',0);
-  END LOOP;END LOOP;
- END LOOP;
- FOR n IN 1..12 LOOP
-  INSERT INTO drinks(id,name,unit,unit_price,stock_quantity,status) VALUES(pg_temp.demo_id('drink:'||n),CASE n WHEN 1 THEN 'Nước suối 500ml' WHEN 2 THEN 'Nước điện giải' ELSE 'Đồ uống demo '||n END,'Chai',10000+n*5000,CASE WHEN n=12 THEN 0 ELSE 80+n END,'ACTIVE');
- END LOOP;
- FOR n IN 1..6 LOOP
-  INSERT INTO rental_items(id,name,category,brand,price_per_hour,stock_quantity,status,version) VALUES(pg_temp.demo_id('rental:'||n),'Thiết bị tại quầy '||n,'RACKET','Demo',30000+n*5000,12,'ACTIVE',0);
- END LOOP;
- -- 240 bookings: 180 historical, 60 upcoming, many owned by demo user.
- -- Each uses a unique court/day/interval; leave afternoon/evening free for manual tests.
- FOR n IN 1..240 LOOP
-  k:=(n-1)%10+1;d:=CASE WHEN n<=180 THEN -1-((n-1)/10) ELSE 1+((n-181)/10) END;h:=CASE WHEN n<=180 THEN 16 ELSE 20 END;
-  c:=pg_temp.demo_id('court:'||k);a:=CASE WHEN n%3<>0 THEN demo ELSE pg_temp.demo_id('user:'||(2+n%27)) END;
-  o:=pg_temp.demo_id('order:'||n);b:=pg_temp.demo_id('booking:'||n);
-  SELECT base_price INTO total FROM courts WHERE id=c;
-  state:=CASE WHEN n<=180 THEN CASE n%6 WHEN 0 THEN 'CANCELLED' WHEN 1 THEN 'EXPIRED' ELSE 'COMPLETED' END ELSE CASE n%4 WHEN 0 THEN 'HOLDING' ELSE 'CONFIRMED' END END;
-  paid:=CASE WHEN state IN ('EXPIRED','HOLDING') THEN 0 WHEN state='CANCELLED' THEN total/2 WHEN n%2=0 THEN total ELSE total/2 END;
-  INSERT INTO orders(id,customer_account_id,created_by_account_id,customer_name,customer_phone,status,hold_expires_at,subtotal,total_amount,deposit_required,paid_amount,payment_status,created_at,version,metadata)
-  SELECT o,a,admin,full_name,phone,state,CASE WHEN state='HOLDING' THEN now()+interval '15 minutes' ELSE (CURRENT_DATE+d+time '07:45')::timestamptz END,total,total,total/2,paid,CASE WHEN paid=0 THEN 'UNPAID' WHEN paid>=total THEN 'PAID' ELSE 'PARTIAL' END,now()-(abs(d)+1)*interval '1 day',0,
-    jsonb_build_object('fixture',true,'customerFlow',true,'membershipBenefit',jsonb_build_object('gross',total,'discount',0,'net',total))::text FROM accounts WHERE id=a;
-  INSERT INTO bookings(id,order_id,status,check_in_at,check_out_at,created_at) VALUES(b,o,CASE WHEN state='EXPIRED' THEN 'CANCELLED' ELSE state END,CASE WHEN state='COMPLETED' THEN (CURRENT_DATE+d+time '08:00')::timestamptz ELSE NULL END,CASE WHEN state='COMPLETED' THEN (CURRENT_DATE+d+time '09:00')::timestamptz ELSE NULL END,now()-interval '1 day');
-  FOR r IN SELECT id FROM court_schedules WHERE court_id=c AND schedule_date=CURRENT_DATE+d AND start_time>=(time '00:00'+h*interval '30 minutes')::time AND start_time<(time '00:00'+(h+2)*interval '30 minutes')::time LOOP
-    INSERT INTO booking_slots(id,booking_id,schedule_id,unit_price,released_at) SELECT gen_random_uuid(),b,r,price,CASE WHEN state IN ('CANCELLED','EXPIRED','COMPLETED') THEN now()-interval '1 day' ELSE NULL END FROM court_schedules WHERE id=r;
-    UPDATE court_schedules SET status=CASE WHEN state='HOLDING' THEN 'LOCKED' WHEN state='CONFIRMED' THEN 'BOOKED' ELSE 'AVAILABLE' END WHERE id=r;
-  END LOOP;
-  IF paid>0 THEN
-   p:=pg_temp.demo_id('payment:'||n);
-   INSERT INTO payments(id,order_id,type,method,amount,transaction_code,status,paid_at,received_by_account_id) VALUES(p,o,CASE WHEN paid<total THEN 'DEPOSIT' ELSE 'BALANCE' END,CASE WHEN n%2=0 THEN 'CASH' ELSE 'BANK_TRANSFER' END,paid,'DEMO-RECEIPT-'||n,'PAID',now()-interval '1 day',admin);
-   IF state='CANCELLED' AND n%12=0 THEN
-    INSERT INTO refunds(id,payment_id,amount,reason,status,processed_by_account_id,refunded_at) VALUES(pg_temp.demo_id('refund:'||n),p,paid,'Hoàn tiền mẫu','COMPLETED',admin,now());
-    UPDATE orders SET paid_amount=0,payment_status='UNPAID' WHERE id=o;
-   END IF;
+  v_passwd := crypt('CourtlyDemo2026', gen_salt('bf', 12));
+
+  -- 1. SUPERADMIN ACCOUNT
+  SELECT id INTO v_admin_id FROM accounts WHERE lower(email) = 'admin@gmail.com';
+  IF v_admin_id IS NULL THEN
+    v_admin_id := pg_temp.seed_uuid('account:admin');
+    INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+    VALUES (v_admin_id, 'Quản Trị Viên (Tổng Quản Lý)', 'admin@gmail.com', '0901888999',
+            crypt('12345', gen_salt('bf', 12)), 'ADMIN', 'ACTIVE', v_now - interval '65 days', 0);
   END IF;
- END LOOP;
- -- Four checked-in orders today for checkout, desk sales and rental-return tests.
- FOR n IN 1..4 LOOP
-  c:=pg_temp.demo_id('court:'||n);o:=pg_temp.demo_id('onsite-order:'||n);b:=pg_temp.demo_id('onsite-booking:'||n);
-  SELECT base_price INTO total FROM courts WHERE id=c;
-  INSERT INTO orders(id,customer_account_id,created_by_account_id,customer_name,customer_phone,status,subtotal,total_amount,deposit_required,paid_amount,payment_status,created_at,version,metadata)
-  SELECT o,demo,admin,full_name,phone,'CHECKED_IN',total+35000,total+35000,total/2,total/2,'PARTIAL',now(),0,'{"fixture":true,"customerFlow":true}' FROM accounts WHERE id=demo;
-  INSERT INTO bookings(id,order_id,status,check_in_at,created_at) VALUES(b,o,'CHECKED_IN',now(),now());
-  FOR r IN SELECT id FROM court_schedules WHERE court_id=c AND schedule_date=CURRENT_DATE AND start_time>='18:00' AND start_time<'19:00' LOOP
-   INSERT INTO booking_slots(id,booking_id,schedule_id,unit_price) SELECT gen_random_uuid(),b,r,price FROM court_schedules WHERE id=r;
-   UPDATE court_schedules SET status='BOOKED' WHERE id=r;
+
+  -- 2. CLUB SETTINGS
+  INSERT INTO club_settings(id, hold_minutes, deposit_percent, cancel_refund_percent, policies)
+  VALUES (pg_temp.seed_uuid('settings:default'), 15, 50, 50,
+          '{"cancelCutoffMinutes":60,"changeCutoffMinutes":60,"checkInEarlyMinutes":30}');
+
+  -- 3. FRONT-DESK STAFF ACCOUNTS (Role ADMIN for front-desk operation)
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version) VALUES
+  (pg_temp.seed_uuid('staff_acc:1'), 'Trần Thu Hương (Lễ tân sáng)', 'letan.huong@courtly.vn', '0938112233', v_passwd, 'ADMIN', 'ACTIVE', v_now - interval '60 days', 0),
+  (pg_temp.seed_uuid('staff_acc:2'), 'Nguyễn Minh Đức (Lễ tân chiều)', 'letan.duc@courtly.vn', '0938445566', v_passwd, 'ADMIN', 'ACTIVE', v_now - interval '60 days', 0),
+  (pg_temp.seed_uuid('staff_acc:3'), 'Lê Anh Tuấn (Quản lý sân)', 'quanly.tuan@courtly.vn', '0909998877', v_passwd, 'ADMIN', 'ACTIVE', v_now - interval '60 days', 0);
+
+  -- 4. MAIN DEMO CUSTOMER (VIP Player)
+  v_demo_id := pg_temp.seed_uuid('customer:demo');
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (v_demo_id, 'Nguyễn Minh Anh', 'minh.anh@example.com', '0903123456', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+
+  -- 5. REAL VIETNAMESE CUSTOMER ACCOUNTS
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:1'), 'Trần Quốc Bảo', 'quocbao.kts@gmail.com', '0918234567', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:2'), 'Lê Hoàng Nam', 'hoangnam.tennis@gmail.com', '0908765432', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:3'), 'Phạm Quỳnh Nga', 'quynhnga.law@outlook.com', '0978112233', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:4'), 'Vũ Duy Mạnh', 'manh.vu@techcorp.vn', '0989334455', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:5'), 'Đặng Thùy Trang', 'thuytrang.design@gmail.com', '0968556677', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:6'), 'Hoàng Hải Đăng', 'haidang.finance@gmail.com', '0934778899', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:7'), 'Bùi Gia Huy', 'giahuy.dev@gmail.com', '0912334466', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:8'), 'Đỗ Phương Anh', 'phuonganh.dr@gmail.com', '0945667788', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:9'), 'Ngô Bảo Ngọc', 'baongoc.media@gmail.com', '0909113355', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:10'), 'Trịnh Đình Quang', 'dinhquang.logistic@gmail.com', '0938224466', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:11'), 'Phan Thanh Tùng', 'thanhtung.auto@gmail.com', '0977335577', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:12'), 'Dương Tuấn Kiệt', 'tuankiet.mkt@gmail.com', '0988446688', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:13'), 'Lâm Khánh Linh', 'khanhlinh.hr@gmail.com', '0966557799', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:14'), 'Tạ Quang Thắng', 'quangthang.arch@gmail.com', '0915668800', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:15'), 'Đoàn Nhật Minh', 'nhatminh.bank@gmail.com', '0933779911', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:16'), 'Mai Phương Thảo', 'phuongthao.edu@gmail.com', '0975880022', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:17'), 'Hà Quốc Anh', 'quocanh.realestate@gmail.com', '0986991133', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:18'), 'Đinh Thu Ngân', 'thungan.event@gmail.com', '0902114455', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:19'), 'Lý Gia Phúc', 'giaphuc.sport@gmail.com', '0944225566', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:20'), 'Cao Thái Sơn', 'thaison.tennis@gmail.com', '0916336677', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:21'), 'Trương Vĩnh Kỳ', 'vinhky.audio@gmail.com', '0939447788', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:22'), 'Võ Thị Bích Trâm', 'bichtram.pharma@gmail.com', '0972558899', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:23'), 'Hồ Văn Cường', 'vancuong.solar@gmail.com', '0984669900', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:24'), 'Nguyễn Trọng Nghĩa', 'trongnghia.tax@gmail.com', '0907770011', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:25'), 'Bạch Nhật Khang', 'nhatkhang.tech@gmail.com', '0949881122', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:26'), 'Chu Đình Trọng', 'dinhtrong.sport@gmail.com', '0917992233', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:27'), 'Khổng Minh Trí', 'minhtri.law@gmail.com', '0932003344', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:28'), 'Tô Hoài Nam', 'hoainam.art@gmail.com', '0973114455', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:29'), 'Quách Thành Danh', 'thanhdanh.dentist@gmail.com', '0985225566', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:30'), 'Lưu Bảo Châu', 'baochau.yoga@gmail.com', '0906336677', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:31'), 'Huỳnh Đức Thiện', 'ducthien.import@gmail.com', '0948447788', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:32'), 'Tăng Thanh Hà', 'thanhha.fnb@gmail.com', '0919558899', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:33'), 'Tiêu Hải Nam', 'hainam.music@gmail.com', '0931669900', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:34'), 'Châu Bùi Thảo', 'buithao.fashion@gmail.com', '0974770011', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:35'), 'Lương Thế Thành', 'thethanh.film@gmail.com', '0987881122', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:36'), 'Nghiêm Xuân Tú', 'xuantu.coffee@gmail.com', '0901992233', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:37'), 'Giang Hồng Ngọc', 'hongngoc.spa@gmail.com', '0943003344', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:38'), 'Kiều Minh Tuấn', 'minhtuan.travel@gmail.com', '0914114455', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:39'), 'Sơn Tùng', 'tung.creations@gmail.com', '0935225566', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:40'), 'Phí Phương Anh', 'phuonganh.pr@gmail.com', '0976336677', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:41'), 'Ung Hoàng Phúc', 'hoangphuc.pro@gmail.com', '0981447788', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:42'), 'Doãn Hải My', 'haimy.lawyer@gmail.com', '0903558899', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:43'), 'Ân Thiên Hưng', 'thienhung.export@gmail.com', '0942669900', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:44'), 'Âu Dương Quân', 'duongquan.energy@gmail.com', '0913770011', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:45'), 'Diệp Lâm Anh', 'lamanh.dance@gmail.com', '0936881122', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:46'), 'Vương Khang', 'vuongkhang.director@gmail.com', '0979992233', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:47'), 'Thái Trinh', 'thaitrinh.acoustic@gmail.com', '0983003344', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:48'), 'Nhâm Mạnh Dũng', 'manhdung.striker@gmail.com', '0905114455', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:49'), 'Lục Tiểu Mi', 'tieumi.baker@gmail.com', '0947225566', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:50'), 'Thạch Kim Tuấn', 'kimtuan.lifting@gmail.com', '0918336677', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:51'), 'Bì Văn Chung', 'vanchung.construct@gmail.com', '0937447788', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:52'), 'Hứa Vĩ Văn', 'vivan.actor@gmail.com', '0971558899', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:53'), 'Trần Đình Trọng', 'dinhtrong.defense@gmail.com', '0982669900', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:54'), 'Bùi Tiến Dũng', 'tiendung.keeper@gmail.com', '0904770011', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:55'), 'Đỗ Hùng Dũng', 'hungdung.captain@gmail.com', '0946881122', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:56'), 'Nguyễn Quang Hải', 'quanghai.midfield@gmail.com', '0915992233', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:57'), 'Vũ Văn Thanh', 'vanthanh.wing@gmail.com', '0934003344', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:58'), 'Nguyễn Văn Toàn', 'vantoan.speed@gmail.com', '0975114455', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:59'), 'Nguyễn Công Phượng', 'congphuong.striker@gmail.com', '0988225566', v_passwd, 'CUSTOMER', 'ACTIVE', v_now - interval '60 days', 0);
+  INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version)
+  VALUES (pg_temp.seed_uuid('customer:60'), 'Vũ Văn Khang (Khóa)', 'quangthang.locked@example.com', '0999000111', v_passwd, 'CUSTOMER', 'LOCKED', v_now - interval '60 days', 0);
+
+  -- 6. COURTS & PRICING
+  INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
+  VALUES (pg_temp.seed_uuid('court:1'), 'Sân A01', 'HARD', 'Sân cứng ngoài trời US Open tiêu chuẩn, đèn LED cao áp 1000 lux', '/guest/zone-a-outdoor.webp', 'ACTIVE', 200000,
+          'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
+  INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
+  (pg_temp.seed_uuid('price:court:1:weekday'), pg_temp.seed_uuid('court:1'), 'WEEKDAY', '06:00', '23:00', 200000),
+  (pg_temp.seed_uuid('price:court:1:weekend'), pg_temp.seed_uuid('court:1'), 'WEEKEND', '06:00', '23:00', 200000);
+  INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
+  VALUES (pg_temp.seed_uuid('court:2'), 'Sân A02', 'HARD', 'Sân ngoài trời thoáng mát, khán đài mini 30 chỗ, mặt sân nảy êm', '/guest/zone-a-outdoor.webp', 'ACTIVE', 200000,
+          'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
+  INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
+  (pg_temp.seed_uuid('price:court:2:weekday'), pg_temp.seed_uuid('court:2'), 'WEEKDAY', '06:00', '23:00', 200000),
+  (pg_temp.seed_uuid('price:court:2:weekend'), pg_temp.seed_uuid('court:2'), 'WEEKEND', '06:00', '23:00', 200000);
+  INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
+  VALUES (pg_temp.seed_uuid('court:3'), 'Sân A03', 'HARD', 'Sân cứng ngoài trời, thích hợp đánh đơn và đôi phong trào', '/guest/zone-a-outdoor.webp', 'ACTIVE', 200000,
+          'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
+  INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
+  (pg_temp.seed_uuid('price:court:3:weekday'), pg_temp.seed_uuid('court:3'), 'WEEKDAY', '06:00', '23:00', 200000),
+  (pg_temp.seed_uuid('price:court:3:weekend'), pg_temp.seed_uuid('court:3'), 'WEEKEND', '06:00', '23:00', 200000);
+  INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
+  VALUES (pg_temp.seed_uuid('court:4'), 'Sân A04', 'HARD', 'Sân ngoài trời gần quầy dịch vụ, view bao quát toàn khu', '/guest/zone-a-outdoor.webp', 'ACTIVE', 200000,
+          'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
+  INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
+  (pg_temp.seed_uuid('price:court:4:weekday'), pg_temp.seed_uuid('court:4'), 'WEEKDAY', '06:00', '23:00', 200000),
+  (pg_temp.seed_uuid('price:court:4:weekend'), pg_temp.seed_uuid('court:4'), 'WEEKEND', '06:00', '23:00', 200000);
+  INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
+  VALUES (pg_temp.seed_uuid('court:5'), 'Sân B01', 'HARD', 'Sân có mái che vòm cao 12m, không ngại mưa nắng, thông gió đối lưu', '/guest/zone-b-indoor.webp', 'ACTIVE', 300000,
+          'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
+  INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
+  (pg_temp.seed_uuid('price:court:5:weekday'), pg_temp.seed_uuid('court:5'), 'WEEKDAY', '06:00', '23:00', 300000),
+  (pg_temp.seed_uuid('price:court:5:weekend'), pg_temp.seed_uuid('court:5'), 'WEEKEND', '06:00', '23:00', 300000);
+  INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
+  VALUES (pg_temp.seed_uuid('court:6'), 'Sân B02', 'HARD', 'Sân trong nhà chất lượng cao, sơn phủ Decoturf cao cấp', '/guest/zone-b-indoor.webp', 'ACTIVE', 300000,
+          'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
+  INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
+  (pg_temp.seed_uuid('price:court:6:weekday'), pg_temp.seed_uuid('court:6'), 'WEEKDAY', '06:00', '23:00', 300000),
+  (pg_temp.seed_uuid('price:court:6:weekend'), pg_temp.seed_uuid('court:6'), 'WEEKEND', '06:00', '23:00', 300000);
+  INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
+  VALUES (pg_temp.seed_uuid('court:7'), 'Sân B03', 'HARD', 'Sân mái che trung tâm, thường tổ chức các trận bán kết và chung kết', '/guest/zone-b-indoor.webp', 'ACTIVE', 300000,
+          'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
+  INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
+  (pg_temp.seed_uuid('price:court:7:weekday'), pg_temp.seed_uuid('court:7'), 'WEEKDAY', '06:00', '23:00', 300000),
+  (pg_temp.seed_uuid('price:court:7:weekend'), pg_temp.seed_uuid('court:7'), 'WEEKEND', '06:00', '23:00', 300000);
+  INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
+  VALUES (pg_temp.seed_uuid('court:8'), 'Sân B04', 'HARD', 'Sân trong nhà yên tĩnh, hệ thống đèn chiếu chuẩn giải đấu', '/guest/zone-b-indoor.webp', 'ACTIVE', 300000,
+          'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
+  INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
+  (pg_temp.seed_uuid('price:court:8:weekday'), pg_temp.seed_uuid('court:8'), 'WEEKDAY', '06:00', '23:00', 300000),
+  (pg_temp.seed_uuid('price:court:8:weekend'), pg_temp.seed_uuid('court:8'), 'WEEKEND', '06:00', '23:00', 300000);
+  INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
+  VALUES (pg_temp.seed_uuid('court:9'), 'Sân V01 (VIP)', 'HARD', 'Sân VIP Lounge riêng biệt, ghế sofa bọc da, máy lạnh phòng chờ', '/guest/zone-v-lounge.webp', 'ACTIVE', 500000,
+          'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
+  INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
+  (pg_temp.seed_uuid('price:court:9:weekday'), pg_temp.seed_uuid('court:9'), 'WEEKDAY', '06:00', '23:00', 500000),
+  (pg_temp.seed_uuid('price:court:9:weekend'), pg_temp.seed_uuid('court:9'), 'WEEKEND', '06:00', '23:00', 500000);
+  INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
+  VALUES (pg_temp.seed_uuid('court:10'), 'Sân V02 (VIP)', 'HARD', 'Sân VIP đặc quyền doanh nhân, có phòng thay đồ và tắm riêng', '/guest/zone-v-lounge.webp', 'ACTIVE', 500000,
+          'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
+  INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
+  (pg_temp.seed_uuid('price:court:10:weekday'), pg_temp.seed_uuid('court:10'), 'WEEKDAY', '06:00', '23:00', 500000),
+  (pg_temp.seed_uuid('price:court:10:weekend'), pg_temp.seed_uuid('court:10'), 'WEEKEND', '06:00', '23:00', 500000);
+
+  -- 7. STAFF
+  INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
+  VALUES (pg_temp.seed_uuid('staff:1'), 'HLV Phạm Quốc Huy', '0912111222', 'COACH', 'ITF Level 2 · 8 năm HLV tuyển trẻ & phong trào', 250000, 'ACTIVE');
+  INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
+  VALUES (pg_temp.seed_uuid('staff:2'), 'HLV Nguyễn Hoàng Long', '0912222333', 'COACH', 'Cựu VĐV Quốc gia · 6 năm kinh nghiệm chiến thuật & thể lực', 220000, 'ACTIVE');
+  INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
+  VALUES (pg_temp.seed_uuid('staff:3'), 'HLV Trần Đức Thịnh', '0912333444', 'COACH', 'HLV chuyên sâu kỹ thuật giao bóng & Volley · 5 năm', 200000, 'ACTIVE');
+  INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
+  VALUES (pg_temp.seed_uuid('staff:4'), 'HLV Lê Quỳnh Mai', '0912444555', 'COACH', 'Tốt nghiệp ĐH TDTT · Đào tạo học viên nữ & thiếu nhi · 4 năm', 200000, 'ACTIVE');
+  INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
+  VALUES (pg_temp.seed_uuid('staff:5'), 'TT Vũ Thanh Bình', '0912555666', 'REFEREE', 'Trọng tài VTF Level 1 · 7 năm điều hành giải vô địch TP', 180000, 'ACTIVE');
+  INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
+  VALUES (pg_temp.seed_uuid('staff:6'), 'TT Đỗ Hoài An', '0912666777', 'REFEREE', 'Trọng tài giải mở rộng & cup liên đoàn · 5 năm', 160000, 'ACTIVE');
+  INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
+  VALUES (pg_temp.seed_uuid('staff:7'), 'TT Bùi Quang Minh', '0912777888', 'REFEREE', 'Trọng tài các giải CLB & doanh nghiệp · 3 năm', 150000, 'ACTIVE');
+  INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
+  VALUES (pg_temp.seed_uuid('staff:8'), 'TT Trương Tấn Phát', '0912888999', 'REFEREE', 'Trọng tài bắt vạch chuẩn xác, năng động · 2 năm', 140000, 'ACTIVE');
+  INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
+  VALUES (pg_temp.seed_uuid('staff:9'), 'Nguyễn Văn Nam (Nhặt bóng)', '0912999000', 'BALL_BOY', 'Hỗ trợ sân & nhặt bóng nhanh nhẹn · 2 năm', 80000, 'ACTIVE');
+  INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
+  VALUES (pg_temp.seed_uuid('staff:10'), 'Trần Hải Đăng (Nhặt bóng)', '0913000111', 'BALL_BOY', 'Hỗ trợ sân & nhặt bóng nhiệt tình · 1 năm', 80000, 'ACTIVE');
+
+  -- 8. DRINKS & RENTALS
+  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
+  VALUES (pg_temp.seed_uuid('drink:1'), 'Nước khoáng Lavie 500ml', 'Chai', 12000, 150, 'ACTIVE');
+  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
+  VALUES (pg_temp.seed_uuid('drink:2'), 'Nước khoáng Aquafina 500ml', 'Chai', 12000, 120, 'ACTIVE');
+  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
+  VALUES (pg_temp.seed_uuid('drink:3'), 'Nước điện giải Pocari Sweat 500ml', 'Chai', 25000, 90, 'ACTIVE');
+  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
+  VALUES (pg_temp.seed_uuid('drink:4'), 'Nước điện giải Revive Chanh Muối', 'Chai', 18000, 85, 'ACTIVE');
+  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
+  VALUES (pg_temp.seed_uuid('drink:5'), 'Nước tăng lực Red Bull lon vàng', 'Lon', 22000, 60, 'ACTIVE');
+  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
+  VALUES (pg_temp.seed_uuid('drink:6'), 'Nước tăng lực Monster Energy 355ml', 'Lon', 35000, 40, 'ACTIVE');
+  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
+  VALUES (pg_temp.seed_uuid('drink:7'), 'Nước dừa tươi đóng lon Cocoxim', 'Lon', 25000, 50, 'ACTIVE');
+  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
+  VALUES (pg_temp.seed_uuid('drink:8'), 'Nước ép cam ép Teppy có tép', 'Chai', 20000, 45, 'ACTIVE');
+  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
+  VALUES (pg_temp.seed_uuid('drink:9'), 'Trà xanh C2 hương chanh 455ml', 'Chai', 15000, 70, 'ACTIVE');
+  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
+  VALUES (pg_temp.seed_uuid('drink:10'), 'Trà Oolong Tea+ không đường 455ml', 'Chai', 18000, 65, 'ACTIVE');
+  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
+  VALUES (pg_temp.seed_uuid('drink:11'), 'Cà phê Highlands lon đen đá', 'Lon', 20000, 55, 'ACTIVE');
+  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
+  VALUES (pg_temp.seed_uuid('drink:12'), 'Cà phê Highlands lon sữa đá', 'Lon', 22000, 60, 'ACTIVE');
+  INSERT INTO rental_items(id, name, category, brand, price_per_hour, stock_quantity, status, version)
+  VALUES (pg_temp.seed_uuid('rental:1'), 'Vợt Wilson Blade v8 100L', 'RACKET', 'Wilson', 50000, 10, 'ACTIVE', 0);
+  INSERT INTO rental_items(id, name, category, brand, price_per_hour, stock_quantity, status, version)
+  VALUES (pg_temp.seed_uuid('rental:2'), 'Vợt Babolat Pure Drive 2024', 'RACKET', 'Babolat', 50000, 8, 'ACTIVE', 0);
+  INSERT INTO rental_items(id, name, category, brand, price_per_hour, stock_quantity, status, version)
+  VALUES (pg_temp.seed_uuid('rental:3'), 'Vợt Head Speed MP 2024', 'RACKET', 'Head', 60000, 6, 'ACTIVE', 0);
+  INSERT INTO rental_items(id, name, category, brand, price_per_hour, stock_quantity, status, version)
+  VALUES (pg_temp.seed_uuid('rental:4'), 'Vợt Yonex EZONE 100 300g', 'RACKET', 'Yonex', 50000, 6, 'ACTIVE', 0);
+  INSERT INTO rental_items(id, name, category, brand, price_per_hour, stock_quantity, status, version)
+  VALUES (pg_temp.seed_uuid('rental:5'), 'Hộp bóng thi đấu Wilson US Open (3 quả)', 'BALL', 'Wilson', 30000, 25, 'ACTIVE', 0);
+  INSERT INTO rental_items(id, name, category, brand, price_per_hour, stock_quantity, status, version)
+  VALUES (pg_temp.seed_uuid('rental:6'), 'Rổ bóng tập kỹ thuật có chân đứng (72 quả)', 'BALL', 'Dunlop', 80000, 5, 'ACTIVE', 0);
+
+  -- 9. GENERATE 60 DAYS OF COURT SLOTS (20,400 SLOTS) & STAFF SCHEDULES
+  FOR n IN 1..10 LOOP
+    FOR d IN -45..14 LOOP
+      FOR h IN 12..45 LOOP
+        INSERT INTO court_schedules(id, court_id, schedule_date, start_time, end_time, price, status, version)
+        VALUES (
+          pg_temp.seed_uuid('slot:' || n || ':' || d || ':' || h),
+          pg_temp.seed_uuid('court:' || n),
+          v_today + d,
+          (time '00:00' + h * interval '30 minutes')::time,
+          (time '00:00' + (h + 1) * interval '30 minutes')::time,
+          CASE WHEN n <= 4 THEN 100000 WHEN n <= 8 THEN 150000 ELSE 250000 END,
+          'AVAILABLE',
+          0
+        );
+
+        -- Staff schedules (Coaches & Referees)
+        INSERT INTO staff_schedules(id, staff_id, work_date, start_time, end_time, status, version)
+        VALUES (
+          pg_temp.seed_uuid('staff_shift:' || n || ':' || d || ':' || h),
+          pg_temp.seed_uuid('staff:' || n),
+          v_today + d,
+          (time '00:00' + h * interval '30 minutes')::time,
+          (time '00:00' + (h + 1) * interval '30 minutes')::time,
+          'AVAILABLE',
+          0
+        );
+      END LOOP;
+    END LOOP;
   END LOOP;
-  INSERT INTO payments(id,order_id,type,method,amount,transaction_code,status,paid_at,received_by_account_id) VALUES(pg_temp.demo_id('onsite-payment:'||n),o,'DEPOSIT','CASH',total/2,'DEMO-ONSITE-'||n,'PAID',now(),admin);
-  INSERT INTO order_products(id,order_id,booking_id,item_type,rental_item_id,quantity,unit_price,rent_start_at,rent_end_at,issued_at,returned_at,item_condition)
-  VALUES(pg_temp.demo_id('onsite-rental:'||n),o,b,'RENTAL',pg_temp.demo_id('rental:1'),1,35000,(CURRENT_DATE+time '18:00')::timestamptz,(CURRENT_DATE+time '19:00')::timestamptz,now(),CASE WHEN n=4 THEN now() ELSE NULL END,'GOOD');
- END LOOP;
- -- Completed and upcoming tournament registrations, enough entrants to draw brackets.
- FOR n IN 1..7 LOOP
-  tr:=pg_temp.demo_id('tournament:'||n);day:=CURRENT_DATE+CASE WHEN n<=4 THEN n*4 ELSE -n END;
-  INSERT INTO tournaments(id,organizer_account_id,name,format,start_date,end_date,location,registration_fee,registration_deadline,max_participants,status)
-  VALUES(tr,admin,CASE n WHEN 1 THEN 'Courtly Singles Open' WHEN 2 THEN 'Courtly Doubles Cup' WHEN 3 THEN 'Courtly Next Singles' WHEN 4 THEN 'Courtly Sunday Doubles' ELSE 'Giải lịch sử demo '||n END,CASE WHEN n%2=1 THEN 'SINGLES' ELSE 'DOUBLES' END,day,day,'Courtly · Khu B',CASE WHEN n%2=1 THEN 200000 ELSE 300000 END,day-2,CASE WHEN n%2=1 THEN 16 ELSE 8 END,CASE WHEN n<=4 THEN 'OPEN' ELSE 'FINISHED' END);
-  FOR k IN 2..5 LOOP
-   a:=pg_temp.demo_id('user:'||k);r:=pg_temp.demo_id('registration:'||n||':'||k);
-   INSERT INTO tournament_registrations(id,tournament_id,account_id,registered_by_account_id,team_name,status,registered_at) VALUES(r,tr,a,admin,'Đội demo '||k,'CONFIRMED',now()-interval '2 days');
-   INSERT INTO team_members(id,registration_id,tournament_id,account_id,member_name,email) SELECT pg_temp.demo_id('player:'||n||':'||k),r,tr,a,full_name,email FROM accounts WHERE id=a;
-   IF n%2=0 THEN INSERT INTO team_members(id,registration_id,tournament_id,member_name,email) VALUES(pg_temp.demo_id('partner:'||n||':'||k),r,tr,'Đồng đội '||k,'mate'||k||'@courtly.example');END IF;
-   INSERT INTO payments(id,registration_id,type,method,amount,transaction_code,status,paid_at,received_by_account_id) VALUES(pg_temp.demo_id('entry-fee:'||n||':'||k),r,'TOURNAMENT_FEE','BANK_TRANSFER',CASE WHEN n%2=1 THEN 200000 ELSE 300000 END,'DEMO-ENTRY-'||n||'-'||k,'PAID',now()-interval '1 day',admin);
-  END LOOP;
- END LOOP;
- -- Membership edge cases: demo user starts as Guest so upgrades can be tested.
- FOR n IN 2..8 LOOP
-  a:=pg_temp.demo_id('user:'||n);code:=pg_temp.demo_id('membership:'||n)::text;
-  INSERT INTO app_documents(document_key,data,version) VALUES('membership:'||code,jsonb_build_object('id',code,'accountId',a,'name','Khách demo '||n,'planId',CASE WHEN n%2=0 THEN 'club' ELSE 'plus' END,'planName',CASE WHEN n%2=0 THEN 'Club' ELSE 'Plus' END,'price',CASE WHEN n%2=0 THEN 299000 ELSE 599000 END,'days',30,'discountPercent',CASE WHEN n%2=0 THEN 10 ELSE 15 END,'vipDiscountPercent',CASE WHEN n%2=0 THEN 5 ELSE 10 END,'advanceDays',CASE WHEN n%2=0 THEN 14 ELSE 21 END,'freeChanges',CASE WHEN n%2=0 THEN 1 ELSE 2 END,'status',CASE WHEN n=7 THEN 'PENDING' WHEN n=8 THEN 'CANCELLED' ELSE 'ACTIVE' END,'startsAt',now()-interval '10 days','endsAt',CASE WHEN n=6 THEN now()-interval '1 day' ELSE now()+interval '20 days' END,'createdAt',now()-interval '10 days')::text,0);
- END LOOP;
- -- Activated memberships have matching receipts, including the expired example.
- FOR n IN 2..6 LOOP
-  code:=pg_temp.demo_id('membership:'||n)::text;p:=pg_temp.demo_id('membership-payment:'||n);
-  INSERT INTO app_documents(document_key,data,version) VALUES('membership-payment:'||p,jsonb_build_object('id',p,'membershipId',code,'accountId',pg_temp.demo_id('user:'||n),'planName',CASE WHEN n%2=0 THEN 'Club' ELSE 'Plus' END,'amount',CASE WHEN n%2=0 THEN 299000 ELSE 599000 END,'method','BANK_TRANSFER','transactionCode','DEMO-MEMBER-'||n,'createdAt',now()-interval '10 days')::text,0);
-  UPDATE app_documents SET data=(data::jsonb||jsonb_build_object('paymentId',p))::text WHERE document_key='membership:'||code;
- END LOOP;
- FOR n IN 1..9 LOOP
-  code:=pg_temp.demo_id('feedback:'||n)::text;
-  INSERT INTO app_documents(document_key,data,version) VALUES('feedback:'||code,jsonb_build_object('id',code,'accountId',pg_temp.demo_id('user:'||(n+1)),'displayName','Khách demo '||n,'rating',1+n%5,'topic','COURT','message','Sân thoáng, lịch đặt rõ ràng. Đây là phản hồi mẫu để kiểm tra giao diện.','publishConsent',n%3<>0,'status',CASE WHEN n%3=0 THEN 'PRIVATE' WHEN n%3=1 THEN 'PUBLISHED' ELSE 'PENDING' END,'createdAt',now()-interval '2 days','reply','')::text,0);
- END LOOP;
- -- Staff allocation on three upcoming orders, one referee per concurrent court.
- FOR n IN 181..183 LOOP
-  k:=n-180;o:=pg_temp.demo_id('order:'||n);b:=pg_temp.demo_id('booking:'||n);r:=pg_temp.demo_id('shift:'||k||':1:20');
-  SELECT hourly_rate INTO rate FROM staff WHERE id=pg_temp.demo_id('staff:'||k);
-  INSERT INTO booking_staff(id,booking_id,staff_schedule_id,court_schedule_id,unit_price) VALUES(pg_temp.demo_id('assignment:'||n),b,r,pg_temp.demo_id('slot:'||k||':1:20'),rate);
-  UPDATE staff_schedules SET status='BOOKED' WHERE id=r;
-  UPDATE orders SET subtotal=subtotal+rate/2,total_amount=total_amount+rate/2,payment_status='PARTIAL' WHERE id=o;
- END LOOP;
- FOR n IN 2..20 LOOP
-  IF n%6 NOT IN (0,1) THEN
-   o:=pg_temp.demo_id('order:'||n);b:=pg_temp.demo_id('booking:'||n);
-   INSERT INTO order_products(id,order_id,booking_id,item_type,drink_id,quantity,unit_price)
-   VALUES(pg_temp.demo_id('product:'||n),o,b,'DRINK',pg_temp.demo_id('drink:1'),2,15000);
-   UPDATE orders SET subtotal=subtotal+30000,total_amount=total_amount+30000,payment_status='PARTIAL' WHERE id=o;
-  END IF;
- END LOOP;
- FOR n IN 5..7 LOOP
-  tr:=pg_temp.demo_id('tournament:'||n);
-  FOR k IN 0..1 LOOP
-   INSERT INTO matches(id,tournament_id,registration1_id,registration2_id,winner_registration_id,round_number,bracket_index,round_name,score,status)
-   VALUES(pg_temp.demo_id('match:'||n||':'||k),tr,pg_temp.demo_id('registration:'||n||':'||(2+k*2)),pg_temp.demo_id('registration:'||n||':'||(3+k*2)),pg_temp.demo_id('registration:'||n||':'||(2+k*2)),1,k,'Bán kết','6-3','FINISHED');
-  END LOOP;
-  INSERT INTO matches(id,tournament_id,registration1_id,registration2_id,winner_registration_id,round_number,bracket_index,round_name,score,status)
-  VALUES(pg_temp.demo_id('match:'||n||':final'),tr,pg_temp.demo_id('registration:'||n||':2'),pg_temp.demo_id('registration:'||n||':4'),pg_temp.demo_id('registration:'||n||':2'),2,0,'Chung kết','7-6','FINISHED');
- END LOOP;
- INSERT INTO app_documents(document_key,data,version) VALUES('fixture:handoff-v1',jsonb_build_object('createdAt',now(),'date',CURRENT_DATE,'orders',244,'demoEmail','minh.anh@example.com')::text,0);
+
+
+  -- 10. GENERATE 1,050+ ORDERS ACROSS 60 DAYS
+  DECLARE
+    v_order_id uuid;
+    v_booking_id uuid;
+    v_slot1_id uuid;
+    v_slot2_id uuid;
+    v_staff_shift_id uuid;
+    v_payment1_id uuid;
+    v_payment2_id uuid;
+    v_refund_id uuid;
+    v_cust_id uuid;
+    v_court_num int;
+    v_cust_num int;
+    v_start_h int;
+    v_court_price numeric;
+    v_total numeric;
+    v_subtotal numeric;
+    v_paid numeric;
+    v_deposit numeric;
+    v_status text;
+    v_pay_status text;
+    v_cust_name text;
+    v_cust_phone text;
+    v_order_date date;
+    v_created timestamptz;
+    v_checkin timestamptz;
+    v_checkout timestamptz;
+    v_invoice text;
+    v_has_drink boolean;
+    v_has_rental boolean;
+    v_has_coach boolean;
+    v_drink_num int;
+    v_rental_num int;
+    v_staff_num int;
+    v_staff_rate numeric;
+    v_extra numeric;
+    v_day_offset int;
+    v_daily_order int;
+    v_orders_today int;
+    v_tx_code text;
+    v_total_orders_gen int := 0;
+  BEGIN
+    FOR v_day_offset IN -45..14 LOOP
+      v_order_date := v_today + v_day_offset;
+      
+      -- Weekend traffic is higher
+      IF EXTRACT(DOW FROM v_order_date) IN (0, 6) THEN
+        v_orders_today := 24;
+      ELSE
+        v_orders_today := 15;
+      END IF;
+
+      -- Today has exactly 28 orders for rich dashboard
+      IF v_day_offset = 0 THEN
+        v_orders_today := 28;
+      END IF;
+
+      FOR v_daily_order IN 1..v_orders_today LOOP
+        v_total_orders_gen := v_total_orders_gen + 1;
+        v_order_id := pg_temp.seed_uuid('order:' || v_total_orders_gen);
+        v_booking_id := pg_temp.seed_uuid('booking:' || v_total_orders_gen);
+
+        -- Distribute across courts:
+        -- 1..4: Outdoor A, 5..8: Indoor B, 9..10: VIP V
+        v_court_num := ((v_daily_order - 1) % 10) + 1;
+
+        -- Customer: Demo VIP player gets ~20% of orders for rich history
+        IF v_total_orders_gen % 5 = 0 THEN
+          v_cust_id := v_demo_id;
+          v_cust_name := 'Nguyễn Minh Anh';
+          v_cust_phone := '0903123456';
+        ELSE
+          v_cust_num := ((v_total_orders_gen * 7) % 60) + 1;
+          v_cust_id := pg_temp.seed_uuid('customer:' || v_cust_num);
+          SELECT full_name, phone INTO v_cust_name, v_cust_phone FROM accounts WHERE id = v_cust_id;
+        END IF;
+
+        -- Non-conflicting time slots for each court:
+        -- Order 1..10 (Court 1..10): Morning slot (h = 14: 07:00 - 08:00)
+        -- Order 11..20 (Court 1..10): Late afternoon slot (h = 32: 16:00 - 17:00)
+        -- Order 21..28 (Court 1..8): Evening peak slot (h = 38: 19:00 - 20:00)
+        IF v_daily_order <= 10 THEN
+          v_start_h := 14;
+        ELSIF v_daily_order <= 20 THEN
+          v_start_h := 32;
+        ELSE
+          v_start_h := 38;
+        END IF;
+
+        -- Price calculation (1 hour = 2 slots)
+        IF v_court_num <= 4 THEN
+          v_court_price := 200000;
+        ELSIF v_court_num <= 8 THEN
+          v_court_price := 300000;
+        ELSE
+          v_court_price := 500000;
+        END IF;
+
+        v_subtotal := v_court_price;
+        v_extra := 0;
+
+        -- Extras
+        v_has_drink := (v_total_orders_gen % 3 = 0);
+        v_drink_num := (v_total_orders_gen % 12) + 1;
+        IF v_has_drink THEN
+          v_extra := v_extra + 30000;
+        END IF;
+
+        v_has_rental := (v_total_orders_gen % 5 = 0);
+        v_rental_num := (v_total_orders_gen % 6) + 1;
+        IF v_has_rental THEN
+          v_extra := v_extra + 50000;
+        END IF;
+
+        -- Coach assignment (historical completed orders, plus a few upcoming)
+        v_has_coach := (v_total_orders_gen % 6 = 0);
+        v_staff_num := (v_court_num % 8) + 1; -- 1 staff per court to avoid concurrent collision
+        IF v_has_coach THEN
+          SELECT hourly_rate INTO v_staff_rate FROM staff WHERE id = pg_temp.seed_uuid('staff:' || v_staff_num);
+          v_extra := v_extra + v_staff_rate;
+        END IF;
+
+        v_subtotal := v_subtotal + v_extra;
+        v_total := v_subtotal;
+        v_deposit := ROUND(v_total * 0.5, 0);
+
+        -- STATUS BASED ON TIMING
+        IF v_day_offset < 0 THEN
+          -- PAST DAYS: Realistic mix of COMPLETED, CANCELLED (with refund), and EXPIRED
+          IF v_total_orders_gen % 28 = 0 THEN
+            v_status := 'CANCELLED';
+            v_paid := v_deposit;
+            v_pay_status := 'PARTIAL';
+          ELSIF v_total_orders_gen % 38 = 0 THEN
+            v_status := 'EXPIRED';
+            v_paid := 0;
+            v_pay_status := 'UNPAID';
+          ELSE
+            v_status := 'COMPLETED';
+            v_paid := v_total;
+            v_pay_status := 'PAID';
+          END IF;
+        ELSIF v_day_offset = 0 THEN
+          -- TODAY (CURRENT_DATE)
+          IF v_daily_order <= 5 THEN
+            -- Morning completed
+            v_status := 'COMPLETED';
+            v_paid := v_total;
+            v_pay_status := 'PAID';
+          ELSIF v_daily_order <= 10 THEN
+            -- ACTIVE CHECKED-IN NOW (Sân A01..A04, B01)
+            v_status := 'CHECKED_IN';
+            v_paid := v_deposit;
+            v_pay_status := 'PARTIAL';
+          ELSIF v_daily_order <= 24 THEN
+            -- CONFIRMED FOR AFTERNOON & EVENING TODAY
+            v_status := 'CONFIRMED';
+            v_paid := CASE WHEN v_daily_order % 2 = 0 THEN v_total ELSE v_deposit END;
+            v_pay_status := CASE WHEN v_paid = v_total THEN 'PAID' ELSE 'PARTIAL' END;
+          ELSE
+            -- RECENT HOLDING
+            v_status := 'HOLDING';
+            v_paid := 0;
+            v_pay_status := 'UNPAID';
+          END IF;
+        ELSE
+          -- FUTURE (+1 to +14)
+          IF v_daily_order % 6 = 0 THEN
+            v_status := 'HOLDING';
+            v_paid := 0;
+            v_pay_status := 'UNPAID';
+          ELSE
+            v_status := 'CONFIRMED';
+            v_paid := CASE WHEN v_daily_order % 3 = 0 THEN v_total ELSE v_deposit END;
+            v_pay_status := CASE WHEN v_paid = v_total THEN 'PAID' ELSE 'PARTIAL' END;
+          END IF;
+        END IF;
+
+        -- Timestamps
+        v_created := (v_order_date - interval '2 days' + time '10:00')::timestamptz;
+        IF v_status = 'COMPLETED' THEN
+          v_checkin := (v_order_date + (time '00:00' + v_start_h * interval '30 minutes'))::timestamptz;
+          v_checkout := (v_order_date + (time '00:00' + (v_start_h + 2) * interval '30 minutes'))::timestamptz;
+        ELSIF v_status = 'CHECKED_IN' THEN
+          v_checkin := v_now - interval '35 minutes';
+          v_checkout := NULL;
+        ELSE
+          v_checkin := NULL;
+          v_checkout := NULL;
+        END IF;
+
+        v_invoice := CASE WHEN v_status = 'COMPLETED' OR v_paid = v_total THEN 'INV-2026' || lpad(v_total_orders_gen::text, 6, '0') ELSE NULL END;
+
+        -- INSERT ORDER
+        INSERT INTO orders(
+          id, customer_account_id, created_by_account_id, customer_name, customer_phone,
+          status, hold_expires_at, subtotal, total_amount, deposit_required, paid_amount,
+          payment_status, invoice_number, issued_at, created_at, version, metadata
+        ) VALUES (
+          v_order_id, v_cust_id, v_admin_id, v_cust_name, v_cust_phone,
+          v_status,
+          CASE WHEN v_status = 'HOLDING' THEN v_now + interval '15 minutes' ELSE (v_order_date + time '22:00')::timestamptz END,
+          v_subtotal, v_total, v_deposit, v_paid,
+          v_pay_status, v_invoice,
+          CASE WHEN v_invoice IS NOT NULL THEN (v_order_date + time '22:00')::timestamptz ELSE NULL END,
+          v_created, 0,
+          jsonb_build_object('fixture', true, 'customerFlow', true, 'source', 'ONLINE', 'notes', 'Đơn đặt demo chuẩn')::text
+        );
+
+        -- INSERT BOOKING
+        INSERT INTO bookings(id, order_id, status, check_in_at, check_out_at, created_at)
+        VALUES (
+          v_booking_id, v_order_id,
+          CASE WHEN v_status = 'EXPIRED' THEN 'CANCELLED' ELSE v_status END,
+          v_checkin, v_checkout, v_created
+        );
+
+        -- LINK COURT SLOTS
+        v_slot1_id := pg_temp.seed_uuid('slot:' || v_court_num || ':' || v_day_offset || ':' || v_start_h);
+        v_slot2_id := pg_temp.seed_uuid('slot:' || v_court_num || ':' || v_day_offset || ':' || (v_start_h + 1));
+
+        INSERT INTO booking_slots(id, booking_id, schedule_id, unit_price, released_at) VALUES
+        (gen_random_uuid(), v_booking_id, v_slot1_id,
+         CASE WHEN v_court_num <= 4 THEN 100000 WHEN v_court_num <= 8 THEN 150000 ELSE 250000 END,
+         CASE WHEN v_status IN ('COMPLETED', 'CANCELLED', 'EXPIRED') THEN v_order_date + interval '23 hours' ELSE NULL END),
+        (gen_random_uuid(), v_booking_id, v_slot2_id,
+         CASE WHEN v_court_num <= 4 THEN 100000 WHEN v_court_num <= 8 THEN 150000 ELSE 250000 END,
+         CASE WHEN v_status IN ('COMPLETED', 'CANCELLED', 'EXPIRED') THEN v_order_date + interval '23 hours' ELSE NULL END);
+
+        IF v_status = 'CHECKED_IN' OR v_status = 'CONFIRMED' THEN
+          UPDATE court_schedules SET status = 'BOOKED' WHERE id IN (v_slot1_id, v_slot2_id);
+        ELSIF v_status = 'HOLDING' THEN
+          UPDATE court_schedules SET status = 'LOCKED' WHERE id IN (v_slot1_id, v_slot2_id);
+        END IF;
+
+        -- LINK DRINKS
+        IF v_has_drink THEN
+          INSERT INTO order_products(id, order_id, booking_id, item_type, drink_id, quantity, unit_price)
+          VALUES (pg_temp.seed_uuid('prod_drink:' || v_total_orders_gen), v_order_id, v_booking_id, 'DRINK',
+                  pg_temp.seed_uuid('drink:' || v_drink_num), 2, 15000);
+        END IF;
+
+        -- LINK RENTALS
+        IF v_has_rental THEN
+          INSERT INTO order_products(
+            id, order_id, booking_id, item_type, rental_item_id, quantity, unit_price,
+            rent_start_at, rent_end_at, issued_at, returned_at, item_condition
+          ) VALUES (
+            pg_temp.seed_uuid('prod_rental:' || v_total_orders_gen),
+            v_order_id, v_booking_id, 'RENTAL',
+            pg_temp.seed_uuid('rental:' || v_rental_num), 1, 50000,
+            (v_order_date + (time '00:00' + v_start_h * interval '30 minutes'))::timestamptz,
+            (v_order_date + (time '00:00' + (v_start_h + 2) * interval '30 minutes'))::timestamptz,
+            (v_order_date + (time '00:00' + v_start_h * interval '30 minutes'))::timestamptz,
+            CASE WHEN v_status = 'CHECKED_IN' THEN NULL ELSE (v_order_date + (time '00:00' + (v_start_h + 2) * interval '30 minutes'))::timestamptz END,
+            'GOOD'
+          );
+        END IF;
+
+        -- LINK COACH / REFEREE
+        IF v_has_coach THEN
+          v_staff_shift_id := pg_temp.seed_uuid('staff_shift:' || v_staff_num || ':' || v_day_offset || ':' || v_start_h);
+          INSERT INTO booking_staff(id, booking_id, staff_schedule_id, court_schedule_id, unit_price, released_at)
+          VALUES (
+            pg_temp.seed_uuid('staff_book:' || v_total_orders_gen),
+            v_booking_id, v_staff_shift_id, v_slot1_id, v_staff_rate,
+            CASE WHEN v_status IN ('COMPLETED', 'CANCELLED', 'EXPIRED') THEN v_order_date + interval '23 hours' ELSE NULL END
+          );
+          IF v_status = 'CONFIRMED' OR v_status = 'CHECKED_IN' THEN
+            UPDATE staff_schedules SET status = 'BOOKED' WHERE id = v_staff_shift_id;
+          END IF;
+        END IF;
+
+        -- PAYMENTS & REFUNDS
+        IF v_paid > 0 THEN
+          v_payment1_id := pg_temp.seed_uuid('payment1:' || v_total_orders_gen);
+          v_tx_code := CASE WHEN v_total_orders_gen % 2 = 0 THEN 'VNPAY-' || (100000 + v_total_orders_gen) ELSE 'MBB-QR-' || (200000 + v_total_orders_gen) END;
+
+          INSERT INTO payments(id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at)
+          VALUES (
+            v_payment1_id, v_order_id, v_admin_id,
+            CASE WHEN v_paid < v_total THEN 'DEPOSIT' ELSE 'BALANCE' END,
+            CASE WHEN v_total_orders_gen % 3 = 0 THEN 'CASH' ELSE 'BANK_TRANSFER' END,
+            CASE WHEN v_paid < v_total THEN v_deposit ELSE v_total END,
+            v_tx_code, 'PAID', v_created + interval '10 minutes'
+          );
+
+          IF v_status = 'COMPLETED' AND v_paid = v_total AND v_deposit < v_total THEN
+            v_payment2_id := pg_temp.seed_uuid('payment2:' || v_total_orders_gen);
+            INSERT INTO payments(id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at)
+            VALUES (
+              v_payment2_id, v_order_id, v_admin_id, 'BALANCE',
+              CASE WHEN v_total_orders_gen % 2 = 0 THEN 'CASH' ELSE 'BANK_TRANSFER' END,
+              v_total - v_deposit,
+              'DESK-REC-' || (300000 + v_total_orders_gen),
+              'PAID', v_checkin
+            );
+          END IF;
+
+          -- Refund for cancelled orders that qualify
+          IF v_status = 'CANCELLED' AND v_total_orders_gen % 56 = 0 THEN
+            v_refund_id := pg_temp.seed_uuid('refund:' || v_total_orders_gen);
+            INSERT INTO refunds(id, payment_id, amount, reason, status, processed_by_account_id, refunded_at)
+            VALUES (
+              v_refund_id, v_payment1_id, v_deposit,
+              'Khách báo bận công tác trước 24h theo chính sách hoàn tiền CLB',
+              'COMPLETED', v_admin_id, v_created + interval '1 day'
+            );
+            UPDATE orders SET paid_amount = 0, payment_status = 'UNPAID' WHERE id = v_order_id;
+          END IF;
+        END IF;
+
+      END LOOP;
+    END LOOP;
+    RAISE NOTICE 'Total orders generated: %', v_total_orders_gen;
+  END;
+
+  -- 11. TOURNAMENTS & MATCHES
+  DECLARE
+    v_tr1 uuid := pg_temp.seed_uuid('tournament:1');
+    v_tr2 uuid := pg_temp.seed_uuid('tournament:2');
+    v_tr3 uuid := pg_temp.seed_uuid('tournament:3');
+    v_tr4 uuid := pg_temp.seed_uuid('tournament:4');
+    v_tr5 uuid := pg_temp.seed_uuid('tournament:5');
+    v_tr6 uuid := pg_temp.seed_uuid('tournament:6');
+    v_reg1 uuid;
+  BEGIN
+    INSERT INTO tournaments(id, organizer_account_id, name, format, start_date, end_date, location, registration_fee, registration_deadline, max_participants, status)
+    VALUES
+    (v_tr1, v_admin_id, 'Courtly Singles Open 2026', 'SINGLES', v_today - 30, v_today - 29, 'Courtly · Sân B01-B04', 250000, v_today - 33, 16, 'FINISHED'),
+    (v_tr2, v_admin_id, 'Cup Đôi Nam Mùa Thu Courtly 2026', 'DOUBLES', v_today - 15, v_today - 14, 'Courtly · Sân A01-A04', 350000, v_today - 18, 8, 'FINISHED'),
+    (v_tr3, v_admin_id, 'Giải Quần Vợt Doanh Nhân Trẻ TP.HCM', 'SINGLES', v_today - 5, v_today - 4, 'Courtly · Cụm Sân VIP & B', 400000, v_today - 8, 8, 'FINISHED'),
+    (v_tr4, v_admin_id, 'Giải Vô Địch Hội Viên Mở Rộng', 'SINGLES', v_today - 2, v_today - 1, 'Courtly · Sân A & B', 200000, v_today - 5, 8, 'FINISHED'),
+    (v_tr5, v_admin_id, 'Courtly Winter Doubles Championship 2026', 'DOUBLES', v_today + 7, v_today + 8, 'Courtly · Toàn cụm 10 sân', 350000, v_today + 5, 8, 'OPEN'),
+    (v_tr6, v_admin_id, 'Giải Đơn Phong Trào NextGen Cup', 'SINGLES', v_today + 14, v_today + 15, 'Courtly · Sân B01-B04', 200000, v_today + 11, 16, 'OPEN');
+
+    FOR k IN 1..4 LOOP
+      v_reg1 := pg_temp.seed_uuid('reg:tr1:' || k);
+      INSERT INTO tournament_registrations(id, tournament_id, account_id, registered_by_account_id, team_name, status, registered_at)
+      VALUES (v_reg1, v_tr1, pg_temp.seed_uuid('customer:' || k), v_admin_id, 'VĐV ' || k, 'CONFIRMED', v_today - 35);
+
+      INSERT INTO team_members(id, registration_id, tournament_id, account_id, member_name, email)
+      SELECT pg_temp.seed_uuid('member:tr1:' || k), v_reg1, v_tr1, id, full_name, email FROM accounts WHERE id = pg_temp.seed_uuid('customer:' || k);
+
+      INSERT INTO payments(id, registration_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at)
+      VALUES (pg_temp.seed_uuid('fee:tr1:' || k), v_reg1, v_admin_id, 'TOURNAMENT_FEE', 'BANK_TRANSFER', 250000, 'FEE-TR1-' || k, 'PAID', v_today - 35);
+    END LOOP;
+
+    INSERT INTO matches(id, tournament_id, registration1_id, registration2_id, winner_registration_id, round_number, bracket_index, round_name, score, status)
+    VALUES
+    (pg_temp.seed_uuid('match:tr1:semi1'), v_tr1, pg_temp.seed_uuid('reg:tr1:1'), pg_temp.seed_uuid('reg:tr1:2'), pg_temp.seed_uuid('reg:tr1:1'), 1, 0, 'Bán kết 1', '6-3, 6-4', 'FINISHED'),
+    (pg_temp.seed_uuid('match:tr1:semi2'), v_tr1, pg_temp.seed_uuid('reg:tr1:3'), pg_temp.seed_uuid('reg:tr1:4'), pg_temp.seed_uuid('reg:tr1:3'), 1, 1, 'Bán kết 2', '7-5, 6-2', 'FINISHED'),
+    (pg_temp.seed_uuid('match:tr1:final'), v_tr1, pg_temp.seed_uuid('reg:tr1:1'), pg_temp.seed_uuid('reg:tr1:3'), pg_temp.seed_uuid('reg:tr1:1'), 2, 0, 'Chung kết', '6-4, 4-6, 7-6', 'FINISHED');
+
+    -- Open tournament registrations (Winter Doubles)
+    FOR k IN 1..6 LOOP
+      v_reg1 := pg_temp.seed_uuid('reg:tr5:' || k);
+      INSERT INTO tournament_registrations(id, tournament_id, account_id, registered_by_account_id, team_name, status, registered_at)
+      VALUES (v_reg1, v_tr5, pg_temp.seed_uuid('customer:' || (k + 10)), v_admin_id, 'Đôi Nam ' || k, 'CONFIRMED', v_today - 3);
+
+      INSERT INTO team_members(id, registration_id, tournament_id, account_id, member_name, email)
+      SELECT pg_temp.seed_uuid('member:tr5:a:' || k), v_reg1, v_tr5, id, full_name, email FROM accounts WHERE id = pg_temp.seed_uuid('customer:' || (k + 10));
+
+      INSERT INTO team_members(id, registration_id, tournament_id, member_name, email)
+      VALUES (pg_temp.seed_uuid('member:tr5:b:' || k), v_reg1, v_tr5, 'Đồng đội ' || k, 'partner' || k || '@courtly.vn');
+
+      INSERT INTO payments(id, registration_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at)
+      VALUES (pg_temp.seed_uuid('fee:tr5:' || k), v_reg1, v_admin_id, 'TOURNAMENT_FEE', 'BANK_TRANSFER', 350000, 'FEE-WINTER-' || k, 'PAID', v_today - 3);
+    END LOOP;
+  END;
+
+  -- 12. MEMBERSHIPS & RECEIPTS (20 Customers)
+  DECLARE
+    v_code text;
+    v_pay_id text;
+    v_acc uuid;
+    v_cust_name text;
+    v_plan text;
+    v_fee numeric;
+    v_disc int;
+  BEGIN
+    FOR n IN 1..20 LOOP
+      v_acc := CASE WHEN n = 1 THEN v_demo_id ELSE pg_temp.seed_uuid('customer:' || n) END;
+      SELECT full_name INTO v_cust_name FROM accounts WHERE id = v_acc;
+      v_code := pg_temp.seed_uuid('membership:' || n)::text;
+      v_pay_id := pg_temp.seed_uuid('membership-pay:' || n)::text;
+      
+      IF n % 2 = 0 THEN
+        v_plan := 'Plus'; v_fee := 599000; v_disc := 15;
+      ELSE
+        v_plan := 'Club'; v_fee := 299000; v_disc := 10;
+      END IF;
+
+      INSERT INTO app_documents(document_key, data, version) VALUES
+      ('membership:' || v_code, jsonb_build_object(
+        'id', v_code, 'accountId', v_acc, 'name', v_cust_name,
+        'planId', lower(v_plan), 'planName', v_plan, 'price', v_fee,
+        'days', 30, 'discountPercent', v_disc, 'vipDiscountPercent', v_disc - 5,
+        'advanceDays', 14, 'freeChanges', 2, 'status', 'ACTIVE',
+        'startsAt', v_now - interval '15 days', 'endsAt', v_now + interval '15 days',
+        'createdAt', v_now - interval '15 days', 'paymentId', v_pay_id
+      )::text, 0);
+
+      INSERT INTO app_documents(document_key, data, version) VALUES
+      ('membership-payment:' || v_pay_id, jsonb_build_object(
+        'id', v_pay_id, 'membershipId', v_code, 'accountId', v_acc,
+        'planName', v_plan, 'amount', v_fee, 'method', 'BANK_TRANSFER',
+        'transactionCode', 'MEMBER-PAY-' || (1000 + n),
+        'createdAt', v_now - interval '15 days'
+      )::text, 0);
+    END LOOP;
+  END;
+
+  -- 13. REAL CUSTOMER FEEDBACKS (15)
+  DECLARE
+    v_fb_code text;
+    v_msgs text[] := ARRAY[
+      'Sân A01 mặt sân rất êm, độ nảy bóng chuẩn. Đèn cao áp ban đêm đánh rất thích không bị chói mắt!',
+      'Dịch vụ quầy lễ tân nhanh nhẹn, nước điện giải ướp lạnh sẵn sàng. Huấn luyện viên Huy chỉ dạy nhiệt tình!',
+      'Khu vực sân B mái che chơi ngày mưa tuyệt vời, không gian thoáng đãng không bị bí bách.',
+      'Sân VIP V01 cực kỳ đẳng cấp, phòng thay đồ và tắm riêng sạch sẽ như resort. Sẽ tiếp tục đặt dài hạn!',
+      'Hệ thống đặt sân online xem slot trực tiếp rất tiện lợi, thao tác mượt mà không lo bị trùng lịch.',
+      'Trọng tài bắt vạch chuẩn xác, giải đấu tổ chức rất chuyên nghiệp. Rất mong chờ giải mùa đông!',
+      'Vợt cho thuê chất lượng tốt, dòng Babolat và Wilson mới căng cước đánh rất nảy tay.',
+      'Bãi đỗ xe ô tô rộng rãi, nhân viên hướng dẫn nhiệt tình. 5 sao cho Courtly!',
+      'Giá cả hợp lý so với chất lượng sân tại trung tâm. Gói hội viên Plus được giảm 15% rất hời.',
+      'Các bạn nhặt bóng nhanh nhẹn, phục vụ chu đáo, trận đấu diễn ra liền mạch không bị ngắt quãng.',
+      'Phòng tắm nóng lạnh áp lực nước mạnh, máy sấy tóc đầy đủ, rất tiện cho người đánh xong đi làm.',
+      'Sân đất cứng ngoài trời bảo dưỡng rất tốt, mặt sân không trơn trượt khi di chuyển đổi hướng.',
+      'Mọi thứ đều hoàn hảo từ đặt sân đến check-in bằng mã QR chỉ mất 10 giây.',
+      'Giải doanh nhân vừa rồi thi đấu rất vui, cúp và huy chương đẹp, tiệc giao lưu ấm cúng.',
+      'Sân tập yêu thích nhất của nhóm mình vào mỗi sáng thứ 7. Cảm ơn đội ngũ Courtly!'
+    ];
+  BEGIN
+    FOR n IN 1..15 LOOP
+      v_fb_code := pg_temp.seed_uuid('feedback:' || n)::text;
+      INSERT INTO app_documents(document_key, data, version) VALUES
+      ('feedback:' || v_fb_code, jsonb_build_object(
+        'id', v_fb_code,
+        'accountId', pg_temp.seed_uuid('customer:' || n),
+        'displayName', (SELECT full_name FROM accounts WHERE id = pg_temp.seed_uuid('customer:' || n)),
+        'rating', 5,
+        'topic', 'COURT',
+        'message', v_msgs[n],
+        'publishConsent', true,
+        'status', 'PUBLISHED',
+        'createdAt', v_now - (n * interval '2 days'),
+        'reply', 'Courtly chân thành cảm ơn phản hồi quý giá của bạn! Hẹn gặp lại bạn trong những buổi chơi tới.'
+      )::text, 0);
+    END LOOP;
+  END;
+
+  -- 14. FIXTURE HANDOFF MARKER
+  INSERT INTO app_documents(document_key, data, version) VALUES
+  ('fixture:handoff-v1', jsonb_build_object(
+    'createdAt', v_now,
+    'date', v_today,
+    'note', 'Comprehensive 2-month real business seed data',
+    'demoEmail', 'minh.anh@example.com'
+  )::text, 0);
+
+  -- 15. AUDIT LOGS
+  INSERT INTO audit_logs(id, actor, action, detail, created_at) VALUES
+  (gen_random_uuid(), 'Quản Trị Viên (Tổng Quản Lý)', 'SYSTEM_INIT', 'Nạp cơ sở dữ liệu doanh nghiệp thật Courtly (2 tháng vận hành)', v_now),
+  (gen_random_uuid(), 'Trần Thu Hương (Lễ tân sáng)', 'CHECK_IN', 'Check-in thành công đơn sân A01 cho khách Nguyễn Minh Anh', v_now - interval '35 minutes'),
+  (gen_random_uuid(), 'Nguyễn Minh Đức (Lễ tân chiều)', 'ORDER_CONFIRM', 'Xác nhận đơn đặt sân B02 khung giờ 18:00 hôm nay', v_now - interval '20 minutes');
+
 END $$;
-INSERT INTO app_documents(document_key,data,version) VALUES ('club', '{"name": "Courtly · Tennis Club", "tagline": "Tennis bắt đầu từ một cuộc hẹn.", "intro": "Khám phá giờ trống, chủ động lịch chơi và kết nối qua những giải đấu. Courtly giúp bạn chuẩn bị cho buổi tennis tiếp theo ngay từ khi chọn sân.", "story": "Một lịch chơi rõ ràng để bạn tập trung vào trận đấu. Tại Courtly, bạn có thể xem sân, giá và giờ trống trước khi đặt; theo dõi lịch hẹn và tìm hiểu các giải đấu trong cùng một không gian.", "mission": "Đặt trải nghiệm của người chơi ở trung tâm: thông tin dễ tìm, lựa chọn rõ ràng và phản hồi luôn có nơi tiếp nhận.", "address": "DEMO · 128 Đường Tennis, Khu thể thao Courtly, TP.HCM", "phone": "0900 000 000 (DEMO)", "email": "hello@courtly.example", "openingHours": "06:00 – 23:00 · Mỗi ngày", "mapUrl": "", "socialUrl": "", "paymentInstructions": "Dùng thanh toán sandbox trong môi trường thử nghiệm. Tiền thật chỉ được xác nhận qua ngân hàng hoặc quầy."}',0) ON CONFLICT(document_key) DO NOTHING;
-INSERT INTO app_documents(document_key,data,version) VALUES ('article:choose-your-court', '{"id": "choose-your-court", "title": "Khu A, B hay V: đâu là sân dành cho bạn?", "excerpt": "Ngoài trời, trong nhà hay không gian riêng tư: bắt đầu từ cách bạn muốn tận hưởng buổi chơi.", "body": "Một cuộc chơi, nhiều lựa chọn\nKhu A là lựa chọn cho người thích không khí ngoài trời. Khu B có mái che, phù hợp khi bạn muốn một không gian chơi trong nhà. Khu V hướng đến trải nghiệm riêng tư hơn. Ảnh trong bài chỉ minh họa định hướng không gian của từng khu.\n\nXem vị trí trước khi chọn\nMở bản đồ ở mục Đặt sân để nhìn rõ vị trí A01–A04, B01–B04 và V01–V02. Chọn sân trước, sau đó chọn ngày và giờ chơi. Lịch trống được cập nhật theo khung giờ bạn chọn trong bản mẫu.\n\nBiết chi phí trước khi ra sân\nGiá mẫu theo giờ là 200.000đ tại khu A, 300.000đ tại khu B và 500.000đ tại khu V. Tổng phí phụ thuộc thời lượng và ưu đãi hội viên. Bạn luôn có thể xem lại số tiền trước bước thanh toán.", "category": "NEWS", "status": "PUBLISHED", "source": "EDITORIAL", "imageUrl": "/guest/zone-b-indoor.webp", "publishedAt": "2026-10-19T00:00:00Z"}',0) ON CONFLICT(document_key) DO NOTHING;
-INSERT INTO app_documents(document_key,data,version) VALUES ('article:plan-your-session', '{"id": "plan-your-session", "title": "Một buổi chơi chủ động, từ giờ đầu tiên", "excerpt": "Chọn giờ theo bước 30 phút, thêm trọng tài khi cần và kiểm tra chi phí trước khi xác nhận.", "body": "Bắt đầu rồi kết thúc\nỞ mục Đặt sân, nhấn giờ bắt đầu trước rồi nhấn giờ kết thúc. Mỗi bước cách nhau 30 phút. Bạn có thể chọn nhiều khoảng liên tiếp, miễn toàn bộ khoảng chơi còn trống.\n\nTrọng tài theo lịch của bạn\nBạn không nhất thiết phải thuê trọng tài cho cả buổi. Chọn khoảng giờ cần hỗ trợ trong thời gian đặt sân, xem hồ sơ còn trống và chọn người phù hợp. Phí trọng tài được tách riêng khỏi tiền sân.\n\nDành một phút kiểm tra đơn\nTrước khi tiếp tục, kiểm tra mã sân, ngày chơi, giờ bắt đầu và kết thúc. Màn hình thanh toán tách rõ tổng phí, cọc và phần còn lại. Các bước thanh toán trong bản demo chỉ mô phỏng trải nghiệm.", "category": "NEWS", "status": "PUBLISHED", "source": "EDITORIAL", "imageUrl": "/guest/zone-b-indoor.webp", "publishedAt": "2026-10-19T00:00:00Z"}',0) ON CONFLICT(document_key) DO NOTHING;
-INSERT INTO app_documents(document_key,data,version) VALUES ('article:find-your-partner', '{"id": "find-your-partner", "title": "Có đồng đội, thêm lý do để ra sân", "excerpt": "Một lời hẹn sau giờ làm, một trận giao hữu cuối tuần hay lần đầu cùng nhau đăng ký giải đôi.", "body": "Bắt đầu bằng một cuộc hẹn nhỏ\nKhông cần chờ một dịp đặc biệt để ra sân. Cùng thống nhất thời gian, mức độ thi đấu và điều cả hai mong muốn ở buổi chơi: luyện tập, giao lưu hay thử sức trong một trận đấu có tính điểm.\n\nThống nhất trước khi đăng ký\nNếu muốn thử giải đôi, hãy đọc kỹ lịch, điều lệ và lệ phí của đúng giải đang chọn. Chuẩn bị tên đội, họ tên và email của cả hai thành viên. Mỗi người chỉ thuộc một đội trong cùng giải đôi của bản mẫu.\n\nLuôn có một trận tiếp theo\nLịch giải không chỉ có một lần hẹn cố định. Theo dõi danh sách giải để xem những ngày thi đấu tiếp theo, thể thức và hạn đăng ký riêng. Các sự kiện trong bản demo là lịch đề xuất để trải nghiệm giao diện.", "category": "NEWS", "status": "PUBLISHED", "source": "EDITORIAL", "imageUrl": "/guest/zone-b-indoor.webp", "publishedAt": "2026-10-19T00:00:00Z"}',0) ON CONFLICT(document_key) DO NOTHING;
+
+-- 16. CLUB INFO & ARTICLES
+INSERT INTO app_documents(document_key, data, version) VALUES
+('club', '{"name": "Courtly · Tennis Club", "tagline": "Khẳng định phong độ, kết nối đam mê", "intro": "Tổ hợp 10 sân tennis tiêu chuẩn quốc tế ngoài trời, trong nhà mái che và khu VIP Lounge riêng biệt.", "story": "Được xây dựng với mục tiêu mang đến trải nghiệm tennis chuyên nghiệp nhất cho mọi tay vợt, từ phong trào đến bán chuyên. Hệ thống đặt sân trực tuyến minh bạch, bảng giá chuẩn và dịch vụ hỗ trợ toàn diện.", "mission": "Đặt trải nghiệm của người chơi làm trung tâm: mặt sân chuẩn thi đấu, hỗ trợ trọng tài và HLV giàu kinh nghiệm.", "address": "128 Đường Tennis, Khu Thể Thao Courtly, TP. Hồ Chí Minh", "phone": "0901 888 999 · 028 3888 9999", "email": "contact@courtly.vn", "openingHours": "06:00 – 23:00 · Tất cả các ngày trong tuần", "mapUrl": "", "socialUrl": "", "paymentInstructions": "Chấp nhận VietQR, thẻ ngân hàng, VNPay và tiền mặt tại quầy lễ tân."}', 0)
+ON CONFLICT(document_key) DO UPDATE SET data = EXCLUDED.data;
+
+INSERT INTO app_documents(document_key, data, version) VALUES
+('article:choose-your-court', '{"id": "choose-your-court", "title": "Khu A, B hay VIP: Đâu là mặt sân phù hợp với bạn?", "excerpt": "Khám phá sự khác biệt giữa sân cứng ngoài trời, sân mái che mát mẻ và không gian riêng tư tại khu VIP Lounge.", "body": "1. Khu A (A01 - A04): Sân cứng ngoài trời thoáng đãng, phủ lớp sơn Decoturf giảm chấn, hệ thống đèn LED cao áp chuẩn thi đấu ban đêm.\n\n2. Khu B (B01 - B04): Mái che vòm cao 12m, không lo thời tiết nắng mưa thất thường, độ nảy bóng cực kỳ ổn định.\n\n3. Khu V (V01 - V02): Trải nghiệm đẳng cấp với phòng chờ sofa sang trọng, máy lạnh, phòng thay đồ và nhà tắm riêng tư.", "category": "NEWS", "status": "PUBLISHED", "source": "EDITORIAL", "imageUrl": "/guest/zone-b-indoor.webp", "publishedAt": "2026-10-15T08:00:00Z"}', 0)
+ON CONFLICT(document_key) DO UPDATE SET data = EXCLUDED.data;
+
+INSERT INTO app_documents(document_key, data, version) VALUES
+('article:plan-your-session', '{"id": "plan-your-session", "title": "Bí quyết chọn khung giờ và đặt sân nhanh chóng", "excerpt": "Hướng dẫn đặt sân theo bước 30 phút, linh hoạt kết hợp trọng tài và dịch vụ thuê vợt tại quầy.", "body": "Hệ thống Courtly cho phép bạn lựa chọn giờ chơi theo bước 30 phút rất linh hoạt. Bạn có thể đặt 1 tiếng, 1 tiếng 30 phút hoặc 2 tiếng liên tiếp.\n\nĐặc biệt, hội viên Club và Plus được ưu tiên đặt trước đến 21 ngày và giảm trực tiếp từ 10% đến 15% tiền sân.", "category": "NEWS", "status": "PUBLISHED", "source": "EDITORIAL", "imageUrl": "/guest/zone-a-outdoor.webp", "publishedAt": "2026-10-18T09:30:00Z"}', 0)
+ON CONFLICT(document_key) DO UPDATE SET data = EXCLUDED.data;
+
 COMMIT;

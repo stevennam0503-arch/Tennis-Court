@@ -6,7 +6,8 @@ PostgreSQL 16. Bộ SQL khớp với ứng dụng trên nhánh `nam-dev`, dùng 
 | --- | --- |
 | `init.sql` | Khởi tạo **database trống**, gồm bảng, ràng buộc, index, admin và lịch sử Flyway tương ứng. |
 | `query.sql` | Truy vấn chỉ đọc: lịch sân, đơn, tiền, trọng tài, hội viên, giải, feedback và kiểm tra dữ liệu. |
-| `test_data.sql` | Dữ liệu giả lập có ngày tương đối theo giờ Việt Nam; cần bật cờ cho phép trong cùng phiên psql. |
+| `test_data.sql` | Dữ liệu giả lập doanh nghiệp thực tế 2 tháng; nạp vào bằng cờ `courtly.allow_test_data='on'`. |
+| `generate_seed_data.py` | Script Python sinh dữ liệu demo doanh nghiệp hoàn chỉnh 2 tháng (1.050+ đơn, 65 tài khoản, 10 nhân sự). |
 
 Database đã chạy ứng dụng: **không nhập lại init.sql**. Backend tự áp dụng migration mới, giữ các đơn và lịch cũ. Không xóa volume hoặc sửa checksum Flyway để cập nhật.
 
@@ -55,21 +56,43 @@ Kiểm tra dữ liệu:
 docker compose exec -T postgres psql -U courtly -d courtly_demo -v ON_ERROR_STOP=1 -f /tmp/courtly-query.sql
 ```
 
-## Tài khoản và dữ liệu mẫu
+## Tài khoản và dữ liệu mẫu doanh nghiệp thật (2 tháng)
 
-- Khách demo: `minh.anh@example.com` / `CourtlyDemo2026`.
-- Admin: `admin@gmail.com` / `12345`, theo yêu cầu cấu hình local. Đổi mật khẩu trước khi vận hành công khai.
-- `player2@courtly.example` đến `player29@courtly.example`: cùng mật khẩu demo; `player30` bị khóa để thử chặn đăng nhập.
-- 30 khách, 10 sân A01–A04/B01–B04/V01–V02, 20.740 khung sân trong 61 ngày, bước 30 phút.
-- 244 đơn: 180 quá khứ, 60 sắp tới, 4 đang check-in; 164 đơn thuộc khách demo. Có giữ chỗ, xác nhận, hoàn tất, hủy, hết hạn, thu thiếu/đủ và 15 phiếu hoàn tiền.
-- 8 nhân sự, trong đó 3 trọng tài có mức 150.000/180.000/200.000đ mỗi giờ; lịch 38 ngày. Phí 30 phút được tính theo nửa giờ.
-- 12 đồ uống, 6 thiết bị tại quầy, đơn đã giao/chưa trả và đã trả thiết bị để thử admin. Khách không có chức năng thuê thiết bị online.
-- 7 giải, 28 đăng ký có thu phí, 9 trận đã có kết quả; giải mở đủ người để thử bốc thăm.
-- Hội viên hoạt động/hết hạn/chờ/hủy, phiếu thu hội viên, 9 feedback riêng tư/chờ duyệt/công khai, 3 bài tin và thông tin CLB giả lập.
+Bộ dữ liệu demo được thiết kế tương đương một câu lạc bộ tennis thực tế đang vận hành trong 2 tháng (45 ngày quá khứ, ngày hôm nay và 14 ngày tới):
 
-Khách demo bắt đầu ở gói Guest để thử mua hội viên. Player2 là Club để thử ưu đãi VIP 5%. Chiều/tối phần lớn còn trống cho thao tác đặt mới. Các đơn HOLDING hết hạn sau 15 phút tính từ lúc nạp dữ liệu. Bốn đơn check-in dùng kịch bản quầy check-in sớm, giờ sân 18:00–19:00 hôm nay.
+### Danh sách tài khoản đăng nhập demo
 
-File test_data chạy lại sẽ báo đã cài và không nhân đôi dữ liệu. Muốn bắt đầu đợt thử mới với ngày mới, tạo một database test tên khác, không xóa database đang dùng.
+| Vai trò | Email đăng nhập | Mật khẩu | Mục đích demo |
+| --- | --- | --- | --- |
+| **Quản trị viên (Chủ sân)** | `admin@gmail.com` | `12345` hoặc `CourtlyDemo2026` | Quản trị toàn quyền: dashboard, tài chính, báo cáo, phân quyền, cấu hình hệ thống. |
+| **Lễ tân ca sáng** | `letan.huong@courtly.vn` | `CourtlyDemo2026` | Vận hành quầy lễ tân: check-in, check-out, nhận trả đồ thuê, bán nước, thu tiền mặt/QR. |
+| **Lễ tân ca chiều** | `letan.duc@courtly.vn` | `CourtlyDemo2026` | Ca chiều tối: xếp lịch sân, phân công trọng tài, xác nhận đơn cọc. |
+| **Quản lý sân bãi** | `quanly.tuan@courtly.vn` | `CourtlyDemo2026` | Điều hành lịch sân, bảo trì, giám sát nhân sự & giải đấu. |
+| **Khách hàng VIP (Demo chính)** | `minh.anh@example.com` | `CourtlyDemo2026` | Nguyễn Minh Anh: Hội viên Club/Plus, có đơn đang chơi hôm nay (thuê vợt chưa trả), lịch sử đơn dày dặn. |
+| **Khách hàng thường (60 khách)** | `quocbao.kts@gmail.com`, `hoangnam.tennis@gmail.com`, ... | `CourtlyDemo2026` | 60 khách hàng thật với họ tên, số điện thoại Việt Nam chuẩn để thử nghiệm danh sách và lịch sử. |
+| **Tài khoản bị khóa** | `quangthang.locked@example.com` | `CourtlyDemo2026` | Kiểm tra tính năng chặn đăng nhập đối với tài khoản vi phạm. |
+
+### Thống kê khối lượng dữ liệu (Doanh nghiệp 2 tháng)
+
+- **10 Sân tiêu chuẩn**: A01–A04 (ngoài trời - 200k/h), B01–B04 (trong nhà mái che - 300k/h), V01–V02 (VIP Lounge - 500k/h).
+- **20.400 Khung giờ sân**: 60 ngày (-45 ngày đến +14 ngày), bước 30 phút từ 06:00 đến 23:00.
+- **1.057 Đơn đặt sân**:
+  + 742 đơn `COMPLETED` (đã chơi xong, thanh toán 100%, ghi nhận doanh thu).
+  + 224 đơn `CONFIRMED` (171 đơn đã cọc 50%, 53 đơn thanh toán đủ).
+  + 5 đơn `CHECKED_IN` hôm nay (khách đang chơi trên sân, có thuê vợt và order nước tại quầy chờ thanh toán khi check-out).
+  + 27 đơn `CANCELLED` (trong đó 13 đơn có phiếu `refunds` hoàn lại cọc hợp lệ).
+  + 19 đơn `EXPIRED` (hết hạn giữ chỗ 15 phút).
+  + 40 đơn `HOLDING` (đang giữ chỗ, có đồng hồ đếm ngược).
+- **10 Nhân sự chuyên môn**:
+  + 4 Huấn luyện viên (ITF Level 2, cựu VĐV quốc gia, giá 200k–250k/h).
+  + 4 Trọng tài (VTF Level 1, trọng tài giải vô địch, giá 140k–180k/h).
+  + 2 Nhân viên nhặt bóng (80k/h).
+  + 20.400 ca trực, tổng hợp công trên đơn hoàn tất (tab Payroll) hiển thị chính xác số giờ và tiền công từng người.
+- **Doanh thu ròng**: Đạt **~418.000.000 VNĐ** (Tiền sân + Dịch vụ nước + Đồ thuê + HLV + Giải đấu).
+- **Dịch vụ quầy**: 12 loại đồ uống (Lavie, Pocari, Revive, Red Bull, Cocoxim, Monster...), 6 loại vợt và bóng (Wilson, Babolat, Head, Yonex).
+- **6 Giải đấu**: 4 giải kết thúc có bảng điểm bán kết/chung kết, 2 giải mở đăng ký đang nhận VĐV nộp lệ phí.
+- **20 Hội viên**: Gói Club & Plus với biên lai thu phí hội viên và quyền lợi giảm 10%–15%.
+- **15 Đánh giá / Feedback**: Phản hồi thực tế 5 sao từ người chơi.
 
 ## Nâng cấp lần sau
 
