@@ -1,18 +1,473 @@
-import React from 'react';
-import {Wallet,Trophy,Check,Clock} from 'lucide-react';
-import {useCourtly} from '../context';
-import {Title,Stat,Panel,Button} from '../components/UI';
-import {money,labels} from '../utils/format';
-export default function ReportsPage(){
- const {data,date,setDate}=useCourtly();
- const valid=data.orders.filter(o=>!['CANCELLED','EXPIRED'].includes(o.status));
- const income=key=>data.payments.filter(p=>p[key]).reduce((a,p)=>a+p.amount,0)-data.refunds.filter(r=>data.payments.find(p=>p.id===r.paymentId)?.[key]).reduce((a,r)=>a+r.amount,0);
- const categories=[['Tiền sân',valid.flatMap(o=>o.slots).reduce((a,s)=>a+s.price,0)],['Đồ uống',valid.flatMap(o=>o.products).filter(p=>p.type==='DRINK').reduce((a,p)=>a+p.lineTotal,0)],['Đồ thuê',valid.flatMap(o=>o.products).filter(p=>p.type==='RENTAL').reduce((a,p)=>a+p.lineTotal,0)],['Nhân sự',valid.flatMap(o=>o.staff).reduce((a,s)=>a+s.hours*s.rate,0)]];
- const max=Math.max(1,...categories.map(x=>x[1]));
- const exportCsv=()=>{
-  const escape=v=>'"'+String(v).replace(/^[=+@-]/,"'").replaceAll('"','""')+'"';
-  const rows=[['Mã đơn','Khách hàng','Ngày','Trạng thái','Tổng tiền','Đã thu'],...data.orders.map(o=>[o.id,o.name,o.date,labels[o.status],o.total,o.paid])];
-  const url=URL.createObjectURL(new Blob(['\ufeff'+rows.map(r=>r.map(escape).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='bao-cao-courtly.csv';a.click();URL.revokeObjectURL(url);
- };
- return <><Title subtitle="Tiền đã thu và giá trị dịch vụ trên đơn." action={<Button onClick={exportCsv}>Xuất CSV</Button>}>Báo cáo</Title><div className="stats"><Stat title="Thu ròng từ đơn sân" value={money(income('orderId'))} note="Gồm dịch vụ trên đơn" icon={Wallet}/><Stat title="Thu ròng phí giải" value={money(income('registrationId'))} note="Tách khỏi đơn sân" icon={Trophy}/><Stat title="Đơn hoàn tất" value={data.orders.filter(o=>o.status==='COMPLETED').length} note="Đã thanh toán và check-out" icon={Check}/><Stat title="Còn phải thu" value={money(valid.reduce((a,o)=>a+o.total-o.paid,0))} note="Loại đơn hủy và hết hạn" icon={Clock}/></div><div className="split"><Panel title="Giá trị dịch vụ trên đơn"><div className="panel-body">{categories.map(([name,value])=><div className="bar-row" key={name}><span>{name}</span><div className="bar"><b style={{width:`${value/max*100}%`}}/></div><b>{money(value)}</b></div>)}<small>Giá trị đơn chưa đồng nghĩa với tiền đã thu.</small></div></Panel><Panel title="Công suất theo sân"><div className="panel-body"><div className="tools"><input type="date" aria-label="Ngày báo cáo" value={date} onChange={e=>e.target.value&&setDate(e.target.value)}/></div>{data.courts.map(c=>{const used=data.orders.filter(o=>o.date===date&&!['CANCELLED','EXPIRED'].includes(o.status)).flatMap(o=>o.slots).filter(s=>s.court===c.id).length+data.matches.filter(m=>m.date===date&&m.status!=='CANCELLED').flatMap(m=>m.slots).filter(s=>s.court===c.id).length;return <div className="bar-row" key={c.id}><span>{c.name}</span><div className="bar"><b style={{width:`${Math.min(100,used/17*100)}%`}}/></div><b>{Math.round(used/17*100)}%</b></div>;})}<small>Cơ sở 17 khung giờ/sân/ngày; gồm giờ đã phục vụ.</small></div></Panel></div></>;
+import React, { useState, useMemo } from 'react';
+import { Wallet, Trophy, Check, Clock, Calendar, TrendingUp, Download } from 'lucide-react';
+import { useCourtly } from '../context';
+import { Title, Stat, Panel, Button, Table, Chip } from '../components/UI';
+import { money, labels, today, localDate } from '../utils/format';
+
+export default function ReportsPage() {
+  const { data } = useCourtly();
+  const currentToday = today(); // YYYY-MM-DD
+  const currentYear = new Date().getFullYear();
+  const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+  const currentQuarter = Math.floor(new Date().getMonth() / 3) + 1;
+
+  // Period modes: 'day' | 'month' | 'quarter' | 'year' | 'all'
+  const [periodType, setPeriodType] = useState('month');
+  const [selectedDay, setSelectedDay] = useState(currentToday);
+  const [selectedMonth, setSelectedMonth] = useState(`${currentYear}-${currentMonth}`);
+  const [selectedQuarter, setSelectedQuarter] = useState(`Q${currentQuarter}`);
+  const [selectedQuarterYear, setSelectedQuarterYear] = useState(currentYear);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  // Compute startDate and endDate based on periodType
+  const { startDate, endDate, periodLabel } = useMemo(() => {
+    if (periodType === 'day') {
+      const parts = selectedDay.split('-');
+      return {
+        startDate: selectedDay,
+        endDate: selectedDay,
+        periodLabel: `Ngày ${parts[2]}/${parts[1]}/${parts[0]}`
+      };
+    }
+    if (periodType === 'month') {
+      const [y, m] = selectedMonth.split('-');
+      const lastDay = new Date(Number(y), Number(m), 0).getDate();
+      return {
+        startDate: `${y}-${m}-01`,
+        endDate: `${y}-${m}-${String(lastDay).padStart(2, '0')}`,
+        periodLabel: `Tháng ${m}/${y}`
+      };
+    }
+    if (periodType === 'quarter') {
+      const q = Number(selectedQuarter.replace('Q', ''));
+      const startM = String((q - 1) * 3 + 1).padStart(2, '0');
+      const endM = String(q * 3).padStart(2, '0');
+      const lastDay = new Date(selectedQuarterYear, q * 3, 0).getDate();
+      return {
+        startDate: `${selectedQuarterYear}-${startM}-01`,
+        endDate: `${selectedQuarterYear}-${endM}-${String(lastDay).padStart(2, '0')}`,
+        periodLabel: `Quý ${q}/${selectedQuarterYear} (${startM}/${selectedQuarterYear} – ${endM}/${selectedQuarterYear})`
+      };
+    }
+    if (periodType === 'year') {
+      return {
+        startDate: `${selectedYear}-01-01`,
+        endDate: `${selectedYear}-12-31`,
+        periodLabel: `Năm ${selectedYear}`
+      };
+    }
+    return {
+      startDate: '1970-01-01',
+      endDate: '2099-12-31',
+      periodLabel: 'Toàn bộ thời gian'
+    };
+  }, [periodType, selectedDay, selectedMonth, selectedQuarter, selectedQuarterYear, selectedYear]);
+
+  // Filter orders in period
+  const ordersInPeriod = useMemo(() => {
+    return data.orders.filter(o => o.date >= startDate && o.date <= endDate);
+  }, [data.orders, startDate, endDate]);
+
+  const validOrders = useMemo(() => {
+    return ordersInPeriod.filter(o => !['CANCELLED', 'EXPIRED'].includes(o.status));
+  }, [ordersInPeriod]);
+
+  // Filter payments & refunds in period
+  const paymentsInPeriod = useMemo(() => {
+    return data.payments.filter(p => {
+      const d = localDate(p.createdAt || p.paidAt);
+      return d >= startDate && d <= endDate;
+    });
+  }, [data.payments, startDate, endDate]);
+
+  const refundsInPeriod = useMemo(() => {
+    return data.refunds.filter(r => {
+      const d = localDate(r.createdAt);
+      return d >= startDate && d <= endDate;
+    });
+  }, [data.refunds, startDate, endDate]);
+
+  // Cashflow
+  const netOrderCash = useMemo(() => {
+    const collected = paymentsInPeriod.filter(p => p.orderId).reduce((a, p) => a + p.amount, 0);
+    const refunded = refundsInPeriod.filter(r => {
+      const p = data.payments.find(x => x.id === r.paymentId);
+      return p && p.orderId;
+    }).reduce((a, r) => a + r.amount, 0);
+    return collected - refunded;
+  }, [paymentsInPeriod, refundsInPeriod, data.payments]);
+
+  const netTournamentCash = useMemo(() => {
+    const collected = paymentsInPeriod.filter(p => p.registrationId).reduce((a, p) => a + p.amount, 0);
+    const refunded = refundsInPeriod.filter(r => {
+      const p = data.payments.find(x => x.id === r.paymentId);
+      return p && p.registrationId;
+    }).reduce((a, r) => a + r.amount, 0);
+    return collected - refunded;
+  }, [paymentsInPeriod, refundsInPeriod, data.payments]);
+
+  const netMembershipCash = useMemo(() => {
+    return paymentsInPeriod.filter(p => p.type === 'MEMBERSHIP_FEE').reduce((a, p) => a + p.amount, 0);
+  }, [paymentsInPeriod]);
+
+  const totalNetCash = useMemo(() => {
+    const totalPaid = paymentsInPeriod.reduce((a, p) => a + p.amount, 0);
+    const totalRefund = refundsInPeriod.reduce((a, r) => a + r.amount, 0);
+    return totalPaid - totalRefund;
+  }, [paymentsInPeriod, refundsInPeriod]);
+
+  // Value by categories on valid orders
+  const courtValue = validOrders.flatMap(o => o.slots).reduce((a, s) => a + (s.price || 0), 0);
+  const drinkValue = validOrders.flatMap(o => o.products).filter(p => p.type === 'DRINK').reduce((a, p) => a + (p.lineTotal || 0), 0);
+  const rentalValue = validOrders.flatMap(o => o.products).filter(p => p.type === 'RENTAL').reduce((a, p) => a + (p.lineTotal || 0), 0);
+  const staffValue = validOrders.flatMap(o => o.staff).reduce((a, s) => a + (s.hours || 1) * (s.rate || 0), 0);
+  const totalValue = courtValue + drinkValue + rentalValue + staffValue;
+
+  const categories = [
+    ['Tiền thuê sân', courtValue],
+    ['Đồ uống & giải khát', drinkValue],
+    ['Dịch vụ thuê vợt / bóng', rentalValue],
+    ['Nhân sự (Trọng tài / HLV)', staffValue]
+  ];
+  const maxCategory = Math.max(1, ...categories.map(x => x[1]));
+
+  // Number of calendar days in period for occupancy calculation
+  const periodDays = useMemo(() => {
+    const s = new Date(startDate), e = new Date(endDate);
+    const diff = Math.round((e - s) / (1000 * 60 * 60 * 24)) + 1;
+    return Math.max(1, Math.min(366, diff));
+  }, [startDate, endDate]);
+
+  // Occupancy per court
+  const courtOccupancy = useMemo(() => {
+    const totalPossibleSlots = 17 * periodDays;
+    return data.courts.map(c => {
+      const orderSlots = validOrders.flatMap(o => o.slots).filter(s => s.court === c.id).length;
+      const matchSlots = data.matches
+        .filter(m => m.date >= startDate && m.date <= endDate && m.status !== 'CANCELLED')
+        .flatMap(m => m.slots)
+        .filter(s => s.court === c.id).length;
+      const totalUsed = orderSlots + matchSlots;
+      const percent = Math.min(100, Math.round((totalUsed / totalPossibleSlots) * 100));
+      return {
+        id: c.id,
+        name: c.name,
+        type: c.type,
+        used: totalUsed,
+        totalPossible: totalPossibleSlots,
+        percent
+      };
+    });
+  }, [data.courts, validOrders, data.matches, startDate, endDate, periodDays]);
+
+  const avgOccupancy = courtOccupancy.length
+    ? Math.round(courtOccupancy.reduce((a, c) => a + c.percent, 0) / courtOccupancy.length)
+    : 0;
+
+  // Monthly sub-breakdown for Year or Quarter mode
+  const monthlyBreakdown = useMemo(() => {
+    if (periodType !== 'year' && periodType !== 'quarter') return [];
+    const months = [];
+    const startM = periodType === 'quarter' ? (Number(selectedQuarter.replace('Q', '')) - 1) * 3 + 1 : 1;
+    const endM = periodType === 'quarter' ? Number(selectedQuarter.replace('Q', '')) * 3 : 12;
+    const yr = periodType === 'quarter' ? selectedQuarterYear : selectedYear;
+
+    for (let m = startM; m <= endM; m++) {
+      const mStr = `${yr}-${String(m).padStart(2, '0')}`;
+      const mOrders = data.orders.filter(o => o.date.startsWith(mStr));
+      const mValid = mOrders.filter(o => !['CANCELLED', 'EXPIRED'].includes(o.status));
+      const mRevenue = data.payments.filter(p => localDate(p.createdAt || p.paidAt).startsWith(mStr)).reduce((a, p) => a + p.amount, 0)
+        - data.refunds.filter(r => localDate(r.createdAt).startsWith(mStr)).reduce((a, r) => a + r.amount, 0);
+      months.push({
+        label: `Tháng ${m}/${yr}`,
+        ordersCount: mOrders.length,
+        completedCount: mOrders.filter(o => o.status === 'COMPLETED').length,
+        revenue: mRevenue,
+        orderValue: mValid.reduce((a, o) => a + o.total, 0)
+      });
+    }
+    return months;
+  }, [periodType, selectedQuarter, selectedQuarterYear, selectedYear, data.orders, data.payments, data.refunds]);
+
+  // Export CSV
+  const exportCsv = () => {
+    const escape = v => '"' + String(v ?? '').replace(/^[=+@-]/, "'").replaceAll('"', '""') + '"';
+    const rows = [
+      ['BÁO CÁO DOANH THU & VẬN HÀNH COURTLY TENNIS CLUB'],
+      ['Kỳ báo cáo', periodLabel],
+      ['Từ ngày', startDate, 'Đến ngày', endDate],
+      [''],
+      ['I. TỔNG QUAN TÀI CHÍNH'],
+      ['Chỉ số', 'Số tiền (VNĐ)'],
+      ['Tổng thực thu ròng', totalNetCash],
+      ['Thu ròng từ đơn sân', netOrderCash],
+      ['Thu ròng phí giải đấu', netTournamentCash],
+      ['Thu phí hội viên Membership', netMembershipCash],
+      ['Giá trị dịch vụ trên đơn', totalValue],
+      [''],
+      ['II. THỐNG KÊ ĐƠN HÀNG'],
+      ['Tổng đơn trong kỳ', ordersInPeriod.length],
+      ['Đơn hoàn tất', ordersInPeriod.filter(o => o.status === 'COMPLETED').length],
+      ['Đơn đã hủy', ordersInPeriod.filter(o => o.status === 'CANCELLED').length],
+      ['Đơn hết hạn giữ chỗ', ordersInPeriod.filter(o => o.status === 'EXPIRED').length],
+      [''],
+      ['III. CƠ CẤU DOANH THU DỊCH VỤ'],
+      ['Hạng mục', 'Giá trị (VNĐ)'],
+      ...categories.map(([name, val]) => [name, val]),
+      [''],
+      ['IV. CÔNG SUẤT SÂN'],
+      ['Tên sân', 'Khung giờ sử dụng', 'Tổng khung giờ khả dụng', 'Tỷ lệ lấp đầy (%)'],
+      ...courtOccupancy.map(c => [c.name, c.used, c.totalPossible, c.percent + '%']),
+      [''],
+      ['V. CHI TIẾT ĐƠN HÀNG TRONG KỲ'],
+      ['Mã đơn', 'Khách hàng', 'Số điện thoại', 'Ngày', 'Trạng thái', 'Tổng tiền', 'Đã thanh toán'],
+      ...ordersInPeriod.map(o => [
+        o.id,
+        o.name,
+        o.phone || '',
+        o.date,
+        labels[o.status] || o.status,
+        o.total,
+        o.paid
+      ])
+    ];
+
+    const csvContent = '\ufeff' + rows.map(r => r.map(escape).join(',')).join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bao-cao-courtly-${periodType}-${startDate}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <>
+      <Title
+        subtitle={`Phân tích tài chính, cơ cấu dịch vụ và công suất sân (${periodLabel}).`}
+        action={
+          <Button className="primary" onClick={exportCsv}>
+            <Download size={16} /> Xuất báo cáo CSV
+          </Button>
+        }
+      >
+        Báo cáo & Thống kê
+      </Title>
+
+      {/* Period Filter Bar */}
+      <div className="panel" style={{ marginBottom: 24 }}>
+        <div className="panel-body" style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Calendar size={18} style={{ color: 'var(--green)' }} />
+            <b>Kỳ báo cáo:</b>
+          </div>
+
+          <div className="time-filters" style={{ margin: 0 }}>
+            {[
+              ['day', 'Theo Ngày'],
+              ['month', 'Theo Tháng'],
+              ['quarter', 'Theo Quý'],
+              ['year', 'Theo Năm'],
+              ['all', 'Tất cả']
+            ].map(([mode, label]) => (
+              <button
+                key={mode}
+                className={periodType === mode ? 'on' : ''}
+                onClick={() => setPeriodType(mode)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Sub-pickers */}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginLeft: 'auto', flexWrap: 'wrap' }}>
+            {periodType === 'day' && (
+              <>
+                <input
+                  type="date"
+                  aria-label="Chọn ngày"
+                  value={selectedDay}
+                  onChange={e => e.target.value && setSelectedDay(e.target.value)}
+                  style={{ width: 170 }}
+                />
+                <Button className="sm" onClick={() => setSelectedDay(currentToday)}>Hôm nay</Button>
+              </>
+            )}
+
+            {periodType === 'month' && (
+              <input
+                type="month"
+                aria-label="Chọn tháng"
+                value={selectedMonth}
+                onChange={e => e.target.value && setSelectedMonth(e.target.value)}
+                style={{ width: 170 }}
+              />
+            )}
+
+            {periodType === 'quarter' && (
+              <>
+                <select
+                  aria-label="Chọn quý"
+                  value={selectedQuarter}
+                  onChange={e => setSelectedQuarter(e.target.value)}
+                  style={{ width: 130 }}
+                >
+                  <option value="Q1">Quý 1 (T1-T3)</option>
+                  <option value="Q2">Quý 2 (T4-T6)</option>
+                  <option value="Q3">Quý 3 (T7-T9)</option>
+                  <option value="Q4">Quý 4 (T10-T12)</option>
+                </select>
+                <select
+                  aria-label="Chọn năm"
+                  value={selectedQuarterYear}
+                  onChange={e => setSelectedQuarterYear(Number(e.target.value))}
+                  style={{ width: 110 }}
+                >
+                  {[currentYear, currentYear - 1, currentYear - 2].map(y => (
+                    <option key={y} value={y}>Năm {y}</option>
+                  ))}
+                </select>
+              </>
+            )}
+
+            {periodType === 'year' && (
+              <select
+                aria-label="Chọn năm"
+                value={selectedYear}
+                onChange={e => setSelectedYear(Number(e.target.value))}
+                style={{ width: 130 }}
+              >
+                {[currentYear, currentYear - 1, currentYear - 2].map(y => (
+                  <option key={y} value={y}>Năm {y}</option>
+                ))}
+              </select>
+            )}
+
+            <span className="chip green" style={{ fontWeight: 600 }}>
+              {periodLabel}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Stats */}
+      <div className="stats">
+        <Stat
+          title="Tổng thực thu ròng"
+          value={money(totalNetCash)}
+          note={`Thu trừ hoàn (${paymentsInPeriod.length} giao dịch)`}
+          icon={Wallet}
+        />
+        <Stat
+          title="Thu ròng đơn sân"
+          value={money(netOrderCash)}
+          note="Tiền sân & dịch vụ trên đơn"
+          icon={TrendingUp}
+        />
+        <Stat
+          title="Thu giải & Hội viên"
+          value={money(netTournamentCash + netMembershipCash)}
+          note={`Giải: ${money(netTournamentCash)} · HV: ${money(netMembershipCash)}`}
+          icon={Trophy}
+        />
+        <Stat
+          title="Đơn hoàn tất trong kỳ"
+          value={`${ordersInPeriod.filter(o => o.status === 'COMPLETED').length} / ${ordersInPeriod.length}`}
+          note={`Tỷ lệ hoàn tất: ${ordersInPeriod.length ? Math.round(ordersInPeriod.filter(o => o.status === 'COMPLETED').length / ordersInPeriod.length * 100) : 0}%`}
+          icon={Check}
+        />
+      </div>
+
+      {/* Split Panels: Category breakdown & Court Occupancy */}
+      <div className="split">
+        <Panel title={`Cơ cấu doanh thu dịch vụ (${periodLabel})`}>
+          <div className="panel-body">
+            {categories.map(([name, value]) => (
+              <div className="bar-row" key={name}>
+                <span style={{ width: 170 }}>{name}</span>
+                <div className="bar">
+                  <b style={{ width: `${(value / maxCategory) * 100}%` }} />
+                </div>
+                <b>{money(value)}</b>
+              </div>
+            ))}
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between' }}>
+              <span>Tổng giá trị dịch vụ:</span>
+              <b style={{ color: 'var(--green)', fontSize: 16 }}>{money(totalValue)}</b>
+            </div>
+            <small style={{ marginTop: 8, display: 'block' }}>
+              Giá trị dịch vụ tính trên các đơn đặt sân hợp lệ (loại trừ đơn hủy/hết hạn).
+            </small>
+          </div>
+        </Panel>
+
+        <Panel title={`Công suất sân (${periodLabel}) · Trung bình ${avgOccupancy}%`}>
+          <div className="panel-body">
+            {courtOccupancy.map(c => (
+              <div className="bar-row" key={c.id}>
+                <span style={{ width: 140 }}>
+                  {c.name} <small style={{ display: 'inline', color: 'var(--muted)' }}>({labels[c.type] || c.type})</small>
+                </span>
+                <div className="bar">
+                  <b
+                    style={{
+                      width: `${c.percent}%`,
+                      backgroundColor: c.percent > 70 ? '#2e7d32' : c.percent > 40 ? '#589569' : '#81c784'
+                    }}
+                  />
+                </div>
+                <b>{c.percent}%</b>
+              </div>
+            ))}
+            <small style={{ marginTop: 14, display: 'block' }}>
+              Tính trên {periodDays} ngày vận hành ({periodDays * 17} khung giờ phục vụ mỗi sân).
+            </small>
+          </div>
+        </Panel>
+      </div>
+
+      {/* If Year or Quarter, display monthly breakdown */}
+      {monthlyBreakdown.length > 0 && (
+        <Panel title={`Chi tiết doanh thu theo tháng (${periodLabel})`} style={{ marginTop: 24 }}>
+          <Table headings={['Tháng', 'Tổng số đơn', 'Đơn hoàn tất', 'Giá trị dịch vụ', 'Doanh thu thực thu']}>
+            {monthlyBreakdown.map(m => (
+              <tr key={m.label}>
+                <td className="name">{m.label}</td>
+                <td>{m.ordersCount} đơn</td>
+                <td><Chip status={m.completedCount > 0 ? 'COMPLETED' : 'PENDING'} /> {m.completedCount} đơn</td>
+                <td>{money(m.orderValue)}</td>
+                <td className="name" style={{ color: 'var(--green)' }}>{money(m.revenue)}</td>
+              </tr>
+            ))}
+          </Table>
+        </Panel>
+      )}
+
+      {/* Orders summary table in period */}
+      <Panel title={`Danh sách đơn hàng trong kỳ (${ordersInPeriod.length} đơn)`} style={{ marginTop: 24 }}>
+        <Table headings={['Mã đơn', 'Khách hàng', 'Ngày đặt', 'Trạng thái', 'Tổng tiền', 'Đã thu']} empty={!ordersInPeriod.length}>
+          {ordersInPeriod.slice(0, 15).map(o => (
+            <tr key={o.id}>
+              <td>
+                <b>{o.id.slice(0, 8).toUpperCase()}</b>
+                <small>{o.phone}</small>
+              </td>
+              <td className="name">{o.name}</td>
+              <td>{o.date}</td>
+              <td><Chip status={o.status} /></td>
+              <td>{money(o.total)}</td>
+              <td className="name">{money(o.paid)}</td>
+            </tr>
+          ))}
+        </Table>
+        {ordersInPeriod.length > 15 && (
+          <div className="panel-body" style={{ textAlign: 'center', background: '#fcfdfc' }}>
+            <small>Đang hiển thị 15 đơn tiêu biểu. Bấm <b>"Xuất báo cáo CSV"</b> ở góc trên để tải toàn bộ {ordersInPeriod.length} đơn hàng chi tiết trong kỳ.</small>
+          </div>
+        )}
+      </Panel>
+    </>
+  );
 }
