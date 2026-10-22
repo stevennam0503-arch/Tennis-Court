@@ -17,5 +17,15 @@ try{
  const {AuthenticatedApp}=await server.ssrLoadModule('/src/App.jsx');
  const admin=renderToString(React.createElement(AuthenticatedApp,{session:{user:data.viewer},onLogout(){}}));assert(admin.includes('class="sidebar'));
  const customer=renderToString(React.createElement(AuthenticatedApp,{session:{user:{...data.viewer,role:'CUSTOMER'}},onLogout(){}}));assert(customer.includes('customer-workspace'));assert(!customer.includes('class="sidebar'));
+ const {PublicHeader}=await server.ssrLoadModule('/src/components/PublicLayout.jsx');
+ const {Header:GuestHeader}=await server.ssrLoadModule('/src/guest/Layout.jsx');
+ const {GuestContext}=await server.ssrLoadModule('/src/guest/context.jsx');
+ const publicHeader=renderToString(React.createElement(PublicHeader,{onLogin(){}}));
+ const guestHeader=renderToString(React.createElement(GuestContext.Provider,{value:{t:s=>s,lang:'vi',setLang(){},navigate(){},route:'about',login(){},logout(){}}},React.createElement(GuestHeader)));
+ for(const [name,html]of [['public',publicHeader],['guest',guestHeader]]){
+  for(const label of ['Bảng giá','Giải đấu','Hội viên'])assert(html.includes(label),`${name} header includes ${label}`);
+ }
+ assert(publicHeader.includes('href="/bang-gia"')&&publicHeader.includes('href="/giai-dau"')&&publicHeader.includes('href="/membership"'));
+ console.log('PASS pricing, tournaments and membership in both public headers.');
  console.log('PASS admin shell retained; customer shell independent.');
 }finally{await server.close();}
