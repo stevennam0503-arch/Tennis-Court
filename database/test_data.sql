@@ -251,13 +251,13 @@ BEGIN
   (pg_temp.seed_uuid('price:court:8:weekday'), pg_temp.seed_uuid('court:8'), 'WEEKDAY', '06:00', '23:00', 300000),
   (pg_temp.seed_uuid('price:court:8:weekend'), pg_temp.seed_uuid('court:8'), 'WEEKEND', '06:00', '23:00', 300000);
   INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
-  VALUES (pg_temp.seed_uuid('court:9'), 'Sân V01 (VIP)', 'HARD', 'Sân VIP Lounge riêng biệt, ghế sofa bọc da, máy lạnh phòng chờ', '/guest/zone-v-lounge.webp', 'ACTIVE', 500000,
+  VALUES (pg_temp.seed_uuid('court:9'), 'Sân V01', 'HARD', 'Sân VIP Lounge riêng biệt, ghế sofa bọc da, máy lạnh phòng chờ', '/guest/zone-v-lounge.webp', 'ACTIVE', 500000,
           'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
   INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
   (pg_temp.seed_uuid('price:court:9:weekday'), pg_temp.seed_uuid('court:9'), 'WEEKDAY', '06:00', '23:00', 500000),
   (pg_temp.seed_uuid('price:court:9:weekend'), pg_temp.seed_uuid('court:9'), 'WEEKEND', '06:00', '23:00', 500000);
   INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
-  VALUES (pg_temp.seed_uuid('court:10'), 'Sân V02 (VIP)', 'HARD', 'Sân VIP đặc quyền doanh nhân, có phòng thay đồ và tắm riêng', '/guest/zone-v-lounge.webp', 'ACTIVE', 500000,
+  VALUES (pg_temp.seed_uuid('court:10'), 'Sân V02', 'HARD', 'Sân VIP đặc quyền doanh nhân, có phòng thay đồ và tắm riêng', '/guest/zone-v-lounge.webp', 'ACTIVE', 500000,
           'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
   INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
   (pg_temp.seed_uuid('price:court:10:weekday'), pg_temp.seed_uuid('court:10'), 'WEEKDAY', '06:00', '23:00', 500000),

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Courtly - Comprehensive Real-World Business Seed Data Generator (2 Months)
@@ -193,8 +193,8 @@ BEGIN
         ('court:6', 'Sân B02', 'HARD', 'Sân trong nhà chất lượng cao, sơn phủ Decoturf cao cấp', '/guest/zone-b-indoor.webp', 300000),
         ('court:7', 'Sân B03', 'HARD', 'Sân mái che trung tâm, thường tổ chức các trận bán kết và chung kết', '/guest/zone-b-indoor.webp', 300000),
         ('court:8', 'Sân B04', 'HARD', 'Sân trong nhà yên tĩnh, hệ thống đèn chiếu chuẩn giải đấu', '/guest/zone-b-indoor.webp', 300000),
-        ('court:9', 'Sân V01 (VIP)', 'HARD', 'Sân VIP Lounge riêng biệt, ghế sofa bọc da, máy lạnh phòng chờ', '/guest/zone-v-lounge.webp', 500000),
-        ('court:10', 'Sân V02 (VIP)', 'HARD', 'Sân VIP đặc quyền doanh nhân, có phòng thay đồ và tắm riêng', '/guest/zone-v-lounge.webp', 500000),
+        ('court:9', 'Sân V01', 'HARD', 'Sân VIP Lounge riêng biệt, ghế sofa bọc da, máy lạnh phòng chờ', '/guest/zone-v-lounge.webp', 500000),
+        ('court:10', 'Sân V02', 'HARD', 'Sân VIP đặc quyền doanh nhân, có phòng thay đồ và tắm riêng', '/guest/zone-v-lounge.webp', 500000),
     ]
 
     lines.append("\n  -- 6. COURTS & PRICING")
