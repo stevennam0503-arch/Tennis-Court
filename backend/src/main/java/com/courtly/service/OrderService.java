@@ -67,12 +67,22 @@ public class OrderService {
     quote(order, selected);
     totals.recalculate(order);
     order.setDepositRequired(
-        order
-            .getTotalAmount()
-            .multiply(BigDecimal.valueOf(settings.get().getDepositPercent()))
+        depositBase(order)
+            .multiply(BigDecimal.valueOf(depositPercent(order)))
             .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
     audit.log("TẠO ĐƠN", order.getId().toString());
     return order.getId();
+  }
+
+  private int depositPercent(CustomerOrder o) {
+    return Boolean.TRUE.equals(documents.decode(o.getMetadata()).get("customerFlow")) ? 50 : settings.get().getDepositPercent();
+  }
+
+  private BigDecimal depositBase(CustomerOrder o) {
+    var metadata = documents.decode(o.getMetadata());
+    if (Boolean.TRUE.equals(metadata.get("customerFlow")) && metadata.get("membershipBenefit") instanceof Map<?,?> benefit)
+      return PresentationService.decimal(benefit.get("net"));
+    return o.getTotalAmount();
   }
 
   public CustomerOrder lock(UUID id) {
@@ -225,9 +235,8 @@ public class OrderService {
       }
     totals.recalculate(order);
     order.setDepositRequired(
-        order
-            .getTotalAmount()
-            .multiply(BigDecimal.valueOf(settings.get().getDepositPercent()))
+        depositBase(order)
+            .multiply(BigDecimal.valueOf(depositPercent(order)))
             .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
     audit.log("ĐỔI LỊCH", id.toString());
   }
@@ -429,8 +438,8 @@ public class OrderService {
     assignExact(b, allocated(b), rows);
     totals.recalculate(o);
     o.setDepositRequired(
-        o.getTotalAmount()
-            .multiply(BigDecimal.valueOf(settings.get().getDepositPercent()))
+        depositBase(o)
+            .multiply(BigDecimal.valueOf(depositPercent(o)))
             .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP));
   }
 

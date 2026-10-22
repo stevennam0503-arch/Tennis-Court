@@ -28,14 +28,14 @@ public class ScheduleService {
       Court court = courts.findForUpdate(item.getId()).orElseThrow();
       var existing = schedules.findByCourtIdAndScheduleDate(court.getId(), date);
       var tariff = prices.findByCourtId(court.getId());
-      for (int hour = 6; hour < 23; hour++) {
-        LocalTime start = LocalTime.of(hour, 0);
-        if (existing.stream().anyMatch(x -> x.getStartTime().equals(start))) continue;
+      for (int minute = 360; minute < 1380; minute += 30) {
+        LocalTime start = LocalTime.of(minute / 60, minute % 60);
+        if (existing.stream().anyMatch(x -> !start.isBefore(x.getStartTime()) && start.isBefore(x.getEndTime()))) continue;
         CourtSchedule schedule = new CourtSchedule();
         schedule.setCourt(court);
         schedule.setScheduleDate(date);
         schedule.setStartTime(start);
-        schedule.setEndTime(start.plusHours(1));
+        schedule.setEndTime(start.plusMinutes(30));
         schedule.setPrice(
             tariff.stream()
                 .filter(
@@ -45,7 +45,7 @@ public class ScheduleService {
                             && start.isBefore(p.getEndTime()))
                 .findFirst()
                 .map(CourtPrice::getPricePerHour)
-                .orElse(court.getBasePrice()));
+                .orElse(court.getBasePrice()).divide(java.math.BigDecimal.valueOf(2)));
         schedules.save(schedule);
       }
     }
@@ -86,7 +86,7 @@ public class ScheduleService {
       var slot =
           options.stream()
               .filter(
-                  x -> x.getStartTime().equals(start) && x.getEndTime().equals(start.plusHours(1)))
+                  x -> x.getStartTime().equals(start) && courtSlots.stream().anyMatch(c -> c.getStartTime().equals(start) && c.getEndTime().equals(x.getEndTime())))
               .findFirst()
               .orElseThrow(() -> new BusinessException("Nhân sự chưa có lịch làm việc phù hợp"));
       ids.add(slot.getId());

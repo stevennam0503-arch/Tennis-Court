@@ -52,6 +52,7 @@ public class BookingSupportService {
     if (exclude != null) owns(a, exclude);
     var rows = selected(ids);
     service.future(rows);
+    if (!"ADMIN".equals(a.getRole())) membership.checkWindow(a.getId(),rows);
     require(
         rows.stream().map(CourtSchedule::getScheduleDate).distinct().count() == 1,
         "Các slot phải cùng ngày");
@@ -76,8 +77,9 @@ public class BookingSupportService {
                         s.getId(),
                         "court",
                         s.getCourt().getId(),
+                        "start", s.getStartTime(), "end", s.getEndTime(),
                         "hour",
-                        s.getStartTime().getHour(),
+                        s.getStartTime().getHour() + s.getStartTime().getMinute() / 60.0,
                         "price",
                         s.getPrice()))
             .toList();
@@ -95,7 +97,7 @@ public class BookingSupportService {
               shifts.findByStaffIdAndWorkDate(p.getId(), s.getScheduleDate()).stream()
                   .anyMatch(
                       x ->
-                          x.getStartTime().equals(s.getStartTime())
+                          x.getStartTime().equals(s.getStartTime()) && x.getEndTime().equals(s.getEndTime())
                               && ("AVAILABLE".equals(x.getStatus())
                                   || old.stream()
                                       .anyMatch(
@@ -110,6 +112,7 @@ public class BookingSupportService {
                   p.getId(),
                   "name",
                   p.getFullName(),
+                  "level", p.getLevel(),
                   "rate",
                   p.getHourlyRate(),
                   "available",
@@ -172,7 +175,7 @@ public class BookingSupportService {
                               && Boolean.TRUE.equals(x.get("available")))
                   .findFirst()
                   .orElseThrow();
-      staffCost = staffCost.add(PresentationService.decimal(st.get("rate")));
+      staffCost = staffCost.add(PresentationService.decimal(st.get("rate")).multiply(hours(slot.getStartTime(), slot.getEndTime())));
       staffView.add(
           map(
               "scheduleId",
@@ -182,7 +185,7 @@ public class BookingSupportService {
               "rate",
               st.get("rate"),
               "hours",
-              1));
+              hours(slot.getStartTime(), slot.getEndTime())));
     }
     var old = views.order(o);
     var products = (List<Map<String, Object>>) old.get("products");

@@ -22,7 +22,7 @@ public class ApiAccessInterceptor implements HandlerInterceptor {
     if (req.getMethod().equals("OPTIONS")
         || p.startsWith("/api/public/")
         || p.startsWith("/api/auth/")
-        || p.equals("/api/csrf")) return true;
+        || p.equals("/api/csrf") || p.equals("/api/webhooks/sepay")) return true;
     var a = auth.current(req);
     req.setAttribute("actor", a);
     boolean admin = "ADMIN".equals(a.getRole());

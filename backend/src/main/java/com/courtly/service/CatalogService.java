@@ -95,8 +95,8 @@ public class CatalogService {
     p.setCourt(
         courts.findById(r.court()).orElseThrow(() -> new BusinessException("Sân không tồn tại")));
     p.setDayType(oneOf(r.dayType(), "WEEKDAY", "WEEKEND"));
-    p.setStartTime(LocalTime.of(r.start(), 0));
-    p.setEndTime(LocalTime.of(r.end(), 0));
+    p.setStartTime(clock(r.start()));
+    p.setEndTime(clock(r.end()));
     p.setPricePerHour(positive(r.price()));
     return prices.save(p).getId();
   }
@@ -194,9 +194,11 @@ public class CatalogService {
             && r.end() != null
             && r.start() >= 6
             && r.end() <= 23
-            && r.start() < r.end(),
+            && r.start() < r.end() && r.start()*2 == Math.rint(r.start()*2) && r.end()*2 == Math.rint(r.end()*2),
         "Giờ làm việc từ 6 đến 23, giờ kết thúc sau giờ bắt đầu");
   }
+
+  private LocalTime clock(double hour) {return LocalTime.of((int)hour, (int)Math.round((hour % 1)*60));}
 
   private UUID staffSchedule(UUID id, CatalogRequest r) {
     times(r);
@@ -212,20 +214,20 @@ public class CatalogService {
               .findForUpdate(id)
               .orElseThrow(() -> new BusinessException("Lịch không tồn tại"));
       require("AVAILABLE".equals(s.getStatus()), "Không sửa lịch đang được phân công");
-      require(r.end() - r.start() == 1, "Mỗi slot nhân sự dài một giờ");
+      require(r.end() - r.start() == 0.5 || r.end() - r.start() == 1, "Mỗi slot nhân sự dài 30 hoặc 60 phút");
       s.setStaff(person);
       s.setWorkDate(r.date());
-      s.setStartTime(LocalTime.of(r.start(), 0));
-      s.setEndTime(LocalTime.of(r.end(), 0));
+      s.setStartTime(clock(r.start()));
+      s.setEndTime(clock(r.end()));
       return s.getId();
     }
     UUID first = null;
-    for (int hour = r.start(); hour < r.end(); hour++) {
+    for (int minute = (int)(r.start() * 60); minute < r.end() * 60; minute += 30) {
       StaffSchedule s = new StaffSchedule();
       s.setStaff(person);
       s.setWorkDate(r.date());
-      s.setStartTime(LocalTime.of(hour, 0));
-      s.setEndTime(LocalTime.of(hour + 1, 0));
+      s.setStartTime(LocalTime.of(minute / 60, minute % 60));
+      s.setEndTime(LocalTime.of((minute + 30) / 60, (minute + 30) % 60));
       staffSchedules.save(s);
       if (first == null) first = s.getId();
     }

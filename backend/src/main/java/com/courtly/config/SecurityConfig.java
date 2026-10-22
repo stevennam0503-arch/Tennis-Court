@@ -33,11 +33,11 @@ public class SecurityConfig {
     return http.cors(c -> {})
         .csrf(
             c ->
-                c.csrfTokenRepository(new HttpSessionCsrfTokenRepository())
+                c.ignoringRequestMatchers("/api/webhooks/sepay").csrfTokenRepository(new HttpSessionCsrfTokenRepository())
                     .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
         .authorizeHttpRequests(
             a ->
-                a.requestMatchers("/api/csrf", "/api/auth/**", "/api/public/**")
+                a.requestMatchers("/api/csrf", "/api/auth/**", "/api/public/**", "/api/webhooks/sepay")
                     .permitAll()
                     .requestMatchers("/api/**")
                     .authenticated()

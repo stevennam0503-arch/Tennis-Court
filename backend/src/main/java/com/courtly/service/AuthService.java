@@ -30,7 +30,7 @@ public class AuthService {
   private final HttpSessionSecurityContextRepository contexts;
   private final DocumentService documents;
 
-  @Value("${courtly.admin-email:admin@courtly.local}")
+  @Value("${courtly.admin-email:admin@gmail.com}")
   private String adminEmail;
 
   private final java.util.concurrent.ConcurrentHashMap<String, long[]> failures =

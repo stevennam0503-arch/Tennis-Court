@@ -137,8 +137,9 @@ public class OverviewService {
                             p.getCourt().getId(),
                             "date",
                             p.getScheduleDate(),
+                            "start", p.getStartTime(), "end", p.getEndTime(),
                             "hour",
-                            p.getStartTime().getHour(),
+                            p.getStartTime().getHour()+p.getStartTime().getMinute()/60.0,
                             "price",
                             p.getPrice(),
                             "status",
@@ -194,9 +195,9 @@ public class OverviewService {
                             "date",
                             x.getWorkDate(),
                             "start",
-                            x.getStartTime().getHour(),
+                            x.getStartTime().getHour() + x.getStartTime().getMinute()/60.0,
                             "end",
-                            x.getEndTime().getHour(),
+                            x.getEndTime().getHour() + x.getEndTime().getMinute()/60.0,
                             "status",
                             x.getStatus()))
                 .toList(),
@@ -442,8 +443,9 @@ public class OverviewService {
                         x.getCourtSchedule() == null
                             ? null
                             : x.getCourtSchedule().getCourt().getId(),
+                        "start", x.getStaffSchedule().getStartTime(), "end", x.getStaffSchedule().getEndTime(),
                         "hour",
-                        x.getStaffSchedule().getStartTime().getHour(),
+                        x.getStaffSchedule().getStartTime().getHour() + x.getStaffSchedule().getStartTime().getMinute()/60.0,
                         "date",
                         x.getStaffSchedule().getWorkDate()))
             .toList());
@@ -455,8 +457,9 @@ public class OverviewService {
         s.getId(),
         "court",
         s.getCourt().getId(),
+        "start", s.getStartTime(), "end", s.getEndTime(),
         "hour",
-        s.getStartTime().getHour(),
+        s.getStartTime().getHour() + s.getStartTime().getMinute() / 60.0,
         "price",
         price);
   }

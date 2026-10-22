@@ -1,0 +1,80 @@
+[
+  {
+    "file": "demo/assets/images/original-logo.svg",
+    "role": "Logo Courtly gốc",
+    "source_url": null,
+    "sha256": "820a92175d99002c42cbbe2799578073c43f0ad0d1e0ff5e3e48aed53e434488",
+    "size_bytes": 254,
+    "mime_type": "image/svg+xml"
+  },
+  {
+    "file": "demo/assets/images/legacy-hard.webp",
+    "role": "Tài nguyên sân kế thừa; xác minh nguồn khi vận hành",
+    "source_url": null,
+    "sha256": "01a0902278ac2aed5d1b8ba939a857a265b75d987dd25726fd9bc818f5c2045e",
+    "size_bytes": 45968,
+    "mime_type": "image/webp",
+    "width": 800,
+    "height": 533
+  },
+  {
+    "file": "demo/assets/images/legacy-clay.webp",
+    "role": "Tài nguyên sân kế thừa; xác minh nguồn khi vận hành",
+    "source_url": null,
+    "sha256": "06a39577473127ac412d0bd1aa8530931a6ac06cd4803292be022c5e2dff0708",
+    "size_bytes": 54976,
+    "mime_type": "image/webp",
+    "width": 800,
+    "height": 533
+  },
+  {
+    "file": "demo/assets/images/hero-singles.webp",
+    "role": "Hero / ảnh đánh đơn",
+    "source_url": "https://unsplash.com/photos/WqI-PbYugn4",
+    "sha256": "db51ae83ce5e879c74b0a586dcaaac5bd80bb7009f606f3ba5c7290bf95215f6",
+    "size_bytes": 206550,
+    "mime_type": "image/webp",
+    "width": 1500,
+    "height": 1000
+  },
+  {
+    "file": "demo/assets/images/doubles.webp",
+    "role": "Ảnh đánh đôi",
+    "source_url": "https://unsplash.com/photos/Z4Sxy1_3wdY",
+    "sha256": "b136a5094ac6d4d094ca91d5c5519f6dced4037f121a30f8a923201afa43b5ae",
+    "size_bytes": 28552,
+    "mime_type": "image/webp",
+    "width": 1000,
+    "height": 665
+  },
+  {
+    "file": "demo/assets/images/zone-a-outdoor.webp",
+    "role": "Khu A — ngoài trời",
+    "source_url": "https://www.pexels.com/photo/blue-tennis-court-2961964/",
+    "sha256": "f3d2c4246fc247780b6a2f433dcdd7c78c0788024387e837427bf4a80c19947e",
+    "size_bytes": 19078,
+    "mime_type": "image/webp",
+    "width": 900,
+    "height": 505
+  },
+  {
+    "file": "demo/assets/images/zone-b-indoor.webp",
+    "role": "Khu B — trong nhà",
+    "source_url": "https://www.pexels.com/photo/indoors-tennis-court-22944846/",
+    "sha256": "356989bbe3905030a7bf0cc4a8abb0bd698ed122e3441d2cf452f9b472570a56",
+    "size_bytes": 31920,
+    "mime_type": "image/webp",
+    "width": 900,
+    "height": 600
+  },
+  {
+    "file": "demo/assets/images/zone-v-lounge.webp",
+    "role": "Khu V — sân/khu nghỉ",
+    "source_url": "https://www.pexels.com/photo/benches-with-umbrellas-at-tennis-court-20199501/",
+    "sha256": "e820bff6750859218267122441e977138b1922bf6d44a8caf1c684728bf039ac",
+    "size_bytes": 52322,
+    "mime_type": "image/webp",
+    "width": 750,
+    "height": 1000
+  }
+]

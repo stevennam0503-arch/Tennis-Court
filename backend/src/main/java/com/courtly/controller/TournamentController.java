@@ -21,9 +21,7 @@ public class TournamentController {
       @Valid @RequestBody RegistrationRequest request,
       jakarta.servlet.http.HttpServletRequest req) {
     var a = auth.current(req);
-    if (!"ADMIN".equals(a.getRole()))
-      com.courtly.util.Rules.require(
-          a.getId().equals(request.accountId()), "Chỉ đăng ký cho tài khoản của mình");
+    com.courtly.util.Rules.require("ADMIN".equals(a.getRole()), "Khách đăng ký qua /api/guest/tournaments để xác nhận điều lệ và thông tin người chơi");
     return Map.of("id", service.register(id, request));
   }
 

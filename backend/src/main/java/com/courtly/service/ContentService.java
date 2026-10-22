@@ -161,7 +161,7 @@ public class ContentService {
             String msg = string(b, "message", 2000, true);
             require(msg.length() >= 10, "Nội dung cần ít nhất 10 ký tự");
             int rating = b.get("rating") instanceof Number n ? n.intValue() : 0;
-            require(rating >= 1 && rating <= 5, "Đánh giá từ 1 đến 5 sao");
+            require(b.get("rating") instanceof Number n && n.doubleValue() == rating && rating >= 1 && rating <= 5, "Đánh giá từ 1 đến 5 sao");
             oneOf((String) b.get("topic"), "COURT", "SERVICE", "WEBSITE", "TOURNAMENT", "OTHER");
             require(b.get("publishConsent") instanceof Boolean, "Cần chọn quyền công khai");
             var recent =

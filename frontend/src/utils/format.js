@@ -12,3 +12,8 @@ export const labels = {
   SINGLES: 'Đơn', DOUBLES: 'Đôi', TEAM: 'Đồng đội', WEEKDAY: 'Ngày thường', WEEKEND: 'Cuối tuần', AVAILABLE: 'Còn trống', BOOKED: 'Đã đặt', IN_MATCH: 'Thi đấu',
 };
 export const options = keys => keys.map(value => ({ value, label: labels[value] || value }));
+
+// Precise time labels for both legacy hourly and new half-hour slots.
+export const hourLabel = h => `${String(Math.floor(h)).padStart(2,'0')}:${String(Math.round((h%1)*60)).padStart(2,'0')}`;
+export const slotLabel = s => `${s.start?.slice(0,5)||hourLabel(s.hour)}–${s.end?.slice(0,5)||hourLabel(s.hour+1)}`;
+export const slotHours = s => s.start&&s.end ? ((Number(s.end.slice(0,2))*60+Number(s.end.slice(3,5)))-(Number(s.start.slice(0,2))*60+Number(s.start.slice(3,5))))/60 : 1;

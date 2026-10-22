@@ -29,7 +29,13 @@ spring:
   jackson:
     default-property-inclusion: non_null
 courtly:
-  admin-email: ${ADMIN_EMAIL:admin@courtly.local}
+  payment:
+    mode: ${PAYMENT_MODE:MANUAL}
+    bank-bin: ${PAYMENT_BANK_BIN:}
+    account-number: ${PAYMENT_ACCOUNT_NUMBER:}
+    account-name: ${PAYMENT_ACCOUNT_NAME:}
+    webhook-key: ${SEPAY_WEBHOOK_KEY:}
+  admin-email: ${ADMIN_EMAIL:admin@gmail.com}
   admin-password: ${ADMIN_PASSWORD:}
   seed-demo: ${SEED_DEMO:true}
   allowed-origin: ${FRONTEND_ORIGIN:http://localhost:5173}

@@ -26,6 +26,7 @@ public class OrderApplicationService {
   private final ObjectMapper mapper;
   private final jakarta.validation.Validator validator;
   private final SettingsService settings;
+  private final MembershipService memberships;
 
   public Map<String, Object> create(BookingRequest r, Account actor) {
     var a = actor;
@@ -42,6 +43,7 @@ public class OrderApplicationService {
                 r.accountId() == null || r.accountId().equals(a.getId()),
                 "Chỉ được đặt cho tài khoản của mình");
             service.continuous(support.selected(r.scheduleIds()));
+            memberships.checkWindow(a.getId(), support.selected(r.scheduleIds()));
             effective =
                 new BookingRequest(
                     a.getFullName(),
@@ -54,6 +56,12 @@ public class OrderApplicationService {
           UUID id = service.create(effective);
           var o = service.lock(id);
           o.setCreatedByAccount(a);
+          if (!"ADMIN".equals(a.getRole())) {
+            var meta = docs.decode(o.getMetadata());
+            meta.put("customerFlow", true);
+            o.setMetadata(docs.encode(meta));
+            customerDeposit(o);
+          }
           presentation.history(o, "CREATED", null);
           return map("id", id);
         });
@@ -123,6 +131,7 @@ public class OrderApplicationService {
         () -> {
           var o = service.lock(id);
           customerPolicy(a, o, "change");
+          if (!"ADMIN".equals(a.getRole())) memberships.checkWindow(a.getId(), support.selected(ids(b.get("scheduleIds"))));
           if ("ADMIN".equals(a.getRole())) text((String) b.get("reason"), "Lý do đổi lịch");
           var old = views.order(o);
           var r =
@@ -132,7 +141,9 @@ public class OrderApplicationService {
                   (String) b.get("reason"),
                   (String) b.get("requestId"));
           support.preview(id, r, a);
+          if (!"ADMIN".equals(a.getRole())) memberships.consumeChange(a.getId(), service.allocated(service.booking(o)), support.selected(r.scheduleIds()));
           service.move(id, r);
+          if (!"ADMIN".equals(a.getRole())) customerDeposit(o);
           presentation.history(o, "SCHEDULE", old);
           return map("id", id);
         });
@@ -254,6 +265,12 @@ public class OrderApplicationService {
   public Map<String, Object> services(UUID id, Account actor) {
     auth.admin(actor);
     return service.services(id);
+  }
+
+  private void customerDeposit(CustomerOrder o) {
+    var benefit = (Map<String,Object>) docs.decode(o.getMetadata()).get("membershipBenefit");
+    var net = benefit == null ? o.getTotalAmount() : PresentationService.decimal(benefit.get("net"));
+    o.setDepositRequired(net.multiply(new java.math.BigDecimal("0.5")).setScale(0, java.math.RoundingMode.HALF_UP));
   }
 
   private <T> T dto(Object value, Class<T> type) {

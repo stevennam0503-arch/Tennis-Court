@@ -35,7 +35,7 @@ public class MembershipService {
             "days",
             30,
             "discountPercent",
-            10,
+            10, "vipDiscountPercent", 5, "advanceDays", 14, "freeChanges", 1,
             "enabled",
             true,
             "description",
@@ -50,7 +50,7 @@ public class MembershipService {
             "days",
             30,
             "discountPercent",
-            15,
+            15, "vipDiscountPercent", 10, "advanceDays", 21, "freeChanges", 2,
             "enabled",
             true,
             "description",
@@ -116,7 +116,7 @@ public class MembershipService {
           discount =
               discount.add(
                   s.getPrice()
-                      .multiply(PresentationService.decimal(m.get("discountPercent")))
+                      .multiply(PresentationService.decimal(s.getCourt().getName().toUpperCase(Locale.ROOT).startsWith("V") ? m.getOrDefault("vipDiscountPercent", "plus".equals(m.get("planId")) ? 10 : 5) : m.get("discountPercent")))
                       .divide(new BigDecimal("100"), 0, java.math.RoundingMode.HALF_UP));
     }
     return map(
@@ -133,6 +133,31 @@ public class MembershipService {
         "discountPercent",
         discount.signum() > 0 ? member.get().get("discountPercent") : 0);
   }
+
+  public void checkWindow(UUID account, List<CourtSchedule> slots) {
+    var latest = slots.stream().map(s -> at(s.getScheduleDate(),s.getEndTime())).max(Comparator.naturalOrder()).orElseThrow();
+    var member = docs.list("membership:").stream().filter(m -> account.toString().equals(m.get("accountId")) && "ACTIVE".equals(status(m)) && !Instant.parse((String)m.get("endsAt")).isBefore(latest)).findFirst();
+    int days = member.map(m -> ((Number)m.getOrDefault("advanceDays", "plus".equals(m.get("planId")) ? 21 : 14)).intValue()).orElse(7);
+    require(slots.stream().allMatch(s -> !s.getScheduleDate().isAfter(java.time.LocalDate.now(ZONE).plusDays(days))), "Khoảng đặt trước vượt quyền lợi hội viên ("+days+" ngày)");
+  }
+
+  public void consumeChange(UUID account, List<CourtSchedule> before, List<CourtSchedule> after) {
+    docs.mutationLock();
+    var member = docs.list("membership:").stream().filter(m -> account.toString().equals(m.get("accountId")) && "ACTIVE".equals(status(m))).findFirst();
+    if (member.isEmpty()) return; // Guests continue to use the existing club change policy.
+    var m = member.get();
+    var start = before.stream().map(s -> at(s.getScheduleDate(),s.getStartTime())).min(Comparator.naturalOrder()).orElseThrow();
+    require(start.isAfter(Instant.now().plusSeconds(86400)), "Quyền lợi đổi lịch cần báo trước ít nhất 24 giờ; liên hệ quầy");
+    var oldMinutes = before.stream().mapToLong(s -> java.time.Duration.between(s.getStartTime(),s.getEndTime()).toMinutes()).sum();
+    var newMinutes = after.stream().mapToLong(s -> java.time.Duration.between(s.getStartTime(),s.getEndTime()).toMinutes()).sum();
+    require(oldMinutes == newMinutes && zone(before.get(0)).equals(zone(after.get(0))), "Đổi lịch hội viên cần cùng khu sân và thời lượng; liên hệ quầy");
+    int used = ((Number)m.getOrDefault("rescheduleUsage",0)).intValue();
+    int limit = ((Number)m.getOrDefault("freeChanges","plus".equals(m.get("planId")) ? 2 : 1)).intValue();
+    require(used < limit, "Đã dùng hết lượt đổi lịch của gói; liên hệ quầy");
+    require(after.stream().allMatch(s -> !at(s.getScheduleDate(),s.getEndTime()).isAfter(Instant.parse((String)m.get("endsAt")))), "Lịch mới vượt thời hạn gói; liên hệ quầy");
+    m.put("rescheduleUsage",used+1);docs.put("membership:"+m.get("id"),m);
+  }
+  private String zone(CourtSchedule s) {var name=s.getCourt().getName().toUpperCase(Locale.ROOT);return name.startsWith("V")?"V":name.startsWith("B")?"B":"A";}
 
   public Map<String, Object> action(Account a, String method, String path, Map<String, Object> b) {
     require(
@@ -214,6 +239,9 @@ public class MembershipService {
                     p.get("days"),
                     "discountPercent",
                     p.get("discountPercent"),
+                    "vipDiscountPercent", p.getOrDefault("vipDiscountPercent", "plus".equals(p.get("id")) ? 10 : 5),
+                    "advanceDays", p.getOrDefault("advanceDays", "plus".equals(p.get("id")) ? 21 : 14),
+                    "freeChanges", p.getOrDefault("freeChanges", "plus".equals(p.get("id")) ? 2 : 1),
                     "status",
                     "PENDING",
                     "createdAt",
@@ -233,6 +261,13 @@ public class MembershipService {
           if (operation.equals("cancel")) {
             m.put("status", "CANCELLED");
             m.put("cancelledAt", Instant.now().toString());
+            for (var transfer : docs.list("transfer:")) {
+              if ("MEMBERSHIP".equals(transfer.get("type")) && id.equals(transfer.get("targetId"))) {
+                transfer.put("status", PresentationService.decimal(transfer.get("received")).signum()>0 ? "REVIEW" : "CANCELLED");
+                transfer.put("reviewAmount", PresentationService.decimal(transfer.get("reviewAmount")).add(PresentationService.decimal(transfer.get("received"))));
+                docs.put("transfer:"+transfer.get("id"),transfer);
+              }
+            }
           } else {
             auth.admin(a);
             require(
