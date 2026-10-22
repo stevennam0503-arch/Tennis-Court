@@ -53,12 +53,16 @@ public class DemoDataInitializer implements ApplicationRunner {
       accounts.save(admin);
     }
     if (!enabled || courts.count() > 0) return;
-    for (int i = 1; i <= 4; i++) {
+    for (int i = 1; i <= 10; i++) {
       Court c = new Court();
-      c.setName("Sân 0" + i);
-      c.setType(i == 3 ? "CLAY" : i == 4 ? "GRASS" : "HARD");
-      c.setStatus(i == 4 ? "MAINTENANCE" : "ACTIVE");
-      c.setBasePrice(BigDecimal.valueOf(i >= 3 ? 220000 : 180000));
+      String zone = i <= 4 ? "A" : i <= 8 ? "B" : "V";
+      int number = i <= 4 ? i : i <= 8 ? i - 4 : i - 8;
+      c.setName(zone + "0" + number);
+      c.setType("HARD");
+      c.setStatus("ACTIVE");
+      c.setBasePrice(BigDecimal.valueOf(i <= 4 ? 200000 : i <= 8 ? 300000 : 500000));
+      c.setImageUrl("/guest/zone-" + zone.toLowerCase(java.util.Locale.ROOT)
+          + (i <= 4 ? "-outdoor.webp" : i <= 8 ? "-indoor.webp" : "-lounge.webp"));
       courts.save(c);
     }
     String[] names = {"Nguyễn Minh Anh", "Trần Hoàng Nam", "Lê Thu Hà"};

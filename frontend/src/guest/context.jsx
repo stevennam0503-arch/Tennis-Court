@@ -8,7 +8,7 @@ export const dateToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Ch
 export const time=s=>String(s||'').slice(0,5);
 export const minutes=s=>{const [h,m]=time(s).split(':').map(Number);return h*60+m;};
 export const stamp=n=>`${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;
-export const zone=c=>/^B/i.test(c?.name)?'B':/^V/i.test(c?.name)?'V':'A';
+export const zone=c=>{const name=String(c?.name||'').trim().replace(/^(Sân|San)\s+/i,'');return /^B/i.test(name)?'B':/^V/i.test(name)?'V':'A';};
 export const money=n=>new Intl.NumberFormat('vi-VN').format(Number(n||0))+'₫';
 export const requestId=()=>crypto.randomUUID();
 export function Action({children,onClick,type='button',secondary=false,...props}){return <button type={type} className={secondary?'ct-outline':'ct-primary'} onClick={onClick} {...props}>{children}</button>;}

@@ -1,0 +1,81 @@
+/* Customer navigation: one shared content width, readable links and compact tools. */
+#courtly-balanced-amenities .ct-prototype {
+  padding:8px max(28px,calc((100vw - 1360px)/2));
+  font-size:11px;line-height:16px;letter-spacing:1px;
+}
+#courtly-balanced-amenities .ct-header.ct-original-header {
+  display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center;gap:28px;min-height:88px;
+  padding:16px max(28px,calc((100vw - 1360px)/2));
+  border-bottom:1px solid #e0e5da;
+}
+#courtly-balanced-amenities .ct-header.ct-original-header .ct-logo {justify-self:start;gap:11px;}
+#courtly-balanced-amenities .ct-header.ct-original-header .ct-logo img {width:42px;height:42px;}
+#courtly-balanced-amenities .ct-header.ct-original-header .ct-original-wordmark {font-size:29px;line-height:30px;}
+#courtly-balanced-amenities .ct-header.ct-original-header .ct-original-wordmark em {font-size:9px;line-height:15px;letter-spacing:2.2px;}
+#courtly-balanced-amenities .ct-header.ct-original-header nav {
+  display:flex;position:static;transform:none;width:auto;order:0;
+  align-items:center;justify-content:center;gap:26px;padding:0;margin:0;
+  grid-column:2;grid-row:1;white-space:nowrap;
+}
+#courtly-balanced-amenities .ct-header.ct-original-header nav>button {
+  min-height:48px;padding:10px 0;font-size:17px;line-height:24px;font-weight:600;
+  color:#425b50;border:0;background:transparent;text-align:center;position:relative;
+}
+#courtly-balanced-amenities .ct-header.ct-original-header nav>button:hover {color:#173c32;}
+#courtly-balanced-amenities .ct-header.ct-original-header nav>button[aria-current=page] {color:#173c32;box-shadow:none;text-decoration:none;}
+#courtly-balanced-amenities .ct-header.ct-original-header nav>button[aria-current=page]::after {
+  content:'';position:absolute;height:3px;bottom:2px;left:0;right:0;background:#173c32;border-radius:2px;
+}
+#courtly-balanced-amenities .ct-header.ct-original-header .cl-header-tools {
+  grid-column:3;grid-row:1;justify-self:end;display:flex;align-items:center;justify-content:flex-end;
+  width:auto;margin:0;gap:16px;order:0;
+}
+#courtly-balanced-amenities .ct-header.ct-original-header .cl-language {padding:3px;border-radius:7px;}
+#courtly-balanced-amenities .ct-header.ct-original-header .cl-language button {min-width:36px;min-height:36px;padding:7px;font-size:12px;line-height:20px;}
+#courtly-balanced-amenities .ct-header.ct-original-header .ct-account-menu {margin:0;}
+#courtly-balanced-amenities .ct-header.ct-original-header .ct-account {
+  padding:4px 0;min-height:44px;gap:9px;background:transparent;border:0;
+}
+#courtly-balanced-amenities .ct-header.ct-original-header .gx-user-name {display:inline!important;font-size:14px;max-width:120px;}
+#courtly-balanced-amenities .ct-header.ct-original-header .ca-avatar {width:36px;height:36px;font-size:14px;}
+#courtly-balanced-amenities .ct-header.ct-original-header .ca-login-button {font-size:14px;min-height:44px;padding:9px 14px;}
+#courtly-balanced-amenities .ct-header.ct-original-header .gx-menu {display:none;}
+@media(max-width:1179px) {
+  #courtly-balanced-amenities .ct-header.ct-original-header {grid-template-columns:minmax(0,1fr) auto;gap:20px;min-height:78px;padding:14px 24px;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .cl-header-tools {grid-column:2;grid-row:1;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .gx-menu {display:grid;place-items:center;width:44px;height:44px;padding:0;}
+  #courtly-balanced-amenities .ct-header.ct-original-header nav {display:none;}
+  #courtly-balanced-amenities .ct-header.ct-original-header nav.gx-nav-open {
+    display:grid;position:absolute;left:0;right:0;top:100%;width:auto;transform:none;grid-column:auto;grid-row:auto;
+    grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;padding:12px 24px;
+    background:#fffefa;border-bottom:1px solid #d3ddcc;box-shadow:0 10px 20px #173c3210;
+  }
+}
+@media(max-width:600px) {
+  #courtly-balanced-amenities .ct-prototype {padding:7px 16px;font-size:9px;letter-spacing:.5px;}
+  #courtly-balanced-amenities .ct-prototype>span:last-child {display:none;}
+  #courtly-balanced-amenities .ct-header.ct-original-header {padding:12px 16px;gap:12px;min-height:72px;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .ct-logo {gap:7px;justify-self:start;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .ct-logo img {width:32px;height:32px;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .ct-original-wordmark {font-size:23px;line-height:25px;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .ct-original-wordmark em {font-size:7px;line-height:11px;letter-spacing:1.6px;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .cl-header-tools {gap:9px;justify-self:end;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .gx-user-name {display:none!important;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .ct-account>svg {display:none;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .ct-account {padding:0;min-width:36px;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .cl-language button {min-width:30px;min-height:34px;padding:5px;font-size:11px;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .gx-menu {width:32px;height:44px;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .ca-login-button {font-size:12px;padding:8px 0;gap:0;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .ca-login-button svg {display:none;}
+  #courtly-balanced-amenities .ct-header.ct-original-header nav.gx-nav-open {grid-template-columns:1fr;gap:0;padding:10px 20px 16px;}
+  #courtly-balanced-amenities .ct-header.ct-original-header nav>button {font-size:16px;text-align:left;min-height:48px;padding:12px;}
+  #courtly-balanced-amenities .ct-header.ct-original-header nav>button[aria-current=page] {background:#edf2e4;border-radius:6px;}
+  #courtly-balanced-amenities .ct-header.ct-original-header nav>button[aria-current=page]::after {display:none;}
+}
+@media(max-width:360px) {
+  #courtly-balanced-amenities .ct-header.ct-original-header {padding-inline:12px;gap:8px;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .ct-logo img {width:28px;height:28px;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .ct-original-wordmark {font-size:20px;line-height:23px;}
+  #courtly-balanced-amenities .ct-header.ct-original-header .cl-header-tools {gap:6px;}
+}

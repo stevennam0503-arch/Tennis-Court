@@ -66,3 +66,17 @@ Kiểm tra đã đạt trên bản sửa này:
 | Rà ảnh giao diện | Đã xem overview và đặt sân ở 1440 px và 390 px |
 
 Script UX dùng tài khoản demo và lịch mẫu tương lai từ `database/test_data.sql`; không gửi thanh toán hay tạo đơn. `COURTLY_WEB_URL`, `CHROMIUM_PATH`, `COURTLY_SCREENSHOTS` cấu hình địa chỉ, trình duyệt và thư mục ảnh giống các script trên.
+
+## Bổ sung sân Docker cũ và chỉnh header — 22/10/2026
+
+Nguyên nhân thiếu khu B/V: `DemoDataInitializer` cũ chỉ tạo bốn sân “Sân 01–04” và bỏ qua seeding khi database đã có sân. SQL test riêng có đủ mười sân nên kiểm tra trước đó chưa bao phủ việc nâng cấp bộ demo Docker cũ.
+
+- V6 bổ sung B01–B04 và V01–V02 còn thiếu trên database đã có sân, giữ nguyên các sân và đơn hiện hữu. Nhận diện cả tên `Sân B01` để không thêm trùng; frontend cũng nhận diện tiền tố này. Giá mới mặc định 300.000đ/giờ khu B, 500.000đ/giờ khu V, theo bộ demo hiện có.
+- Cài mới với demo bật tạo đủ mười sân. Database trống với demo tắt vẫn chờ SQL fixtures hoặc cấu hình sân của người quản lý. `init.sql` đồng bộ V6; `query.sql` bổ sung đối chiếu sáu mã sân; dữ liệu test hiện tại vốn đã đủ 4 B + 2 V.
+- Header khách dùng cùng chiều rộng nội dung, menu desktop 17 px, trạng thái trang hiện tại rõ hơn, nhóm ngôn ngữ/tài khoản gọn hơn. Menu thu gọn trên tablet/điện thoại; không đổi header admin.
+
+Kiểm chứng bản sửa: Maven verify (9 test), Vite build, SQL `court-catalog-migration.sql` (database trống, nâng cấp, chạy lại, bảo toàn giá/trạng thái/đơn và ID), khởi động backend từ V5 lên V6 và từ init V6 đều đạt. API hai database trả đúng mười sân; sáu sân B/V có đủ 34 slot/ngày và giá nửa giờ đúng. `header-courts-browser.mjs` đạt trên database nâng cấp và database SQL demo, kiểm tra chọn giờ ở cả sáu sân, VI/EN, khách/chưa đăng nhập, menu và bố cục 320/390/768/1024/1179/1180/1440/1880 px. Đã xem ảnh desktop và menu mobile. Kiểm tra lại 17 trang admin trên backend V6 cũng đạt, không lỗi JavaScript và không bị áp dụng layout khách.
+
+Để chạy lại SQL kiểm chứng, tạo database test trống ở V5, truyền đường dẫn migration cho psql: `psql -v ON_ERROR_STOP=1 -v migration=/path/to/V6__complete_indoor_and_vip_courts.sql -f tests/court-catalog-migration.sql`. Script rollback toàn bộ dữ liệu kiểm thử. Browser dùng tài khoản SQL demo; đặt `COURTLY_SKIP_LOGIN=1` khi kiểm tra database nâng cấp chưa có khách demo.
+
+Cập nhật máy local phải build cả backend và frontend để Flyway chạy V6; không xóa volume và không nhập lại init/test_data vào database đang dùng.

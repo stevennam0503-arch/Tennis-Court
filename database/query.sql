@@ -57,3 +57,11 @@ SELECT o.id,o.paid_amount,coalesce(p.gross,0)-coalesce(r.total,0) AS ledger_net 
 LEFT JOIN (SELECT order_id,sum(amount) AS gross FROM payments GROUP BY order_id) p ON p.order_id=o.id
 LEFT JOIN (SELECT p.order_id,sum(r.amount) AS total FROM refunds r JOIN payments p ON p.id=r.payment_id GROUP BY p.order_id) r ON r.order_id=o.id
 WHERE o.paid_amount<>coalesce(p.gross,0)-coalesce(r.total,0);
+
+-- 13. Required indoor/VIP courts; missing codes need migration or initial seeding.
+WITH required(code) AS (VALUES ('B01'),('B02'),('B03'),('B04'),('V01'),('V02'))
+SELECT r.code,c.id,c.name,c.status,c.base_price,
+ CASE WHEN c.id IS NULL THEN 'MISSING' ELSE 'PRESENT' END AS catalog_check
+FROM required r LEFT JOIN courts c
+ ON upper(regexp_replace(trim(c.name), '^(Sân|San)\s+', '', 'i'))=r.code
+ORDER BY r.code;

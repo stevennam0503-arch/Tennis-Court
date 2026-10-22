@@ -1,4 +1,4 @@
--- Courtly PostgreSQL 16 initialization, schema V1–V5. EMPTY DATABASE ONLY.
+-- Courtly PostgreSQL 16 initialization, schema V1–V6. EMPTY DATABASE ONLY.
 -- Existing databases: let the application run Flyway; do not import this file.
 -- Includes the requested local admin account; no customer fixtures.
 BEGIN;
@@ -428,6 +428,23 @@ CREATE UNIQUE INDEX uq_tournament_player_email ON team_members(tournament_id,low
 -- existing transaction/advisory lock. Indexed prefixes support SQL reconciliation.
 CREATE INDEX idx_documents_prefix ON app_documents(document_key text_pattern_ops);
 
+-- Upgrade existing installations that still have only the original four courts.
+-- Empty databases are populated by DemoDataInitializer or the explicit SQL fixtures.
+-- Existing court IDs, prices, statuses and bookings must remain unchanged.
+INSERT INTO courts(id,name,type,description,image_url,status,base_price,address,amenities,image_is_illustration)
+SELECT gen_random_uuid(), target.code, 'HARD',
+       CASE WHEN target.code LIKE 'B%' THEN 'Sân tennis trong nhà' ELSE 'Sân tennis VIP' END,
+       CASE WHEN target.code LIKE 'B%' THEN '/guest/zone-b-indoor.webp' ELSE '/guest/zone-v-lounge.webp' END,
+       'ACTIVE', target.rate, '', '', true
+FROM (VALUES ('B01',300000),('B02',300000),('B03',300000),('B04',300000),('V01',500000),('V02',500000)) AS target(code,rate)
+WHERE EXISTS (SELECT FROM courts)
+  AND NOT EXISTS (
+    SELECT FROM courts c
+    WHERE upper(regexp_replace(trim(c.name), '^(Sân|San)\s+', '', 'i')) = target.code
+  );
+-- PresentationService generates actual 30-minute schedules from each court's
+-- tariff/base_price when a date is opened. No historical slots are rewritten.
+
 CREATE TABLE public.flyway_schema_history (
     installed_rank integer NOT NULL,
     version character varying(50),
@@ -447,4 +464,5 @@ INSERT INTO public.flyway_schema_history VALUES (2, '2', 'constraints and indexe
 INSERT INTO public.flyway_schema_history VALUES (3, '3', 'auth content and current booking', 'SQL', 'V3__auth_content_and_current_booking.sql', 1757165949, 'courtly', '2026-10-21 03:46:15.151607', 21, true);
 INSERT INTO public.flyway_schema_history VALUES (4, '4', 'configure admin account', 'SQL', 'V4__configure_admin_account.sql', -1213621577, 'courtly', '2026-10-21 03:46:15.180967', 4, true);
 INSERT INTO public.flyway_schema_history VALUES (5, '5', 'customer booking support', 'SQL', 'V5__customer_booking_support.sql', -17690139, 'courtly', '2026-10-21 03:46:15.196256', 10, true);
+INSERT INTO public.flyway_schema_history VALUES (6, '6', 'complete indoor and vip courts', 'SQL', 'V6__complete_indoor_and_vip_courts.sql', -1950231639, current_user, now(), 0, true);
 COMMIT;

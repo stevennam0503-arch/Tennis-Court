@@ -1,6 +1,6 @@
 # Database và demo Courtly
 
-PostgreSQL 16. Bộ SQL khớp với ứng dụng trên nhánh `nam-dev`, dùng UUID và Flyway V1–V5.
+PostgreSQL 16. Bộ SQL khớp với ứng dụng trên nhánh `nam-dev`, dùng UUID và Flyway V1–V6.
 
 | File | Mục đích |
 | --- | --- |
@@ -79,3 +79,18 @@ docker compose up -d --build
 ```
 
 Docker không tự lấy code GitHub. Lệnh trên build lại image và cập nhật container cần thiết, giữ volume dữ liệu. Khi yêu cầu nghiệp vụ thay đổi, cập nhật bằng migration mới trong `backend/src/main/resources/db/migration`, rồi đồng bộ init/query/fixtures và kiểm tra trên database riêng. Không chỉnh migration đã phát hành.
+
+## Bổ sung sân trong nhà và VIP cho bản Docker cũ
+
+V6 thêm các sân còn thiếu B01–B04 (300.000đ/giờ), V01–V02 (500.000đ/giờ) vào database đã có sân. Sân cũ, giá đã chỉnh, trạng thái bảo trì và đơn cũ được giữ nguyên. Các mức giá mới là giá mặc định theo bộ demo; có thể chỉnh trong trang quản lý sân. Backend tạo lịch 30 phút theo ngày khi mở trang đặt sân. Không cần nhập `test_data.sql` để có sáu sân này.
+
+Cài mới với `SEED_DEMO=true` tạo đủ A01–A04/B01–B04/V01–V02. Với `SEED_DEMO=false` và database trống, dùng bộ SQL demo hoặc tạo sân qua admin như trước.
+
+Để áp dụng V6 vào database cũ, cần build và khởi động lại **cả backend và frontend**:
+
+```powershell
+git pull --ff-only origin nam-dev
+docker compose up -d --build --force-recreate backend frontend
+```
+
+Không xóa volume PostgreSQL. Chỉ build frontend sẽ chưa bổ sung sân.
