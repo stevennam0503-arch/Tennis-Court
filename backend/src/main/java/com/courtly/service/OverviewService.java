@@ -26,8 +26,6 @@ public class OverviewService {
   private final BookingSlotRepository bookingSlots;
   private final BookingStaffRepository bookingStaff;
   private final OrderProductRepository products;
-  private final DrinkRepository drinks;
-  private final RentalItemRepository rentals;
   private final StaffRepository staff;
   private final StaffScheduleRepository staffSchedules;
   private final PaymentRepository payments;
@@ -149,43 +147,6 @@ public class OverviewService {
   }
 
   public Map<String, Object> get(LocalDate date) {
-    List<Map<String, Object>> items = new ArrayList<>();
-    drinks
-        .findAll()
-        .forEach(
-            p ->
-                items.add(
-                    map(
-                        "id",
-                        p.getId(),
-                        "name",
-                        p.getName(),
-                        "type",
-                        "DRINK",
-                        "price",
-                        p.getUnitPrice(),
-                        "stock",
-                        p.getStockQuantity(),
-                        "status",
-                        p.getStatus())));
-    rentals
-        .findAll()
-        .forEach(
-            p ->
-                items.add(
-                    map(
-                        "id",
-                        p.getId(),
-                        "name",
-                        p.getName(),
-                        "type",
-                        "RENTAL",
-                        "price",
-                        p.getPricePerHour(),
-                        "stock",
-                        p.getStockQuantity(),
-                        "status",
-                        p.getStatus())));
     ClubSettings s = settings.findAll().stream().findFirst().orElseThrow();
 
     var allBookings = bookings.findAllWithOrder();
@@ -378,7 +339,7 @@ public class OverviewService {
                             productsByOrder,
                             staffByBooking))
                 .toList(),
-        "products", items,
+        "products", List.of(),
         "payments",
             allPayments.stream()
                 .map(

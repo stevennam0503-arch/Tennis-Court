@@ -23,16 +23,15 @@ import CalendarPage from './pages/CalendarPage';
 import OrdersPage from './pages/OrdersPage';
 import PaymentsPage from './pages/PaymentsPage';
 import CourtsPage from './pages/CourtsPage';
-import ProductsPage from './pages/ProductsPage';
 import StaffPage from './pages/StaffPage';
 import AccountsPage from './pages/AccountsPage';
 import TournamentsPage from './pages/TournamentsPage';
 import ReportsPage from './pages/ReportsPage';
 import SystemPage from './pages/SystemPage';
 import NotificationsPage from './pages/NotificationsPage';
-const adminMenu=[['operations',ClipboardList,'Việc cần xử lý'],['history',CalendarDays,'Lịch sử đặt sân'],['payment-history',Wallet,'Lịch sử thanh toán'],['services',Package,'Dịch vụ tại quầy'],['calendar',CalendarDays,'Lịch sân'],['orders',ClipboardList,'Đơn đặt sân'],['payments',Wallet,'Thu tiền & hoàn tiền'],['courts',Grid2X2,'Sân & bảng giá'],['products',Package,'Đồ uống & đồ thuê'],['membership',Users,'Membership & hội viên'],['staff',Users,'Nhân sự'],['tournaments',Trophy,'Giải đấu'],['accounts',Users,'Tài khoản & phân quyền'],['reports',ChartColumn,'Báo cáo'],['content',MessageSquare,'Nội dung & feedback'],['system',Settings,'Hệ thống & module'],['profile',UserRound,'Hồ sơ của tôi']];
+const adminMenu=[['operations',ClipboardList,'Việc cần xử lý'],['history',CalendarDays,'Lịch sử đặt sân'],['payment-history',Wallet,'Lịch sử thanh toán'],['services',Package,'Dịch vụ trọng tài'],['calendar',CalendarDays,'Lịch sân'],['orders',ClipboardList,'Đơn đặt sân'],['payments',Wallet,'Thu tiền & hoàn tiền'],['courts',Grid2X2,'Sân & bảng giá'],['membership',Users,'Membership & hội viên'],['staff',Users,'Nhân sự'],['tournaments',Trophy,'Giải đấu'],['accounts',Users,'Tài khoản & phân quyền'],['reports',ChartColumn,'Báo cáo'],['content',MessageSquare,'Nội dung & feedback'],['system',Settings,'Hệ thống & module'],['profile',UserRound,'Hồ sơ của tôi']];
 const customerMenu=[['calendar',CalendarDays,'Đặt sân'],['tournaments',Trophy,'Giải đấu']];
-const pages={membership:MembershipAdminPage,operations:OperationsPage,history:MyHistory,'payment-history':MyPayments,services:MyServices,calendar:CalendarPage,orders:OrdersPage,payments:PaymentsPage,courts:CourtsPage,products:ProductsPage,staff:StaffPage,tournaments:TournamentsPage,accounts:AccountsPage,reports:ReportsPage,system:SystemPage,notifications:NotificationsPage,profile:ProfilePage,content:ContentAdminPage};
+const pages={membership:MembershipAdminPage,operations:OperationsPage,history:MyHistory,'payment-history':MyPayments,services:MyServices,calendar:CalendarPage,orders:OrdersPage,payments:PaymentsPage,courts:CourtsPage,staff:StaffPage,tournaments:TournamentsPage,accounts:AccountsPage,reports:ReportsPage,system:SystemPage,notifications:NotificationsPage,profile:ProfilePage,content:ContentAdminPage};
 export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsumed}){
  const [date,setDate]=useState(()=>pending?.date||today()),[route,setRoute]=useState(()=>location.hash.slice(1)||(session.user.role==='ADMIN'?'operations':'calendar'));
  const [membershipPlan]=useState(pending?.type==='membership'?pending.planId:null);
@@ -59,7 +58,7 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
   }else if(pending.type==='registration'){setRoute('tournaments');setDialog({...pending});}
   onConsumed?.();
  },[club.data,pending,isAdmin,notify,onConsumed,navigate]);
- const menuGroups=isAdmin?[{label:'VẬN HÀNH',ids:['operations','calendar','orders','services','payments']},{label:'TRA CỨU',ids:['history','payment-history','reports']},{label:'KINH DOANH',ids:['courts','products','membership','tournaments']},{label:'QUẢN TRỊ',ids:['staff','accounts','content','system','profile']}]:[{label:'LỊCH CHƠI CỦA BẠN',ids:customerMenu.map(x=>x[0])}];
+ const menuGroups=isAdmin?[{label:'VẬN HÀNH',ids:['operations','calendar','orders','services','payments']},{label:'TRA CỨU',ids:['history','payment-history','reports']},{label:'KINH DOANH',ids:['courts','membership','tournaments']},{label:'QUẢN TRỊ',ids:['staff','accounts','content','system','profile']}]:[{label:'LỊCH CHƠI CỦA BẠN',ids:customerMenu.map(x=>x[0])}];
  useEffect(()=>{const change=()=>setRoute(location.hash.slice(1)||'calendar');window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change);},[]);
  const Page=pages[safeRoute]||CalendarPage;
  if(!isAdmin)return <CourtlyContext.Provider value={{...club,user,isAdmin,date,setDate,navigate,show:setDialog,notify}}><div className="customer-workspace"><PublicHeader user={user} onLogout={onLogout}/><main className="main">{club.error&&<div className="error" role="alert">{club.error} <Button onClick={()=>club.refresh().catch(()=>{})}>Thử lại</Button></div>}{club.loading?<div className="loading">Đang tải dữ liệu…</div>:club.data?(safeRoute.startsWith('profile')?<ProfilePage tab={safeRoute.split('-')[1]||'info'} initialPlan={membershipPlan}/>:<CustomerPage key={safeRoute} route={safeRoute}/>):<div className="empty">Không thể kết nối máy chủ. Vui lòng thử lại.</div>}</main><PublicFooter/>{club.data&&dialog&&<CustomerDialogs key={`${dialog.type}-${dialog.id||''}`} dialog={dialog} onClose={close}/>}<div aria-live="polite">{toast&&<div className="toast">{toast}</div>}</div></div></CourtlyContext.Provider>;

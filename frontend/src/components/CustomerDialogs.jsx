@@ -2,7 +2,6 @@ import React from 'react';
 import BookingFlow from './BookingFlow';
 import {FinancialSummary,StaffLines} from './OrderSummary';
 import OrderActions from './OrderActions';
-import ServicesDialog from './ServicesDialog';
 import {OrderTimeline} from '../pages/CustomerHistory';
 import {useCourtly} from '../context';
 import {Modal,FormDialog,Button,Chip,Table} from './UI';

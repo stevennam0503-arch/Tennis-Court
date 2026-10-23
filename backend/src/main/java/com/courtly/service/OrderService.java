@@ -22,9 +22,6 @@ public class OrderService {
   private final BookingRepository bookings;
   private final BookingSlotRepository slots;
   private final BookingStaffRepository bookingStaff;
-  private final OrderProductRepository products;
-  private final DrinkRepository drinks;
-  private final RentalItemRepository rentals;
   private final CourtScheduleRepository schedules;
   private final StaffScheduleRepository staffSchedules;
   private final ScheduleService scheduling;
@@ -33,7 +30,6 @@ public class OrderService {
   private final AuditService audit;
   private final DocumentService documents;
   private final MembershipService membership;
-  private final RentalAvailabilityService rentalAvailability;
 
   @Transactional
   public UUID create(BookingRequest request) {
@@ -161,9 +157,6 @@ public class OrderService {
     Booking b = booking(order);
     b.setStatus("CHECKED_IN");
     b.setCheckInAt(Instant.now());
-    products.findByOrderId(id).stream()
-        .filter(p -> "RENTAL".equals(p.getItemType()) && p.getReturnedAt() == null)
-        .forEach(p -> p.setIssuedAt(Instant.now()));
     audit.log("CHECK-IN", id.toString());
   }
 
@@ -177,7 +170,6 @@ public class OrderService {
     b.setStatus("COMPLETED");
     b.setCheckOutAt(Instant.now());
     release(b);
-    // Returning equipment is a separate, explicitly recorded operation.
     audit.log("CHECK-OUT", id.toString());
   }
 
@@ -187,13 +179,6 @@ public class OrderService {
     live(order);
     Booking b = booking(order);
     require(request.assignments() != null, "Chọn lại trọng tài theo slot");
-    require(
-        products.findByOrderId(id).stream()
-            .noneMatch(
-                x ->
-                    "RENTAL".equals(x.getItemType())
-                        && (x.getIssuedAt() != null || x.getReturnedAt() != null)),
-        "Thiết bị đã giao/nhận cần quầy xử lý riêng trước khi đổi lịch");
     // Lock old and new slots in the same order to avoid deadlocks between moves.
     List<UUID> all = new ArrayList<>(request.scheduleIds());
     allocated(b).forEach(x -> all.add(x.getId()));
@@ -206,128 +191,12 @@ public class OrderService {
     future(selected);
     assignExact(b, selected, request.assignments());
     quote(order, selected);
-    var rentStart =
-        selected.stream()
-            .map(x -> at(x.getScheduleDate(), x.getStartTime()))
-            .min(Comparator.naturalOrder())
-            .orElseThrow();
-    for (var line : products.findByOrderId(id))
-      if ("RENTAL".equals(line.getItemType())) {
-        long h = Duration.between(line.getRentStartAt(), line.getRentEndAt()).toHours();
-        for (long hour = 0; hour < h; hour++) {
-          Instant needed = rentStart.plusSeconds(hour * 3600);
-          require(
-              selected.stream()
-                  .anyMatch(x -> at(x.getScheduleDate(), x.getStartTime()).equals(needed)),
-              "Lịch mới không đủ thời lượng thuê");
-        }
-        require(
-            rentalAvailability.peak(
-                        line.getRentalItem().getId(),
-                        rentStart,
-                        rentStart.plusSeconds(h * 3600),
-                        line.getId())
-                    + line.getQuantity()
-                <= line.getRentalItem().getStockQuantity(),
-            "Thiết bị không đủ ở lịch mới");
-        line.setRentStartAt(rentStart);
-        line.setRentEndAt(rentStart.plusSeconds(h * 3600));
-      }
     totals.recalculate(order);
     order.setDepositRequired(
         depositBase(order)
             .multiply(BigDecimal.valueOf(depositPercent(order)))
             .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
     audit.log("ĐỔI LỊCH", id.toString());
-  }
-
-  @Transactional
-  public void addProduct(UUID id, AddProductRequest request) {
-    CustomerOrder order = lock(id);
-    live(order);
-    Booking b = booking(order);
-    OrderProduct row = new OrderProduct();
-    row.setOrder(order);
-    row.setBooking(b);
-    row.setItemType(oneOf(request.type(), "DRINK", "RENTAL"));
-    row.setQuantity(request.quantity());
-    if ("DRINK".equals(request.type())) {
-      Drink drink =
-          drinks
-              .findForUpdate(request.productId())
-              .orElseThrow(() -> new BusinessException("Sản phẩm không tồn tại"));
-      require(
-          "ACTIVE".equals(drink.getStatus()) && drink.getStockQuantity() >= request.quantity(),
-          "Không đủ tồn kho");
-      drink.setStockQuantity(drink.getStockQuantity() - request.quantity());
-      row.setDrink(drink);
-      row.setUnitPrice(drink.getUnitPrice());
-    } else {
-      RentalItem item =
-          rentals
-              .findForUpdate(request.productId())
-              .orElseThrow(() -> new BusinessException("Đồ thuê không tồn tại"));
-      List<CourtSchedule> selected = allocated(b);
-      Instant start =
-          selected.stream()
-              .map(x -> at(x.getScheduleDate(), x.getStartTime()))
-              .min(Comparator.naturalOrder())
-              .orElseThrow();
-      Instant end = start.plusSeconds(request.hours() * 3600L);
-      for (int i = 0; i < request.hours(); i++) {
-        Instant required = start.plusSeconds(i * 3600L);
-        require(
-            selected.stream()
-                .anyMatch(x -> at(x.getScheduleDate(), x.getStartTime()).equals(required)),
-            "Giờ thuê phải nằm trong các giờ sân đã đặt liên tiếp");
-      }
-      require(
-          "ACTIVE".equals(item.getStatus())
-              && rentalAvailability.peak(item.getId(), start, end, null) + request.quantity()
-                  <= item.getStockQuantity(),
-          "Thiết bị không đủ trong khoảng giờ này");
-      row.setRentalItem(item);
-      row.setUnitPrice(item.getPricePerHour());
-      row.setRentStartAt(start);
-      row.setRentEndAt(end);
-    }
-    if ("CHECKED_IN".equals(order.getStatus()) && "RENTAL".equals(row.getItemType()))
-      row.setIssuedAt(Instant.now());
-    products.save(row);
-    totals.recalculate(order);
-    audit.log("THÊM SẢN PHẨM", id.toString());
-  }
-
-  @Transactional
-  public void returnProduct(UUID id, UUID lineId) {
-    CustomerOrder order = lock(id);
-    OrderProduct row =
-        products
-            .findById(lineId)
-            .orElseThrow(() -> new BusinessException("Không tìm thấy dòng hàng"));
-    require(
-        row.getOrder().getId().equals(order.getId()) && "RENTAL".equals(row.getItemType()),
-        "Dòng hàng không thuộc đơn này");
-    if (row.getReturnedAt() == null) row.setReturnedAt(Instant.now());
-    audit.log("TRẢ THIẾT BỊ", lineId.toString());
-  }
-
-  @Transactional
-  public void assignStaff(UUID id, AssignStaffRequest request) {
-    CustomerOrder order = lock(id);
-    live(order);
-    Booking b = booking(order);
-    var selected = scheduling.lockStaffSlots(request.staffId(), allocated(b));
-    for (StaffSchedule slot : selected) {
-      slot.setStatus("BOOKED");
-      BookingStaff link = new BookingStaff();
-      link.setBooking(b);
-      link.setStaffSchedule(slot);
-      link.setUnitPrice(slot.getStaff().getHourlyRate());
-      bookingStaff.save(link);
-    }
-    totals.recalculate(order);
-    audit.log("PHÂN CÔNG", id.toString());
   }
 
   @Transactional
@@ -435,27 +304,28 @@ public class OrderService {
     var o = lock(id);
     live(o);
     var b = booking(o);
+    require(rows != null, "Chọn phân công trọng tài");
+    // The editor submits the complete selection. Retain unchanged historical rates,
+    // release removed assignments, and roll back everything if the new set conflicts.
+    var releasedAt = Instant.now();
+    for (var link : bookingStaff.findByBookingId(b.getId())) {
+      if (link.getReleasedAt() != null || link.getCourtSchedule() == null) continue;
+      boolean retained = rows.stream().anyMatch(r ->
+          link.getCourtSchedule().getId().equals(r.scheduleId())
+              && link.getStaffSchedule().getStaff().getId().equals(r.staffId()));
+      if (!retained) {
+        var shift = staffSchedules.findForUpdate(link.getStaffSchedule().getId()).orElseThrow();
+        link.setReleasedAt(releasedAt);
+        shift.setStatus("AVAILABLE");
+      }
+    }
+    bookingStaff.flush();
     assignExact(b, allocated(b), rows);
     totals.recalculate(o);
     o.setDepositRequired(
         depositBase(o)
             .multiply(BigDecimal.valueOf(depositPercent(o)))
             .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP));
-  }
-
-  @Transactional
-  public void returned(UUID id, UUID line, String condition, String reason) {
-    var o = lock(id);
-    var p = products.findById(line).orElseThrow();
-    require(
-        p.getOrder().getId().equals(id) && "RENTAL".equals(p.getItemType()),
-        "Thiết bị không thuộc đơn");
-    oneOf(condition, "GOOD", "DAMAGED", "MISSING", "READY");
-    if (!"GOOD".equals(condition)) text(reason, "Ghi chú xử lý");
-    p.setCondition(condition);
-    if (!"MISSING".equals(condition)) p.setReturnedAt(Instant.now());
-    else p.setReturnedAt(null);
-    audit.log("XỬ LÝ THIẾT BỊ", line + ": " + condition + " " + reason);
   }
 
   @Transactional
@@ -470,58 +340,6 @@ public class OrderService {
       o.setStatus("CONFIRMED");
       allocated(booking(o)).forEach(s -> s.setStatus("BOOKED"));
     }
-  }
-
-  @Transactional
-  public Map<String, Object> services(UUID id) {
-    var o = lock(id);
-    var b = booking(o);
-    var selected = allocated(b);
-    var start =
-        selected.stream()
-            .map(x -> at(x.getScheduleDate(), x.getStartTime()))
-            .min(Comparator.naturalOrder())
-            .orElseThrow();
-    int max = selected.size();
-    var list =
-        rentals.findAll().stream()
-            .filter(p -> "ACTIVE".equals(p.getStatus()))
-            .map(
-                p -> {
-                  var availability = new ArrayList<Map<String, Object>>();
-                  for (int h = 1; h <= max; h++) {
-                    long busy =
-                        rentalAvailability.peak(
-                            p.getId(), start, start.plusSeconds(h * 3600L), null);
-                    availability.add(
-                        map("hours", h, "quantity", Math.max(0, p.getStockQuantity() - busy)));
-                  }
-                  return map(
-                      "id",
-                      p.getId(),
-                      "name",
-                      p.getName(),
-                      "price",
-                      p.getPricePerHour(),
-                      "availability",
-                      availability);
-                })
-            .toList();
-    return map(
-        "orderId",
-        id,
-        "date",
-        selected.get(0).getScheduleDate(),
-        "start",
-        selected.get(0).getStartTime().getHour(),
-        "maxHours",
-        max,
-        "editable",
-        Set.of("HOLDING", "CONFIRMED").contains(o.getStatus()),
-        "rentals",
-        list,
-        "staff",
-        List.of());
   }
 
   private void quote(CustomerOrder o, List<CourtSchedule> selected) {

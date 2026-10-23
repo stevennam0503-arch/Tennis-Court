@@ -65,3 +65,17 @@ SELECT r.code,c.id,c.name,c.status,c.base_price,
 FROM required r LEFT JOIN courts c
  ON upper(regexp_replace(trim(c.name), '^(Sân|San)\s+', '', 'i'))=r.code
 ORDER BY r.code;
+
+-- Retired services: history only. Fresh demo must have zero product lines.
+SELECT count(*) AS historical_product_lines FROM order_products;
+SELECT count(*) AS active_retired_catalog_items FROM (
+ SELECT id FROM drinks WHERE status = 'ACTIVE'
+ UNION ALL SELECT id FROM rental_items WHERE status = 'ACTIVE'
+) items;
+-- Referee time and charges, calculated from actual 30-minute work periods.
+SELECT st.full_name, count(*) AS assigned_slots,
+ sum(extract(epoch FROM (ss.end_time - ss.start_time))/3600) AS hours,
+ sum(bs.unit_price * extract(epoch FROM (ss.end_time - ss.start_time))/3600) AS value
+FROM booking_staff bs JOIN staff_schedules ss ON ss.id=bs.staff_schedule_id
+JOIN staff st ON st.id=ss.staff_id
+GROUP BY st.id, st.full_name ORDER BY st.full_name;

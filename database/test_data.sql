@@ -265,13 +265,13 @@ BEGIN
 
   -- 7. STAFF
   INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
-  VALUES (pg_temp.seed_uuid('staff:1'), 'HLV Phạm Quốc Huy', '0912111222', 'COACH', 'ITF Level 2 · 8 năm HLV tuyển trẻ & phong trào', 250000, 'ACTIVE');
+  VALUES (pg_temp.seed_uuid('staff:1'), 'TT Phạm Quốc Huy', '0912111222', 'REFEREE', 'ITF Level 2 · 8 năm TT tuyển trẻ & phong trào', 250000, 'ACTIVE');
   INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
-  VALUES (pg_temp.seed_uuid('staff:2'), 'HLV Nguyễn Hoàng Long', '0912222333', 'COACH', 'Cựu VĐV Quốc gia · 6 năm kinh nghiệm chiến thuật & thể lực', 220000, 'ACTIVE');
+  VALUES (pg_temp.seed_uuid('staff:2'), 'TT Nguyễn Hoàng Long', '0912222333', 'REFEREE', 'Cựu VĐV Quốc gia · 6 năm kinh nghiệm chiến thuật & thể lực', 220000, 'ACTIVE');
   INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
-  VALUES (pg_temp.seed_uuid('staff:3'), 'HLV Trần Đức Thịnh', '0912333444', 'COACH', 'HLV chuyên sâu kỹ thuật giao bóng & Volley · 5 năm', 200000, 'ACTIVE');
+  VALUES (pg_temp.seed_uuid('staff:3'), 'TT Trần Đức Thịnh', '0912333444', 'REFEREE', 'TT chuyên sâu kỹ thuật giao bóng & Volley · 5 năm', 200000, 'ACTIVE');
   INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
-  VALUES (pg_temp.seed_uuid('staff:4'), 'HLV Lê Quỳnh Mai', '0912444555', 'COACH', 'Tốt nghiệp ĐH TDTT · Đào tạo học viên nữ & thiếu nhi · 4 năm', 200000, 'ACTIVE');
+  VALUES (pg_temp.seed_uuid('staff:4'), 'TT Lê Quỳnh Mai', '0912444555', 'REFEREE', 'Tốt nghiệp ĐH TDTT · Đào tạo học viên nữ & thiếu nhi · 4 năm', 200000, 'ACTIVE');
   INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
   VALUES (pg_temp.seed_uuid('staff:5'), 'TT Vũ Thanh Bình', '0912555666', 'REFEREE', 'Trọng tài VTF Level 1 · 7 năm điều hành giải vô địch TP', 180000, 'ACTIVE');
   INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
@@ -281,47 +281,9 @@ BEGIN
   INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
   VALUES (pg_temp.seed_uuid('staff:8'), 'TT Trương Tấn Phát', '0912888999', 'REFEREE', 'Trọng tài bắt vạch chuẩn xác, năng động · 2 năm', 140000, 'ACTIVE');
   INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
-  VALUES (pg_temp.seed_uuid('staff:9'), 'Nguyễn Văn Nam (Nhặt bóng)', '0912999000', 'BALL_BOY', 'Hỗ trợ sân & nhặt bóng nhanh nhẹn · 2 năm', 80000, 'ACTIVE');
+  VALUES (pg_temp.seed_uuid('staff:9'), 'Nguyễn Văn Nam (Trọng tài)', '0912999000', 'REFEREE', 'Trọng tài tập sự · 2 năm kinh nghiệm', 80000, 'ACTIVE');
   INSERT INTO staff(id, full_name, phone, type, level, hourly_rate, status)
-  VALUES (pg_temp.seed_uuid('staff:10'), 'Trần Hải Đăng (Nhặt bóng)', '0913000111', 'BALL_BOY', 'Hỗ trợ sân & nhặt bóng nhiệt tình · 1 năm', 80000, 'ACTIVE');
-
-  -- 8. DRINKS & RENTALS
-  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
-  VALUES (pg_temp.seed_uuid('drink:1'), 'Nước khoáng Lavie 500ml', 'Chai', 12000, 150, 'ACTIVE');
-  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
-  VALUES (pg_temp.seed_uuid('drink:2'), 'Nước khoáng Aquafina 500ml', 'Chai', 12000, 120, 'ACTIVE');
-  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
-  VALUES (pg_temp.seed_uuid('drink:3'), 'Nước điện giải Pocari Sweat 500ml', 'Chai', 25000, 90, 'ACTIVE');
-  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
-  VALUES (pg_temp.seed_uuid('drink:4'), 'Nước điện giải Revive Chanh Muối', 'Chai', 18000, 85, 'ACTIVE');
-  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
-  VALUES (pg_temp.seed_uuid('drink:5'), 'Nước tăng lực Red Bull lon vàng', 'Lon', 22000, 60, 'ACTIVE');
-  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
-  VALUES (pg_temp.seed_uuid('drink:6'), 'Nước tăng lực Monster Energy 355ml', 'Lon', 35000, 40, 'ACTIVE');
-  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
-  VALUES (pg_temp.seed_uuid('drink:7'), 'Nước dừa tươi đóng lon Cocoxim', 'Lon', 25000, 50, 'ACTIVE');
-  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
-  VALUES (pg_temp.seed_uuid('drink:8'), 'Nước ép cam ép Teppy có tép', 'Chai', 20000, 45, 'ACTIVE');
-  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
-  VALUES (pg_temp.seed_uuid('drink:9'), 'Trà xanh C2 hương chanh 455ml', 'Chai', 15000, 70, 'ACTIVE');
-  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
-  VALUES (pg_temp.seed_uuid('drink:10'), 'Trà Oolong Tea+ không đường 455ml', 'Chai', 18000, 65, 'ACTIVE');
-  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
-  VALUES (pg_temp.seed_uuid('drink:11'), 'Cà phê Highlands lon đen đá', 'Lon', 20000, 55, 'ACTIVE');
-  INSERT INTO drinks(id, name, unit, unit_price, stock_quantity, status)
-  VALUES (pg_temp.seed_uuid('drink:12'), 'Cà phê Highlands lon sữa đá', 'Lon', 22000, 60, 'ACTIVE');
-  INSERT INTO rental_items(id, name, category, brand, price_per_hour, stock_quantity, status, version)
-  VALUES (pg_temp.seed_uuid('rental:1'), 'Vợt Wilson Blade v8 100L', 'RACKET', 'Wilson', 50000, 10, 'ACTIVE', 0);
-  INSERT INTO rental_items(id, name, category, brand, price_per_hour, stock_quantity, status, version)
-  VALUES (pg_temp.seed_uuid('rental:2'), 'Vợt Babolat Pure Drive 2024', 'RACKET', 'Babolat', 50000, 8, 'ACTIVE', 0);
-  INSERT INTO rental_items(id, name, category, brand, price_per_hour, stock_quantity, status, version)
-  VALUES (pg_temp.seed_uuid('rental:3'), 'Vợt Head Speed MP 2024', 'RACKET', 'Head', 60000, 6, 'ACTIVE', 0);
-  INSERT INTO rental_items(id, name, category, brand, price_per_hour, stock_quantity, status, version)
-  VALUES (pg_temp.seed_uuid('rental:4'), 'Vợt Yonex EZONE 100 300g', 'RACKET', 'Yonex', 50000, 6, 'ACTIVE', 0);
-  INSERT INTO rental_items(id, name, category, brand, price_per_hour, stock_quantity, status, version)
-  VALUES (pg_temp.seed_uuid('rental:5'), 'Hộp bóng thi đấu Wilson US Open (3 quả)', 'BALL', 'Wilson', 30000, 25, 'ACTIVE', 0);
-  INSERT INTO rental_items(id, name, category, brand, price_per_hour, stock_quantity, status, version)
-  VALUES (pg_temp.seed_uuid('rental:6'), 'Rổ bóng tập kỹ thuật có chân đứng (72 quả)', 'BALL', 'Dunlop', 80000, 5, 'ACTIVE', 0);
+  VALUES (pg_temp.seed_uuid('staff:10'), 'Trần Hải Đăng (Trọng tài)', '0913000111', 'REFEREE', 'Trọng tài tập sự · 1 năm kinh nghiệm', 80000, 'ACTIVE');
 
   -- 9. GENERATE 60 DAYS OF COURT SLOTS (20,400 SLOTS) & STAFF SCHEDULES
   FOR n IN 1..10 LOOP
@@ -339,7 +301,7 @@ BEGIN
           0
         );
 
-        -- Staff schedules (Coaches & Referees)
+        -- Staff schedules (Referees)
         INSERT INTO staff_schedules(id, staff_id, work_date, start_time, end_time, status, version)
         VALUES (
           pg_temp.seed_uuid('staff_shift:' || n || ':' || d || ':' || h),
@@ -383,11 +345,7 @@ BEGIN
     v_checkin timestamptz;
     v_checkout timestamptz;
     v_invoice text;
-    v_has_drink boolean;
-    v_has_rental boolean;
-    v_has_coach boolean;
-    v_drink_num int;
-    v_rental_num int;
+    v_has_referee boolean;
     v_staff_num int;
     v_staff_rate numeric;
     v_extra numeric;
@@ -456,23 +414,10 @@ BEGIN
         v_subtotal := v_court_price;
         v_extra := 0;
 
-        -- Extras
-        v_has_drink := (v_total_orders_gen % 3 = 0);
-        v_drink_num := (v_total_orders_gen % 12) + 1;
-        IF v_has_drink THEN
-          v_extra := v_extra + 30000;
-        END IF;
-
-        v_has_rental := (v_total_orders_gen % 5 = 0);
-        v_rental_num := (v_total_orders_gen % 6) + 1;
-        IF v_has_rental THEN
-          v_extra := v_extra + 50000;
-        END IF;
-
-        -- Coach assignment (historical completed orders, plus a few upcoming)
-        v_has_coach := (v_total_orders_gen % 6 = 0);
-        v_staff_num := (v_court_num % 8) + 1; -- 1 staff per court to avoid concurrent collision
-        IF v_has_coach THEN
+        -- Referee assignment (historical completed orders, plus a few upcoming)
+        v_has_referee := (v_total_orders_gen % 6 = 0);
+        v_staff_num := v_court_num; -- 1 staff per court to avoid concurrent collision
+        IF v_has_referee THEN
           SELECT hourly_rate INTO v_staff_rate FROM staff WHERE id = pg_temp.seed_uuid('staff:' || v_staff_num);
           v_extra := v_extra + v_staff_rate;
         END IF;
@@ -590,42 +535,20 @@ BEGIN
           UPDATE court_schedules SET status = 'LOCKED' WHERE id IN (v_slot1_id, v_slot2_id);
         END IF;
 
-        -- LINK DRINKS
-        IF v_has_drink THEN
-          INSERT INTO order_products(id, order_id, booking_id, item_type, drink_id, quantity, unit_price)
-          VALUES (pg_temp.seed_uuid('prod_drink:' || v_total_orders_gen), v_order_id, v_booking_id, 'DRINK',
-                  pg_temp.seed_uuid('drink:' || v_drink_num), 2, 15000);
-        END IF;
-
-        -- LINK RENTALS
-        IF v_has_rental THEN
-          INSERT INTO order_products(
-            id, order_id, booking_id, item_type, rental_item_id, quantity, unit_price,
-            rent_start_at, rent_end_at, issued_at, returned_at, item_condition
-          ) VALUES (
-            pg_temp.seed_uuid('prod_rental:' || v_total_orders_gen),
-            v_order_id, v_booking_id, 'RENTAL',
-            pg_temp.seed_uuid('rental:' || v_rental_num), 1, 50000,
-            (v_order_date + (time '00:00' + v_start_h * interval '30 minutes'))::timestamptz,
-            (v_order_date + (time '00:00' + (v_start_h + 2) * interval '30 minutes'))::timestamptz,
-            (v_order_date + (time '00:00' + v_start_h * interval '30 minutes'))::timestamptz,
-            CASE WHEN v_status = 'CHECKED_IN' THEN NULL ELSE (v_order_date + (time '00:00' + (v_start_h + 2) * interval '30 minutes'))::timestamptz END,
-            'GOOD'
-          );
-        END IF;
-
-        -- LINK COACH / REFEREE
-        IF v_has_coach THEN
-          v_staff_shift_id := pg_temp.seed_uuid('staff_shift:' || v_staff_num || ':' || v_day_offset || ':' || v_start_h);
-          INSERT INTO booking_staff(id, booking_id, staff_schedule_id, court_schedule_id, unit_price, released_at)
-          VALUES (
-            pg_temp.seed_uuid('staff_book:' || v_total_orders_gen),
-            v_booking_id, v_staff_shift_id, v_slot1_id, v_staff_rate,
-            CASE WHEN v_status IN ('COMPLETED', 'CANCELLED', 'EXPIRED') THEN v_order_date + interval '23 hours' ELSE NULL END
-          );
-          IF v_status = 'CONFIRMED' OR v_status = 'CHECKED_IN' THEN
-            UPDATE staff_schedules SET status = 'BOOKED' WHERE id = v_staff_shift_id;
-          END IF;
+        -- LINK REFEREE
+        IF v_has_referee THEN
+          FOR h IN 0..1 LOOP
+            v_staff_shift_id := pg_temp.seed_uuid('staff_shift:' || v_staff_num || ':' || v_day_offset || ':' || (v_start_h + h));
+            INSERT INTO booking_staff(id, booking_id, staff_schedule_id, court_schedule_id, unit_price, released_at)
+            VALUES (
+              pg_temp.seed_uuid('staff_book:' || v_total_orders_gen || ':' || h),
+              v_booking_id, v_staff_shift_id, CASE WHEN h = 0 THEN v_slot1_id ELSE v_slot2_id END, v_staff_rate,
+              CASE WHEN v_status IN ('COMPLETED', 'CANCELLED', 'EXPIRED') THEN v_order_date + interval '23 hours' ELSE NULL END
+            );
+            IF v_status IN ('CONFIRMED', 'CHECKED_IN', 'HOLDING') THEN
+              UPDATE staff_schedules SET status = 'BOOKED' WHERE id = v_staff_shift_id;
+            END IF;
+          END LOOP;
         END IF;
 
         -- PAYMENTS & REFUNDS
@@ -826,7 +749,7 @@ END $$;
 
 -- 16. CLUB INFO & ARTICLES
 INSERT INTO app_documents(document_key, data, version) VALUES
-('club', '{"name": "Courtly · Tennis Club", "tagline": "Khẳng định phong độ, kết nối đam mê", "intro": "Tổ hợp 10 sân tennis tiêu chuẩn quốc tế ngoài trời, trong nhà mái che và khu VIP Lounge riêng biệt.", "story": "Được xây dựng với mục tiêu mang đến trải nghiệm tennis chuyên nghiệp nhất cho mọi tay vợt, từ phong trào đến bán chuyên. Hệ thống đặt sân trực tuyến minh bạch, bảng giá chuẩn và dịch vụ hỗ trợ toàn diện.", "mission": "Đặt trải nghiệm của người chơi làm trung tâm: mặt sân chuẩn thi đấu, hỗ trợ trọng tài và HLV giàu kinh nghiệm.", "address": "128 Đường Tennis, Khu Thể Thao Courtly, TP. Hồ Chí Minh", "phone": "0901 888 999 · 028 3888 9999", "email": "contact@courtly.vn", "openingHours": "06:00 – 23:00 · Tất cả các ngày trong tuần", "mapUrl": "", "socialUrl": "", "paymentInstructions": "Chấp nhận VietQR, thẻ ngân hàng, VNPay và tiền mặt tại quầy lễ tân."}', 0)
+('club', '{"name": "Courtly · Tennis Club", "tagline": "Khẳng định phong độ, kết nối đam mê", "intro": "Tổ hợp 10 sân tennis tiêu chuẩn quốc tế ngoài trời, trong nhà mái che và khu VIP Lounge riêng biệt.", "story": "Được xây dựng với mục tiêu mang đến trải nghiệm tennis chuyên nghiệp nhất cho mọi tay vợt, từ phong trào đến bán chuyên. Hệ thống đặt sân trực tuyến minh bạch, bảng giá chuẩn và dịch vụ hỗ trợ toàn diện.", "mission": "Đặt trải nghiệm của người chơi làm trung tâm: mặt sân chuẩn thi đấu, hỗ trợ trọng tài giàu kinh nghiệm.", "address": "128 Đường Tennis, Khu Thể Thao Courtly, TP. Hồ Chí Minh", "phone": "0901 888 999 · 028 3888 9999", "email": "contact@courtly.vn", "openingHours": "06:00 – 23:00 · Tất cả các ngày trong tuần", "mapUrl": "", "socialUrl": "", "paymentInstructions": "Thanh toán tiền mặt tại quầy hoặc chuyển khoản theo mã QR khi câu lạc bộ đã cấu hình ngân hàng."}', 0)
 ON CONFLICT(document_key) DO UPDATE SET data = EXCLUDED.data;
 
 INSERT INTO app_documents(document_key, data, version) VALUES
@@ -834,7 +757,7 @@ INSERT INTO app_documents(document_key, data, version) VALUES
 ON CONFLICT(document_key) DO UPDATE SET data = EXCLUDED.data;
 
 INSERT INTO app_documents(document_key, data, version) VALUES
-('article:plan-your-session', '{"id": "plan-your-session", "title": "Bí quyết chọn khung giờ và đặt sân nhanh chóng", "excerpt": "Hướng dẫn đặt sân theo bước 30 phút, linh hoạt kết hợp trọng tài và dịch vụ thuê vợt tại quầy.", "body": "Hệ thống Courtly cho phép bạn lựa chọn giờ chơi theo bước 30 phút rất linh hoạt. Bạn có thể đặt 1 tiếng, 1 tiếng 30 phút hoặc 2 tiếng liên tiếp.\n\nĐặc biệt, hội viên Club và Plus được ưu tiên đặt trước đến 21 ngày và giảm trực tiếp từ 10% đến 15% tiền sân.", "category": "NEWS", "status": "PUBLISHED", "source": "EDITORIAL", "imageUrl": "/guest/zone-a-outdoor.webp", "publishedAt": "2026-10-18T09:30:00Z"}', 0)
+('article:plan-your-session', '{"id": "plan-your-session", "title": "Bí quyết chọn khung giờ và đặt sân nhanh chóng", "excerpt": "Hướng dẫn đặt sân theo bước 30 phút, linh hoạt kết hợp dịch vụ trọng tài.", "body": "Hệ thống Courtly cho phép bạn lựa chọn giờ chơi theo bước 30 phút rất linh hoạt. Bạn có thể đặt 1 tiếng, 1 tiếng 30 phút hoặc 2 tiếng liên tiếp.\n\nĐặc biệt, hội viên Club và Plus được ưu tiên đặt trước đến 21 ngày và giảm trực tiếp từ 10% đến 15% tiền sân.", "category": "NEWS", "status": "PUBLISHED", "source": "EDITORIAL", "imageUrl": "/guest/zone-a-outdoor.webp", "publishedAt": "2026-10-18T09:30:00Z"}', 0)
 ON CONFLICT(document_key) DO UPDATE SET data = EXCLUDED.data;
 
 COMMIT;

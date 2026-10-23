@@ -445,6 +445,26 @@ WHERE EXISTS (SELECT FROM courts)
 -- PresentationService generates actual 30-minute schedules from each court's
 -- tariff/base_price when a date is opened. No historical slots are rewritten.
 
+-- Keep configured policies; fill missing customer cancellation/change deadlines.
+UPDATE club_settings
+SET hold_minutes = CASE WHEN hold_minutes = 10 THEN 5 ELSE hold_minutes END,
+    policies = ('{"cancelCutoffMinutes":1440,"changeCutoffMinutes":1440}'::jsonb
+                || policies::jsonb)::text;
+
+-- Retain historical lines and receipts. No new beverage/equipment business.
+UPDATE drinks SET status = 'INACTIVE';
+UPDATE rental_items SET status = 'INACTIVE';
+
+CREATE FUNCTION reject_retired_product_service() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'Product services have been retired; only referee services may be added'
+    USING ERRCODE = '23514';
+END;
+$$;
+CREATE TRIGGER reject_new_order_products
+BEFORE INSERT ON order_products
+FOR EACH ROW EXECUTE FUNCTION reject_retired_product_service();
+
 CREATE TABLE public.flyway_schema_history (
     installed_rank integer NOT NULL,
     version character varying(50),
@@ -465,4 +485,6 @@ INSERT INTO public.flyway_schema_history VALUES (3, '3', 'auth content and curre
 INSERT INTO public.flyway_schema_history VALUES (4, '4', 'configure admin account', 'SQL', 'V4__configure_admin_account.sql', -1213621577, 'courtly', '2026-10-21 03:46:15.180967', 4, true);
 INSERT INTO public.flyway_schema_history VALUES (5, '5', 'customer booking support', 'SQL', 'V5__customer_booking_support.sql', -17690139, 'courtly', '2026-10-21 03:46:15.196256', 10, true);
 INSERT INTO public.flyway_schema_history VALUES (6, '6', 'complete indoor and vip courts', 'SQL', 'V6__complete_indoor_and_vip_courts.sql', -1950231639, current_user, now(), 0, true);
+INSERT INTO public.flyway_schema_history VALUES (7, '7', 'customer booking policy', 'SQL', 'V7__customer_booking_policy.sql', -1721384287, current_user, now(), 0, true);
+INSERT INTO public.flyway_schema_history VALUES (8, '8', 'retire product services', 'SQL', 'V8__retire_product_services.sql', 1243830135, current_user, now(), 0, true);
 COMMIT;

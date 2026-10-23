@@ -22,7 +22,6 @@ public class OrderApplicationService {
   private final BookingSupportService support;
   private final DocumentService docs;
   private final OverviewService views;
-  private final OrderProductRepository products;
   private final ObjectMapper mapper;
   private final jakarta.validation.Validator validator;
   private final SettingsService settings;
@@ -231,16 +230,7 @@ public class OrderApplicationService {
               extra.putIfAbsent("invoiceSnapshot", snapshot);
               o.setMetadata(docs.encode(extra));
             }
-            case "products" -> service.addProduct(id, dto(b, AddProductRequest.class));
             case "staff" -> service.exactStaff(id, assignments(b));
-            case "services" -> {
-              require(b.get("rentals") instanceof List<?>, "Chọn thiết bị tại quầy");
-              for (var value : (List<?>) b.get("rentals")) {
-                var item = new LinkedHashMap<>((Map<String, Object>) value);
-                item.put("type", "RENTAL");
-                service.addProduct(id, dto(item, AddProductRequest.class));
-              }
-            }
             case "review", "refund-request" -> {
               text((String) b.get("reason"), "Lý do đối chiếu");
               var extra = docs.decode(o.getMetadata());
@@ -273,26 +263,6 @@ public class OrderApplicationService {
               o, action.toUpperCase(Locale.ROOT), Set.of("restore", "cancel").contains(action) ? before : null);
           return map("id", id);
         });
-  }
-
-  public Map<String, Object> returned(UUID id, UUID lineId, Map<String, Object> b, Account actor) {
-    var a = actor;
-    return requests.execute(
-        a.getId(),
-        (String) b.get("requestId"),
-        "return:" + lineId,
-        b,
-        () -> {
-          service.returned(
-              id, lineId, (String) b.getOrDefault("condition", "GOOD"), (String) b.get("reason"));
-          presentation.history(service.lock(id), "RETURN", null);
-          return map("id", id);
-        });
-  }
-
-  public Map<String, Object> services(UUID id, Account actor) {
-    auth.admin(actor);
-    return service.services(id);
   }
 
   private void customerDeposit(CustomerOrder o) {

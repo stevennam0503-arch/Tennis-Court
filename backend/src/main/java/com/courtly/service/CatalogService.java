@@ -20,9 +20,6 @@ public class CatalogService {
   private final CourtPriceRepository prices;
   private final CourtScheduleRepository courtSchedules;
   private final AccountRepository accounts;
-  private final DrinkRepository drinks;
-  private final RentalItemRepository rentals;
-  private final OrderProductRepository products;
   private final StaffRepository staff;
   private final StaffScheduleRepository staffSchedules;
   private final TournamentRepository tournaments;
@@ -30,7 +27,6 @@ public class CatalogService {
   private final TournamentMatchRepository matches;
   private final TournamentService tournamentService;
   private final AuditService audit;
-  private final RentalAvailabilityService availability;
 
   @Transactional
   public UUID save(String collection, UUID id, CatalogRequest r) {
@@ -39,8 +35,6 @@ public class CatalogService {
           case "courts" -> court(id, r);
           case "prices" -> price(id, r);
           case "accounts" -> account(id, r);
-          case "drinks" -> drink(id, r);
-          case "rentals" -> rental(id, r);
           case "staff" -> staff(id, r);
           case "staff-schedules" -> staffSchedule(id, r);
           case "tournaments" -> tournament(id, r);
@@ -119,51 +113,6 @@ public class CatalogService {
     a.setRole(oneOf(r.role(), "ADMIN", "STAFF", "CUSTOMER"));
     a.setStatus(oneOf(r.status(), "ACTIVE", "LOCKED"));
     return accounts.save(a).getId();
-  }
-
-  private UUID drink(UUID id, CatalogRequest r) {
-    Drink d =
-        id == null
-            ? new Drink()
-            : drinks
-                .findForUpdate(id)
-                .orElseThrow(() -> new BusinessException("Đồ uống không tồn tại"));
-    d.setName(text(r.name(), "Tên sản phẩm"));
-    d.setUnitPrice(positive(r.price()));
-    require(r.stock() != null && r.stock() >= 0, "Tồn kho không hợp lệ");
-    d.setStockQuantity(r.stock());
-    d.setStatus(oneOf(r.status(), "ACTIVE", "INACTIVE"));
-    return drinks.save(d).getId();
-  }
-
-  private UUID rental(UUID id, CatalogRequest r) {
-    RentalItem d =
-        id == null
-            ? new RentalItem()
-            : rentals
-                .findForUpdate(id)
-                .orElseThrow(() -> new BusinessException("Đồ thuê không tồn tại"));
-    d.setName(text(r.name(), "Tên đồ thuê"));
-    d.setPricePerHour(positive(r.price()));
-    require(r.stock() != null && r.stock() >= 0, "Tồn kho không hợp lệ");
-    if (id != null) {
-      var current =
-          products.findAll().stream()
-              .filter(
-                  x ->
-                      x.getRentalItem() != null
-                          && x.getRentalItem().getId().equals(id)
-                          && x.getReturnedAt() == null
-                          && active(x.getOrder().getStatus()))
-              .toList();
-      for (var p : current)
-        require(
-            availability.peak(id, p.getRentStartAt(), p.getRentEndAt(), null) <= r.stock(),
-            "Tồn mới ít hơn số thiết bị đã được đặt thuê đồng thời");
-    }
-    d.setStockQuantity(r.stock());
-    d.setStatus(oneOf(r.status(), "ACTIVE", "INACTIVE"));
-    return rentals.save(d).getId();
   }
 
   private UUID staff(UUID id, CatalogRequest r) {

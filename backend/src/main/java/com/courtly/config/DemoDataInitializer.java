@@ -20,8 +20,6 @@ public class DemoDataInitializer implements ApplicationRunner {
   private final CourtRepository courts;
   private final AccountRepository accounts;
   private final StaffRepository staff;
-  private final DrinkRepository drinks;
-  private final RentalItemRepository rentals;
   private final TournamentRepository tournaments;
   private final SettingsService settings;
   private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
@@ -75,7 +73,7 @@ public class DemoDataInitializer implements ApplicationRunner {
       accounts.save(a);
     }
     String[] people = {"Phạm Quốc Huy", "Vũ Thanh Bình", "Ngô Đức Long"};
-    String[] types = {"REFEREE", "COACH", "BALL_BOY"};
+    String[] types = {"REFEREE", "REFEREE", "REFEREE"};
     for (int i = 0; i < people.length; i++) {
       Staff s = new Staff();
       s.setFullName(people[i]);
@@ -84,27 +82,6 @@ public class DemoDataInitializer implements ApplicationRunner {
       s.setHourlyRate(BigDecimal.valueOf(i == 1 ? 250000 : i == 0 ? 120000 : 60000));
       staff.save(s);
     }
-    Drink water = new Drink();
-    water.setName("Nước suối 500ml");
-    water.setUnitPrice(BigDecimal.valueOf(15000));
-    water.setStockQuantity(48);
-    drinks.save(water);
-    Drink isotonic = new Drink();
-    isotonic.setName("Nước điện giải");
-    isotonic.setUnitPrice(BigDecimal.valueOf(25000));
-    isotonic.setStockQuantity(6);
-    drinks.save(isotonic);
-    RentalItem racket = new RentalItem();
-    racket.setName("Vợt Wilson");
-    racket.setPricePerHour(BigDecimal.valueOf(50000));
-    racket.setStockQuantity(8);
-    rentals.save(racket);
-    RentalItem ball = new RentalItem();
-    ball.setName("Bóng tennis (bộ 3)");
-    ball.setCategory("BALL");
-    ball.setPricePerHour(BigDecimal.valueOf(30000));
-    ball.setStockQuantity(12);
-    rentals.save(ball);
     Tournament t = new Tournament();
     t.setName("Courtly Open");
     t.setLocation("CLB Courtly");

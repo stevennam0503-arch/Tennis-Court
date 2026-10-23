@@ -900,5 +900,7 @@
   "Xác nhận tiền mặt đã thu": "Confirm cash received",
   "Làm mới": "Refresh",
   "Vui lòng thanh toán tại quầy trước khi hết hạn giữ chỗ. Nhân viên sẽ xác nhận số tiền thực thu.": "Pay at the desk before your reservation hold expires. Staff will confirm the cash actually received.",
-  "Chuyển khoản hiện chưa khả dụng. Vui lòng thanh toán tại quầy.": "Bank transfer is currently unavailable. Please pay at the desk."
+  "Chuyển khoản hiện chưa khả dụng. Vui lòng thanh toán tại quầy.": "Bank transfer is currently unavailable. Please pay at the desk.",
+  "Không giảm phí trọng tài hoặc giải đấu.": "Referee and tournament fees are not discounted.",
+  "Chỉ áp dụng ưu đãi hội viên cho tiền sân, trong thời hạn gói. Không giảm phí trọng tài hoặc giải đấu.": "Membership discounts apply to court fees during the plan term. Referee and tournament fees are not discounted."
 }

@@ -29,21 +29,20 @@ export function MyServices(){
  const {data,show,navigate,isAdmin}=useCourtly();
  const [tab,setTab]=useState('available'),[query,setQuery]=useState('');
  const eligible=data.orders.filter(canRent);
- const rented=data.orders.filter(o=>o.products.some(p=>p.type==='RENTAL')||o.staff.length);
+ const rented=data.orders.filter(o=>o.staff.length);
  const orders=(tab==='available'?eligible:rented).filter(o=>`${o.id} ${o.date} ${isAdmin?o.name:''}`.toLowerCase().includes(query.toLowerCase())).sort((a,b)=>tab==='available'?a.date.localeCompare(b.date):b.date.localeCompare(a.date));
  return <>
-  <Title subtitle={isAdmin?'Thuê dịch vụ cho khách, theo dõi thiết bị và phân công trọng tài theo đơn.':'Chọn trọng tài, vợt và thiết bị cho lịch sân của bạn. Xem giá trước khi xác nhận.'} action={<Button onClick={()=>navigate('orders')}>Xem đơn hàng</Button>}>Dịch vụ tại quầy</Title>
-  <div className="rental-intro"><article><h2>Thuê trọng tài</h2><p>Chọn trọng tài có lịch làm việc bao phủ giờ chơi, không trùng buổi khác. Chi phí tính theo số giờ sử dụng.</p></article><article><h2>Thuê đồ theo giờ</h2><p>Chọn thiết bị, số lượng và thời lượng thuê. Hệ thống kiểm tra tồn thiết bị đúng khoảng thời gian đã đặt.</p></article></div>
-  {isAdmin&&<div className="step-row"><Button onClick={()=>navigate('staff')}>Quản lý trọng tài & lịch làm việc</Button><Button onClick={()=>navigate('products')}>Quản lý thiết bị & giá thuê</Button></div>}
+  <Title subtitle={isAdmin?'Phân công trọng tài theo sân và khung giờ của từng đơn.':'Chọn trọng tài cho lịch sân của bạn. Xem giá trước khi xác nhận.'} action={<Button onClick={()=>navigate('orders')}>Xem đơn hàng</Button>}>Dịch vụ trọng tài</Title>
+  <div className="rental-intro"><article><h2>Thuê trọng tài</h2><p>Chọn trọng tài có lịch làm việc bao phủ giờ chơi, không trùng buổi khác. Chi phí tính theo số giờ sử dụng.</p></article></div>
+  {isAdmin&&<div className="step-row"><Button onClick={()=>navigate('staff')}>Quản lý trọng tài & lịch làm việc</Button></div>}
   <Tabs value={tab} onChange={setTab} options={[["available",`Đặt thêm dịch vụ (${eligible.length})`],["rented",`Lịch sử thuê (${rented.length})`]]}/>
   <div className="history-filters"><label>{isAdmin?'Tìm khách, mã đơn hoặc ngày':'Tìm mã đơn hoặc ngày'}<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Tìm đơn thuê…"/></label></div>
   <div className="history-list">{orders.map(o=><article className="customer-order" key={o.id}>
    <div className="customer-order-top"><div><h2>{dateLabel(o.date)}</h2><small>{o.id.slice(0,8).toUpperCase()}{isAdmin?` · ${o.name}`:''}</small></div><Chip status={o.status}/></div>
    <p className="subtitle">{o.slots.map(s=>`${data.courts.find(c=>c.id===s.court)?.name} ${slotLabel(s)}`).join(' / ')}</p>
-   {o.products.filter(p=>p.type==='RENTAL').map(p=><div className="order-line" key={p.id}><span>{p.name} × {p.quantity} · {p.hours} giờ<small>{p.condition==='DAMAGED'?'Hỏng, đang cách ly':p.condition==='MISSING'?'Thiếu / chưa trả':p.returned?'Đã trả thiết bị':['CANCELLED','EXPIRED'].includes(o.status)&&!p.issuedAt?'Đã giải phóng lượt thuê':'Chưa trả thiết bị'}</small></span><b>{money(p.lineTotal)}</b></div>)}
    {o.staff.map(st=><div className="order-line" key={st.id}><span>{st.name} · {st.hours} giờ</span><b>{money(st.rate*st.hours)}</b></div>)}
    <OrderActions order={o}/>
   </article>)}</div>
-  {!orders.length&&<div className="empty"><h3>{query?'Không tìm thấy đơn phù hợp':tab==='rented'?'Chưa có lịch sử thuê dịch vụ':'Chưa có lịch sân phù hợp để thuê'}</h3><p>{tab==='available'?'Cần có đơn sắp tới, chưa check-in. Chọn lịch sân trước để kiểm tra trọng tài và thiết bị còn trống.':'Dịch vụ sau khi xác nhận sẽ được lưu cùng đơn đặt sân tại đây.'}</p>{tab==='available'&&<Button className="primary" onClick={()=>navigate('calendar')}>Đặt sân</Button>}</div>}
+  {!orders.length&&<div className="empty"><h3>{query?'Không tìm thấy đơn phù hợp':tab==='rented'?'Chưa có lịch sử thuê dịch vụ':'Chưa có lịch sân phù hợp để thuê'}</h3><p>{tab==='available'?'Cần có đơn sắp tới, chưa check-in. Chọn lịch sân trước để kiểm tra trọng tài còn trống.':'Dịch vụ sau khi xác nhận sẽ được lưu cùng đơn đặt sân tại đây.'}</p>{tab==='available'&&<Button className="primary" onClick={()=>navigate('calendar')}>Đặt sân</Button>}</div>}
  </>;
 }

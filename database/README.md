@@ -1,6 +1,6 @@
 # Database và demo Courtly
 
-PostgreSQL 16. Bộ SQL khớp với ứng dụng trên nhánh `nam-dev`, dùng UUID và Flyway V1–V6.
+PostgreSQL 16. Bộ SQL khớp với ứng dụng trên nhánh `nam-dev`, dùng UUID và Flyway V1–V8.
 
 | File | Mục đích |
 | --- | --- |
@@ -65,34 +65,26 @@ Bộ dữ liệu demo được thiết kế tương đương một câu lạc b�
 | Vai trò | Email đăng nhập | Mật khẩu | Mục đích demo |
 | --- | --- | --- | --- |
 | **Quản trị viên (Chủ sân)** | `admin@gmail.com` | `12345` hoặc `CourtlyDemo2026` | Quản trị toàn quyền: dashboard, tài chính, báo cáo, phân quyền, cấu hình hệ thống. |
-| **Lễ tân ca sáng** | `letan.huong@courtly.vn` | `CourtlyDemo2026` | Vận hành quầy lễ tân: check-in, check-out, nhận trả đồ thuê, bán nước, thu tiền mặt/QR. |
+| **Lễ tân ca sáng** | `letan.huong@courtly.vn` | `CourtlyDemo2026` | Vận hành quầy lễ tân: check-in, check-out, phân công trọng tài, thu tiền mặt/QR. |
 | **Lễ tân ca chiều** | `letan.duc@courtly.vn` | `CourtlyDemo2026` | Ca chiều tối: xếp lịch sân, phân công trọng tài, xác nhận đơn cọc. |
 | **Quản lý sân bãi** | `quanly.tuan@courtly.vn` | `CourtlyDemo2026` | Điều hành lịch sân, bảo trì, giám sát nhân sự & giải đấu. |
-| **Khách hàng VIP (Demo chính)** | `minh.anh@example.com` | `CourtlyDemo2026` | Nguyễn Minh Anh: Hội viên Club/Plus, có đơn đang chơi hôm nay (thuê vợt chưa trả), lịch sử đơn dày dặn. |
+| **Khách hàng VIP (Demo chính)** | `minh.anh@example.com` | `CourtlyDemo2026` | Nguyễn Minh Anh: Hội viên Club/Plus, có đơn đang chơi hôm nay (có dịch vụ trọng tài), lịch sử đơn dày dặn. |
 | **Khách hàng thường (60 khách)** | `quocbao.kts@gmail.com`, `hoangnam.tennis@gmail.com`, ... | `CourtlyDemo2026` | 60 khách hàng thật với họ tên, số điện thoại Việt Nam chuẩn để thử nghiệm danh sách và lịch sử. |
 | **Tài khoản bị khóa** | `quangthang.locked@example.com` | `CourtlyDemo2026` | Kiểm tra tính năng chặn đăng nhập đối với tài khoản vi phạm. |
 
-### Thống kê khối lượng dữ liệu (Doanh nghiệp 2 tháng)
+### Phạm vi dữ liệu hiện tại
 
-- **10 Sân tiêu chuẩn**: A01–A04 (ngoài trời - 200k/h), B01–B04 (trong nhà mái che - 300k/h), V01–V02 (VIP Lounge - 500k/h).
-- **20.400 Khung giờ sân**: 60 ngày (-45 ngày đến +14 ngày), bước 30 phút từ 06:00 đến 23:00.
-- **1.057 Đơn đặt sân**:
-  + 742 đơn `COMPLETED` (đã chơi xong, thanh toán 100%, ghi nhận doanh thu).
-  + 224 đơn `CONFIRMED` (171 đơn đã cọc 50%, 53 đơn thanh toán đủ).
-  + 5 đơn `CHECKED_IN` hôm nay (khách đang chơi trên sân, có thuê vợt và order nước tại quầy chờ thanh toán khi check-out).
-  + 27 đơn `CANCELLED` (trong đó 13 đơn có phiếu `refunds` hoàn lại cọc hợp lệ).
-  + 19 đơn `EXPIRED` (hết hạn giữ chỗ 15 phút).
-  + 40 đơn `HOLDING` (đang giữ chỗ, có đồng hồ đếm ngược).
-- **10 Nhân sự chuyên môn**:
-  + 4 Huấn luyện viên (ITF Level 2, cựu VĐV quốc gia, giá 200k–250k/h).
-  + 4 Trọng tài (VTF Level 1, trọng tài giải vô địch, giá 140k–180k/h).
-  + 2 Nhân viên nhặt bóng (80k/h).
-  + 20.400 ca trực, tổng hợp công trên đơn hoàn tất (tab Payroll) hiển thị chính xác số giờ và tiền công từng người.
-- **Doanh thu ròng**: Đạt **~418.000.000 VNĐ** (Tiền sân + Dịch vụ nước + Đồ thuê + HLV + Giải đấu).
-- **Dịch vụ quầy**: 12 loại đồ uống (Lavie, Pocari, Revive, Red Bull, Cocoxim, Monster...), 6 loại vợt và bóng (Wilson, Babolat, Head, Yonex).
-- **6 Giải đấu**: 4 giải kết thúc có bảng điểm bán kết/chung kết, 2 giải mở đăng ký đang nhận VĐV nộp lệ phí.
-- **20 Hội viên**: Gói Club & Plus với biên lai thu phí hội viên và quyền lợi giảm 10%–15%.
-- **15 Đánh giá / Feedback**: Phản hồi thực tế 5 sao từ người chơi.
+- 10 sân: 4 ngoài trời, 4 trong nhà, 2 VIP; khung giờ 30 phút.
+- Khoảng 1.050 đơn trải trên 60 ngày, đủ trạng thái giữ chỗ, xác nhận, đang chơi, hoàn tất, hủy và hết hạn.
+- 10 trọng tài, lịch làm việc và phân công theo từng slot 30 phút; đơn 1 giờ có 2 dòng phân công.
+- Thanh toán, hoàn tiền, 6 giải đấu, 20 hội viên và feedback để thử các luồng chính.
+- Không tạo đồ uống, thiết bị thuê hoặc dòng hàng hóa. Tổng đơn mẫu chỉ gồm tiền sân và trọng tài.
+
+### Ngừng dịch vụ phụ (V8)
+
+Backend tự chạy migration V8 trên database cũ: vô hiệu hóa danh mục đồ uống/thiết bị và chặn thêm dòng hàng hóa mới tại database. API bán hàng, thuê/trả thiết bị và quản lý các danh mục này đã được gỡ bỏ.
+
+Các bảng `drinks`, `rental_items`, `order_products` còn lại để đọc khoản thu lịch sử và giữ liên kết phiếu thu/đơn. Migration không xóa dòng cũ, không thay tổng tiền, khoản đã thu hoặc đã hoàn. Chi tiết đơn/phiếu thu cũ vẫn thể hiện khoản lịch sử; đơn mới không có phần này. Không nhập lại dữ liệu mẫu trên database vận hành.
 
 ## Nâng cấp lần sau
 

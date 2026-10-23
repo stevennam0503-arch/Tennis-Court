@@ -95,6 +95,7 @@ public class ScheduleService {
     List<StaffSchedule> result =
         ids.stream().sorted().map(id -> staffSchedules.findForUpdate(id).orElseThrow()).toList();
     for (var slot : result) {
+      require("REFEREE".equals(slot.getStaff().getType()), "Chỉ hỗ trợ dịch vụ trọng tài");
       require("ACTIVE".equals(slot.getStaff().getStatus()), "Nhân sự không hoạt động");
       require("AVAILABLE".equals(slot.getStatus()), "Nhân sự đã được phân công trong giờ này");
     }

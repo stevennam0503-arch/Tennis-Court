@@ -118,16 +118,14 @@ export default function ReportsPage() {
 
   // Value by categories on valid orders
   const courtValue = validOrders.flatMap(o => o.slots).reduce((a, s) => a + (s.price || 0), 0);
-  const drinkValue = validOrders.flatMap(o => o.products).filter(p => p.type === 'DRINK').reduce((a, p) => a + (p.lineTotal || 0), 0);
-  const rentalValue = validOrders.flatMap(o => o.products).filter(p => p.type === 'RENTAL').reduce((a, p) => a + (p.lineTotal || 0), 0);
+  const legacyValue = validOrders.flatMap(o => o.products).reduce((a,p) => a + (p.lineTotal || 0), 0);
   const staffValue = validOrders.flatMap(o => o.staff).reduce((a, s) => a + (s.hours || 1) * (s.rate || 0), 0);
-  const totalValue = courtValue + drinkValue + rentalValue + staffValue;
+  const totalValue = courtValue + legacyValue + staffValue;
 
   const categories = [
     ['Tiền thuê sân', courtValue],
-    ['Đồ uống & giải khát', drinkValue],
-    ['Dịch vụ thuê vợt / bóng', rentalValue],
-    ['Nhân sự (Trọng tài / HLV)', staffValue]
+    ['Trọng tài', staffValue],
+    ...(legacyValue ? [['Khoản dịch vụ cũ (lịch sử)', legacyValue]] : [])
   ];
   const maxCategory = Math.max(1, ...categories.map(x => x[1]));
 

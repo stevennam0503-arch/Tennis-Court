@@ -51,17 +51,4 @@ public class OrderController {
     return service.action(id, action, b, auth.current(r));
   }
 
-  @PostMapping("/orders/{id}/products/{lineId}/return")
-  public Map<String, Object> returned(
-      @PathVariable UUID id,
-      @PathVariable UUID lineId,
-      @RequestBody Map<String, Object> b,
-      HttpServletRequest r) {
-    return service.returned(id, lineId, b, auth.current(r));
-  }
-
-  @GetMapping("/orders/{id}/services")
-  public Map<String, Object> services(@PathVariable UUID id, HttpServletRequest r) {
-    return service.services(id, auth.current(r));
-  }
 }
