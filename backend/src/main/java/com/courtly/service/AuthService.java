@@ -119,8 +119,8 @@ public class AuthService {
     require(v instanceof String, "Mật khẩu không hợp lệ");
     String p = (String) v;
     require(
-        p.length() >= 12 && p.length() <= 128 && p.getBytes(StandardCharsets.UTF_8).length <= 72,
-        "Mật khẩu từ 12 ký tự, tối đa 72 byte UTF-8");
+        p.length() >= 8 && p.length() <= 128 && p.getBytes(StandardCharsets.UTF_8).length <= 72,
+        "Mật khẩu từ 8 ký tự, tối đa 72 byte UTF-8");
     return p;
   }
 
@@ -151,6 +151,27 @@ public class AuthService {
       require(tries[1] < 10, "Đã thử quá nhiều lần. Vui lòng thử lại sau 15 phút.");
       var found = accounts.findByEmailIgnoreCase(e);
       String supplied = String.valueOf(b.getOrDefault("password", ""));
+      if (found.isPresent() && "PENDING_ACTIVATION".equals(found.get().getStatus())) {
+        if (found.get().getPasswordHash() != null && encoder.matches(supplied, found.get().getPasswordHash())) {
+          String code = String.format("%06d", new java.security.SecureRandom().nextInt(1_000_000));
+          String activationKey = "activation:" + hash(code);
+          documents.put(
+              activationKey,
+              map(
+                  "documentKey", activationKey,
+                  "accountId", found.get().getId().toString(),
+                  "email", found.get().getEmail(),
+                  "code", code,
+                  "used", false,
+                  "expiresAt", Instant.now().plusSeconds(900).toString()));
+          emails.sendActivationEmail(found.get().getEmail(), found.get().getFullName(), code);
+          return map(
+              "requiresActivation", true,
+              "email", found.get().getEmail(),
+              "devCode", code,
+              "message", "Tài khoản của bạn chưa được kích hoạt. Mã OTP 6 số mới đã được gửi tới email.");
+        }
+      }
       if (found.isEmpty()
           || found.get().getPasswordHash() == null
           || !encoder.matches(supplied, found.get().getPasswordHash())
@@ -168,14 +189,85 @@ public class AuthService {
       require(
           accounts.findByEmailIgnoreCase(e).isEmpty(),
           "Email đã có tài khoản. Hãy đăng nhập hoặc liên hệ quầy.");
+      String phone = (String) b.getOrDefault("phone", "");
+      if (phone != null && !phone.isBlank()) {
+        phone = phone.trim().replaceAll("\\s+", "");
+        require(phone.matches("^0[0-9]{9}$"), "Số điện thoại không hợp lệ (cần 10 chữ số, bắt đầu bằng 0)");
+      } else if (Boolean.TRUE.equals(b.get("requireActivation"))) {
+        throw new BusinessException("Vui lòng cung cấp số điện thoại liên hệ để đặt sân");
+      }
       Account a = new Account();
       a.setFullName(text((String) b.get("name"), "Họ tên"));
       a.setEmail(e);
-      a.setPhone("");
+      a.setPhone(phone != null ? phone : "");
       a.setRole("CUSTOMER");
       a.setPasswordHash(encoder.encode(p));
-      accounts.saveAndFlush(a);
-      return signIn(a, req, res);
+
+      boolean requireAct = Boolean.TRUE.equals(b.get("requireActivation"));
+      if (requireAct) {
+        a.setStatus("PENDING_ACTIVATION");
+        accounts.saveAndFlush(a);
+
+        String code = String.format("%06d", new java.security.SecureRandom().nextInt(1_000_000));
+        String activationKey = "activation:" + hash(code);
+        documents.put(
+            activationKey,
+            map(
+                "documentKey", activationKey,
+                "accountId", a.getId().toString(),
+                "email", a.getEmail(),
+                "code", code,
+                "used", false,
+                "expiresAt", Instant.now().plusSeconds(900).toString()));
+
+        emails.sendActivationEmail(a.getEmail(), a.getFullName(), code);
+
+        return map(
+            "requiresActivation", true,
+            "email", a.getEmail(),
+            "devCode", code,
+            "message", "Mã kích hoạt OTP 6 số đã được gửi tới email " + a.getEmail() + ". Vui lòng nhập để hoàn tất đăng ký.");
+      } else {
+        a.setStatus("ACTIVE");
+        accounts.saveAndFlush(a);
+        return signIn(a, req, res);
+      }
+    }
+    if (action.equals("resend-activation")) {
+      String e = email(b.get("email"));
+      var found = accounts.findByEmailIgnoreCase(e);
+      if (found.isEmpty()) {
+        throw new BusinessException("Không tìm thấy tài khoản với email " + e);
+      }
+      Account a = found.get();
+      require("PENDING_ACTIVATION".equals(a.getStatus()), "Tài khoản đã được kích hoạt hoặc không ở trạng thái chờ kích hoạt.");
+
+      for (var old : documents.list("activation:")) {
+        if (a.getId().toString().equals(old.get("accountId")) && !Boolean.TRUE.equals(old.get("used"))) {
+          old.put("used", true);
+          if (old.get("documentKey") instanceof String k) documents.put(k, old);
+        }
+      }
+
+      String code = String.format("%06d", new java.security.SecureRandom().nextInt(1_000_000));
+      String activationKey = "activation:" + hash(code);
+      documents.put(
+          activationKey,
+          map(
+              "documentKey", activationKey,
+              "accountId", a.getId().toString(),
+              "email", a.getEmail(),
+              "code", code,
+              "used", false,
+              "expiresAt", Instant.now().plusSeconds(900).toString()));
+
+      emails.sendActivationEmail(a.getEmail(), a.getFullName(), code);
+
+      return map(
+          "success", true,
+          "email", a.getEmail(),
+          "devCode", code,
+          "message", "Mã kích hoạt OTP 6 số mới đã được gửi tới email " + a.getEmail());
     }
     if (action.equals("forgot-password")) {
       String e = email(b.get("email"));
@@ -246,19 +338,24 @@ public class AuthService {
       return signIn(a, req, res);
     }
     if (action.equals("activate")) {
-      String token = text((String) b.get("token"), "Mã kích hoạt"),
-          key = "activation:" + hash(token);
+      String token = text((String) b.getOrDefault("code", b.get("token")), "Mã kích hoạt").trim();
+      String key = "activation:" + hash(token);
       var row = documents.lock(key);
       var info = documents.read(row);
       require(
           info.containsKey("accountId")
               && !Boolean.TRUE.equals(info.get("used"))
               && Instant.parse((String) info.get("expiresAt")).isAfter(Instant.now()),
-          "Mã không hợp lệ, đã dùng hoặc hết hạn");
+          "Mã kích hoạt không đúng, đã dùng hoặc hết hạn (15 phút)");
       Account a =
           accounts.findForUpdate(UUID.fromString((String) info.get("accountId"))).orElseThrow();
-      require("ACTIVE".equals(a.getStatus()), "Tài khoản đã bị khóa");
-      a.setPasswordHash(encoder.encode(password(b.get("password"))));
+      require("ACTIVE".equals(a.getStatus()) || "PENDING_ACTIVATION".equals(a.getStatus()), "Tài khoản đã bị khóa");
+      if ("PENDING_ACTIVATION".equals(a.getStatus())) {
+        a.setStatus("ACTIVE");
+      }
+      if (b.containsKey("password") && b.get("password") != null && !String.valueOf(b.get("password")).isBlank()) {
+        a.setPasswordHash(encoder.encode(password(b.get("password"))));
+      }
       a.setAuthVersion(a.getAuthVersion() + 1);
       info.put("used", true);
       documents.save(row, info);

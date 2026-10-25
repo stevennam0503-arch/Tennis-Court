@@ -792,7 +792,7 @@
   "Đổi mật khẩu": "Change password",
   "Mật khẩu hiện tại": "Current password",
   "Mật khẩu mới": "New password",
-  "Từ 12 ký tự, tối đa 72 byte UTF-8.": "At least 12 characters, up to 72 UTF-8 bytes.",
+  "Từ 8 ký tự, tối đa 72 byte UTF-8.": "At least 8 characters, up to 72 UTF-8 bytes.",
   "Tạo tài khoản": "Create account",
   "Đặt lại mật khẩu": "Reset password",
   "Mã kích hoạt": "Activation code",

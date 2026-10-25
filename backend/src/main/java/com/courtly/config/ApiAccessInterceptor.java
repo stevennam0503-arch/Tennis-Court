@@ -26,6 +26,7 @@ public class ApiAccessInterceptor implements HandlerInterceptor {
     var a = auth.current(req);
     req.setAttribute("actor", a);
     boolean admin = "ADMIN".equals(a.getRole());
+    boolean staffOrAdmin = Set.of("ADMIN", "STAFF").contains(a.getRole());
     boolean cashDesk = (p.equals("/api/payments") && req.getMethod().equals("POST"))
         || (p.equals("/api/payments/cash-desk") && req.getMethod().equals("GET"));
     if (cashDesk) auth.cashier(a);
@@ -35,7 +36,7 @@ public class ApiAccessInterceptor implements HandlerInterceptor {
         || p.startsWith("/api/matches/")
         || p.matches("/api/tournaments/[^/]+/draw")
         || p.startsWith("/api/content")) auth.admin(a);
-    if (!admin && p.matches("/api/orders/[^/]+.*")) {
+    if (!staffOrAdmin && p.matches("/api/orders/[^/]+.*")) {
       String[] parts = p.split("/");
       var o =
           orders

@@ -116,7 +116,35 @@ export default function Booking() {
           <label className="gx-referee-toggle"><input type="checkbox" checked={wantReferee} disabled={!valid} onChange={e => {setWantReferee(e.target.checked); setRefId(''); req.current=requestId();}}/><UserRound aria-hidden="true"/><span><strong>{t('Thêm trọng tài')}</strong><small>{t(valid?'Chọn người hỗ trợ trong khoảng giờ bạn cần.':'Chọn đủ giờ chơi để xem trọng tài.')}</small></span><span className="gx-optional">{t('Không bắt buộc')}</span></label>
           {wantReferee && valid && (!user ? <Action secondary onClick={login}>{t('Đăng nhập để xem trọng tài')}</Action> : !options ? <p role="status">{t('Đang tải dữ liệu…')}</p> : <div className="gx-referee-panel">
             <div className="gx-time-select"><label>{t('Từ giờ')}<select aria-label={t('Từ giờ')} value={refStart} onChange={e => {setRefStart(e.target.value); if (toMinutes(refEnd) <= toMinutes(e.target.value)) setRefEnd(clock(end)); setRefId('');}}>{chosen.map(s => <option key={s.id} value={time(s.start)}>{time(s.start)}</option>)}</select></label><label>{t('Đến giờ')}<select aria-label={t('Đến giờ')} value={refEnd} onChange={e => {setRefEnd(e.target.value); setRefId('');}}>{chosen.filter(s => toMinutes(s.end)>toMinutes(refStart)).map(s => <option key={s.id} value={time(s.end)}>{time(s.end)}</option>)}</select></label></div>
-            <div className="gx-referees">{people.map(p => <button key={p.id} type="button" className={refId===p.id?'gx-selected':''} aria-pressed={refId===p.id} onClick={() => {setRefId(p.id); req.current=requestId();}}><span className="gx-ref-avatar"><UserRound/></span><strong>{p.name}</strong><small>{p.level||t('Trọng tài câu lạc bộ')}</small><b>{money(p.rate)} / {t('giờ')}</b>{refId===p.id && <Check size={18}/>}</button>)}</div>
+            <div className="gx-referees">
+              {people.map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={refId===p.id?'gx-selected gx-ref-card':'gx-ref-card'}
+                  aria-pressed={refId===p.id}
+                  onClick={() => {setRefId(p.id); req.current=requestId();}}
+                >
+                  <div className="gx-ref-top">
+                    <span className="gx-ref-avatar"><UserRound size={20}/></span>
+                    <div className="gx-ref-meta">
+                      <strong>{p.name}</strong>
+                      <span className="gx-ref-badge">{p.level?.split('·')?.[0]?.trim() || t('Trọng tài CLB')}</span>
+                    </div>
+                  </div>
+                  <p className="gx-ref-desc">{p.level?.split('·')?.slice(1)?.join('·')?.trim() || t('Đạt chuẩn điều hành thi đấu')}</p>
+                  <div className="gx-ref-foot">
+                    <b className="gx-ref-rate">{money(p.rate)} <small>/ {t('giờ')}</small></b>
+                    {refId===p.id ? <span className="gx-ref-chosen"><Check size={16}/> {t('Đã chọn')}</span> : <span className="gx-ref-pick">{t('Chọn')}</span>}
+                  </div>
+                </button>
+              ))}
+            </div>
+            {referee && (
+              <div className="gx-notice" style={{marginTop: 14, background: '#f2f8eb', borderColor: '#b5d3a6'}}>
+                ✓ {t('Đã chọn')} <b>{referee.name}</b>. {t('Trọng tài sẽ có mặt trước giờ bắt đầu 10 phút để kiểm tra sân, lưới và phổ biến điều lệ thi đấu.')}
+              </div>
+            )}
             {!people.length && <Empty>{t('Không có trọng tài rảnh toàn khoảng này. Hãy đổi giờ hoặc bỏ dịch vụ.')}</Empty>}
           </div>)}
         </section>

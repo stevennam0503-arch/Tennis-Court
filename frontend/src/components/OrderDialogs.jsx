@@ -25,17 +25,82 @@ export function OrderDetail({id,onClose}) {
   const {data,show,mutate,notify}=useCourtly();
   const o=data.orders.find(x=>x.id===id);
   if(!o) return null;
+  const acc=data.accounts?.find(a=>a.id===o.accountId);
   const doAction=async (op,body={})=>{try{await mutate(`/orders/${id}/${op}`,body);notify('Đã cập nhật đơn');}catch(e){notify(e.message);}};
-  return <Modal title="Chi tiết đơn đặt sân" onClose={onClose} wide footer={<>{o.status==='CONFIRMED'&&<Button className="primary" onClick={()=>show({type:'check-in',id})}>Check-in</Button>}{o.status==='CHECKED_IN'&&<Button className="primary" onClick={()=>doAction('check-out')}>Check-out</Button>}{active(o)&&o.paid<o.total&&<Button className="lime" onClick={()=>show({type:'payment',id})}>Thu tiền</Button>}</>}>
-    <div className="detail-head"><div style={{display:'flex',justifyContent:'space-between'}}><h2>{o.name}</h2><Chip status={o.status}/></div><small>{o.id} • {o.phone}</small></div>
-    <div className="detail-grid"><div><span>Ngày sử dụng</span>{o.date}</div><div><span>Khách hàng</span>{o.accountId?'Đã có tài khoản':'Khách lẻ tại quầy'}</div>{o.status==='HOLDING'&&<><div><span>Hạn giữ chỗ</span>{new Date(o.holdUntil).toLocaleTimeString('vi-VN')}</div><div><span>Cọc yêu cầu</span>{money(o.deposit)}</div></>}{o.checkInAt&&<div><span>Check-in</span>{new Date(o.checkInAt).toLocaleString('vi-VN')}</div>}{o.checkOutAt&&<div><span>Check-out</span>{new Date(o.checkOutAt).toLocaleString('vi-VN')}</div>}</div>
-    <h3>Khung giờ sân</h3>{o.slots.map(s=><div className="order-line" key={s.id}><span>{data.courts.find(c=>c.id===s.court)?.name} • {slotLabel(s)}</span><b>{money(s.price)}</b></div>)}
+
+  return <Modal title={`Chi tiết đơn đặt sân #${o.id.slice(0,8)}`} onClose={onClose} wide footer={<>
+    {o.status==='HOLDING'&&<Button className="lime" onClick={()=>show({type:'payment',id})}>Thu cọc tại quầy ({money(o.deposit)})</Button>}
+    {o.status==='CONFIRMED'&&<Button className="primary" onClick={()=>show({type:'check-in',id})}>Thực hiện Check-in vào sân</Button>}
+    {o.status==='CHECKED_IN'&&<Button className="primary" onClick={()=>doAction('check-out')}>Check-out & Hoàn tất</Button>}
+    {active(o)&&o.paid<o.total&&o.status!=='HOLDING'&&<Button className="lime" onClick={()=>show({type:'payment',id})}>Thu nốt tiền ({money(o.total-o.paid)})</Button>}
+    {!['HOLDING','CANCELLED','EXPIRED'].includes(o.status)&&<Button onClick={async()=>{await doAction('invoice');show({type:'invoice',id});}}>In phiếu thu</Button>}
+    <Button onClick={onClose}>Đóng</Button>
+  </>}>
+    <div className="order-lifecycle-bar" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, margin: '0 0 18px', padding: '12px 14px', background: '#f8faf7', borderRadius: 8, border: '1px solid #dce4d6' }}>
+      <div style={{ textAlign: 'center', opacity: ['HOLDING', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED'].includes(o.status) ? 1 : 0.4 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: o.status === 'HOLDING' ? '#b45309' : '#173c32' }}>1. GIỮ CHỖ</span>
+        <small style={{ display: 'block', fontSize: 10, color: '#666', marginTop: 2 }}>{o.status === 'HOLDING' ? 'Đang giữ 5p' : '✓ Đã tạo đơn'}</small>
+      </div>
+      <div style={{ textAlign: 'center', opacity: ['CONFIRMED', 'CHECKED_IN', 'COMPLETED'].includes(o.status) ? 1 : 0.4 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: o.status === 'CONFIRMED' ? '#15803d' : '#173c32' }}>2. ĐÃ CỌC (50%)</span>
+        <small style={{ display: 'block', fontSize: 10, color: '#666', marginTop: 2 }}>{o.paid >= o.deposit ? `✓ ${money(o.deposit)}` : 'Chờ cọc'}</small>
+      </div>
+      <div style={{ textAlign: 'center', opacity: ['CHECKED_IN', 'COMPLETED'].includes(o.status) ? 1 : 0.4 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: o.status === 'CHECKED_IN' ? '#2563eb' : '#173c32' }}>3. CHECK-IN</span>
+        <small style={{ display: 'block', fontSize: 10, color: '#666', marginTop: 2 }}>{o.checkInAt ? new Date(o.checkInAt).toLocaleTimeString('vi-VN') : 'Chưa vào sân'}</small>
+      </div>
+      <div style={{ textAlign: 'center', opacity: o.status === 'COMPLETED' ? 1 : 0.4 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: o.status === 'COMPLETED' ? '#173c32' : '#666' }}>4. HOÀN TẤT</span>
+        <small style={{ display: 'block', fontSize: 10, color: '#666', marginTop: 2 }}>{o.checkOutAt ? new Date(o.checkOutAt).toLocaleTimeString('vi-VN') : 'Check-out'}</small>
+      </div>
+    </div>
+
+    <div className="detail-head">
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <h2>{o.name}</h2>
+        <Chip status={o.status}/>
+      </div>
+      <small style={{display:'block',marginTop:4}}>Mã đơn: <b>{o.id}</b> • Điện thoại: <b>{o.phone || acc?.phone || 'Chưa cung cấp'}</b> • Email: <b>{acc?.email || 'Khách vãng lai tại quầy'}</b></small>
+    </div>
+
+    {o.status==='HOLDING' && (
+      <div className="notice" style={{marginTop:12, background:'#fffbeb', borderColor:'#fde68a', color:'#92400e'}}>
+        ⏳ <b>Đơn đang trong thời hạn giữ chỗ:</b> Hạn thanh toán cọc đến {new Date(o.holdUntil).toLocaleTimeString('vi-VN')}. Nếu khách không cọc hoặc quầy không xác nhận, hệ thống sẽ tự động giải phóng sân.
+      </div>
+    )}
+    {o.status==='CONFIRMED' && (
+      <div className="notice" style={{marginTop:12, background:'#f0fdf4', borderColor:'#bbf7d0', color:'#166534'}}>
+        ✓ <b>Lịch đặt đã được xác nhận</b> (Đã cọc {money(o.paid)}). Lễ tân kiểm tra thẻ hội viên/thông tin và bấm <b>"Thực hiện Check-in vào sân"</b> khi khách tới.
+      </div>
+    )}
+    {o.status==='CHECKED_IN' && (
+      <div className="notice" style={{marginTop:12, background:'#eff6ff', borderColor:'#bfdbfe', color:'#1e40af'}}>
+        🎾 <b>Khách đang chơi trên sân</b> (Check-in lúc {new Date(o.checkInAt).toLocaleTimeString('vi-VN')}). Khi hết giờ, kiểm tra sân và bấm <b>"Check-out & Hoàn tất"</b>.
+      </div>
+    )}
+    {o.status==='COMPLETED' && (
+      <div className="notice" style={{marginTop:12, background:'#f8fafc', borderColor:'#e2e8f0', color:'#475569'}}>
+        ✓ <b>Buổi chơi đã hoàn tất</b> (Check-out lúc {o.checkOutAt ? new Date(o.checkOutAt).toLocaleTimeString('vi-VN') : 'Đúng giờ'}).
+      </div>
+    )}
+
+    <div className="detail-grid" style={{marginTop:14}}>
+      <div><span>Ngày chơi</span><b>{o.date}</b></div>
+      <div><span>Phân loại khách</span><b>{o.accountId?'Tài khoản thành viên':'Khách lẻ tại quầy'}</b></div>
+      {o.status==='HOLDING'&&<><div><span>Hạn giữ chỗ</span><b>{new Date(o.holdUntil).toLocaleTimeString('vi-VN')}</b></div><div><span>Cọc yêu cầu</span><b>{money(o.deposit)}</b></div></>}
+      {o.checkInAt&&<div><span>Thời gian Check-in</span><b>{new Date(o.checkInAt).toLocaleString('vi-VN')}</b></div>}
+      {o.checkOutAt&&<div><span>Thời gian Check-out</span><b>{new Date(o.checkOutAt).toLocaleString('vi-VN')}</b></div>}
+    </div>
+
+    <h3 style={{marginTop:20}}>Khung giờ sân</h3>
+    {o.slots.map(s=><div className="order-line" key={s.id}><span>{data.courts.find(c=>c.id===s.court)?.name} • {slotLabel(s)}</span><b>{money(s.price)}</b></div>)}
     {o.products.length>0&&<details><summary>Khoản thu lịch sử trước khi ngừng dịch vụ</summary>{o.products.map(p=><div className="order-line" key={p.id}><span>{p.name} × {p.quantity}</span><b>{money(p.lineTotal)}</b></div>)}</details>}
     <h3 style={{marginTop:20}}>Trọng tài</h3><StaffLines order={o}/><FinancialSummary order={o}/>
     <div style={{marginTop:20}}><div className="summary-line total"><span>Tổng tiền</span><b>{money(o.total)}</b></div><div className="summary-line"><span>Đã thu (trừ hoàn)</span><b>{money(o.paid)}</b></div><div className="summary-line"><span>{['CANCELLED','EXPIRED'].includes(o.status)?'Không thu thêm':'Còn phải thu'}</span><b>{money(['CANCELLED','EXPIRED'].includes(o.status)?0:Math.max(0,o.total-o.paid))}</b></div></div>
-    <div className="step-row no-print">{active(o)&&<><Button className="sm" onClick={()=>show({type:'assign-staff',id})}>Chọn trọng tài</Button></>}{!['HOLDING','CANCELLED','EXPIRED'].includes(o.status)&&<Button className="sm" onClick={async()=>{await doAction('invoice');show({type:'invoice',id});}}>In phiếu thu</Button>}</div>
-    <OrderActions order={o} details={false}/><div className="step-row"><Button className="sm" onClick={()=>show({type:'financial-review',id})}>Đối chiếu / khoản cần hoàn</Button>{['EXPIRED','CANCELLED'].includes(o.status)&&<><Button className="sm" onClick={()=>show({type:'restore',id})}>Kiểm tra khôi phục / đổi lịch</Button><Button className="sm" onClick={()=>show({type:'payment',id})}>Ghi tiền đến muộn</Button></>}</div>
-    <details className="history-details"><summary>Lịch sử cập nhật đơn</summary><OrderTimeline order={o} courts={data.courts}/></details>
+    <div className="step-row no-print" style={{marginTop:16}}>{active(o)&&<><Button className="sm" onClick={()=>show({type:'assign-staff',id})}>Chọn trọng tài</Button></>}{!['HOLDING','CANCELLED','EXPIRED'].includes(o.status)&&<Button className="sm" onClick={async()=>{await doAction('invoice');show({type:'invoice',id});}}>In phiếu thu</Button>}</div>
+    <OrderActions order={o} details={false}/>
+    <div className="step-row" style={{marginTop:10}}><Button className="sm" onClick={()=>show({type:'financial-review',id})}>Đối chiếu / khoản cần hoàn</Button>{['EXPIRED','CANCELLED'].includes(o.status)&&<><Button className="sm" onClick={()=>show({type:'restore',id})}>Kiểm tra khôi phục / đổi lịch</Button><Button className="sm" onClick={()=>show({type:'payment',id})}>Ghi tiền đến muộn</Button></>}</div>
+    <details className="history-details" style={{marginTop:16}}><summary>Lịch sử cập nhật đơn</summary><OrderTimeline order={o} courts={data.courts}/></details>
   </Modal>;
 }
 export function OrderActionDialog({type,id,onClose}) {

@@ -13,6 +13,11 @@ export function PaymentDialog({intent,onClose}){
   const [error,setError]=useState('');
 
 
+  const fallbackVietQrUrl = current.amount && current.reference
+    ? `https://img.vietqr.io/image/${current.bankBin || '970422'}-${current.accountNumber || '0345678999'}-compact2.png?amount=${current.amount}&addInfo=${current.reference}&accountName=${encodeURIComponent(current.accountName || 'CLB TENNIS COURTLY')}`
+    : null;
+  const qrSrc = qr || current.qrImageUrl || fallbackVietQrUrl;
+
   // Generate standard VietQR QR canvas from EMVCo payload
   useEffect(()=>{
     if(current.qrPayload){
@@ -118,11 +123,19 @@ export function PaymentDialog({intent,onClose}){
         <State value={current.status}/>
       </div>
 
-      <p className="gx-notice">{t('Chỉ ngân hàng xác minh tiền chuyển khoản. Nút thông báo đã chuyển tiền không xác nhận thu tiền và không gia hạn giữ chỗ.')}</p>
+      <p className="gx-notice" style={{fontSize:12.5, lineHeight:1.5, color:'#475569', background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:6, padding:'10px 14px', margin:'0 0 12px'}}>
+        {t('Vui lòng quét mã VietQR hoặc chuyển khoản đúng nội dung bên dưới. Sau khi ngân hàng xác nhận giao dịch, hệ thống sẽ tự động đối soát và cấp Vé Điện Tử.')}
+      </p>
       {/* VietQR Display */}
       <div className="gx-qr" style={{textAlign:'center',margin:'10px 0'}}>
-        {qr ? (
-          <img src={qr} width="240" height="240" alt="Mã VietQR thanh toán" style={{borderRadius:6}}/>
+        {qrSrc ? (
+          <img
+            src={qrSrc}
+            width="240"
+            height="240"
+            alt="Mã VietQR thanh toán"
+            style={{borderRadius:8, border:'1px solid #e2e8f0', boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}}
+          />
         ) : (
           <Empty>{t('Đang tạo mã VietQR...')}</Empty>
         )}
@@ -175,29 +188,94 @@ export function PaymentDialog({intent,onClose}){
 
       {error&&<div className="gx-error" role="alert" style={{marginBottom:10}}>{t(error)}</div>}
 
-      {/* Action Buttons */}
-      <div style={{display:'grid',gap:8}}>
-        {['PENDING','CHECKING'].includes(current.status)&&(
-          <button
-            type="button"
-            disabled={busy}
-            onClick={()=>action('declared')}
-            style={{background:'#fffefa',border:'1px solid #bfc7ba',borderRadius:4,padding:'9px',fontSize:12,cursor:'pointer'}}
-          >
-            {t('Tôi đã chuyển khoản (Chờ đối soát)')}
-          </button>
-        )}
+      {/* Realtime Waiting Indicator for Customer */}
+      {['PENDING','CHECKING'].includes(current.status)&&(
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+          padding: '12px 16px',
+          background: '#f0fdf4',
+          border: '1.5px solid #86efac',
+          borderRadius: 8,
+          marginBottom: 12
+        }}>
+          <span style={{
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: '#16a34a',
+            display: 'inline-block'
+          }}/>
+          <span style={{ fontSize: 13, color: '#166534', fontWeight: 600 }}>
+            {t('Đang lắng nghe biến động số dư từ MB Bank… (Tự động xác nhận)')}
+          </span>
+        </div>
+      )}
 
-        <Action secondary onClick={onClose}>{t('Đóng')}</Action>
-      </div>
+      {/* Presentation & Thesis Defense Simulation Tool */}
+      {['PENDING','CHECKING'].includes(current.status)&&(
+        <details style={{
+          background: '#f8fafc',
+          border: '1px dashed #94a3b8',
+          borderRadius: 8,
+          padding: '10px 14px',
+          marginBottom: 14,
+          textAlign: 'left'
+        }}>
+          <summary style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: '#334155',
+            cursor: 'pointer',
+            userSelect: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
+          }}>
+            ⚡ {t('Công cụ Demo Hội đồng: Giả lập Ngân hàng gửi Webhook')}
+          </summary>
+          <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #e2e8f0', fontSize: 12, color: '#475569' }}>
+            <p style={{ margin: '0 0 10px', lineHeight: 1.5 }}>
+              {t('Ngoài đời thực, khi khách chuyển tiền, MB Bank sẽ tự động bắn Webhook về endpoint /api/webhooks/sepay. Nhấn nút bên dưới để mô phỏng tín hiệu Webhook ngân hàng bắn về Server:')}
+            </p>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={()=>action('sandbox', { scenario: 'SUCCESS' })}
+              style={{
+                width: '100%',
+                background: '#173c32',
+                color: '#def46a',
+                border: 'none',
+                borderRadius: 6,
+                padding: '11px',
+                fontSize: 12.5,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                boxShadow: '0 2px 6px rgba(23,60,50,0.15)'
+              }}
+            >
+              {busy ? t('Đang phát tín hiệu Webhook…') : `⚡ ${t('Giả lập MB Bank chuyển đủ')} (${money(current.amount)})`}
+            </button>
+          </div>
+        </details>
+      )}
+
+      <Action secondary onClick={onClose}>{t('Đóng')}</Action>
     </div>
   );
 }
 
 export function PaymentChoice({onChoose}){
  const {t}=useGuest();const [busy,setBusy]=useState(false),[online,setOnline]=useState(null);
- useEffect(()=>{let live=true;api('/public/payment-config').then(c=>{if(live)setOnline(c.onlineEnabled&&c.bankConfigured)}).catch(()=>{if(live)setOnline(false)});return()=>{live=false}},[]);
- return <div className="gx-form"><h2>{t('Chọn phương thức thanh toán')}</h2><p>{t('Tiền chỉ được ghi nhận khi nhân viên thu tiền mặt hoặc ngân hàng gửi xác minh chuyển khoản.')}</p><Action disabled={busy||!online} onClick={async()=>{setBusy(true);try{await onChoose('BANK_TRANSFER')}finally{setBusy(false)}}}>{t('Chuyển khoản VietQR')}</Action>{online===false&&<p>{t('Chuyển khoản hiện chưa khả dụng. Vui lòng thanh toán tại quầy.')}</p>}<Action secondary disabled={busy} onClick={()=>onChoose('CASH')}>{t('Tiền mặt tại quầy')}</Action></div>;
+ useEffect(()=>{let live=true;api('/public/payment-config').then(c=>{if(live)setOnline(Boolean(c.onlineEnabled&&c.bankConfigured))}).catch(()=>{if(live)setOnline(false)});return()=>{live=false}},[]);
+ return <div className="gx-form"><h2>{t('Chọn phương thức thanh toán')}</h2><p>{t('Tiền chỉ được ghi nhận khi nhân viên thu tiền mặt hoặc ngân hàng gửi xác minh chuyển khoản.')}</p><Action disabled={busy||online===false} onClick={async()=>{setBusy(true);try{await onChoose('BANK_TRANSFER')}finally{setBusy(false)}}}>{t('Chuyển khoản VietQR')}</Action>{online===false&&<p>{t('Chuyển khoản hiện chưa khả dụng. Vui lòng thanh toán tại quầy.')}</p>}<Action secondary disabled={busy} onClick={()=>onChoose('CASH')}>{t('Tiền mặt tại quầy')}</Action></div>;
 }
 
 export default function Payments(){

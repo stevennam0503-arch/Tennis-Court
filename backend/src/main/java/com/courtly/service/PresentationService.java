@@ -186,7 +186,7 @@ public class PresentationService {
 
     v.putAll(membership.view(viewer));
     v.put("viewer", auth.user(viewer));
-    if ("ADMIN".equals(viewer.getRole())) return v;
+    if (Set.of("ADMIN", "STAFF").contains(viewer.getRole())) return v;
     var mine =
         rows(v, "orders").stream().filter(o -> same(o.get("accountId"), viewer.getId())).toList();
     var mineRegs = regs.stream().filter(r -> same(r.get("accountId"), viewer.getId())).toList();

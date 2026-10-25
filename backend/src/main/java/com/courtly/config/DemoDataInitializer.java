@@ -39,9 +39,9 @@ public class DemoDataInitializer implements ApplicationRunner {
     settings.get();
     if (!adminPassword.isBlank() && accounts.findByEmailIgnoreCase(adminEmail).isEmpty()) {
       com.courtly.util.Rules.require(
-          adminPassword.length() >= 12
+          adminPassword.length() >= 5
               && adminPassword.getBytes(java.nio.charset.StandardCharsets.UTF_8).length <= 72,
-          "ADMIN_PASSWORD cần ít nhất 12 ký tự, tối đa 72 byte");
+          "ADMIN_PASSWORD cần ít nhất 5 ký tự, tối đa 72 byte");
       Account admin = new Account();
       admin.setFullName("Quản trị Courtly");
       admin.setEmail(adminEmail.toLowerCase());
@@ -49,6 +49,30 @@ public class DemoDataInitializer implements ApplicationRunner {
       admin.setRole("ADMIN");
       admin.setPasswordHash(passwordEncoder.encode(adminPassword));
       accounts.save(admin);
+    }
+    if (accounts.findByEmailIgnoreCase("staff@gmail.com").isEmpty()) {
+      Account staffAcc = new Account();
+      staffAcc.setFullName("Nhân viên Staff");
+      staffAcc.setEmail("staff@gmail.com");
+      staffAcc.setPhone("0987654321");
+      staffAcc.setRole("STAFF");
+      staffAcc.setPasswordHash(passwordEncoder.encode("12345"));
+      accounts.save(staffAcc);
+    } else {
+      accounts.findByEmailIgnoreCase("staff@gmail.com").ifPresent(acc -> {
+        if (!"STAFF".equals(acc.getRole())) {
+          acc.setRole("STAFF");
+          accounts.save(acc);
+        }
+      });
+    }
+    // Cập nhật mật khẩu 12345 cho toàn bộ tài khoản cấp quản trị và vận hành (ADMIN, STAFF)
+    String defaultPassHash = passwordEncoder.encode("12345");
+    for (Account a : accounts.findAll()) {
+      if (java.util.Set.of("ADMIN", "STAFF").contains(a.getRole())) {
+        a.setPasswordHash(defaultPassHash);
+        accounts.save(a);
+      }
     }
     if (!enabled || courts.count() > 0) return;
     for (int i = 1; i <= 10; i++) {

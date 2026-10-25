@@ -30,10 +30,10 @@ spring:
     default-property-inclusion: non_null
 courtly:
   payment:
-    mode: ${PAYMENT_MODE:MANUAL}
-    bank-bin: ${PAYMENT_BANK_BIN:}
-    account-number: ${PAYMENT_ACCOUNT_NUMBER:}
-    account-name: ${PAYMENT_ACCOUNT_NAME:}
+    mode: ${PAYMENT_MODE:DEMO}
+    bank-bin: ${PAYMENT_BANK_BIN:970422}
+    account-number: ${PAYMENT_ACCOUNT_NUMBER:0345678999}
+    account-name: ${PAYMENT_ACCOUNT_NAME:CLB TENNIS COURTLY}
     webhook-key: ${SEPAY_WEBHOOK_KEY:}
   admin-email: ${ADMIN_EMAIL:admin@gmail.com}
   admin-password: ${ADMIN_PASSWORD:}

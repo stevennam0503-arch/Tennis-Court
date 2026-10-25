@@ -38,9 +38,10 @@ function PasswordField({ id, label, value, onChange, placeholder, required = tru
 
 export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = false, initialMode = 'login', initialToken = '' }) {
   const [mode, setMode] = useState(initialMode);
-  const [values, setValues] = useState({ email: '', password: '', confirm: '', name: '', token: initialToken, code: '' });
+  const [values, setValues] = useState({ email: '', password: '', confirm: '', name: '', phone: '', token: initialToken, code: '' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [devCode, setDevCode] = useState('');
   const [busy, setBusy] = useState(false);
 
   const titles = {
@@ -49,6 +50,7 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
     forgot: 'Quên mật khẩu',
     reset: 'Đặt lại mật khẩu',
     activate: 'Kích hoạt / Đặt lại mật khẩu',
+    'activate-otp': 'Kích hoạt tài khoản Courtly',
     'owner-activate': 'Thiết lập tài khoản của bạn'
   };
 
@@ -58,6 +60,7 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
     setMode(next);
     setError('');
     setSuccess('');
+    setDevCode('');
     setValues(v => ({ ...v, password: '', confirm: '' }));
   };
 
@@ -73,6 +76,7 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
       setSuccess(res.message || 'Mã xác nhận đã được gửi về email của bạn.');
       if (res.code) {
         set('code', res.code);
+        setDevCode(res.code);
       }
       setMode('reset');
     } catch (e) {
@@ -88,9 +92,21 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
     setSuccess('');
     setBusy(true);
     try {
-      const res = await api('/auth/forgot-password', 'POST', { email: values.email.trim() });
-      setSuccess('Đã gửi lại mã xác nhận mới đến email của bạn.');
-      if (res.code) set('code', res.code);
+      if (mode === 'activate-otp') {
+        const res = await api('/auth/resend-activation', 'POST', { email: values.email.trim() });
+        setSuccess('Đã gửi lại mã kích hoạt mới đến email của bạn.');
+        if (res.devCode) {
+          setDevCode(res.devCode);
+          set('code', res.devCode);
+        }
+      } else {
+        const res = await api('/auth/forgot-password', 'POST', { email: values.email.trim() });
+        setSuccess('Đã gửi lại mã xác nhận mới đến email của bạn.');
+        if (res.code) {
+          setDevCode(res.code);
+          set('code', res.code);
+        }
+      }
     } catch (e) {
       setError(e.message);
     } finally {
@@ -104,20 +120,61 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
     setError('');
     if (mode === 'forgot') return handleForgotPassword(e);
 
+    if (mode === 'register') {
+      const p = values.phone.trim().replace(/\s+/g, '');
+      if (!/^0[0-9]{9}$/.test(p)) {
+        return setError('Số điện thoại không hợp lệ (cần đúng 10 chữ số, bắt đầu bằng số 0).');
+      }
+    }
+
     if (['register', 'reset', 'activate', 'owner-activate'].includes(mode) && values.password !== values.confirm) {
       return setError('Hai mật khẩu chưa trùng nhau.');
     }
 
     setBusy(true);
     try {
+      if (mode === 'register') {
+        const res = await api('/auth/register', 'POST', {
+          ...values,
+          phone: values.phone.trim().replace(/\s+/g, ''),
+          requireActivation: true
+        });
+        if (res.requiresActivation) {
+          setMode('activate-otp');
+          setSuccess(res.message || 'Mã OTP 6 số đã được gửi về email.');
+          if (res.devCode) {
+            setDevCode(res.devCode);
+            set('code', res.devCode);
+          }
+          return;
+        }
+        await onSuccess(res);
+        return;
+      }
+
+      if (mode === 'activate-otp') {
+        const session = await api('/auth/activate', 'POST', { code: values.code.trim() });
+        await onSuccess(session);
+        return;
+      }
+
       let endpoint = `/auth/${mode}`;
       let payload = values;
       if (mode === 'reset') {
         endpoint = '/auth/reset-password';
         payload = { code: values.code.trim() || values.token.trim(), password: values.password };
       }
-      const session = await api(endpoint, 'POST', payload);
-      await onSuccess(session);
+      const res = await api(endpoint, 'POST', payload);
+      if (res.requiresActivation) {
+        setMode('activate-otp');
+        setSuccess(res.message || 'Tài khoản chưa được kích hoạt. Vui lòng nhập mã OTP.');
+        if (res.devCode) {
+          setDevCode(res.devCode);
+          set('code', res.devCode);
+        }
+        return;
+      }
+      await onSuccess(res);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -131,7 +188,9 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
         {mode === 'login'
           ? 'Dùng email và mật khẩu Courtly. Sau đăng nhập, bạn sẽ được đưa đến không gian phù hợp với tài khoản.'
           : mode === 'register'
-          ? 'Tạo tài khoản để đặt sân, thuê dịch vụ và tham gia giải đấu.'
+          ? 'Tạo tài khoản để đặt sân, thuê trọng tài và tham gia các giải đấu CLB.'
+          : mode === 'activate-otp'
+          ? `Mã kích hoạt OTP 6 số đã được gửi đến ${values.email}. Vui lòng kiểm tra hộp thư và nhập mã bên dưới để hoàn tất đăng ký.`
           : mode === 'forgot'
           ? 'Nhập email đã đăng ký. Hệ thống sẽ gửi mã xác nhận 6 số để bạn đặt mật khẩu mới.'
           : mode === 'reset'
@@ -145,18 +204,33 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
 
       <form onSubmit={submit} className="auth-fields">
         {mode === 'register' && (
-          <div className="field">
-            <label htmlFor="auth-name">Họ và tên</label>
-            <input
-              id="auth-name"
-              autoComplete="name"
-              required
-              maxLength={100}
-              placeholder="Ví dụ: Nguyễn Văn A"
-              value={values.name}
-              onChange={e => set('name', e.target.value)}
-            />
-          </div>
+          <>
+            <div className="field">
+              <label htmlFor="auth-name">Họ và tên</label>
+              <input
+                id="auth-name"
+                autoComplete="name"
+                required
+                maxLength={100}
+                placeholder="Ví dụ: Nguyễn Văn A"
+                value={values.name}
+                onChange={e => set('name', e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="auth-phone">Số điện thoại liên hệ (để xác nhận đặt sân)</label>
+              <input
+                id="auth-phone"
+                type="tel"
+                autoComplete="tel"
+                required
+                maxLength={15}
+                placeholder="Ví dụ: 0912345678 (10 số, bắt đầu số 0)"
+                value={values.phone}
+                onChange={e => set('phone', e.target.value)}
+              />
+            </div>
+          </>
         )}
 
         {['login', 'register', 'forgot'].includes(mode) && (
@@ -175,6 +249,54 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
           </div>
         )}
 
+        {mode === 'activate-otp' && (
+          <>
+            <div className="field">
+              <label htmlFor="auth-activate-email">Email đăng ký</label>
+              <input
+                id="auth-activate-email"
+                type="email"
+                value={values.email}
+                readOnly
+                disabled
+                style={{ background: '#f5f7f5', color: '#555' }}
+              />
+            </div>
+
+            {devCode && (
+              <div style={{ background: '#f0fdf4', border: '1px dashed #86efac', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <div>
+                  <small style={{ display: 'block', color: '#166534', fontWeight: 600 }}>Thử nghiệm / Demo đồ án:</small>
+                  <span style={{ fontSize: 13, color: '#14532d' }}>Mã kích hoạt OTP: <strong style={{ letterSpacing: 2, fontSize: 15, fontFamily: 'monospace' }}>{devCode}</strong></span>
+                </div>
+                <button type="button" className="btn sm" style={{ whiteSpace: 'nowrap' }} onClick={() => set('code', devCode)}>
+                  Điền nhanh
+                </button>
+              </div>
+            )}
+
+            <div className="field">
+              <label htmlFor="auth-otp-code">Mã kích hoạt OTP 6 số (gửi về email)</label>
+              <input
+                id="auth-otp-code"
+                autoComplete="one-time-code"
+                required
+                maxLength={12}
+                placeholder="Nhập mã 6 chữ số"
+                value={values.code}
+                onChange={e => set('code', e.target.value.trim())}
+                style={{ fontSize: '20px', letterSpacing: '4px', fontWeight: 'bold', textAlign: 'center' }}
+              />
+              <div className="auth-resend">
+                <small>Mã có hiệu lực trong 15 phút.</small>
+                <button type="button" className="btn sm" disabled={busy} onClick={handleResend}>
+                  Gửi lại mã OTP
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
         {mode === 'reset' && (
           <>
             <div className="field">
@@ -188,6 +310,19 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
                 style={{ background: '#f5f7f5', color: '#555' }}
               />
             </div>
+
+            {devCode && (
+              <div style={{ background: '#f0fdf4', border: '1px dashed #86efac', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <div>
+                  <small style={{ display: 'block', color: '#166534', fontWeight: 600 }}>Thử nghiệm / Demo đồ án:</small>
+                  <span style={{ fontSize: 13, color: '#14532d' }}>Mã xác nhận: <strong style={{ letterSpacing: 2, fontSize: 15, fontFamily: 'monospace' }}>{devCode}</strong></span>
+                </div>
+                <button type="button" className="btn sm" style={{ whiteSpace: 'nowrap' }} onClick={() => set('code', devCode)}>
+                  Điền nhanh
+                </button>
+              </div>
+            )}
+
             <div className="field">
               <label htmlFor="auth-code">Mã xác nhận 6 số (gửi về email)</label>
               <input
@@ -224,18 +359,18 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
           </div>
         )}
 
-        {mode !== 'forgot' && (
+        {!['forgot', 'activate-otp'].includes(mode) && (
           <PasswordField
             id="auth-password"
             label={mode === 'login' ? 'Mật khẩu' : 'Mật khẩu mới'}
             required
-            minLength={mode === 'login' ? undefined : 12}
+            minLength={mode === 'login' ? undefined : 8}
             maxLength={128}
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             placeholder="Nhập mật khẩu của bạn"
             value={values.password}
             onChange={e => set('password', e.target.value)}
-            hint={mode !== 'login' ? 'Từ 12 ký tự, tối đa 72 byte UTF-8. Có thể dùng cụm từ dễ nhớ.' : undefined}
+            hint={mode !== 'login' ? 'Từ 8 ký tự, tối đa 72 byte UTF-8. Có thể dùng cụm từ dễ nhớ.' : undefined}
           />
         )}
 
@@ -244,7 +379,7 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
             id="auth-confirm"
             label="Nhập lại mật khẩu"
             required
-            minLength={12}
+            minLength={8}
             maxLength={128}
             autoComplete="new-password"
             placeholder="Nhập lại chính xác mật khẩu trên"
@@ -262,6 +397,8 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
             ? 'Đăng nhập'
             : mode === 'register'
             ? 'Tạo tài khoản'
+            : mode === 'activate-otp'
+            ? 'Xác nhận kích hoạt & Đăng nhập'
             : mode === 'forgot'
             ? 'Gửi mã về email'
             : mode === 'reset'
@@ -290,6 +427,15 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
               </Button>
             )}
           </>
+        ) : mode === 'activate-otp' ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', gap: '10px' }}>
+            <Button disabled={busy} onClick={() => switchMode('login')}>
+              Đã kích hoạt? Đăng nhập
+            </Button>
+            <Button disabled={busy} onClick={() => switchMode('register')}>
+              Đổi email / Đăng ký lại
+            </Button>
+          </div>
         ) : (
           <Button disabled={busy} onClick={() => switchMode('login')}>
             Đã có tài khoản? Đăng nhập

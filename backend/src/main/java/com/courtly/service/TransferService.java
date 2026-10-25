@@ -30,16 +30,16 @@ public class TransferService {
   private final OrderService booking;
   private final MembershipService memberships;
 
-  @Value("${courtly.payment.mode:MANUAL}")
+  @Value("${courtly.payment.mode:DEMO}")
   private String mode;
 
-  @Value("${courtly.payment.bank-bin:}")
+  @Value("${courtly.payment.bank-bin:970422}")
   private String bankBin;
 
-  @Value("${courtly.payment.account-number:}")
+  @Value("${courtly.payment.account-number:0345678999}")
   private String accountNumber;
 
-  @Value("${courtly.payment.account-name:}")
+  @Value("${courtly.payment.account-name:CLB TENNIS COURTLY}")
   private String accountName;
 
   @Value("${courtly.payment.webhook-key:}")
@@ -49,7 +49,7 @@ public class TransferService {
   private String adminEmail;
 
   public String getMode() {
-    return mode != null && !mode.isBlank() ? mode : "MANUAL";
+    return mode != null && !mode.isBlank() ? mode : "DEMO";
   }
 
   public String getBankBin() {
@@ -65,10 +65,13 @@ public class TransferService {
   }
 
   public Map<String, Object> config() {
+    boolean bankConfigured = getBankBin().matches("\\d{6}") && getAccountNumber().matches("\\d{6,30}") && !getAccountName().isBlank();
+    boolean onlineEnabled = ("LIVE".equals(getMode()) && webhookKey != null && !webhookKey.isBlank())
+        || ("DEMO".equals(getMode()) && bankConfigured);
     return map(
         "mode", getMode(),
-        "onlineEnabled", "LIVE".equals(getMode()) && webhookKey != null && !webhookKey.isBlank(),
-        "bankConfigured", getBankBin().matches("\\d{6}") && getAccountNumber().matches("\\d{6,30}") && !getAccountName().isBlank(),
+        "onlineEnabled", onlineEnabled,
+        "bankConfigured", bankConfigured,
         "bankBin", getBankBin(),
         "bankName", "970422".equals(getBankBin()) ? "MB Bank" : getBankBin(),
         "accountNumber", getAccountNumber(),
@@ -108,7 +111,7 @@ public class TransferService {
   public Map<String, Object> create(Account a, Map<String, Object> b) {
     docs.mutationLock();
     booking.expireHolds();
-    require("LIVE".equals(getMode()) || "SANDBOX".equals(getMode()) && "ADMIN".equals(a.getRole()), "Chuyển khoản hiện chưa khả dụng; vui lòng thanh toán tại quầy");
+    require("DEMO".equals(getMode()) || "LIVE".equals(getMode()) || "SANDBOX".equals(getMode()) && "ADMIN".equals(a.getRole()), "Chuyển khoản hiện chưa khả dụng; vui lòng thanh toán tại quầy");
     require(Boolean.TRUE.equals(config().get("bankConfigured")), "Chưa cấu hình tài khoản nhận chuyển khoản; vui lòng thanh toán tại quầy");
     require(!"LIVE".equals(getMode()) || !webhookKey.isBlank(), "Chưa cấu hình xác minh ngân hàng; vui lòng thanh toán tại quầy");
     String type = oneOf((String) b.get("type"), "ORDER", "TOURNAMENT", "MEMBERSHIP"),
@@ -208,8 +211,8 @@ public class TransferService {
   }
 
   public Map<String, Object> sandbox(Account a, String id, Map<String, Object> b) {
-    if (!"ADMIN".equals(a.getRole()) || !"SANDBOX".equals(getMode()))
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mô phỏng chỉ dành cho quản trị trong SANDBOX");
+    if (!"DEMO".equals(getMode()) && (!"ADMIN".equals(a.getRole()) || !"SANDBOX".equals(getMode())))
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mô phỏng chỉ dành cho môi trường thử nghiệm");
     docs.mutationLock();
     var x = docs.get("transfer:" + id);
     String scenario = oneOf((String) b.get("scenario"), "SUCCESS", "PARTIAL", "DUPLICATE", "LATE");
