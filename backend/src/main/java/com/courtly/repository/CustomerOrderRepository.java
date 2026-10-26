@@ -9,4 +9,6 @@ public interface CustomerOrderRepository extends LockingRepository<CustomerOrder
 
   @Query("select o from CustomerOrder o left join fetch o.customerAccount a order by o.createdAt desc")
   java.util.List<CustomerOrder> findAllWithCustomerAccount();
+
+  long countByCustomerAccountIdAndStatusNotIn(java.util.UUID customerAccountId, java.util.Collection<String> statuses);
 }

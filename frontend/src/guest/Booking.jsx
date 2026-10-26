@@ -18,7 +18,12 @@ export default function Booking() {
   const [appliedVoucher, setAppliedVoucher] = useState(null);
   const [voucherError, setVoucherError] = useState('');
   const [voucherBusy, setVoucherBusy] = useState(false);
+  const [publicVouchers, setPublicVouchers] = useState([]);
   const req = useRef(requestId());
+
+  useEffect(() => {
+    api('/public/vouchers').then(setPublicVouchers).catch(() => {});
+  }, []);
 
   const allCourts = data?.courts || [];
   const courts = preferredZone === 'ALL' ? allCourts : allCourts.filter(c => zone(c) === preferredZone);
@@ -698,28 +703,31 @@ export default function Booking() {
                   </button>
                 </div>
 
-                {/* Quick chips */}
-                <div style={{display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8}}>
-                  {['WELCOME', 'HE2026', 'COURTLY50K', 'VIP10', 'FLASH25'].map(vc => (
-                    <button
-                      key={vc}
-                      type="button"
-                      onClick={() => applyVoucher(vc)}
-                      style={{
-                        background: '#edf2e8',
-                        border: '1px solid #cbd2c2',
-                        borderRadius: 12,
-                        padding: '2px 8px',
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: '#173c32',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      +{vc}
-                    </button>
-                  ))}
-                </div>
+                {/* Dynamic Quick chips from API */}
+                {((options?.availableVouchers?.length ? options.availableVouchers : publicVouchers) || []).length > 0 && (
+                  <div style={{display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8}}>
+                    {((options?.availableVouchers?.length ? options.availableVouchers : publicVouchers) || []).map(vc => (
+                      <button
+                        key={vc.code}
+                        type="button"
+                        onClick={() => applyVoucher(vc.code)}
+                        title={vc.description}
+                        style={{
+                          background: '#edf2e8',
+                          border: '1px solid #cbd2c2',
+                          borderRadius: 12,
+                          padding: '2px 8px',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: '#173c32',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        +{vc.code}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </>
             ) : (
               <div style={{

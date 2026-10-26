@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be configured}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be configured}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be configured and secure}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: always
+
+  backend:
+    build: ./backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL must be configured}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD must be configured (min 10 chars)}
+      DEMO_MODE: "false"
+      SEED_DEMO: "false"
+      PAYMENT_MODE: ${PAYMENT_MODE:?PAYMENT_MODE must be SEPAY or live gateway}
+      PAYMENT_BANK_BIN: ${PAYMENT_BANK_BIN}
+      PAYMENT_ACCOUNT_NUMBER: ${PAYMENT_ACCOUNT_NUMBER:?Real bank account number required}
+      PAYMENT_ACCOUNT_NAME: ${PAYMENT_ACCOUNT_NAME}
+      SEPAY_WEBHOOK_KEY: ${SEPAY_WEBHOOK_KEY:?SEPAY_WEBHOOK_KEY required}
+      COOKIE_SECURE: "true"
+      OTP_SECRET: ${OTP_SECRET:?Cryptographically random OTP_SECRET required}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?Production domain required, e.g. https://courtly.vn}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@courtly.vn}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  postgres_data:

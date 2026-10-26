@@ -92,7 +92,8 @@ public class OrderService {
     if (voucherCode == null || voucherCode.isBlank()) return;
     BigDecimal courtTotal = selected.stream().map(CourtSchedule::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
     var extra = documents.decode(o.getMetadata());
-    var voucherBenefit = vouchers.calculate(voucherCode, courtTotal);
+    UUID accountId = o.getCustomerAccount() != null ? o.getCustomerAccount().getId() : null;
+    var voucherBenefit = vouchers.redeem(voucherCode, o, courtTotal, accountId);
     if (voucherBenefit != null) {
       extra.put("voucherBenefit", voucherBenefit);
       o.setMetadata(documents.encode(extra));
@@ -164,6 +165,7 @@ public class OrderService {
     Booking b = booking(order);
     b.setStatus("CANCELLED");
     release(b);
+    vouchers.release(id);
     audit.log("HỦY ĐƠN", id.toString());
   }
 
@@ -283,6 +285,7 @@ public class OrderService {
       Booking b = booking(order);
       b.setStatus("CANCELLED");
       release(b);
+      vouchers.release(order.getId());
       audit.log("HẾT HẠN", order.getId().toString());
     }
   }

@@ -26,6 +26,7 @@ public class DemoDataInitializer implements ApplicationRunner {
   private final TournamentRepository tournaments;
   private final SettingsService settings;
   private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+  private final org.springframework.core.env.Environment environment;
 
   @Value("${courtly.admin-email}")
   private String adminEmail;
@@ -44,9 +45,9 @@ public class DemoDataInitializer implements ApplicationRunner {
     // 1. Tài khoản ADMIN
     if (adminPassword.isBlank()) {
       log.warn("ADMIN_PASSWORD chưa được cấu hình cho tài khoản: {}", adminEmail);
-      // Chỉ trong môi trường demo/dev (enabled == true) và khi tài khoản admin chưa tồn tại:
+      // Chỉ trong môi trường demo/dev (không phải prod) và khi tài khoản admin chưa tồn tại:
       // cấp tài khoản admin mặc định với mật khẩu 12345 để phục vụ kiểm thử và phát triển local
-      if (enabled && accounts.findByEmailIgnoreCase(adminEmail).isEmpty()) {
+      if (enabled && !environment.acceptsProfiles(org.springframework.core.env.Profiles.of("prod", "production")) && accounts.findByEmailIgnoreCase(adminEmail).isEmpty()) {
         Account admin = new Account();
         admin.setFullName("Quản trị Courtly");
         admin.setEmail(adminEmail.toLowerCase(java.util.Locale.ROOT));

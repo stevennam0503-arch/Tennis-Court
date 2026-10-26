@@ -636,6 +636,49 @@ BEFORE INSERT ON order_products
 FOR EACH ROW EXECUTE FUNCTION reject_retired_product_service();
 ```
 
+#### `V9__vouchers_and_redemptions.sql`
+```sql
+CREATE TABLE vouchers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code VARCHAR(50) NOT NULL UNIQUE,
+    type VARCHAR(20) NOT NULL,
+    value NUMERIC(12, 2) NOT NULL,
+    min_order NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    max_discount NUMERIC(12, 2),
+    starts_at TIMESTAMP WITH TIME ZONE,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    usage_limit INT,
+    used_count INT NOT NULL DEFAULT 0,
+    per_user_limit INT DEFAULT 1,
+    member_only BOOLEAN NOT NULL DEFAULT FALSE,
+    new_user_only BOOLEAN NOT NULL DEFAULT FALSE,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    description VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE voucher_redemptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    voucher_id UUID NOT NULL REFERENCES vouchers(id) ON DELETE RESTRICT,
+    order_id UUID NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+    account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
+    discount_amount NUMERIC(12, 2) NOT NULL,
+    redeemed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_vouchers_code ON vouchers(code);
+CREATE INDEX idx_voucher_redemptions_account ON voucher_redemptions(account_id);
+CREATE INDEX idx_voucher_redemptions_voucher ON voucher_redemptions(voucher_id);
+
+INSERT INTO vouchers (code, type, value, min_order, max_discount, usage_limit, per_user_limit, new_user_only, member_only, description)
+VALUES
+  ('WELCOME', 'FIXED', 50000, 100000, 50000, 500, 1, TRUE, FALSE, 'Giảm 50.000 đ cho khách hàng đặt sân lần đầu'),
+  ('HE2026', 'FIXED', 50000, 150000, 50000, 1000, 2, FALSE, FALSE, 'Giảm 50.000 đ mùa hè sôi động 2026'),
+  ('COURTLY50K', 'FIXED', 50000, 100000, 50000, 300, 1, FALSE, FALSE, 'Voucher tri ân 50.000 đ'),
+  ('VIP10', 'PERCENT', 10, 200000, 100000, 1000, 5, FALSE, TRUE, 'Giảm 10% (tối đa 100k) dành riêng cho hội viên'),
+  ('FLASH25', 'PERCENT', 25, 100000, 150000, 200, 1, FALSE, FALSE, 'Ưu đãi Giờ Vàng giảm 25%');
+```
+
 ## 5. CẤU HÌNH HỆ THỐNG & DEPLOYMENT
 
 ### `backend/src/main/resources/application.yml`
@@ -1041,10 +1084,11 @@ public class OrderController {
   }
 
   @PostMapping("/public/vouchers/validate")
-  public Map<String, Object> validateVoucher(@RequestBody Map<String, Object> body) {
+  public Map<String, Object> validateVoucher(@RequestBody Map<String, Object> body, HttpServletRequest r) {
     String code = (String) body.get("code");
     java.math.BigDecimal amount = PresentationService.decimal(body.get("amount"));
-    return vouchers.calculate(code, amount);
+    UUID accountId = auth.optCurrent(r).map(com.courtly.entity.Account::getId).orElse(null);
+    return vouchers.calculate(code, amount, accountId);
   }
 
   @GetMapping("/orders/{id}/extension-options")
@@ -1467,6 +1511,15 @@ public class AuthService {
     failures.entrySet().removeIf(e -> now - e.getValue()[0] > 900000);
   }
 
+  public Optional<Account> optCurrent(HttpServletRequest req) {
+    var session = req.getSession(false);
+    if (session == null || session.getAttribute("accountId") == null) {
+      return Optional.empty();
+    }
+    UUID id = (UUID) session.getAttribute("accountId");
+    return accounts.findById(id);
+  }
+
   public Account current(HttpServletRequest req) {
     var session = req.getSession(false);
     if (session == null || session.getAttribute("accountId") == null)
@@ -1756,7 +1809,9 @@ public class AuthService {
             throw new BusinessException("Mã xác nhận đã hết hạn hoặc thử sai quá 5 lần. Vui lòng yêu cầu mã mới.");
           }
           String storedHash = (String) info.get("codeHash");
-          boolean valid = hashOtp(code).equals(storedHash) || hash(code).equals(storedHash);
+          boolean valid = storedHash != null && MessageDigest.isEqual(
+              hashOtp(code).getBytes(StandardCharsets.UTF_8),
+              storedHash.getBytes(StandardCharsets.UTF_8));
           if (!valid) {
             info.put("attempts", attempts + 1);
             documents.save(row, info);
@@ -1765,19 +1820,9 @@ public class AuthService {
         }
       }
 
-      if (info == null || !info.containsKey("accountId")) {
-        String key = "reset:" + hash(code);
-        row = documents.lock(key);
-        info = documents.read(row);
-        if (!info.containsKey("accountId")) {
-          key = "activation:" + hash(code);
-          row = documents.lock(key);
-          info = documents.read(row);
-        }
-      }
-
       require(
-          info.containsKey("accountId")
+          info != null
+              && info.containsKey("accountId")
               && !Boolean.TRUE.equals(info.get("used"))
               && Instant.parse((String) info.get("expiresAt")).isAfter(Instant.now()),
           "Mã xác nhận không đúng, đã dùng hoặc đã hết hạn (15 phút)");
@@ -1806,7 +1851,9 @@ public class AuthService {
             throw new BusinessException("Mã kích hoạt đã hết hạn hoặc thử sai quá 5 lần. Vui lòng yêu cầu mã mới.");
           }
           String storedHash = (String) info.get("codeHash");
-          boolean valid = hashOtp(token).equals(storedHash) || hash(token).equals(storedHash);
+          boolean valid = storedHash != null && MessageDigest.isEqual(
+              hashOtp(token).getBytes(StandardCharsets.UTF_8),
+              storedHash.getBytes(StandardCharsets.UTF_8));
           if (!valid) {
             info.put("attempts", attempts + 1);
             documents.save(row, info);
@@ -1815,17 +1862,12 @@ public class AuthService {
         }
       }
 
-      if (info == null || !info.containsKey("accountId")) {
-        String key = "activation:" + hash(token);
-        row = documents.lock(key);
-        info = documents.read(row);
-      }
-
       require(
-          info.containsKey("accountId")
+          info != null
+              && info.containsKey("accountId")
               && !Boolean.TRUE.equals(info.get("used"))
               && Instant.parse((String) info.get("expiresAt")).isAfter(Instant.now()),
-          "Mã kích hoạt không đúng, đã dùng hoặc hết hạn (15 phút)");
+          "Mã kích hoạt không đúng, đã dùng hoặc đã hết hạn (15 phút)");
       Account a =
           accounts.findForUpdate(UUID.fromString((String) info.get("accountId"))).orElseThrow();
       require("ACTIVE".equals(a.getStatus()) || "PENDING_ACTIVATION".equals(a.getStatus()), "Tài khoản đã bị khóa");
@@ -2017,7 +2059,7 @@ public class BookingSupportService {
     BigDecimal courtTotal = rows.stream().map(CourtSchedule::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
     Map<String, Object> voucherBenefit = null;
     if (voucherCode != null && !voucherCode.isBlank()) {
-      voucherBenefit = vouchers.calculate(voucherCode, courtTotal);
+      voucherBenefit = vouchers.calculate(voucherCode, courtTotal, account);
     }
     return map(
         "courtQuote",
@@ -3114,6 +3156,17 @@ public class MembershipService {
         receipts);
   }
 
+  public boolean hasActiveMembership(UUID account) {
+    if (account == null) return false;
+    return docs.list("membership:").stream()
+        .anyMatch(
+            m ->
+                account.toString().equals(m.get("accountId"))
+                    && "ACTIVE".equals(status(m))
+                    && !Instant.parse((String) m.get("startsAt")).isAfter(Instant.now())
+                    && !Instant.parse((String) m.get("endsAt")).isBefore(Instant.now()));
+  }
+
   public Map<String, Object> quote(UUID account, List<CourtSchedule> slots) {
     var member =
         docs.list("membership:").stream()
@@ -3821,7 +3874,8 @@ public class OrderService {
     if (voucherCode == null || voucherCode.isBlank()) return;
     BigDecimal courtTotal = selected.stream().map(CourtSchedule::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
     var extra = documents.decode(o.getMetadata());
-    var voucherBenefit = vouchers.calculate(voucherCode, courtTotal);
+    UUID accountId = o.getCustomerAccount() != null ? o.getCustomerAccount().getId() : null;
+    var voucherBenefit = vouchers.redeem(voucherCode, o, courtTotal, accountId);
     if (voucherBenefit != null) {
       extra.put("voucherBenefit", voucherBenefit);
       o.setMetadata(documents.encode(extra));
@@ -3893,6 +3947,7 @@ public class OrderService {
     Booking b = booking(order);
     b.setStatus("CANCELLED");
     release(b);
+    vouchers.release(id);
     audit.log("HỦY ĐƠN", id.toString());
   }
 
@@ -4012,6 +4067,7 @@ public class OrderService {
       Booking b = booking(order);
       b.setStatus("CANCELLED");
       release(b);
+      vouchers.release(order.getId());
       audit.log("HẾT HẠN", order.getId().toString());
     }
   }
@@ -6284,127 +6340,204 @@ package com.courtly.service;
 
 import static com.courtly.util.Rules.map;
 
+import com.courtly.entity.CustomerOrder;
+import com.courtly.entity.Voucher;
+import com.courtly.entity.VoucherRedemption;
 import com.courtly.exception.BusinessException;
+import com.courtly.repository.CustomerOrderRepository;
+import com.courtly.repository.VoucherRedemptionRepository;
+import com.courtly.repository.VoucherRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.*;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class VoucherService {
 
-  public record VoucherDef(
-      String code,
-      String type, // FIXED or PERCENT
-      BigDecimal value,
-      BigDecimal minOrder,
-      BigDecimal maxDiscount,
-      String description) {}
+  private final VoucherRepository vouchers;
+  private final VoucherRedemptionRepository redemptions;
+  private final CustomerOrderRepository orders;
+  private final MembershipService memberships;
 
-  private static final Map<String, VoucherDef> ACTIVE_VOUCHERS = new LinkedHashMap<>();
-
-  static {
-    ACTIVE_VOUCHERS.put(
-        "WELCOME",
-        new VoucherDef(
-            "WELCOME",
-            "FIXED",
-            BigDecimal.valueOf(50000),
-            BigDecimal.valueOf(100000),
-            BigDecimal.valueOf(50000),
-            "Giảm 50.000 đ chào mừng thành viên mới"));
-    ACTIVE_VOUCHERS.put(
-        "HE2026",
-        new VoucherDef(
-            "HE2026",
-            "FIXED",
-            BigDecimal.valueOf(50000),
-            BigDecimal.valueOf(150000),
-            BigDecimal.valueOf(50000),
-            "Giảm 50.000 đ mùa hè sôi động 2026"));
-    ACTIVE_VOUCHERS.put(
-        "COURTLY50K",
-        new VoucherDef(
-            "COURTLY50K",
-            "FIXED",
-            BigDecimal.valueOf(50000),
-            BigDecimal.valueOf(100000),
-            BigDecimal.valueOf(50000),
-            "Voucher tri ân 50.000 đ"));
-    ACTIVE_VOUCHERS.put(
-        "VIP10",
-        new VoucherDef(
-            "VIP10",
-            "PERCENT",
-            BigDecimal.valueOf(10),
-            BigDecimal.valueOf(200000),
-            BigDecimal.valueOf(100000),
-            "Giảm 10% (tối đa 100k) cho hội viên"));
-    ACTIVE_VOUCHERS.put(
-        "FLASH25",
-        new VoucherDef(
-            "FLASH25",
-            "PERCENT",
-            BigDecimal.valueOf(25),
-            BigDecimal.valueOf(100000),
-            BigDecimal.valueOf(150000),
-            "Ưu đãi Giờ Vàng giảm 25%"));
-  }
-
+  @Transactional(readOnly = true)
   public List<Map<String, Object>> listAvailable() {
-    return ACTIVE_VOUCHERS.values().stream()
+    Instant now = Instant.now();
+    return vouchers.findByEnabledTrue().stream()
+        .filter(v -> v.getStartsAt() == null || !v.getStartsAt().isAfter(now))
+        .filter(v -> v.getExpiresAt() == null || !v.getExpiresAt().isBefore(now))
+        .filter(v -> v.getUsageLimit() == null || v.getUsedCount() < v.getUsageLimit())
         .map(
             v ->
                 map(
-                    "code", v.code(),
-                    "type", v.type(),
-                    "value", v.value(),
-                    "minOrder", v.minOrder(),
-                    "description", v.description()))
+                    "code", v.getCode(),
+                    "type", v.getType(),
+                    "value", v.getValue(),
+                    "minOrder", v.getMinOrder(),
+                    "maxDiscount", v.getMaxDiscount(),
+                    "memberOnly", v.getMemberOnly(),
+                    "newUserOnly", v.getNewUserOnly(),
+                    "description", v.getDescription()))
         .toList();
   }
 
+  @Transactional(readOnly = true)
   public Map<String, Object> calculate(String rawCode, BigDecimal totalAmount) {
+    return calculate(rawCode, totalAmount, null);
+  }
+
+  @Transactional(readOnly = true)
+  public Map<String, Object> calculate(String rawCode, BigDecimal totalAmount, UUID accountId) {
     if (rawCode == null || rawCode.isBlank()) {
       return null;
     }
     String code = rawCode.trim().toUpperCase(Locale.ROOT);
-    VoucherDef def = ACTIVE_VOUCHERS.get(code);
-    if (def == null) {
-      throw new BusinessException("Mã voucher '" + rawCode + "' không tồn tại hoặc đã hết hạn");
+    Voucher v =
+        vouchers
+            .findByCodeIgnoreCase(code)
+            .orElseThrow(
+                () ->
+                    new BusinessException("Mã voucher '" + rawCode + "' không tồn tại hoặc đã hết hạn"));
+
+    validateVoucherRules(v, totalAmount, accountId);
+    BigDecimal discount = computeDiscount(v, totalAmount);
+
+    return map(
+        "code", v.getCode(),
+        "discount", discount,
+        "description", v.getDescription(),
+        "applied", true);
+  }
+
+  @Transactional
+  public Map<String, Object> redeem(String rawCode, CustomerOrder order, BigDecimal totalAmount, UUID accountId) {
+    if (rawCode == null || rawCode.isBlank()) {
+      return null;
+    }
+    String code = rawCode.trim().toUpperCase(Locale.ROOT);
+    // Pessimistic write lock to prevent race conditions on usage limits
+    Voucher v =
+        vouchers
+            .findByCodeForUpdate(code)
+            .orElseThrow(
+                () ->
+                    new BusinessException("Mã voucher '" + rawCode + "' không tồn tại hoặc đã hết hạn"));
+
+    validateVoucherRules(v, totalAmount, accountId);
+    BigDecimal discount = computeDiscount(v, totalAmount);
+
+    v.setUsedCount(v.getUsedCount() + 1);
+    vouchers.save(v);
+
+    VoucherRedemption redemption = new VoucherRedemption();
+    redemption.setVoucher(v);
+    redemption.setOrder(order);
+    if (order.getCustomerAccount() != null) {
+      redemption.setAccount(order.getCustomerAccount());
+    }
+    redemption.setDiscountAmount(discount);
+    redemption.setRedeemedAt(Instant.now());
+    redemptions.save(redemption);
+
+    return map(
+        "code", v.getCode(),
+        "discount", discount,
+        "description", v.getDescription(),
+        "applied", true);
+  }
+
+  @Transactional
+  public void release(UUID orderId) {
+    if (orderId == null) return;
+    redemptions.findByOrderId(orderId).ifPresent(redemption -> {
+      vouchers.findByCodeForUpdate(redemption.getVoucher().getCode()).ifPresent(v -> {
+        if (v.getUsedCount() > 0) {
+          v.setUsedCount(v.getUsedCount() - 1);
+          vouchers.save(v);
+        }
+      });
+      redemptions.delete(redemption);
+    });
+  }
+
+  private void validateVoucherRules(Voucher v, BigDecimal totalAmount, UUID accountId) {
+    if (!Boolean.TRUE.equals(v.getEnabled())) {
+      throw new BusinessException("Mã voucher '" + v.getCode() + "' hiện đang tạm khóa");
+    }
+
+    Instant now = Instant.now();
+    if (v.getStartsAt() != null && v.getStartsAt().isAfter(now)) {
+      throw new BusinessException("Mã voucher '" + v.getCode() + "' chưa đến thời gian áp dụng");
+    }
+    if (v.getExpiresAt() != null && v.getExpiresAt().isBefore(now)) {
+      throw new BusinessException("Mã voucher '" + v.getCode() + "' đã hết hạn");
+    }
+
+    if (v.getUsageLimit() != null && v.getUsedCount() >= v.getUsageLimit()) {
+      throw new BusinessException("Mã voucher '" + v.getCode() + "' đã hết lượt sử dụng");
     }
 
     BigDecimal total = totalAmount != null ? totalAmount : BigDecimal.ZERO;
-    if (total.compareTo(def.minOrder()) < 0) {
+    if (v.getMinOrder() != null && total.compareTo(v.getMinOrder()) < 0) {
       throw new BusinessException(
           "Đơn đặt sân tối thiểu "
-              + def.minOrder().setScale(0, RoundingMode.HALF_UP)
+              + v.getMinOrder().setScale(0, RoundingMode.HALF_UP)
               + " đ để áp dụng voucher "
-              + code);
+              + v.getCode());
     }
 
+    if (accountId != null) {
+      if (Boolean.TRUE.equals(v.getNewUserOnly())) {
+        long pastOrders = orders.countByCustomerAccountIdAndStatusNotIn(accountId, Set.of("CANCELLED", "EXPIRED"));
+        if (pastOrders > 0) {
+          throw new BusinessException("Voucher " + v.getCode() + " chỉ áp dụng cho khách hàng mới đặt sân lần đầu");
+        }
+      }
+
+      if (Boolean.TRUE.equals(v.getMemberOnly())) {
+        boolean activeMember = memberships.hasActiveMembership(accountId);
+        if (!activeMember) {
+          throw new BusinessException("Voucher " + v.getCode() + " chỉ áp dụng cho hội viên có gói active");
+        }
+      }
+
+      if (v.getPerUserLimit() != null) {
+        long userUsed = redemptions.countByVoucherIdAndAccountId(v.getId(), accountId);
+        if (userUsed >= v.getPerUserLimit()) {
+          throw new BusinessException(
+              "Bạn đã dùng hết số lần cho phép của voucher "
+                  + v.getCode()
+                  + " (tối đa "
+                  + v.getPerUserLimit()
+                  + " lần/tài khoản)");
+        }
+      }
+    }
+  }
+
+  private BigDecimal computeDiscount(Voucher v, BigDecimal totalAmount) {
+    BigDecimal total = totalAmount != null ? totalAmount : BigDecimal.ZERO;
     BigDecimal discount;
-    if ("PERCENT".equals(def.type())) {
+    if ("PERCENT".equals(v.getType())) {
       discount =
           total
-              .multiply(def.value())
+              .multiply(v.getValue())
               .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-      if (def.maxDiscount() != null && discount.compareTo(def.maxDiscount()) > 0) {
-        discount = def.maxDiscount();
+      if (v.getMaxDiscount() != null && discount.compareTo(v.getMaxDiscount()) > 0) {
+        discount = v.getMaxDiscount();
       }
     } else {
-      discount = def.value();
+      discount = v.getValue();
     }
 
     if (discount.compareTo(total) > 0) {
       discount = total;
     }
-
-    return map(
-        "code", def.code(),
-        "discount", discount,
-        "description", def.description(),
-        "applied", true);
+    return discount;
   }
 }
 ```
@@ -7401,6 +7534,104 @@ public class TournamentRegistration extends BaseEntity {
 }
 ```
 
+#### File: `backend/src/main/java/com/courtly/entity/Voucher.java`
+```java
+package com.courtly.entity;
+
+import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.Instant;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Entity
+@Table(name = "vouchers")
+@Getter
+@Setter
+@NoArgsConstructor
+public class Voucher extends BaseEntity {
+  @Column(name = "code", nullable = false, unique = true, length = 50)
+  private String code;
+
+  @Column(name = "type", nullable = false, length = 20)
+  private String type; // FIXED or PERCENT
+
+  @Column(name = "value", nullable = false, precision = 12, scale = 2)
+  private BigDecimal value;
+
+  @Column(name = "min_order", nullable = false, precision = 12, scale = 2)
+  private BigDecimal minOrder = BigDecimal.ZERO;
+
+  @Column(name = "max_discount", precision = 12, scale = 2)
+  private BigDecimal maxDiscount;
+
+  @Column(name = "starts_at")
+  private Instant startsAt;
+
+  @Column(name = "expires_at")
+  private Instant expiresAt;
+
+  @Column(name = "usage_limit")
+  private Integer usageLimit;
+
+  @Column(name = "used_count", nullable = false)
+  private Integer usedCount = 0;
+
+  @Column(name = "per_user_limit")
+  private Integer perUserLimit = 1;
+
+  @Column(name = "member_only", nullable = false)
+  private Boolean memberOnly = false;
+
+  @Column(name = "new_user_only", nullable = false)
+  private Boolean newUserOnly = false;
+
+  @Column(name = "enabled", nullable = false)
+  private Boolean enabled = true;
+
+  @Column(name = "description")
+  private String description;
+}
+```
+
+#### File: `backend/src/main/java/com/courtly/entity/VoucherRedemption.java`
+```java
+package com.courtly.entity;
+
+import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.Instant;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Entity
+@Table(name = "voucher_redemptions")
+@Getter
+@Setter
+@NoArgsConstructor
+public class VoucherRedemption extends BaseEntity {
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "voucher_id", nullable = false)
+  private Voucher voucher;
+
+  @OneToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "order_id", nullable = false, unique = true)
+  private CustomerOrder order;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "account_id")
+  private Account account;
+
+  @Column(name = "discount_amount", nullable = false, precision = 12, scale = 2)
+  private BigDecimal discountAmount;
+
+  @Column(name = "redeemed_at", nullable = false)
+  private Instant redeemedAt = Instant.now();
+}
+```
+
 ### 6.4 Repositories
 
 #### File: `backend/src/main/java/com/courtly/repository/AccountRepository.java`
@@ -7551,6 +7782,8 @@ public interface CustomerOrderRepository extends LockingRepository<CustomerOrder
 
   @Query("select o from CustomerOrder o left join fetch o.customerAccount a order by o.createdAt desc")
   java.util.List<CustomerOrder> findAllWithCustomerAccount();
+
+  long countByCustomerAccountIdAndStatusNotIn(java.util.UUID customerAccountId, java.util.Collection<String> statuses);
 }
 ```
 
@@ -7754,6 +7987,47 @@ package com.courtly.repository;
 import com.courtly.entity.Tournament;
 
 public interface TournamentRepository extends LockingRepository<Tournament> {}
+```
+
+#### File: `backend/src/main/java/com/courtly/repository/VoucherRedemptionRepository.java`
+```java
+package com.courtly.repository;
+
+import com.courtly.entity.VoucherRedemption;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface VoucherRedemptionRepository extends JpaRepository<VoucherRedemption, UUID> {
+  Optional<VoucherRedemption> findByOrderId(UUID orderId);
+
+  long countByVoucherIdAndAccountId(UUID voucherId, UUID accountId);
+
+  void deleteByOrderId(UUID orderId);
+}
+```
+
+#### File: `backend/src/main/java/com/courtly/repository/VoucherRepository.java`
+```java
+package com.courtly.repository;
+
+import com.courtly.entity.Voucher;
+import jakarta.persistence.LockModeType;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+public interface VoucherRepository extends LockingRepository<Voucher> {
+  Optional<Voucher> findByCodeIgnoreCase(String code);
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("select v from Voucher v where upper(v.code) = upper(:code)")
+  Optional<Voucher> findByCodeForUpdate(@Param("code") String code);
+
+  List<Voucher> findByEnabledTrue();
+}
 ```
 
 ### 6.5 DTOs & Payloads
@@ -8056,6 +8330,7 @@ public class DemoDataInitializer implements ApplicationRunner {
   private final TournamentRepository tournaments;
   private final SettingsService settings;
   private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+  private final org.springframework.core.env.Environment environment;
 
   @Value("${courtly.admin-email}")
   private String adminEmail;
@@ -8074,9 +8349,9 @@ public class DemoDataInitializer implements ApplicationRunner {
     // 1. Tài khoản ADMIN
     if (adminPassword.isBlank()) {
       log.warn("ADMIN_PASSWORD chưa được cấu hình cho tài khoản: {}", adminEmail);
-      // Chỉ trong môi trường demo/dev (enabled == true) và khi tài khoản admin chưa tồn tại:
+      // Chỉ trong môi trường demo/dev (không phải prod) và khi tài khoản admin chưa tồn tại:
       // cấp tài khoản admin mặc định với mật khẩu 12345 để phục vụ kiểm thử và phát triển local
-      if (enabled && accounts.findByEmailIgnoreCase(adminEmail).isEmpty()) {
+      if (enabled && !environment.acceptsProfiles(org.springframework.core.env.Profiles.of("prod", "production")) && accounts.findByEmailIgnoreCase(adminEmail).isEmpty()) {
         Account admin = new Account();
         admin.setFullName("Quản trị Courtly");
         admin.setEmail(adminEmail.toLowerCase(java.util.Locale.ROOT));
@@ -8204,17 +8479,21 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Component;
 
 /**
  * Fail-fast security invariant validator for production environments.
+ * Runs with highest precedence before any other runner can execute or seed data.
  * Prevents the application from starting if insecure default credentials,
- * unencrypted cookies, demo modes, or placeholder secrets are configured.
+ * unencrypted cookies, demo modes, placeholder secrets, or sample bank accounts are configured.
  */
 @Slf4j
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @RequiredArgsConstructor
 public class ProductionSecurityValidator implements ApplicationRunner {
 
@@ -8272,6 +8551,36 @@ public class ProductionSecurityValidator implements ApplicationRunner {
       throw new IllegalStateException(
           "FATAL: ADMIN_PASSWORD is missing or set to default '12345' in production profile! "
               + "Please configure a strong ADMIN_PASSWORD.");
+    }
+
+    String paymentMode = environment.getProperty("courtly.payment.mode", "");
+    if ("DEMO".equalsIgnoreCase(paymentMode)) {
+      throw new IllegalStateException(
+          "FATAL: PAYMENT_MODE must not be 'DEMO' in production profile! "
+              + "Please set PAYMENT_MODE=SEPAY or configure a live payment provider.");
+    }
+
+    String webhookKey = environment.getProperty("courtly.payment.webhook-key", "");
+    if (webhookKey.isBlank()) {
+      throw new IllegalStateException(
+          "FATAL: SEPAY_WEBHOOK_KEY is required and cannot be blank in production profile! "
+              + "Please configure a valid SEPAY_WEBHOOK_KEY.");
+    }
+
+    String frontendOrigin = environment.getProperty("courtly.allowed-origin", "");
+    if (frontendOrigin.isBlank()
+        || frontendOrigin.contains("localhost")
+        || frontendOrigin.contains("127.0.0.1")) {
+      throw new IllegalStateException(
+          "FATAL: FRONTEND_ORIGIN cannot be empty or point to localhost in production profile! "
+              + "Configured value: '" + frontendOrigin + "'. Please configure a production domain.");
+    }
+
+    String accountNumber = environment.getProperty("courtly.payment.account-number", "");
+    if ("0345678999".equals(accountNumber)) {
+      throw new IllegalStateException(
+          "FATAL: Default sample bank account number ('0345678999') detected in production profile! "
+              + "Please configure a real PAYMENT_ACCOUNT_NUMBER via environment variables.");
     }
 
     log.info("All production security invariants validated successfully.");
@@ -8955,7 +9264,12 @@ export default function Booking() {
   const [appliedVoucher, setAppliedVoucher] = useState(null);
   const [voucherError, setVoucherError] = useState('');
   const [voucherBusy, setVoucherBusy] = useState(false);
+  const [publicVouchers, setPublicVouchers] = useState([]);
   const req = useRef(requestId());
+
+  useEffect(() => {
+    api('/public/vouchers').then(setPublicVouchers).catch(() => {});
+  }, []);
 
   const allCourts = data?.courts || [];
   const courts = preferredZone === 'ALL' ? allCourts : allCourts.filter(c => zone(c) === preferredZone);
@@ -9635,28 +9949,31 @@ export default function Booking() {
                   </button>
                 </div>
 
-                {/* Quick chips */}
-                <div style={{display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8}}>
-                  {['WELCOME', 'HE2026', 'COURTLY50K', 'VIP10', 'FLASH25'].map(vc => (
-                    <button
-                      key={vc}
-                      type="button"
-                      onClick={() => applyVoucher(vc)}
-                      style={{
-                        background: '#edf2e8',
-                        border: '1px solid #cbd2c2',
-                        borderRadius: 12,
-                        padding: '2px 8px',
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: '#173c32',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      +{vc}
-                    </button>
-                  ))}
-                </div>
+                {/* Dynamic Quick chips from API */}
+                {((options?.availableVouchers?.length ? options.availableVouchers : publicVouchers) || []).length > 0 && (
+                  <div style={{display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8}}>
+                    {((options?.availableVouchers?.length ? options.availableVouchers : publicVouchers) || []).map(vc => (
+                      <button
+                        key={vc.code}
+                        type="button"
+                        onClick={() => applyVoucher(vc.code)}
+                        title={vc.description}
+                        style={{
+                          background: '#edf2e8',
+                          border: '1px solid #cbd2c2',
+                          borderRadius: 12,
+                          padding: '2px 8px',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: '#173c32',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        +{vc.code}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </>
             ) : (
               <div style={{
@@ -10210,7 +10527,7 @@ import {GuestContext,translate,dateToday,Action} from './context';
 import {Header,Footer} from './Layout';
 import Overview from './Overview';
 import Booking from './Booking';
-import Pricing from './Pricing';
+import Pricing from './Pricing.jsx';
 import CashDesk from './CashDesk';
 import Tournaments,{EventDialog} from './Tournaments';
 import {News,Article,Contact,Feedback,Policies} from './Content';
@@ -13550,6 +13867,7 @@ class DemoDataInitializerTest {
   private TournamentRepository tournaments;
   private SettingsService settings;
   private PasswordEncoder encoder;
+  private org.springframework.core.env.Environment environment;
   private DemoDataInitializer initializer;
 
   @BeforeEach
@@ -13560,8 +13878,10 @@ class DemoDataInitializerTest {
     tournaments = mock(TournamentRepository.class);
     settings = mock(SettingsService.class);
     encoder = new BCryptPasswordEncoder();
+    environment = mock(org.springframework.core.env.Environment.class);
+    when(environment.acceptsProfiles(any(org.springframework.core.env.Profiles.class))).thenReturn(false);
 
-    initializer = new DemoDataInitializer(courts, accounts, staff, tournaments, settings, encoder);
+    initializer = new DemoDataInitializer(courts, accounts, staff, tournaments, settings, encoder, environment);
     ReflectionTestUtils.setField(initializer, "adminEmail", "admin@gmail.com");
     ReflectionTestUtils.setField(initializer, "adminPassword", "");
     ReflectionTestUtils.setField(initializer, "enabled", false);
@@ -13738,6 +14058,19 @@ class ProductionSecurityValidatorTest {
     validator = new ProductionSecurityValidator(environment);
   }
 
+  private void mockSecureDefaults() {
+    when(environment.getProperty("spring.datasource.password", "")).thenReturn("SecureProdDbPass123!");
+    when(environment.getProperty("server.servlet.session.cookie.secure", "false")).thenReturn("true");
+    when(environment.getProperty("courtly.demo-mode", "false")).thenReturn("false");
+    when(environment.getProperty("courtly.seed-demo", "false")).thenReturn("false");
+    when(environment.getProperty("courtly.security.otp-secret", "")).thenReturn("SuperSecretCryptoRandomKey987654321");
+    when(environment.getProperty("courtly.admin-password", "")).thenReturn("AdminStrongPassword2026!");
+    when(environment.getProperty("courtly.payment.mode", "")).thenReturn("SEPAY");
+    when(environment.getProperty("courtly.payment.webhook-key", "")).thenReturn("LiveSepayWebhookSecret12345");
+    when(environment.getProperty("courtly.allowed-origin", "")).thenReturn("https://tennis.courtly.vn");
+    when(environment.getProperty("courtly.payment.account-number", "")).thenReturn("987654321098");
+  }
+
   @Test
   void nonProdProfileDoesNotEnforceProductionInvariants() {
     when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(false);
@@ -13794,14 +14127,53 @@ class ProductionSecurityValidatorTest {
   }
 
   @Test
+  void prodProfileRejectsPaymentModeDemo() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
+    mockSecureDefaults();
+    when(environment.getProperty("courtly.payment.mode", "")).thenReturn("DEMO");
+
+    IllegalStateException ex =
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments()));
+    assertTrue(ex.getMessage().contains("PAYMENT_MODE must not be 'DEMO'"));
+  }
+
+  @Test
+  void prodProfileRejectsBlankSepayWebhookKey() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
+    mockSecureDefaults();
+    when(environment.getProperty("courtly.payment.webhook-key", "")).thenReturn("");
+
+    IllegalStateException ex =
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments()));
+    assertTrue(ex.getMessage().contains("SEPAY_WEBHOOK_KEY is required"));
+  }
+
+  @Test
+  void prodProfileRejectsLocalhostFrontendOrigin() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
+    mockSecureDefaults();
+    when(environment.getProperty("courtly.allowed-origin", "")).thenReturn("http://localhost:3000");
+
+    IllegalStateException ex =
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments()));
+    assertTrue(ex.getMessage().contains("FRONTEND_ORIGIN cannot be empty or point to localhost"));
+  }
+
+  @Test
+  void prodProfileRejectsSampleBankAccountNumber() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
+    mockSecureDefaults();
+    when(environment.getProperty("courtly.payment.account-number", "")).thenReturn("0345678999");
+
+    IllegalStateException ex =
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments()));
+    assertTrue(ex.getMessage().contains("Default sample bank account number"));
+  }
+
+  @Test
   void prodProfileAcceptsFullySecuredConfiguration() {
     when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
-    when(environment.getProperty("spring.datasource.password", "")).thenReturn("SecureProdDbPass123!");
-    when(environment.getProperty("server.servlet.session.cookie.secure", "false")).thenReturn("true");
-    when(environment.getProperty("courtly.demo-mode", "false")).thenReturn("false");
-    when(environment.getProperty("courtly.seed-demo", "false")).thenReturn("false");
-    when(environment.getProperty("courtly.security.otp-secret", "")).thenReturn("SuperSecretCryptoRandomKey987654321");
-    when(environment.getProperty("courtly.admin-password", "")).thenReturn("AdminStrongPassword2026!");
+    mockSecureDefaults();
 
     assertDoesNotThrow(() -> validator.run(new DefaultApplicationArguments()));
   }
@@ -14066,24 +14438,65 @@ class TransferSecurityTest {
 package com.courtly.service;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
+import com.courtly.entity.CustomerOrder;
+import com.courtly.entity.Voucher;
+import com.courtly.entity.VoucherRedemption;
 import com.courtly.exception.BusinessException;
+import com.courtly.repository.CustomerOrderRepository;
+import com.courtly.repository.VoucherRedemptionRepository;
+import com.courtly.repository.VoucherRepository;
 import java.math.BigDecimal;
+import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class VoucherServiceTest {
 
+  private VoucherRepository vouchers;
+  private VoucherRedemptionRepository redemptions;
+  private CustomerOrderRepository orders;
+  private MembershipService memberships;
   private VoucherService service;
 
   @BeforeEach
   void setUp() {
-    service = new VoucherService();
+    vouchers = mock(VoucherRepository.class);
+    redemptions = mock(VoucherRedemptionRepository.class);
+    orders = mock(CustomerOrderRepository.class);
+    memberships = mock(MembershipService.class);
+    service = new VoucherService(vouchers, redemptions, orders, memberships);
+  }
+
+  private Voucher createVoucher(String code, String type, BigDecimal val, BigDecimal min, BigDecimal max) {
+    Voucher v = new Voucher();
+    v.setId(UUID.randomUUID());
+    v.setCode(code);
+    v.setType(type);
+    v.setValue(val);
+    v.setMinOrder(min);
+    v.setMaxDiscount(max);
+    v.setEnabled(true);
+    v.setUsedCount(0);
+    v.setUsageLimit(100);
+    v.setPerUserLimit(1);
+    v.setMemberOnly(false);
+    v.setNewUserOnly(false);
+    v.setDescription("Test voucher " + code);
+    return v;
   }
 
   @Test
-  void welcomeVoucherApplies50kDiscountWhenEligible() {
-    var result = service.calculate("WELCOME", new BigDecimal("150000"));
+  void welcomeVoucherApplies50kDiscountForNewUser() {
+    Voucher v = createVoucher("WELCOME", "FIXED", new BigDecimal("50000"), new BigDecimal("100000"), new BigDecimal("50000"));
+    v.setNewUserOnly(true);
+    when(vouchers.findByCodeIgnoreCase("WELCOME")).thenReturn(Optional.of(v));
+
+    UUID accountId = UUID.randomUUID();
+    when(orders.countByCustomerAccountIdAndStatusNotIn(eq(accountId), any())).thenReturn(0L);
+
+    var result = service.calculate("WELCOME", new BigDecimal("150000"), accountId);
     assertNotNull(result);
     assertEquals("WELCOME", result.get("code"));
     assertEquals(new BigDecimal("50000"), result.get("discount"));
@@ -14091,45 +14504,102 @@ class VoucherServiceTest {
   }
 
   @Test
+  void welcomeVoucherRejectsExistingUserWithPastOrders() {
+    Voucher v = createVoucher("WELCOME", "FIXED", new BigDecimal("50000"), new BigDecimal("100000"), new BigDecimal("50000"));
+    v.setNewUserOnly(true);
+    when(vouchers.findByCodeIgnoreCase("WELCOME")).thenReturn(Optional.of(v));
+
+    UUID accountId = UUID.randomUUID();
+    when(orders.countByCustomerAccountIdAndStatusNotIn(eq(accountId), any())).thenReturn(2L);
+
+    var ex = assertThrows(BusinessException.class, () -> service.calculate("WELCOME", new BigDecimal("150000"), accountId));
+    assertTrue(ex.getMessage().contains("chỉ áp dụng cho khách hàng mới"));
+  }
+
+  @Test
+  void vip10RequiresActiveMembership() {
+    Voucher v = createVoucher("VIP10", "PERCENT", new BigDecimal("10"), new BigDecimal("200000"), new BigDecimal("100000"));
+    v.setMemberOnly(true);
+    when(vouchers.findByCodeIgnoreCase("VIP10")).thenReturn(Optional.of(v));
+
+    UUID accountId = UUID.randomUUID();
+    when(memberships.hasActiveMembership(accountId)).thenReturn(false);
+
+    var ex = assertThrows(BusinessException.class, () -> service.calculate("VIP10", new BigDecimal("250000"), accountId));
+    assertTrue(ex.getMessage().contains("chỉ áp dụng cho hội viên"));
+
+    when(memberships.hasActiveMembership(accountId)).thenReturn(true);
+    var result = service.calculate("VIP10", new BigDecimal("250000"), accountId);
+    assertEquals(new BigDecimal("25000.00"), result.get("discount"));
+  }
+
+  @Test
   void voucherThrowsWhenOrderBelowMinimum() {
-    var ex =
-        assertThrows(
-            BusinessException.class,
-            () -> service.calculate("WELCOME", new BigDecimal("80000")));
+    Voucher v = createVoucher("WELCOME", "FIXED", new BigDecimal("50000"), new BigDecimal("100000"), new BigDecimal("50000"));
+    when(vouchers.findByCodeIgnoreCase("WELCOME")).thenReturn(Optional.of(v));
+
+    var ex = assertThrows(BusinessException.class, () -> service.calculate("WELCOME", new BigDecimal("80000")));
     assertTrue(ex.getMessage().contains("tối thiểu 100000"));
   }
 
   @Test
-  void flash25AppliesPercentAndRespectsCap() {
-    // 25% of 200,000 = 50,000
-    var result = service.calculate("FLASH25", new BigDecimal("200000"));
+  void voucherRejectsWhenTotalUsageLimitExceeded() {
+    Voucher v = createVoucher("HE2026", "FIXED", new BigDecimal("50000"), new BigDecimal("100000"), null);
+    v.setUsageLimit(10);
+    v.setUsedCount(10);
+    when(vouchers.findByCodeIgnoreCase("HE2026")).thenReturn(Optional.of(v));
+
+    var ex = assertThrows(BusinessException.class, () -> service.calculate("HE2026", new BigDecimal("150000")));
+    assertTrue(ex.getMessage().contains("hết lượt sử dụng"));
+  }
+
+  @Test
+  void voucherRejectsWhenPerUserLimitExceeded() {
+    Voucher v = createVoucher("COURTLY50K", "FIXED", new BigDecimal("50000"), new BigDecimal("100000"), null);
+    v.setPerUserLimit(1);
+    when(vouchers.findByCodeIgnoreCase("COURTLY50K")).thenReturn(Optional.of(v));
+
+    UUID accountId = UUID.randomUUID();
+    when(redemptions.countByVoucherIdAndAccountId(v.getId(), accountId)).thenReturn(1L);
+
+    var ex = assertThrows(BusinessException.class, () -> service.calculate("COURTLY50K", new BigDecimal("150000"), accountId));
+    assertTrue(ex.getMessage().contains("đã dùng hết số lần cho phép"));
+  }
+
+  @Test
+  void redeemLocksVoucherIncrementsCountAndSavesRedemption() {
+    Voucher v = createVoucher("FLASH25", "PERCENT", new BigDecimal("25"), new BigDecimal("100000"), new BigDecimal("150000"));
+    v.setUsedCount(5);
+    when(vouchers.findByCodeForUpdate("FLASH25")).thenReturn(Optional.of(v));
+
+    CustomerOrder order = new CustomerOrder();
+    order.setId(UUID.randomUUID());
+
+    var result = service.redeem("FLASH25", order, new BigDecimal("200000"), null);
     assertNotNull(result);
-    assertEquals("FLASH25", result.get("code"));
     assertEquals(new BigDecimal("50000.00"), result.get("discount"));
+    assertEquals(6, v.getUsedCount());
 
-    // 25% of 1,000,000 = 250,000, capped at maxDiscount 150,000
-    var capped = service.calculate("FLASH25", new BigDecimal("1000000"));
-    assertEquals(new BigDecimal("150000"), capped.get("discount"));
+    verify(vouchers).save(v);
+    verify(redemptions).save(any(VoucherRedemption.class));
   }
 
   @Test
-  void unknownVoucherCodeThrowsException() {
-    var ex =
-        assertThrows(
-            BusinessException.class,
-            () -> service.calculate("INVALID_CODE", new BigDecimal("200000")));
-    assertTrue(ex.getMessage().contains("không tồn tại hoặc đã hết hạn"));
-  }
+  void releaseDecrementsUsageAndDeletesRedemption() {
+    UUID orderId = UUID.randomUUID();
+    Voucher v = createVoucher("FLASH25", "PERCENT", new BigDecimal("25"), new BigDecimal("100000"), new BigDecimal("150000"));
+    v.setUsedCount(6);
 
-  @Test
-  void listAvailableReturnsAllActiveVouchers() {
-    var list = service.listAvailable();
-    assertFalse(list.isEmpty());
-    assertTrue(list.stream().anyMatch(v -> "WELCOME".equals(v.get("code"))));
-    assertTrue(list.stream().anyMatch(v -> "HE2026".equals(v.get("code"))));
-    assertTrue(list.stream().anyMatch(v -> "COURTLY50K".equals(v.get("code"))));
-    assertTrue(list.stream().anyMatch(v -> "VIP10".equals(v.get("code"))));
-    assertTrue(list.stream().anyMatch(v -> "FLASH25".equals(v.get("code"))));
+    VoucherRedemption redemption = new VoucherRedemption();
+    redemption.setVoucher(v);
+    when(redemptions.findByOrderId(orderId)).thenReturn(Optional.of(redemption));
+    when(vouchers.findByCodeForUpdate(v.getCode())).thenReturn(Optional.of(v));
+
+    service.release(orderId);
+
+    assertEquals(5, v.getUsedCount());
+    verify(vouchers).save(v);
+    verify(redemptions).delete(redemption);
   }
 }
 ```

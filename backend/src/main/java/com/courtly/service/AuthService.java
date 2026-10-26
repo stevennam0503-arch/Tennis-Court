@@ -50,6 +50,15 @@ public class AuthService {
     failures.entrySet().removeIf(e -> now - e.getValue()[0] > 900000);
   }
 
+  public Optional<Account> optCurrent(HttpServletRequest req) {
+    var session = req.getSession(false);
+    if (session == null || session.getAttribute("accountId") == null) {
+      return Optional.empty();
+    }
+    UUID id = (UUID) session.getAttribute("accountId");
+    return accounts.findById(id);
+  }
+
   public Account current(HttpServletRequest req) {
     var session = req.getSession(false);
     if (session == null || session.getAttribute("accountId") == null)
@@ -339,7 +348,9 @@ public class AuthService {
             throw new BusinessException("Mã xác nhận đã hết hạn hoặc thử sai quá 5 lần. Vui lòng yêu cầu mã mới.");
           }
           String storedHash = (String) info.get("codeHash");
-          boolean valid = hashOtp(code).equals(storedHash) || hash(code).equals(storedHash);
+          boolean valid = storedHash != null && MessageDigest.isEqual(
+              hashOtp(code).getBytes(StandardCharsets.UTF_8),
+              storedHash.getBytes(StandardCharsets.UTF_8));
           if (!valid) {
             info.put("attempts", attempts + 1);
             documents.save(row, info);
@@ -348,19 +359,9 @@ public class AuthService {
         }
       }
 
-      if (info == null || !info.containsKey("accountId")) {
-        String key = "reset:" + hash(code);
-        row = documents.lock(key);
-        info = documents.read(row);
-        if (!info.containsKey("accountId")) {
-          key = "activation:" + hash(code);
-          row = documents.lock(key);
-          info = documents.read(row);
-        }
-      }
-
       require(
-          info.containsKey("accountId")
+          info != null
+              && info.containsKey("accountId")
               && !Boolean.TRUE.equals(info.get("used"))
               && Instant.parse((String) info.get("expiresAt")).isAfter(Instant.now()),
           "Mã xác nhận không đúng, đã dùng hoặc đã hết hạn (15 phút)");
@@ -389,7 +390,9 @@ public class AuthService {
             throw new BusinessException("Mã kích hoạt đã hết hạn hoặc thử sai quá 5 lần. Vui lòng yêu cầu mã mới.");
           }
           String storedHash = (String) info.get("codeHash");
-          boolean valid = hashOtp(token).equals(storedHash) || hash(token).equals(storedHash);
+          boolean valid = storedHash != null && MessageDigest.isEqual(
+              hashOtp(token).getBytes(StandardCharsets.UTF_8),
+              storedHash.getBytes(StandardCharsets.UTF_8));
           if (!valid) {
             info.put("attempts", attempts + 1);
             documents.save(row, info);
@@ -398,17 +401,12 @@ public class AuthService {
         }
       }
 
-      if (info == null || !info.containsKey("accountId")) {
-        String key = "activation:" + hash(token);
-        row = documents.lock(key);
-        info = documents.read(row);
-      }
-
       require(
-          info.containsKey("accountId")
+          info != null
+              && info.containsKey("accountId")
               && !Boolean.TRUE.equals(info.get("used"))
               && Instant.parse((String) info.get("expiresAt")).isAfter(Instant.now()),
-          "Mã kích hoạt không đúng, đã dùng hoặc hết hạn (15 phút)");
+          "Mã kích hoạt không đúng, đã dùng hoặc đã hết hạn (15 phút)");
       Account a =
           accounts.findForUpdate(UUID.fromString((String) info.get("accountId"))).orElseThrow();
       require("ACTIVE".equals(a.getStatus()) || "PENDING_ACTIVATION".equals(a.getStatus()), "Tài khoản đã bị khóa");

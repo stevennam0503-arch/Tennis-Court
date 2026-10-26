@@ -2,126 +2,203 @@ package com.courtly.service;
 
 import static com.courtly.util.Rules.map;
 
+import com.courtly.entity.CustomerOrder;
+import com.courtly.entity.Voucher;
+import com.courtly.entity.VoucherRedemption;
 import com.courtly.exception.BusinessException;
+import com.courtly.repository.CustomerOrderRepository;
+import com.courtly.repository.VoucherRedemptionRepository;
+import com.courtly.repository.VoucherRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.*;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class VoucherService {
 
-  public record VoucherDef(
-      String code,
-      String type, // FIXED or PERCENT
-      BigDecimal value,
-      BigDecimal minOrder,
-      BigDecimal maxDiscount,
-      String description) {}
+  private final VoucherRepository vouchers;
+  private final VoucherRedemptionRepository redemptions;
+  private final CustomerOrderRepository orders;
+  private final MembershipService memberships;
 
-  private static final Map<String, VoucherDef> ACTIVE_VOUCHERS = new LinkedHashMap<>();
-
-  static {
-    ACTIVE_VOUCHERS.put(
-        "WELCOME",
-        new VoucherDef(
-            "WELCOME",
-            "FIXED",
-            BigDecimal.valueOf(50000),
-            BigDecimal.valueOf(100000),
-            BigDecimal.valueOf(50000),
-            "Giảm 50.000 đ chào mừng thành viên mới"));
-    ACTIVE_VOUCHERS.put(
-        "HE2026",
-        new VoucherDef(
-            "HE2026",
-            "FIXED",
-            BigDecimal.valueOf(50000),
-            BigDecimal.valueOf(150000),
-            BigDecimal.valueOf(50000),
-            "Giảm 50.000 đ mùa hè sôi động 2026"));
-    ACTIVE_VOUCHERS.put(
-        "COURTLY50K",
-        new VoucherDef(
-            "COURTLY50K",
-            "FIXED",
-            BigDecimal.valueOf(50000),
-            BigDecimal.valueOf(100000),
-            BigDecimal.valueOf(50000),
-            "Voucher tri ân 50.000 đ"));
-    ACTIVE_VOUCHERS.put(
-        "VIP10",
-        new VoucherDef(
-            "VIP10",
-            "PERCENT",
-            BigDecimal.valueOf(10),
-            BigDecimal.valueOf(200000),
-            BigDecimal.valueOf(100000),
-            "Giảm 10% (tối đa 100k) cho hội viên"));
-    ACTIVE_VOUCHERS.put(
-        "FLASH25",
-        new VoucherDef(
-            "FLASH25",
-            "PERCENT",
-            BigDecimal.valueOf(25),
-            BigDecimal.valueOf(100000),
-            BigDecimal.valueOf(150000),
-            "Ưu đãi Giờ Vàng giảm 25%"));
-  }
-
+  @Transactional(readOnly = true)
   public List<Map<String, Object>> listAvailable() {
-    return ACTIVE_VOUCHERS.values().stream()
+    Instant now = Instant.now();
+    return vouchers.findByEnabledTrue().stream()
+        .filter(v -> v.getStartsAt() == null || !v.getStartsAt().isAfter(now))
+        .filter(v -> v.getExpiresAt() == null || !v.getExpiresAt().isBefore(now))
+        .filter(v -> v.getUsageLimit() == null || v.getUsedCount() < v.getUsageLimit())
         .map(
             v ->
                 map(
-                    "code", v.code(),
-                    "type", v.type(),
-                    "value", v.value(),
-                    "minOrder", v.minOrder(),
-                    "description", v.description()))
+                    "code", v.getCode(),
+                    "type", v.getType(),
+                    "value", v.getValue(),
+                    "minOrder", v.getMinOrder(),
+                    "maxDiscount", v.getMaxDiscount(),
+                    "memberOnly", v.getMemberOnly(),
+                    "newUserOnly", v.getNewUserOnly(),
+                    "description", v.getDescription()))
         .toList();
   }
 
+  @Transactional(readOnly = true)
   public Map<String, Object> calculate(String rawCode, BigDecimal totalAmount) {
+    return calculate(rawCode, totalAmount, null);
+  }
+
+  @Transactional(readOnly = true)
+  public Map<String, Object> calculate(String rawCode, BigDecimal totalAmount, UUID accountId) {
     if (rawCode == null || rawCode.isBlank()) {
       return null;
     }
     String code = rawCode.trim().toUpperCase(Locale.ROOT);
-    VoucherDef def = ACTIVE_VOUCHERS.get(code);
-    if (def == null) {
-      throw new BusinessException("Mã voucher '" + rawCode + "' không tồn tại hoặc đã hết hạn");
+    Voucher v =
+        vouchers
+            .findByCodeIgnoreCase(code)
+            .orElseThrow(
+                () ->
+                    new BusinessException("Mã voucher '" + rawCode + "' không tồn tại hoặc đã hết hạn"));
+
+    validateVoucherRules(v, totalAmount, accountId);
+    BigDecimal discount = computeDiscount(v, totalAmount);
+
+    return map(
+        "code", v.getCode(),
+        "discount", discount,
+        "description", v.getDescription(),
+        "applied", true);
+  }
+
+  @Transactional
+  public Map<String, Object> redeem(String rawCode, CustomerOrder order, BigDecimal totalAmount, UUID accountId) {
+    if (rawCode == null || rawCode.isBlank()) {
+      return null;
+    }
+    String code = rawCode.trim().toUpperCase(Locale.ROOT);
+    // Pessimistic write lock to prevent race conditions on usage limits
+    Voucher v =
+        vouchers
+            .findByCodeForUpdate(code)
+            .orElseThrow(
+                () ->
+                    new BusinessException("Mã voucher '" + rawCode + "' không tồn tại hoặc đã hết hạn"));
+
+    validateVoucherRules(v, totalAmount, accountId);
+    BigDecimal discount = computeDiscount(v, totalAmount);
+
+    v.setUsedCount(v.getUsedCount() + 1);
+    vouchers.save(v);
+
+    VoucherRedemption redemption = new VoucherRedemption();
+    redemption.setVoucher(v);
+    redemption.setOrder(order);
+    if (order.getCustomerAccount() != null) {
+      redemption.setAccount(order.getCustomerAccount());
+    }
+    redemption.setDiscountAmount(discount);
+    redemption.setRedeemedAt(Instant.now());
+    redemptions.save(redemption);
+
+    return map(
+        "code", v.getCode(),
+        "discount", discount,
+        "description", v.getDescription(),
+        "applied", true);
+  }
+
+  @Transactional
+  public void release(UUID orderId) {
+    if (orderId == null) return;
+    redemptions.findByOrderId(orderId).ifPresent(redemption -> {
+      vouchers.findByCodeForUpdate(redemption.getVoucher().getCode()).ifPresent(v -> {
+        if (v.getUsedCount() > 0) {
+          v.setUsedCount(v.getUsedCount() - 1);
+          vouchers.save(v);
+        }
+      });
+      redemptions.delete(redemption);
+    });
+  }
+
+  private void validateVoucherRules(Voucher v, BigDecimal totalAmount, UUID accountId) {
+    if (!Boolean.TRUE.equals(v.getEnabled())) {
+      throw new BusinessException("Mã voucher '" + v.getCode() + "' hiện đang tạm khóa");
+    }
+
+    Instant now = Instant.now();
+    if (v.getStartsAt() != null && v.getStartsAt().isAfter(now)) {
+      throw new BusinessException("Mã voucher '" + v.getCode() + "' chưa đến thời gian áp dụng");
+    }
+    if (v.getExpiresAt() != null && v.getExpiresAt().isBefore(now)) {
+      throw new BusinessException("Mã voucher '" + v.getCode() + "' đã hết hạn");
+    }
+
+    if (v.getUsageLimit() != null && v.getUsedCount() >= v.getUsageLimit()) {
+      throw new BusinessException("Mã voucher '" + v.getCode() + "' đã hết lượt sử dụng");
     }
 
     BigDecimal total = totalAmount != null ? totalAmount : BigDecimal.ZERO;
-    if (total.compareTo(def.minOrder()) < 0) {
+    if (v.getMinOrder() != null && total.compareTo(v.getMinOrder()) < 0) {
       throw new BusinessException(
           "Đơn đặt sân tối thiểu "
-              + def.minOrder().setScale(0, RoundingMode.HALF_UP)
+              + v.getMinOrder().setScale(0, RoundingMode.HALF_UP)
               + " đ để áp dụng voucher "
-              + code);
+              + v.getCode());
     }
 
+    if (accountId != null) {
+      if (Boolean.TRUE.equals(v.getNewUserOnly())) {
+        long pastOrders = orders.countByCustomerAccountIdAndStatusNotIn(accountId, Set.of("CANCELLED", "EXPIRED"));
+        if (pastOrders > 0) {
+          throw new BusinessException("Voucher " + v.getCode() + " chỉ áp dụng cho khách hàng mới đặt sân lần đầu");
+        }
+      }
+
+      if (Boolean.TRUE.equals(v.getMemberOnly())) {
+        boolean activeMember = memberships.hasActiveMembership(accountId);
+        if (!activeMember) {
+          throw new BusinessException("Voucher " + v.getCode() + " chỉ áp dụng cho hội viên có gói active");
+        }
+      }
+
+      if (v.getPerUserLimit() != null) {
+        long userUsed = redemptions.countByVoucherIdAndAccountId(v.getId(), accountId);
+        if (userUsed >= v.getPerUserLimit()) {
+          throw new BusinessException(
+              "Bạn đã dùng hết số lần cho phép của voucher "
+                  + v.getCode()
+                  + " (tối đa "
+                  + v.getPerUserLimit()
+                  + " lần/tài khoản)");
+        }
+      }
+    }
+  }
+
+  private BigDecimal computeDiscount(Voucher v, BigDecimal totalAmount) {
+    BigDecimal total = totalAmount != null ? totalAmount : BigDecimal.ZERO;
     BigDecimal discount;
-    if ("PERCENT".equals(def.type())) {
+    if ("PERCENT".equals(v.getType())) {
       discount =
           total
-              .multiply(def.value())
+              .multiply(v.getValue())
               .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-      if (def.maxDiscount() != null && discount.compareTo(def.maxDiscount()) > 0) {
-        discount = def.maxDiscount();
+      if (v.getMaxDiscount() != null && discount.compareTo(v.getMaxDiscount()) > 0) {
+        discount = v.getMaxDiscount();
       }
     } else {
-      discount = def.value();
+      discount = v.getValue();
     }
 
     if (discount.compareTo(total) > 0) {
       discount = total;
     }
-
-    return map(
-        "code", def.code(),
-        "discount", discount,
-        "description", def.description(),
-        "applied", true);
+    return discount;
   }
 }

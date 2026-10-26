@@ -5,7 +5,7 @@ import {GuestContext,translate,dateToday,Action} from './context';
 import {Header,Footer} from './Layout';
 import Overview from './Overview';
 import Booking from './Booking';
-import Pricing from './Pricing';
+import Pricing from './Pricing.jsx';
 import CashDesk from './CashDesk';
 import Tournaments,{EventDialog} from './Tournaments';
 import {News,Article,Contact,Feedback,Policies} from './Content';

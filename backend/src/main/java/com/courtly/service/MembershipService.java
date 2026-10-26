@@ -92,6 +92,17 @@ public class MembershipService {
         receipts);
   }
 
+  public boolean hasActiveMembership(UUID account) {
+    if (account == null) return false;
+    return docs.list("membership:").stream()
+        .anyMatch(
+            m ->
+                account.toString().equals(m.get("accountId"))
+                    && "ACTIVE".equals(status(m))
+                    && !Instant.parse((String) m.get("startsAt")).isAfter(Instant.now())
+                    && !Instant.parse((String) m.get("endsAt")).isBefore(Instant.now()));
+  }
+
   public Map<String, Object> quote(UUID account, List<CourtSchedule> slots) {
     var member =
         docs.list("membership:").stream()

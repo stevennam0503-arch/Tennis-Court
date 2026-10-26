@@ -37,10 +37,11 @@ public class OrderController {
   }
 
   @PostMapping("/public/vouchers/validate")
-  public Map<String, Object> validateVoucher(@RequestBody Map<String, Object> body) {
+  public Map<String, Object> validateVoucher(@RequestBody Map<String, Object> body, HttpServletRequest r) {
     String code = (String) body.get("code");
     java.math.BigDecimal amount = PresentationService.decimal(body.get("amount"));
-    return vouchers.calculate(code, amount);
+    UUID accountId = auth.optCurrent(r).map(com.courtly.entity.Account::getId).orElse(null);
+    return vouchers.calculate(code, amount, accountId);
   }
 
   @GetMapping("/orders/{id}/extension-options")

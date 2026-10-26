@@ -22,6 +22,7 @@ class DemoDataInitializerTest {
   private TournamentRepository tournaments;
   private SettingsService settings;
   private PasswordEncoder encoder;
+  private org.springframework.core.env.Environment environment;
   private DemoDataInitializer initializer;
 
   @BeforeEach
@@ -32,8 +33,10 @@ class DemoDataInitializerTest {
     tournaments = mock(TournamentRepository.class);
     settings = mock(SettingsService.class);
     encoder = new BCryptPasswordEncoder();
+    environment = mock(org.springframework.core.env.Environment.class);
+    when(environment.acceptsProfiles(any(org.springframework.core.env.Profiles.class))).thenReturn(false);
 
-    initializer = new DemoDataInitializer(courts, accounts, staff, tournaments, settings, encoder);
+    initializer = new DemoDataInitializer(courts, accounts, staff, tournaments, settings, encoder, environment);
     ReflectionTestUtils.setField(initializer, "adminEmail", "admin@gmail.com");
     ReflectionTestUtils.setField(initializer, "adminPassword", "");
     ReflectionTestUtils.setField(initializer, "enabled", false);

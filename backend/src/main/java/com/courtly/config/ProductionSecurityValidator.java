@@ -4,17 +4,21 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Component;
 
 /**
  * Fail-fast security invariant validator for production environments.
+ * Runs with highest precedence before any other runner can execute or seed data.
  * Prevents the application from starting if insecure default credentials,
- * unencrypted cookies, demo modes, or placeholder secrets are configured.
+ * unencrypted cookies, demo modes, placeholder secrets, or sample bank accounts are configured.
  */
 @Slf4j
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @RequiredArgsConstructor
 public class ProductionSecurityValidator implements ApplicationRunner {
 
@@ -72,6 +76,36 @@ public class ProductionSecurityValidator implements ApplicationRunner {
       throw new IllegalStateException(
           "FATAL: ADMIN_PASSWORD is missing or set to default '12345' in production profile! "
               + "Please configure a strong ADMIN_PASSWORD.");
+    }
+
+    String paymentMode = environment.getProperty("courtly.payment.mode", "");
+    if ("DEMO".equalsIgnoreCase(paymentMode)) {
+      throw new IllegalStateException(
+          "FATAL: PAYMENT_MODE must not be 'DEMO' in production profile! "
+              + "Please set PAYMENT_MODE=SEPAY or configure a live payment provider.");
+    }
+
+    String webhookKey = environment.getProperty("courtly.payment.webhook-key", "");
+    if (webhookKey.isBlank()) {
+      throw new IllegalStateException(
+          "FATAL: SEPAY_WEBHOOK_KEY is required and cannot be blank in production profile! "
+              + "Please configure a valid SEPAY_WEBHOOK_KEY.");
+    }
+
+    String frontendOrigin = environment.getProperty("courtly.allowed-origin", "");
+    if (frontendOrigin.isBlank()
+        || frontendOrigin.contains("localhost")
+        || frontendOrigin.contains("127.0.0.1")) {
+      throw new IllegalStateException(
+          "FATAL: FRONTEND_ORIGIN cannot be empty or point to localhost in production profile! "
+              + "Configured value: '" + frontendOrigin + "'. Please configure a production domain.");
+    }
+
+    String accountNumber = environment.getProperty("courtly.payment.account-number", "");
+    if ("0345678999".equals(accountNumber)) {
+      throw new IllegalStateException(
+          "FATAL: Default sample bank account number ('0345678999') detected in production profile! "
+              + "Please configure a real PAYMENT_ACCOUNT_NUMBER via environment variables.");
     }
 
     log.info("All production security invariants validated successfully.");

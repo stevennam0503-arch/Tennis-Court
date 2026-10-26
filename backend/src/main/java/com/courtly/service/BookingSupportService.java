@@ -128,7 +128,7 @@ public class BookingSupportService {
     BigDecimal courtTotal = rows.stream().map(CourtSchedule::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
     Map<String, Object> voucherBenefit = null;
     if (voucherCode != null && !voucherCode.isBlank()) {
-      voucherBenefit = vouchers.calculate(voucherCode, courtTotal);
+      voucherBenefit = vouchers.calculate(voucherCode, courtTotal, account);
     }
     return map(
         "courtQuote",

@@ -19,6 +19,19 @@ class ProductionSecurityValidatorTest {
     validator = new ProductionSecurityValidator(environment);
   }
 
+  private void mockSecureDefaults() {
+    when(environment.getProperty("spring.datasource.password", "")).thenReturn("SecureProdDbPass123!");
+    when(environment.getProperty("server.servlet.session.cookie.secure", "false")).thenReturn("true");
+    when(environment.getProperty("courtly.demo-mode", "false")).thenReturn("false");
+    when(environment.getProperty("courtly.seed-demo", "false")).thenReturn("false");
+    when(environment.getProperty("courtly.security.otp-secret", "")).thenReturn("SuperSecretCryptoRandomKey987654321");
+    when(environment.getProperty("courtly.admin-password", "")).thenReturn("AdminStrongPassword2026!");
+    when(environment.getProperty("courtly.payment.mode", "")).thenReturn("SEPAY");
+    when(environment.getProperty("courtly.payment.webhook-key", "")).thenReturn("LiveSepayWebhookSecret12345");
+    when(environment.getProperty("courtly.allowed-origin", "")).thenReturn("https://tennis.courtly.vn");
+    when(environment.getProperty("courtly.payment.account-number", "")).thenReturn("987654321098");
+  }
+
   @Test
   void nonProdProfileDoesNotEnforceProductionInvariants() {
     when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(false);
@@ -75,14 +88,53 @@ class ProductionSecurityValidatorTest {
   }
 
   @Test
+  void prodProfileRejectsPaymentModeDemo() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
+    mockSecureDefaults();
+    when(environment.getProperty("courtly.payment.mode", "")).thenReturn("DEMO");
+
+    IllegalStateException ex =
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments()));
+    assertTrue(ex.getMessage().contains("PAYMENT_MODE must not be 'DEMO'"));
+  }
+
+  @Test
+  void prodProfileRejectsBlankSepayWebhookKey() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
+    mockSecureDefaults();
+    when(environment.getProperty("courtly.payment.webhook-key", "")).thenReturn("");
+
+    IllegalStateException ex =
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments()));
+    assertTrue(ex.getMessage().contains("SEPAY_WEBHOOK_KEY is required"));
+  }
+
+  @Test
+  void prodProfileRejectsLocalhostFrontendOrigin() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
+    mockSecureDefaults();
+    when(environment.getProperty("courtly.allowed-origin", "")).thenReturn("http://localhost:3000");
+
+    IllegalStateException ex =
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments()));
+    assertTrue(ex.getMessage().contains("FRONTEND_ORIGIN cannot be empty or point to localhost"));
+  }
+
+  @Test
+  void prodProfileRejectsSampleBankAccountNumber() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
+    mockSecureDefaults();
+    when(environment.getProperty("courtly.payment.account-number", "")).thenReturn("0345678999");
+
+    IllegalStateException ex =
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments()));
+    assertTrue(ex.getMessage().contains("Default sample bank account number"));
+  }
+
+  @Test
   void prodProfileAcceptsFullySecuredConfiguration() {
     when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
-    when(environment.getProperty("spring.datasource.password", "")).thenReturn("SecureProdDbPass123!");
-    when(environment.getProperty("server.servlet.session.cookie.secure", "false")).thenReturn("true");
-    when(environment.getProperty("courtly.demo-mode", "false")).thenReturn("false");
-    when(environment.getProperty("courtly.seed-demo", "false")).thenReturn("false");
-    when(environment.getProperty("courtly.security.otp-secret", "")).thenReturn("SuperSecretCryptoRandomKey987654321");
-    when(environment.getProperty("courtly.admin-password", "")).thenReturn("AdminStrongPassword2026!");
+    mockSecureDefaults();
 
     assertDoesNotThrow(() -> validator.run(new DefaultApplicationArguments()));
   }
