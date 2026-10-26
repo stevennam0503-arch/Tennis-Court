@@ -181,6 +181,13 @@ export function PaymentDialog({intent,onClose}){
             width="240"
             height="240"
             alt="Mã VietQR thanh toán"
+            onError={() => {
+              if (current.reference) {
+                QRCode.toDataURL(`STK: ${current.accountNumber || ''}\nNH: ${current.bankBin || '970422'}\nSo tien: ${current.amount}\nND: ${current.reference}`, { width: 320, margin: 1 })
+                  .then(setQr)
+                  .catch(() => {});
+              }
+            }}
             style={{borderRadius:8, border:'1px solid #e2e8f0', boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}}
           />
         ) : (

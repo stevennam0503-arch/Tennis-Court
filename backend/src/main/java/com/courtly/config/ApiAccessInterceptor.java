@@ -18,6 +18,16 @@ public class ApiAccessInterceptor implements HandlerInterceptor {
   private final AuthService auth;
   private final CustomerOrderRepository orders;
 
+  private static final Set<String> CUSTOMER_ORDER_ACTIONS = Set.of(
+      "cancel",
+      "schedule",
+      "preview",
+      "cancellation-preview",
+      "extension-options",
+      "extend",
+      "invoice"
+  );
+
   @Override
   public boolean preHandle(HttpServletRequest req, HttpServletResponse res, Object handler) {
     String p = req.getRequestURI();
@@ -43,9 +53,12 @@ public class ApiAccessInterceptor implements HandlerInterceptor {
       if (o.getCustomerAccount() == null || !o.getCustomerAccount().getId().equals(a.getId()))
         throw new ResponseStatusException(
             HttpStatus.FORBIDDEN, "Bạn chỉ được xem và sửa đơn của mình");
-      if (parts.length < 5 || !Set.of("cancel", "schedule", "preview", "cancellation-preview").contains(parts[4]))
+
+      // If viewing the order itself (length <= 4), allow owner
+      if (parts.length > 4 && !CUSTOMER_ORDER_ACTIONS.contains(parts[4])) {
         throw new ResponseStatusException(
             HttpStatus.FORBIDDEN, "Dịch vụ và vận hành đơn chỉ xử lý tại quầy");
+      }
     }
     return true;
   }

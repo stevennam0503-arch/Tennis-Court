@@ -1,5 +1,7 @@
 package com.courtly.controller;
 
+import static com.courtly.util.Rules.*;
+
 import com.courtly.dto.request.CatalogRequest;
 import com.courtly.service.CatalogService;
 import jakarta.validation.Valid;
@@ -10,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/catalog")
-@PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 public class CatalogController {
   private final CatalogService service;
@@ -21,6 +22,7 @@ public class CatalogController {
   private final com.courtly.service.AuditService audit;
 
   @PostMapping("/{collection}")
+  @PreAuthorize("hasRole('ADMIN')")
   public Map<String, Object> create(
       @PathVariable String collection,
       @Valid @RequestBody CatalogRequest request,
@@ -30,10 +32,11 @@ public class CatalogController {
         null,
         "catalog:" + collection,
         request,
-        () -> com.courtly.util.Rules.map("id", service.save(collection, null, request)));
+        () -> map("id", service.save(collection, null, request)));
   }
 
   @PutMapping("/{collection}/{id}")
+  @PreAuthorize("hasRole('ADMIN')")
   public Map<String, Object> update(
       @PathVariable String collection,
       @PathVariable UUID id,
@@ -43,44 +46,48 @@ public class CatalogController {
       var actor = auth.current(req);
       var old = accounts.findById(id).orElseThrow();
       if (auth.owner(old) || id.equals(actor.getId()))
-        com.courtly.util.Rules.require(
+        require(
             "ADMIN".equals(request.role()) && "ACTIVE".equals(request.status()),
             "Không được tự khóa/hạ quyền hoặc thay quyền chủ hệ thống");
       if (old.getPasswordHash() != null)
-        com.courtly.util.Rules.require(
-            old.getEmail().equalsIgnoreCase(request.email()),
-            "Không đổi email đã liên kết đăng nhập");
+        require(
+            old.getRole().equals(request.role()) && old.getStatus().equals(request.status()),
+            "Không được phân quyền tài khoản đã đăng nhập");
     }
     return requests.execute(
         auth.current(req).getId(),
         null,
         "catalog:" + collection + ":" + id,
         request,
-        () -> com.courtly.util.Rules.map("id", service.save(collection, id, request)));
+        () -> map("id", service.save(collection, id, request)));
   }
 
   @DeleteMapping("/{collection}/{id}")
+  @PreAuthorize("hasRole('ADMIN')")
   public Map<String, Object> delete(
       @PathVariable String collection,
       @PathVariable UUID id,
       jakarta.servlet.http.HttpServletRequest req) {
     var actor = auth.current(req);
     service.delete(collection, id, actor);
-    return com.courtly.util.Rules.map("success", true, "id", id);
+    return map("success", true, "id", id);
   }
 
   @PostMapping("/schedules/maintenance")
+  @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
   public Map<String, Object> setSlotMaintenance(
       @RequestBody Map<String, Object> body,
       jakarta.servlet.http.HttpServletRequest req) {
-    var actor = auth.current(req);
-    List<UUID> ids = ((List<?>) body.get("scheduleIds")).stream()
+    auth.cashier(auth.current(req));
+    Object rawIds = body.get("scheduleIds") != null ? body.get("scheduleIds") : body.get("slotIds");
+    require(rawIds instanceof List<?>, "Danh sách khung giờ không hợp lệ");
+    List<UUID> ids = ((List<?>) rawIds).stream()
         .map(x -> UUID.fromString(x.toString()))
         .toList();
     boolean maintenance = Boolean.TRUE.equals(body.get("maintenance"));
     String reason = (String) body.get("reason");
     schedules.toggleSlotMaintenance(ids, maintenance, reason);
     audit.log("BẢO TRÌ KHUNG GIỜ", (maintenance ? "BẬT BẢO TRÌ" : "MỞ LẠI SÂN") + " (" + ids.size() + " slot)" + (reason != null && !reason.isBlank() ? ": " + reason : ""));
-    return com.courtly.util.Rules.map("success", true, "count", ids.size());
+    return map("success", true, "count", ids.size());
   }
 }

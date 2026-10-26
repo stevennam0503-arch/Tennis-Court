@@ -16,7 +16,9 @@ public class ProfileController {
   private final AuthService auth;
   private final AccountRepository accounts;
 
-  @PatchMapping("/api/profile")
+  @RequestMapping(
+      value = "/api/profile",
+      method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST})
   @Transactional
   public Map<String, Object> profile(@RequestBody Map<String, Object> b, HttpServletRequest r) {
     var a = auth.current(r);

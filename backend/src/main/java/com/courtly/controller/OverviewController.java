@@ -35,18 +35,23 @@ public class OverviewController {
     return presentation.get(date, null);
   }
 
-  @PostMapping("/schedules/generate")
-  @PreAuthorize("hasRole('ADMIN')")
+  @RequestMapping(
+      value = "/schedules/generate",
+      method = {RequestMethod.POST, RequestMethod.GET})
+  @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
   public Map<String, Object> generate(
-      @Valid @RequestBody ScheduleRequest body, HttpServletRequest r) {
+      @Valid @RequestBody(required = false) ScheduleRequest body,
+      @RequestParam(required = false) LocalDate date,
+      HttpServletRequest r) {
     var a = auth.current(r);
+    LocalDate targetDate = body != null && body.date() != null ? body.date() : (date != null ? date : LocalDate.now());
     return requests.execute(
         a.getId(),
         null,
         "generate",
-        body,
+        Map.of("date", targetDate.toString()),
         () -> {
-          schedules.generate(body.date());
+          schedules.generate(targetDate);
           return Map.of("ok", true);
         });
   }

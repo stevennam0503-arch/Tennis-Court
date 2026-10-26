@@ -55,7 +55,9 @@ public class OrderController {
     return service.preview(id, b, auth.current(r));
   }
 
-  @PatchMapping("/orders/{id}/schedule")
+  @RequestMapping(
+      value = "/orders/{id}/schedule",
+      method = {RequestMethod.PATCH, RequestMethod.POST})
   public Map<String, Object> move(
       @PathVariable UUID id, @RequestBody Map<String, Object> b, HttpServletRequest r) {
     return service.move(id, b, auth.current(r));
@@ -69,5 +71,4 @@ public class OrderController {
       HttpServletRequest r) {
     return service.action(id, action, b, auth.current(r));
   }
-
 }

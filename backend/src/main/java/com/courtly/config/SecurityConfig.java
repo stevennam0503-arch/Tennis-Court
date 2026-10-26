@@ -42,9 +42,13 @@ public class SecurityConfig {
             a ->
                 a.requestMatchers("/api/csrf", "/api/auth/**", "/api/public/**", "/api/webhooks/sepay")
                     .permitAll()
-                    // Thu ngân / thu tiền tại quầy: ADMIN và STAFF
+                    // Thu ngân / thu tiền tại quầy / bảo trì khung giờ: ADMIN và STAFF
                     .requestMatchers(HttpMethod.GET, "/api/payments/cash-desk").hasAnyRole("ADMIN", "STAFF")
                     .requestMatchers(HttpMethod.POST, "/api/payments").hasAnyRole("ADMIN", "STAFF")
+                    .requestMatchers(HttpMethod.GET, "/api/payments/shift/**").hasAnyRole("ADMIN", "STAFF")
+                    .requestMatchers(HttpMethod.POST, "/api/payments/shift/**").hasAnyRole("ADMIN", "STAFF")
+                    .requestMatchers(HttpMethod.GET, "/api/payments/reconciliation").hasAnyRole("ADMIN", "STAFF")
+                    .requestMatchers(HttpMethod.POST, "/api/catalog/schedules/maintenance").hasAnyRole("ADMIN", "STAFF")
                     // Toàn bộ các route quản trị nhạy cảm: chỉ ADMIN
                     .requestMatchers(
                         "/api/catalog/**",

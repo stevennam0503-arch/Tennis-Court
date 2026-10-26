@@ -6,6 +6,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.*;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -18,6 +20,21 @@ public class GlobalExceptionHandler {
         .body(
             new ApiError(
                 e.getReason() == null ? "Không có quyền truy cập" : e.getReason(), Instant.now()));
+  }
+
+  @ExceptionHandler(AccessDeniedException.class)
+  public ResponseEntity<ApiError> accessDenied(AccessDeniedException e) {
+    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+        .body(new ApiError("Bạn không có quyền thực hiện thao tác này.", Instant.now()));
+  }
+
+  @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+  public ResponseEntity<ApiError> methodNotSupported(HttpRequestMethodNotSupportedException e) {
+    return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+        .body(
+            new ApiError(
+                "Phương thức HTTP (" + e.getMethod() + ") không được hỗ trợ cho tác vụ này.",
+                Instant.now()));
   }
 
   @ExceptionHandler(BusinessException.class)
