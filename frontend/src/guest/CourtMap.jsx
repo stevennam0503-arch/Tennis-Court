@@ -8,10 +8,16 @@ const zones = [
   {id:'V', name:'VIP', style:'vip', Icon:Crown},
 ];
 
-export default function CourtMap({courts, selected, onSelect, availability, rangeLabel}) {
+export default function CourtMap({courts, selected, onSelect, availability, rangeLabel, courtSelections = {}}) {
   const {t} = useGuest();
   return <section className="gx-map-section" aria-labelledby="guest-court-map-title">
-    <div className="gx-block-heading"><div><span className="gx-step">01</span><h2 id="guest-court-map-title">{t('Chọn sân của bạn')}</h2></div><span>{rangeLabel || t('Chạm vào sân để xem giờ trống')}</span></div>
+    <div className="gx-block-heading">
+      <div>
+        <span className="gx-step">01</span>
+        <h2 id="guest-court-map-title">{t('Chọn sân của bạn')}</h2>
+      </div>
+      <span>{rangeLabel || t('Chạm vào sân để xem hoặc chọn giờ')}</span>
+    </div>
     <div className="dg-board" aria-label={t('Bản đồ sân')}>
       {zones.filter(z=>courts.some(c=>zone(c)===z.id)).map(({id, name, style, Icon}) => {
         const items = courts.filter(court => zone(court) === id);
@@ -21,19 +27,26 @@ export default function CourtMap({courts, selected, onSelect, availability, rang
             const maintenance = court.status !== 'ACTIVE';
             const busy = !maintenance && availability(court) === false;
             const chosen = court.id === selected?.id;
-            const status = maintenance ? 'Bảo trì' : busy ? 'Bận trong giờ đã chọn' : chosen ? 'Đã chọn' : rangeLabel ? 'Còn trống' : 'Xem lịch';
-            return <button key={court.id} type="button" data-court-id={court.name} aria-pressed={chosen}
+            const courtSel = courtSelections[court.id];
+            const hasRange = Boolean(courtSel && courtSel.valid);
+            const status = maintenance ? 'Bảo trì' : hasRange ? `✓ ${courtSel.rangeLabel}` : busy ? 'Bận trong giờ đã chọn' : chosen ? 'Đang xem' : rangeLabel ? 'Còn trống' : 'Xem lịch';
+            return <button key={court.id} type="button" data-court-id={court.name} aria-pressed={chosen || hasRange}
               aria-label={`${court.name} · ${t(name)} · ${t(status)} · ${money(court.price)} / ${t('giờ')}`}
-              className={`dg-court ${maintenance ? 'gm-maintenance' : busy ? 'gm-busy' : ''}`}
+              className={`dg-court ${maintenance ? 'gm-maintenance' : busy ? 'gm-busy' : ''} ${chosen ? 'chosen' : ''}`}
+              style={hasRange ? {borderColor: '#16a34a', background: '#f0fdf4', boxShadow: '0 0 0 2px rgba(22, 163, 74, 0.2)'} : {}}
               disabled={maintenance} onClick={() => onSelect(court)}>
               <span className="dg-art" aria-hidden="true">
                 {id === 'A' && <><span className="dg-fence"/><span className="dg-light dg-light-left"/><span className="dg-light dg-light-right"/></>}
                 {id === 'B' && <><span className="dg-building"/><span className="dg-roof"/></>}
                 {id === 'V' && <><span className="dg-vip-frame"/><span className="dg-crown"><Crown/></span></>}
                 <span className="dg-field"><span className="dg-service"/><span className="dg-net"/></span>
-                <span className="dg-maintenance-mark"><Construction/></span><span className="dg-selected"><Check/></span>
+                <span className="dg-maintenance-mark"><Construction/></span>
+                <span className="dg-selected" style={hasRange ? {display: 'flex', background: '#16a34a', color: '#fff'} : {}}><Check/></span>
               </span>
-              <span className="dg-court-caption"><strong className="dg-court-id">{court.name}</strong><span className="gm-court-state">{t(status)}</span></span>
+              <span className="dg-court-caption">
+                <strong className="dg-court-id">{court.name}</strong>
+                <span className="gm-court-state" style={hasRange ? {color: '#15803d', fontWeight: 700} : {}}>{t(status)}</span>
+              </span>
               <span className="gx-map-price">{money(court.price)} <span>/ {t('giờ')}</span></span>
             </button>;
           })}</div>
@@ -41,6 +54,6 @@ export default function CourtMap({courts, selected, onSelect, availability, rang
         </section>;
       })}
     </div>
-    <p className="gx-map-note">{t('Chọn sân để xem lịch thực tế. Tình trạng trống được kiểm tra theo khoảng giờ bạn chọn.')}</p>
+    <p className="gx-map-note">{t('Chạm vào từng sân để chọn giờ. Có thể chọn tối đa 3 sân cùng lúc trong cùng một đơn đặt.')}</p>
   </section>;
 }
