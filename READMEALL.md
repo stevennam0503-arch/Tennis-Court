@@ -729,11 +729,11 @@ courtly:
     otp-secret: ${OTP_SECRET:CourtlySecureHmacSecretKey2026!}
   allowed-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
   mail:
-    host: ${SMTP_HOST:}
+    host: ${SMTP_HOST:smtp.gmail.com}
     port: ${SMTP_PORT:587}
-    username: ${SMTP_USERNAME:}
+    username: ${SMTP_USERNAME:kietdlv@gmail.com}
     password: ${SMTP_PASSWORD:}
-    from: ${SMTP_FROM:no-reply@courtly.vn}
+    from: ${SMTP_FROM:kietdlv@gmail.com}
     from-name: ${SMTP_FROM_NAME:Courtly Tennis Club}
 logging:
   level:
@@ -804,11 +804,12 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       OTP_SECRET: ${OTP_SECRET:-CourtlySecureHmacSecretKey2026!}
       FRONTEND_ORIGIN: http://localhost:3000
-      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_USERNAME: ${SMTP_USERNAME:-kietdlv@gmail.com}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_FROM: ${SMTP_FROM:-no-reply@courtly.vn}
+      SMTP_FROM: ${SMTP_FROM:-kietdlv@gmail.com}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Courtly Tennis Club}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8081}:8080"
     depends_on:
