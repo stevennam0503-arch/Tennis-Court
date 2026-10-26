@@ -26,7 +26,7 @@ public class TransferController {
   @GetMapping("/api/admin/transfers")
   public List<Map<String, Object>> all(HttpServletRequest r) {
     var a = auth.current(r);
-    Rules.require("ADMIN".equals(a.getRole()), "Chỉ quản trị viên mới có quyền");
+    Rules.require(Set.of("ADMIN", "STAFF").contains(a.getRole()), "Chỉ quản trị viên hoặc nhân viên mới có quyền");
     return transfers.all();
   }
 
@@ -48,7 +48,7 @@ public class TransferController {
   @PostMapping("/api/admin/transfers/{id}/confirm")
   public Map<String, Object> adminConfirm(@PathVariable String id, HttpServletRequest r) {
     var a = auth.current(r);
-    Rules.require("ADMIN".equals(a.getRole()), "Chỉ quản trị viên mới có quyền");
+    Rules.require(Set.of("ADMIN", "STAFF").contains(a.getRole()), "Chỉ quản trị viên hoặc nhân viên mới có quyền");
     return transfers.adminConfirm(id);
   }
 

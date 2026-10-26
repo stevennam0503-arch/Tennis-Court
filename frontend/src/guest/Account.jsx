@@ -1,7 +1,7 @@
 import React,{useState,useEffect,useMemo} from 'react';
 import QRCode from 'qrcode';
 import {api} from '../services/api';
-import {useGuest,Action,State,Empty,money,time,requestId} from './context';
+import {useGuest,Action,State,Empty,money,time,dateToday,requestId} from './context';
 
 function HoldCountdown({until}){
  const {t}=useGuest();const [now,setNow]=useState(Date.now());
@@ -30,7 +30,7 @@ function HoldCountdown({until}){
 }
 
 export function TicketDialog({order, onClose}) {
-  const {t, data} = useGuest();
+  const {t, data, show} = useGuest();
   const [qrUrl, setQrUrl] = useState('');
   const court = data?.courts?.find(c => c.id === order.slots?.[0]?.court);
   const slots = [...order.slots].sort((a,b) => a.start.localeCompare(b.start));
@@ -101,8 +101,349 @@ export function TicketDialog({order, onClose}) {
           </div>
         </div>
 
-        <Action onClick={onClose} style={{width: '100%', padding: '12px'}}>{t('Đóng vé')}</Action>
+        <div style={{display: 'grid', gap: 9}}>
+          <button
+            type="button"
+            onClick={() => { onClose(); show({kind: 'zalo', order}); }}
+            style={{
+              width: '100%',
+              padding: '10px 14px',
+              borderRadius: 8,
+              border: '1px solid #93c5fd',
+              background: '#eff6ff',
+              color: '#1d4ed8',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6
+            }}
+          >
+            <span>💬</span>
+            <span>{t('Xem thông báo Zalo ZNS')}</span>
+          </button>
+
+          {order.status === 'CHECKED_IN' && (
+            <button
+              type="button"
+              onClick={() => { onClose(); show({kind: 'extend', order}); }}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: 8,
+                border: 'none',
+                background: '#173c32',
+                color: '#def46a',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6
+              }}
+            >
+              <span>⚡</span>
+              <span>{t('Gia hạn giờ chơi (+30p / +60p)')}</span>
+            </button>
+          )}
+
+          <Action onClick={onClose} style={{width: '100%', padding: '11px'}}>{t('Đóng vé')}</Action>
+        </div>
       </div>
+    </div>
+  );
+}
+
+export function ZaloZnsDialog({order, onClose}) {
+  const {t, data, show} = useGuest();
+  const court = data?.courts?.find(c => c.id === order.slots?.[0]?.court);
+  const slots = [...(order.slots || [])].sort((a,b) => a.start.localeCompare(b.start));
+  const startTime = time(slots[0]?.start) || `${slots[0]?.hour}:00`;
+  const endTime = time(slots.at(-1)?.end) || `${(slots.at(-1)?.hour || 0) + 1}:00`;
+  const refStaff = order.staff?.[0];
+  const ticketCode = `CT-${order.id.slice(0,8).toUpperCase()}`;
+
+  return (
+    <div style={{maxWidth: 440, margin: '0 auto', fontFamily: 'system-ui, -apple-system, sans-serif'}}>
+      <div style={{background: '#0068ff', color: '#fff', padding: '16px 20px', borderRadius: '12px 12px 0 0', display: 'flex', alignItems: 'center', gap: 12}}>
+        <div style={{width: 44, height: 44, borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, boxShadow: '0 2px 6px rgba(0,0,0,0.15)'}}>
+          🎾
+        </div>
+        <div style={{flex: 1}}>
+          <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
+            <strong style={{fontSize: 16, fontWeight: 700, letterSpacing: -0.2}}>Courtly Tennis Club</strong>
+            <span title="Tài khoản Zalo Doanh Nghiệp đã xác thực" style={{display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 17, height: 17, borderRadius: '50%', background: '#ffd700', color: '#173c32', fontSize: 11, fontWeight: 900}}>✓</span>
+          </div>
+          <span style={{fontSize: 12, opacity: 0.9, display: 'block'}}>Zalo Official Account Doanh Nghiệp</span>
+        </div>
+      </div>
+
+      <div style={{background: '#f4f5f7', border: '1px solid #dcdfe4', borderTop: 'none', borderRadius: '0 0 12px 12px', padding: '18px 16px', boxShadow: '0 8px 24px rgba(0,0,0,0.06)'}}>
+        <div style={{background: '#ffffff', borderRadius: 10, padding: '18px 16px', border: '1px solid #e2e5eb', marginBottom: 14}}>
+          <div style={{display: 'inline-block', background: '#eff6ff', color: '#1d4ed8', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 4, textTransform: 'uppercase', marginBottom: 10, letterSpacing: 0.5}}>
+            THÔNG BÁO XÁC NHẬN & NHẮC LỊCH ĐẶT SÂN
+          </div>
+          <h3 style={{fontSize: 16, margin: '0 0 10px', color: '#111827', fontWeight: 700}}>
+            Xin chào {order.name},
+          </h3>
+          <p style={{fontSize: 13, color: '#4b5563', lineHeight: 1.5, margin: '0 0 14px'}}>
+            Courtly Tennis Club trân trọng thông báo lịch thi đấu / tập luyện của bạn đã được xác nhận thành công trên hệ thống:
+          </p>
+
+          <div style={{background: '#f8fafc', borderRadius: 8, padding: '12px 14px', fontSize: 13, display: 'grid', gap: 8, border: '1px solid #e5e7eb'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between'}}>
+              <span style={{color: '#6b7280'}}>Mã đặt sân:</span>
+              <strong style={{color: '#0068ff', fontFamily: 'monospace', fontSize: 14}}>{ticketCode}</strong>
+            </div>
+            <div style={{display: 'flex', justifyContent: 'space-between'}}>
+              <span style={{color: '#6b7280'}}>Sân thi đấu:</span>
+              <strong style={{color: '#111827'}}>{court?.name || 'Sân tiêu chuẩn'} ({court?.type || 'Hard Court'})</strong>
+            </div>
+            <div style={{display: 'flex', justifyContent: 'space-between'}}>
+              <span style={{color: '#6b7280'}}>Thời gian chơi:</span>
+              <strong style={{color: '#111827'}}>{startTime} – {endTime} · {order.date}</strong>
+            </div>
+            {refStaff && (
+              <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                <span style={{color: '#6b7280'}}>Trọng tài hỗ trợ:</span>
+                <strong style={{color: '#111827'}}>{refStaff.name}</strong>
+              </div>
+            )}
+            <div style={{display: 'flex', justifyContent: 'space-between'}}>
+              <span style={{color: '#6b7280'}}>Tiền cọc đã đóng:</span>
+              <strong style={{color: '#15803d'}}>{money(order.paid)} (50%)</strong>
+            </div>
+            {order.total > order.paid && (
+              <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                <span style={{color: '#6b7280'}}>Còn lại tại quầy:</span>
+                <strong style={{color: '#2563eb'}}>{money(order.total - order.paid)}</strong>
+              </div>
+            )}
+          </div>
+
+          <div style={{background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: 8, padding: '10px 12px', marginTop: 14, fontSize: 12, color: '#92400e', lineHeight: 1.5}}>
+            💡 <b>Lưu ý:</b> Quý khách vui lòng có mặt trước giờ chơi 10-15 phút để khởi động và mở <b>Vé điện tử QR</b> tại quầy lễ tân để check-in nhận sân.
+          </div>
+        </div>
+
+        <div style={{display: 'grid', gap: 10}}>
+          <button
+            type="button"
+            onClick={() => { onClose(); show({kind: 'ticket', order}); }}
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              borderRadius: 8,
+              border: 'none',
+              background: '#0068ff',
+              color: '#ffffff',
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              boxShadow: '0 2px 8px rgba(0,104,255,0.25)'
+            }}
+          >
+            <span>🎫</span>
+            <span>Mở Vé Điện Tử QR Check-in</span>
+          </button>
+
+          {order.status === 'CHECKED_IN' && (
+            <button
+              type="button"
+              onClick={() => { onClose(); show({kind: 'extend', order}); }}
+              style={{
+                width: '100%',
+                padding: '10px 16px',
+                borderRadius: 8,
+                border: '1.5px solid #2563eb',
+                background: '#eff6ff',
+                color: '#1d4ed8',
+                fontSize: 13.5,
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              ⚡ Gia hạn giờ chơi (+30p / +60p)
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              width: '100%',
+              padding: '10px 16px',
+              borderRadius: 8,
+              border: '1px solid #d1d5db',
+              background: '#ffffff',
+              color: '#4b5563',
+              fontSize: 13,
+              cursor: 'pointer'
+            }}
+          >
+            Đóng
+          </button>
+        </div>
+
+        <p style={{margin: '14px 0 0', textAlign: 'center', fontSize: 11, color: '#9ca3af', lineHeight: 1.4}}>
+          Tin nhắn dịch vụ tự động ZNS từ hệ thống Courtly Tennis Club gửi tới số điện thoại {order.phone || 'khách hàng'}. Hotline CSKH: 0987 654 321.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function ExtendCourtDialog({order, onClose}) {
+  const {t, refresh, notify} = useGuest();
+  const [loading, setLoading] = useState(true);
+  const [extData, setExtData] = useState(null);
+  const [error, setError] = useState('');
+  const [selectedDuration, setSelectedDuration] = useState(30);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    api(`/orders/${order.id}/extension-options`)
+      .then(res => {
+        setExtData(res);
+        if (res.options?.length) {
+          setSelectedDuration(res.options[0].duration);
+        }
+      })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [order.id]);
+
+  const selectedOpt = extData?.options?.find(o => o.duration === selectedDuration) || extData?.options?.[0];
+
+  const handleConfirm = async () => {
+    if (!selectedOpt) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await api(`/orders/${order.id}/extend`, 'POST', {
+        scheduleIds: selectedOpt.scheduleIds,
+        requestId: requestId()
+      });
+      await refresh();
+      notify(t(`Đã gia hạn sân thêm ${selectedOpt.duration} phút thành công!`));
+      onClose();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div style={{maxWidth: 440, margin: '0 auto', padding: '6px 4px'}}>
+      <div style={{textAlign: 'center', marginBottom: 18}}>
+        <div style={{width: 48, height: 48, borderRadius: '50%', background: '#eff6ff', color: '#2563eb', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, marginBottom: 8}}>
+          ⚡
+        </div>
+        <h2 style={{fontSize: 20, margin: 0, color: '#173c32'}}>{t('Gia Hạn Giờ Chơi Đang Diễn Ra')}</h2>
+        <p style={{fontSize: 13, color: '#637269', margin: '6px 0 0'}}>
+          {t('Sân')}: <b>{extData?.courtName || 'Đang sử dụng'}</b> · {t('Giờ kết thúc hiện tại')}: <b>{extData?.currentEndTime || '...'}</b>
+        </p>
+      </div>
+
+      {loading ? (
+        <div style={{padding: '30px 0', textAlign: 'center', color: '#637269', fontSize: 14}}>
+          {t('Đang kiểm tra tính khả dụng của sân và bảng giá…')}
+        </div>
+      ) : error ? (
+        <div style={{background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: 14, color: '#b91c1c', fontSize: 13, marginBottom: 16}}>
+          {error}
+        </div>
+      ) : !extData?.canExtend ? (
+        <div style={{background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: 10, padding: 16, marginBottom: 18}}>
+          <div style={{display: 'flex', gap: 10, alignItems: 'flex-start'}}>
+            <span style={{fontSize: 22}}>⚠️</span>
+            <div>
+              <strong style={{color: '#92400e', fontSize: 14, display: 'block', marginBottom: 4}}>{t('Không thể gia hạn sân này')}</strong>
+              <p style={{fontSize: 13, color: '#b45309', margin: 0, lineHeight: 1.5}}>
+                {extData?.reason || t('Sân đã có lịch đặt tiếp theo ngay sau giờ chơi của bạn.')}
+              </p>
+              <small style={{display: 'block', marginTop: 8, color: '#78350f', lineHeight: 1.4}}>
+                {t('Quý khách vui lòng kết thúc trận đúng giờ hoặc liên hệ quầy lễ tân để được hỗ trợ chuyển sang sân khác còn trống.')}
+              </small>
+            </div>
+          </div>
+          <Action onClick={onClose} style={{marginTop: 16, width: '100%'}}>{t('Đã hiểu')}</Action>
+        </div>
+      ) : (
+        <div>
+          <div style={{background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#166534', display: 'flex', alignItems: 'center', gap: 8}}>
+            <span>✓</span>
+            <span>{t('Sân trống ở khung giờ liền kề. Bạn có thể gia hạn ngay!')}</span>
+          </div>
+
+          <div style={{display: 'grid', gap: 10, marginBottom: 18}}>
+            {extData.options.map(opt => {
+              const isSelected = selectedDuration === opt.duration;
+              return (
+                <div
+                  key={opt.duration}
+                  onClick={() => setSelectedDuration(opt.duration)}
+                  style={{
+                    border: isSelected ? '2px solid #173c32' : '1.5px solid #dce4d6',
+                    background: isSelected ? '#f7faf5' : '#ffffff',
+                    borderRadius: 10,
+                    padding: '14px 16px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <div style={{display: 'flex', alignItems: 'center', gap: 10}}>
+                    <input
+                      type="radio"
+                      name="duration"
+                      checked={isSelected}
+                      onChange={() => setSelectedDuration(opt.duration)}
+                      style={{accentColor: '#173c32', width: 18, height: 18}}
+                    />
+                    <div>
+                      <strong style={{fontSize: 15, color: '#173c32', display: 'block'}}>
+                        +{opt.duration} {t('phút')} ({opt.startTime} – {opt.endTime})
+                      </strong>
+                      {opt.planName && (
+                        <small style={{color: '#15803d', fontSize: 11.5}}>
+                          ★ {t('Ưu đãi')} {opt.planName}: -{money(opt.discount)}
+                        </small>
+                      )}
+                    </div>
+                  </div>
+                  <strong style={{fontSize: 16, color: '#173c32'}}>
+                    +{money(opt.total)}
+                  </strong>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{background: '#f8faf7', borderRadius: 8, padding: '12px 14px', fontSize: 12.5, color: '#52655a', marginBottom: 18, lineHeight: 1.5, border: '1px solid #e2ebd9'}}>
+            ℹ️ {t('Tiền gia hạn')} (<b>+{money(selectedOpt?.total || 0)}</b>) {t('sẽ được cộng vào tổng đơn. Bạn có thể thanh toán tại quầy lễ tân khi check-out hoặc chuyển khoản VietQR.')}
+          </div>
+
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10}}>
+            <Action secondary onClick={onClose} disabled={submitting}>
+              {t('Hủy bỏ')}
+            </Action>
+            <Action onClick={handleConfirm} disabled={submitting} style={{background: '#173c32', color: '#def46a', fontWeight: 700}}>
+              {submitting ? t('Đang gia hạn…') : t('Xác nhận gia hạn')}
+            </Action>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -111,16 +452,18 @@ export function Orders({history=false}){
   const {t,data,pay,refresh,navigate,setMoveOrder,setDate,show}=useGuest();
   const [filter,setFilter]=useState(history ? 'HISTORY' : 'ALL'),[page,setPage]=useState(0);
   const allOrders = data?.orders || [];
+  const todayStr = dateToday();
 
   const counts = useMemo(() => {
     let upcoming = 0, holding = 0, past = 0;
     for (const o of allOrders) {
-      if (['CONFIRMED', 'CHECKED_IN'].includes(o.status)) upcoming++;
-      else if (o.status === 'HOLDING') holding++;
-      else if (['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(o.status)) past++;
+      const oDate = o.date || o.slots?.[0]?.scheduleDate || '';
+      if (o.status === 'HOLDING') holding++;
+      else if (o.status === 'CHECKED_IN' || (o.status === 'CONFIRMED' && oDate >= todayStr)) upcoming++;
+      else past++;
     }
     return { all: allOrders.length, upcoming, holding, past };
-  }, [allOrders]);
+  }, [allOrders, todayStr]);
 
   const tabs = useMemo(() => [
     { id: 'ALL', label: t('Tất cả'), count: counts.all },
@@ -131,12 +474,14 @@ export function Orders({history=false}){
 
   const rows = useMemo(() => {
     return allOrders.filter(o => {
-      if (filter === 'UPCOMING') return ['CONFIRMED', 'CHECKED_IN'].includes(o.status);
+      const oDate = o.date || o.slots?.[0]?.scheduleDate || '';
+      const isPastConfirmed = o.status === 'CONFIRMED' && oDate < todayStr;
+      if (filter === 'UPCOMING') return o.status === 'CHECKED_IN' || (o.status === 'CONFIRMED' && oDate >= todayStr);
       if (filter === 'HOLDING') return o.status === 'HOLDING';
-      if (filter === 'HISTORY') return ['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(o.status);
+      if (filter === 'HISTORY') return ['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(o.status) || isPastConfirmed;
       return true;
     }).sort((a,b) => (b.createdAt || b.date).localeCompare(a.createdAt || a.date));
-  }, [allOrders, filter]);
+  }, [allOrders, filter, todayStr]);
 
   return (
     <section className="ct-pad">
@@ -216,6 +561,8 @@ export function Orders({history=false}){
           const endTime=time(sortedSlots.at(-1)?.end)||`${(sortedSlots.at(-1)?.hour||0)+1}:00`;
           const courtName=data.courts.find(c=>c.id===sortedSlots[0]?.court)?.name||t('Sân Tennis');
           const refStaff=o.staff?.[0];
+          const oDate=o.date||sortedSlots[0]?.scheduleDate||'';
+          const isPastConfirmed=o.status==='CONFIRMED'&&oDate<todayStr;
 
           return (
             <article key={o.id} style={{background:'#ffffff',borderRadius:12,border:'1.5px solid #dce4d6',padding:20,boxShadow:'0 2px 10px rgba(0,0,0,0.03)'}}>
@@ -226,7 +573,13 @@ export function Orders({history=false}){
                   <b style={{fontSize:16,color:'#173c32',fontFamily:'monospace'}}>#CT-{o.id.slice(0,8).toUpperCase()}</b>
                 </div>
                 <div style={{textAlign:'right'}}>
-                  <State value={o.status}/>
+                  {isPastConfirmed ? (
+                    <span style={{background:'#fef3c7',color:'#92400e',padding:'4px 10px',borderRadius:6,fontSize:11,fontWeight:700,letterSpacing:0.5}}>
+                      {t('ĐÃ QUA NGÀY CHƠI')}
+                    </span>
+                  ) : (
+                    <State value={o.status}/>
+                  )}
                 </div>
               </header>
 
@@ -280,8 +633,15 @@ export function Orders({history=false}){
               {/* Holding Countdown Banner */}
               {o.status==='HOLDING' && <HoldCountdown until={o.holdUntil}/>}
 
+              {/* Past Confirmed Banner */}
+              {isPastConfirmed && (
+                <div style={{background:'#fefce8',border:'1px solid #fef08a',borderRadius:8,padding:'10px 14px',margin:'10px 0',fontSize:12.5,color:'#854d0e'}}>
+                  ⚠️ <b>{t('Đơn đã qua ngày chơi')} ({o.date}).</b> {t('Quý khách đã không làm thủ tục check-in vào khung giờ này. Đơn được lưu trong lịch sử.')}
+                </div>
+              )}
+
               {/* Confirmed Banner */}
-              {o.status==='CONFIRMED' && (
+              {o.status==='CONFIRMED' && !isPastConfirmed && (
                 <div style={{background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:8,padding:'10px 14px',margin:'10px 0',fontSize:12.5,color:'#166534'}}>
                   ✓ <b>{t('Đã xác nhận lịch đặt.')}</b> {t('Xuất trình')} <b>{t('Vé điện tử & Mã QR')}</b> {t('bên dưới cho quầy lễ tân khi đến sân để check-in.')}
                 </div>
@@ -315,10 +675,24 @@ export function Orders({history=false}){
                   </>
                 )}
 
-                {o.status==='CONFIRMED' && (
+                {o.status==='CONFIRMED' && isPastConfirmed && (
+                  <>
+                    <Action secondary onClick={()=>show({kind:'ticket',order:o})}>
+                      🎫 {t('Xem lại vé')}
+                    </Action>
+                    <Action secondary onClick={()=>show({kind:'zalo',order:o})}>
+                      💬 {t('Xem tin Zalo ZNS')}
+                    </Action>
+                  </>
+                )}
+
+                {o.status==='CONFIRMED' && !isPastConfirmed && (
                   <>
                     <Action onClick={()=>show({kind:'ticket',order:o})} style={{background:'#173c32',color:'#ffffff'}}>
                       🎫 {t('Xem Vé Điện Tử & Mã QR Check-in')}
+                    </Action>
+                    <Action secondary onClick={()=>show({kind:'zalo',order:o})}>
+                      💬 {t('Tin nhắn Zalo ZNS')}
                     </Action>
                     <Action secondary onClick={()=>{setDate(o.date);setMoveOrder(o);navigate('booking')}}>{t('Đổi lịch sân')}</Action>
                     <Action secondary onClick={()=>show({kind:'cancel',order:o})}>{t('Hủy đơn')}</Action>
@@ -330,6 +704,12 @@ export function Orders({history=false}){
                     <Action onClick={()=>show({kind:'ticket',order:o})} style={{background:'#2563eb',color:'#ffffff'}}>
                       🎫 {t('Xem Vé Điện Tử')}
                     </Action>
+                    <Action onClick={()=>show({kind:'extend',order:o})} style={{background:'#173c32',color:'#def46a',fontWeight:700}}>
+                      ⚡ {t('Gia hạn giờ chơi')}
+                    </Action>
+                    <Action secondary onClick={()=>show({kind:'zalo',order:o})}>
+                      💬 {t('Zalo ZNS')}
+                    </Action>
                     {o.paid < o.total && (
                       <Action onClick={()=>pay('ORDER',o.id,'BALANCE')}>{t('Thanh toán còn lại')} ({money(o.total - o.paid)})</Action>
                     )}
@@ -337,7 +717,10 @@ export function Orders({history=false}){
                 )}
 
                 {o.status==='COMPLETED' && (
-                  <Action secondary onClick={()=>show({kind:'ticket',order:o})}>🎫 {t('Xem lại vé')}</Action>
+                  <>
+                    <Action secondary onClick={()=>show({kind:'ticket',order:o})}>🎫 {t('Xem lại vé')}</Action>
+                    <Action secondary onClick={()=>show({kind:'zalo',order:o})}>💬 {t('Xem tin Zalo ZNS')}</Action>
+                  </>
                 )}
               </div>
             </article>

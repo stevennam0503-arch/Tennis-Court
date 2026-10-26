@@ -29,7 +29,7 @@ public class BookingSupportService {
 
   public void owns(Account a, UUID id) {
     var o = orders.findById(id).orElseThrow();
-    if (!"ADMIN".equals(a.getRole())
+    if (!Set.of("ADMIN", "STAFF").contains(a.getRole())
         && (o.getCustomerAccount() == null || !o.getCustomerAccount().getId().equals(a.getId())))
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Đơn không thuộc tài khoản của bạn");
   }
@@ -52,7 +52,7 @@ public class BookingSupportService {
     if (exclude != null) owns(a, exclude);
     var rows = selected(ids);
     service.future(rows);
-    if (!"ADMIN".equals(a.getRole())) membership.checkWindow(a.getId(),rows);
+    if (!Set.of("ADMIN", "STAFF").contains(a.getRole())) membership.checkWindow(a.getId(),rows);
     require(
         rows.stream().map(CourtSchedule::getScheduleDate).distinct().count() == 1,
         "Các slot phải cùng ngày");
@@ -142,7 +142,7 @@ public class BookingSupportService {
     var opt = options(r.scheduleIds(), id, a);
     require(((List<?>) opt.get("conflicts")).isEmpty(), "Lịch mới có slot không khả dụng");
     var rows = selected(r.scheduleIds());
-    if (!"ADMIN".equals(a.getRole())) service.continuous(rows);
+    if (!Set.of("ADMIN", "STAFF").contains(a.getRole())) service.continuous(rows);
     BigDecimal
         court = rows.stream().map(CourtSchedule::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add),
         staffCost = BigDecimal.ZERO;
@@ -205,7 +205,7 @@ public class BookingSupportService {
     next.put("membershipBenefit", benefit);
     next.put(
         "deposit",
-        "ADMIN".equals(a.getRole())
+        Set.of("ADMIN", "STAFF").contains(a.getRole())
             ? total.multiply(BigDecimal.valueOf(settings.get().getDepositPercent())).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP)
             : PresentationService.decimal(benefit.get("net")).multiply(new BigDecimal("0.5")).setScale(0, RoundingMode.HALF_UP));
     return map(

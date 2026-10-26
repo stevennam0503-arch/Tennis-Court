@@ -26,6 +26,7 @@ public class OrderApplicationService {
   private final jakarta.validation.Validator validator;
   private final SettingsService settings;
   private final MembershipService memberships;
+  private final CourtScheduleRepository schedules;
 
   public Map<String, Object> create(BookingRequest r, Account actor) {
     var a = actor;
@@ -38,7 +39,7 @@ public class OrderApplicationService {
         () -> {
           service.expireHolds();
           BookingRequest effective = r;
-          if (!"ADMIN".equals(a.getRole())) {
+          if (!Set.of("ADMIN", "STAFF").contains(a.getRole())) {
             require(
                 r.accountId() == null || r.accountId().equals(a.getId()),
                 "Chỉ được đặt cho tài khoản của mình");
@@ -56,7 +57,7 @@ public class OrderApplicationService {
           UUID id = service.create(effective);
           var o = service.lock(id);
           o.setCreatedByAccount(a);
-          if (!"ADMIN".equals(a.getRole())) {
+          if (!Set.of("ADMIN", "STAFF").contains(a.getRole())) {
             var meta = docs.decode(o.getMetadata());
             meta.put("customerFlow", true);
             o.setMetadata(docs.encode(meta));
@@ -72,7 +73,7 @@ public class OrderApplicationService {
         ids(b.get("scheduleIds")),
         b.get("excludeId") == null ? null : UUID.fromString(b.get("excludeId").toString()),
         actor,
-        "ADMIN".equals(actor.getRole())
+        Set.of("ADMIN", "STAFF").contains(actor.getRole())
             ? (b.get("accountId") == null ? null : UUID.fromString(b.get("accountId").toString()))
             : actor.getId());
   }
@@ -90,7 +91,7 @@ public class OrderApplicationService {
   }
 
   private void customerPolicy(Account a, CustomerOrder o, String action) {
-    if ("ADMIN".equals(a.getRole())) return;
+    if (Set.of("ADMIN", "STAFF").contains(a.getRole())) return;
     require(
         Set.of("HOLDING", "CONFIRMED").contains(o.getStatus()), "Chỉ thay đổi trước khi check-in");
     service.future(service.allocated(service.booking(o)));
@@ -142,8 +143,8 @@ public class OrderApplicationService {
           support.owns(a, id);
           var o = service.lock(id);
           customerPolicy(a, o, "change");
-          if (!"ADMIN".equals(a.getRole())) memberships.checkWindow(a.getId(), support.selected(ids(b.get("scheduleIds"))));
-          if ("ADMIN".equals(a.getRole())) text((String) b.get("reason"), "Lý do đổi lịch");
+          if (!Set.of("ADMIN", "STAFF").contains(a.getRole())) memberships.checkWindow(a.getId(), support.selected(ids(b.get("scheduleIds"))));
+          if (Set.of("ADMIN", "STAFF").contains(a.getRole())) text((String) b.get("reason"), "Lý do đổi lịch");
           var old = views.order(o);
           var r =
               new MoveBookingRequest(
@@ -156,9 +157,9 @@ public class OrderApplicationService {
             require(PresentationService.decimal(((Map<?, ?>) preview.get("next")).get("total"))
                 .compareTo(PresentationService.decimal(b.get("expectedTotal"))) == 0,
                 "Giá đã thay đổi; vui lòng xem trước lịch mới lại");
-          if (!"ADMIN".equals(a.getRole()) && "CONFIRMED".equals(o.getStatus())) memberships.consumeChange(a.getId(), service.allocated(service.booking(o)), support.selected(r.scheduleIds()));
+          if (!Set.of("ADMIN", "STAFF").contains(a.getRole()) && "CONFIRMED".equals(o.getStatus())) memberships.consumeChange(a.getId(), service.allocated(service.booking(o)), support.selected(r.scheduleIds()));
           service.move(id, r);
-          if (!"ADMIN".equals(a.getRole())) customerDeposit(o);
+          if (!Set.of("ADMIN", "STAFF").contains(a.getRole())) customerDeposit(o);
           var extra = docs.decode(o.getMetadata());
           var excess = o.getPaidAmount().subtract(o.getTotalAmount()).max(java.math.BigDecimal.ZERO);
           extra.put("refundPending", excess);
@@ -185,7 +186,7 @@ public class OrderApplicationService {
           switch (action) {
             case "cancel" -> {
               customerPolicy(a, o, "cancel");
-              if ("ADMIN".equals(a.getRole())) text((String) b.get("reason"), "Lý do hủy");
+              if (Set.of("ADMIN", "STAFF").contains(a.getRole())) text((String) b.get("reason"), "Lý do hủy");
               var settlement = cancellationPreview(id, a);
               service.cancel(id);
               var extra = docs.decode(o.getMetadata());
@@ -255,6 +256,11 @@ public class OrderApplicationService {
                       (String) b.get("reason"),
                       (String) b.get("requestId")));
             }
+            case "extend" -> {
+              var slotIds = ids(b.get("scheduleIds"));
+              require(slotIds != null && !slotIds.isEmpty(), "Chọn khung giờ muốn gia hạn");
+              service.extend(id, slotIds);
+            }
             default ->
                 throw new com.courtly.exception.BusinessException(
                     "Thao tác chưa được hỗ trợ: " + action);
@@ -263,6 +269,82 @@ public class OrderApplicationService {
               o, action.toUpperCase(Locale.ROOT), Set.of("restore", "cancel").contains(action) ? before : null);
           return map("id", id);
         });
+  }
+
+  public Map<String, Object> extensionOptions(UUID id, Account actor) {
+    support.owns(actor, id);
+    var o = service.lock(id);
+    var b = service.booking(o);
+    var currentSlots = service.allocated(b);
+    if (currentSlots.isEmpty()) {
+      return map("canExtend", false, "reason", "Đơn chưa có lịch sân");
+    }
+    var latestSlot = currentSlots.stream()
+        .max(Comparator.comparing(CourtSchedule::getScheduleDate).thenComparing(CourtSchedule::getEndTime))
+        .orElseThrow();
+    var court = latestSlot.getCourt();
+    var date = latestSlot.getScheduleDate();
+    var endTime = latestSlot.getEndTime();
+
+    var courtSlots = schedules.findByCourtIdAndScheduleDate(court.getId(), date).stream()
+        .sorted(Comparator.comparing(CourtSchedule::getStartTime))
+        .toList();
+
+    var nextSlot1 = courtSlots.stream().filter(s -> s.getStartTime().equals(endTime)).findFirst().orElse(null);
+    if (nextSlot1 == null) {
+      return map(
+          "canExtend", false,
+          "courtName", court.getName(),
+          "currentEndTime", endTime.toString(),
+          "reason", "Đã hết khung giờ hoạt động trong ngày của sân này.");
+    }
+    if (!"AVAILABLE".equals(nextSlot1.getStatus())) {
+      return map(
+          "canExtend", false,
+          "courtName", court.getName(),
+          "currentEndTime", endTime.toString(),
+          "reason", "Sân đã có lịch đặt tiếp theo vào lúc " + endTime + ". Không thể gia hạn sân này.");
+    }
+
+    var nextSlot2 = courtSlots.stream().filter(s -> s.getStartTime().equals(nextSlot1.getEndTime())).findFirst().orElse(null);
+    boolean slot2Available = nextSlot2 != null && "AVAILABLE".equals(nextSlot2.getStatus());
+
+    UUID accountId = o.getCustomerAccount() == null ? null : o.getCustomerAccount().getId();
+    var quote1 = memberships.quote(accountId, List.of(nextSlot1));
+    var opt1 = map(
+        "duration", 30,
+        "scheduleIds", List.of(nextSlot1.getId()),
+        "startTime", nextSlot1.getStartTime().toString(),
+        "endTime", nextSlot1.getEndTime().toString(),
+        "price", quote1.get("gross"),
+        "discount", quote1.get("discount"),
+        "total", quote1.get("net"),
+        "planName", quote1.get("planName")
+    );
+    List<Map<String, Object>> optionsList = new ArrayList<>();
+    optionsList.add(opt1);
+
+    if (slot2Available) {
+      var quote2 = memberships.quote(accountId, List.of(nextSlot1, nextSlot2));
+      var opt2 = map(
+          "duration", 60,
+          "scheduleIds", List.of(nextSlot1.getId(), nextSlot2.getId()),
+          "startTime", nextSlot1.getStartTime().toString(),
+          "endTime", nextSlot2.getEndTime().toString(),
+          "price", quote2.get("gross"),
+          "discount", quote2.get("discount"),
+          "total", quote2.get("net"),
+          "planName", quote2.get("planName")
+      );
+      optionsList.add(opt2);
+    }
+
+    return map(
+        "canExtend", true,
+        "courtName", court.getName(),
+        "currentEndTime", endTime.toString(),
+        "options", optionsList
+    );
   }
 
   private void customerDeposit(CustomerOrder o) {

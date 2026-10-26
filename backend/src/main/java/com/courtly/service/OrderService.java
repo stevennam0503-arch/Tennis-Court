@@ -174,6 +174,45 @@ public class OrderService {
   }
 
   @Transactional
+  public void extend(UUID id, List<UUID> scheduleIds) {
+    CustomerOrder order = lock(id);
+    require(Set.of("CHECKED_IN", "CONFIRMED").contains(order.getStatus()), "Chỉ gia hạn cho đơn đang chơi hoặc đã xác nhận");
+    Booking b = booking(order);
+    List<CourtSchedule> currentSlots = allocated(b);
+    require(!currentSlots.isEmpty(), "Đơn chưa có lịch sân");
+    var latestCurrentSlot = currentSlots.stream()
+        .max(Comparator.comparing(CourtSchedule::getScheduleDate).thenComparing(CourtSchedule::getEndTime))
+        .orElseThrow();
+
+    List<CourtSchedule> newSlots = scheduling.lockSlots(scheduleIds);
+    scheduling.requireAvailable(newSlots);
+
+    require(newSlots.stream().allMatch(s -> s.getCourt().getId().equals(latestCurrentSlot.getCourt().getId())),
+        "Giờ gia hạn phải trên cùng sân đang chơi");
+
+    var sortedNew = newSlots.stream()
+        .sorted(Comparator.comparing(CourtSchedule::getScheduleDate).thenComparing(CourtSchedule::getStartTime))
+        .toList();
+    require(sortedNew.get(0).getScheduleDate().equals(latestCurrentSlot.getScheduleDate())
+        && sortedNew.get(0).getStartTime().equals(latestCurrentSlot.getEndTime()),
+        "Giờ gia hạn phải liền kề với giờ kết thúc hiện tại (" + latestCurrentSlot.getEndTime() + ")");
+
+    for (int i = 1; i < sortedNew.size(); i++) {
+      require(sortedNew.get(i - 1).getEndTime().equals(sortedNew.get(i).getStartTime()),
+          "Các slot gia hạn phải liên tiếp nhau");
+    }
+
+    allocate(b, newSlots, "BOOKED");
+
+    List<CourtSchedule> allSlots = new ArrayList<>(currentSlots);
+    allSlots.addAll(newSlots);
+    quote(order, allSlots);
+    totals.recalculate(order);
+
+    audit.log("GIA HẠN SÂN", id.toString() + " (+" + (newSlots.size() * 30) + " phút)");
+  }
+
+  @Transactional
   public void move(UUID id, MoveBookingRequest request) {
     CustomerOrder order = lock(id);
     live(order);

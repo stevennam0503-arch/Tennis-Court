@@ -32,6 +32,7 @@ export function OrderDetail({id,onClose}) {
     {o.status==='HOLDING'&&<Button className="lime" onClick={()=>show({type:'payment',id})}>Thu cọc tại quầy ({money(o.deposit)})</Button>}
     {o.status==='CONFIRMED'&&<Button className="primary" onClick={()=>show({type:'check-in',id})}>Thực hiện Check-in vào sân</Button>}
     {o.status==='CHECKED_IN'&&<Button className="primary" onClick={()=>doAction('check-out')}>Check-out & Hoàn tất</Button>}
+    {o.status==='CHECKED_IN'&&<Button onClick={()=>show({type:'extend-order',id})}>⚡ Gia hạn giờ chơi</Button>}
     {active(o)&&o.paid<o.total&&o.status!=='HOLDING'&&<Button className="lime" onClick={()=>show({type:'payment',id})}>Thu nốt tiền ({money(o.total-o.paid)})</Button>}
     {!['HOLDING','CANCELLED','EXPIRED'].includes(o.status)&&<Button onClick={async()=>{await doAction('invoice');show({type:'invoice',id});}}>In phiếu thu</Button>}
     <Button onClick={onClose}>Đóng</Button>
@@ -174,4 +175,122 @@ export function RefundDialog({id,onClose}) {
 export function InvoiceDialog({id,onClose}) {
   const {data}=useCourtly();const current=data.orders.find(x=>x.id===id);const o=current.invoiceSnapshot||current;
   return <Modal title={`PHIẾU THU • ${o.invoice||''}`} onClose={onClose} wide footer={<><Button onClick={onClose}>Đóng</Button><Button className="primary" onClick={()=>window.print()}>In / Lưu PDF</Button></>}><h2>COURTLY TENNIS CLUB</h2><p className="subtitle">Ngày phát hành: {o.issuedAt?new Date(o.issuedAt).toLocaleString('vi-VN'):''}</p><div className="detail-head" style={{marginTop:20}}>Khách hàng: {o.name}<br/>Điện thoại: {o.phone}<br/>Ngày sử dụng: {o.date}</div><Table headings={['Dịch vụ','Thành tiền']}>{o.slots.map(s=><tr key={s.id}><td>{data.courts.find(c=>c.id===s.court)?.name} • {slotLabel(s)}</td><td>{money(s.price)}</td></tr>)}{o.products.map(p=><tr key={p.id}><td>{p.name} × {p.quantity}{p.type==='RENTAL'?` • ${p.hours} giờ`:''}</td><td>{money(p.lineTotal??p.price*p.quantity*(p.type==='RENTAL'?p.hours:1))}</td></tr>)}{o.staff.map(s=><tr key={s.id}><td>{s.name} • {s.hours} giờ</td><td>{money(s.rate*s.hours)}</td></tr>)}</Table>{o.membershipBenefit?.discount>0&&<div className="summary-line membership-discount"><span>Ưu đãi {o.membershipBenefit.planName}</span><b>–{money(o.membershipBenefit.discount)}</b></div>}<div className="summary-line total"><span>Tổng tiền</span><b>{money(o.total)}</b></div><div className="summary-line"><span>Đã thu</span><b>{money(o.paid)}</b></div><div className="summary-line"><span>{['CANCELLED','EXPIRED'].includes(o.status)?'Không thu thêm':'Còn phải thu'}</span><b>{money(['CANCELLED','EXPIRED'].includes(o.status)?0:Math.max(0,o.total-o.paid))}</b></div><p className="subtitle">Phiếu thu nội bộ • chưa tích hợp hóa đơn điện tử thuế.</p></Modal>;
+}
+
+export function ExtendOrderDialog({id, onClose}) {
+  const {data, mutate, notify} = useCourtly();
+  const o = data.orders.find(x => x.id === id);
+  const [loading, setLoading] = useState(true);
+  const [extData, setExtData] = useState(null);
+  const [error, setError] = useState('');
+  const [selectedDuration, setSelectedDuration] = useState(30);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    api(`/orders/${id}/extension-options`)
+      .then(res => {
+        setExtData(res);
+        if (res.options?.length) setSelectedDuration(res.options[0].duration);
+      })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (!o) return null;
+  const selectedOpt = extData?.options?.find(opt => opt.duration === selectedDuration) || extData?.options?.[0];
+
+  const handleConfirm = async () => {
+    if (!selectedOpt) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await mutate(`/orders/${id}/extend`, {
+        scheduleIds: selectedOpt.scheduleIds,
+        requestId: crypto.randomUUID()
+      });
+      notify(`Đã gia hạn sân thêm ${selectedOpt.duration} phút thành công!`);
+      onClose();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal title={`Gia hạn sân · Đơn #${o.id.slice(0,8)} (${o.name})`} onClose={onClose}>
+      <p className="subtitle">
+        Sân: <b>{extData?.courtName || 'Đang sử dụng'}</b> · Giờ kết thúc hiện tại: <b>{extData?.currentEndTime || '...'}</b>
+      </p>
+
+      {loading ? (
+        <p role="status">Đang kiểm tra tính khả dụng của sân và bảng giá…</p>
+      ) : error ? (
+        <p className="error" role="alert">{error}</p>
+      ) : !extData?.canExtend ? (
+        <div className="notice" style={{background: '#fffbeb', borderColor: '#fde68a', color: '#92400e', marginTop: 14}}>
+          <strong style={{display: 'block', marginBottom: 4}}>⚠️ Không thể gia hạn sân này</strong>
+          <p style={{margin: 0}}>{extData?.reason || 'Sân đã có lịch đặt tiếp theo ngay sau giờ chơi.'}</p>
+          <small style={{display: 'block', marginTop: 6, color: '#78350f'}}>
+            Vui lòng yêu cầu khách trả sân đúng giờ hoặc kiểm tra lịch để sắp xếp sân khác còn trống.
+          </small>
+          <div style={{marginTop: 14}}>
+            <Button onClick={onClose}>Đóng</Button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div className="notice" style={{background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534', margin: '12px 0'}}>
+            ✓ Sân trống ở khung giờ liền kề. Có thể gia hạn cho khách ngay!
+          </div>
+
+          <div style={{display: 'grid', gap: 10, margin: '14px 0'}}>
+            {extData.options.map(opt => {
+              const isSelected = selectedDuration === opt.duration;
+              return (
+                <label
+                  key={opt.duration}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '12px 14px',
+                    borderRadius: 8,
+                    border: isSelected ? '2px solid #173c32' : '1px solid #dce4d6',
+                    background: isSelected ? '#f7faf5' : '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{display: 'flex', alignItems: 'center', gap: 10}}>
+                    <input
+                      type="radio"
+                      name="staff-ext-duration"
+                      checked={isSelected}
+                      onChange={() => setSelectedDuration(opt.duration)}
+                    />
+                    <div>
+                      <strong>+{opt.duration} phút ({opt.startTime} – {opt.endTime})</strong>
+                      {opt.planName && <small style={{display: 'block', color: '#15803d'}}>★ Ưu đãi {opt.planName}: -{money(opt.discount)}</small>}
+                    </div>
+                  </div>
+                  <b>+{money(opt.total)}</b>
+                </label>
+              );
+            })}
+          </div>
+
+          <p className="notice">
+            Tiền gia hạn (+{money(selectedOpt?.total || 0)}) sẽ được cộng vào công nợ của đơn. Lễ tân có thể thu nốt tại quầy trước hoặc khi làm thủ tục check-out.
+          </p>
+
+          <div className="step-row" style={{marginTop: 16}}>
+            <Button disabled={submitting} onClick={onClose}>Hủy</Button>
+            <Button className="primary" disabled={submitting} onClick={handleConfirm}>
+              {submitting ? 'Đang gia hạn…' : `Xác nhận gia hạn (+${selectedOpt?.duration || 30}p)`}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
 }
