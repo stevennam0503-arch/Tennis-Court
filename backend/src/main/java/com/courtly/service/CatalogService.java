@@ -29,6 +29,9 @@ public class CatalogService {
   private final CustomerOrderRepository orders;
   private final PaymentRepository payments;
   private final RefundRepository refunds;
+  private final TeamMemberRepository teamMembers;
+  private final VoucherRedemptionRepository voucherRedemptions;
+  private final DocumentService docs;
   private final AuthService auth;
   private final AuditService audit;
 
@@ -65,61 +68,111 @@ public class CatalogService {
     require(!id.equals(actor.getId()), "Không thể tự xóa tài khoản của chính mình");
     require(!auth.owner(target), "Không thể xóa tài khoản chủ hệ thống (Owner)");
 
-    boolean hasOrders =
-        orders.findAll().stream()
-            .anyMatch(
-                o ->
-                    id.equals(
-                            o.getCustomerAccount() != null
-                                ? o.getCustomerAccount().getId()
-                                : null)
-                        || id.equals(
-                            o.getCreatedByAccount() != null
-                                ? o.getCreatedByAccount().getId()
-                                : null));
-    require(
-        !hasOrders,
-        "Tài khoản đã có đơn đặt sân hoặc dữ liệu giao dịch đối soát. Để bảo toàn chứng từ, vui lòng chọn Khóa tài khoản (LOCKED) thay vì xóa vĩnh viễn.");
+    // 1. Gỡ liên kết tài khoản ở các đơn hàng (vẫn bảo toàn thông tin khách hàng, doanh thu và hóa đơn)
+    for (CustomerOrder o : orders.findAll()) {
+      boolean modified = false;
+      if (o.getCustomerAccount() != null && id.equals(o.getCustomerAccount().getId())) {
+        o.setCustomerAccount(null);
+        modified = true;
+      }
+      if (o.getCreatedByAccount() != null && id.equals(o.getCreatedByAccount().getId())) {
+        o.setCreatedByAccount(null);
+        modified = true;
+      }
+      if (modified) {
+        orders.save(o);
+      }
+    }
 
-    boolean hasPayments =
-        payments.findAll().stream()
-            .anyMatch(
-                p ->
-                    p.getReceivedByAccount() != null
-                        && id.equals(p.getReceivedByAccount().getId()));
-    require(
-        !hasPayments,
-        "Tài khoản đã từng thu tiền thanh toán. Để bảo toàn chứng từ, vui lòng chọn Khóa tài khoản (LOCKED) thay vì xóa vĩnh viễn.");
+    // 2. Gỡ liên kết tài khoản thu ngân ở các giao dịch thu tiền
+    for (Payment p : payments.findAll()) {
+      if (p.getReceivedByAccount() != null && id.equals(p.getReceivedByAccount().getId())) {
+        p.setReceivedByAccount(null);
+        payments.save(p);
+      }
+    }
 
-    boolean hasRefunds =
-        refunds.findAll().stream()
-            .anyMatch(
-                r ->
-                    r.getProcessedByAccount() != null
-                        && id.equals(r.getProcessedByAccount().getId()));
-    require(
-        !hasRefunds,
-        "Tài khoản đã từng xử lý hoàn tiền. Để bảo toàn chứng từ, vui lòng chọn Khóa tài khoản (LOCKED) thay vì xóa vĩnh viễn.");
+    // 3. Gỡ liên kết tài khoản xử lý hoàn tiền
+    for (Refund r : refunds.findAll()) {
+      if (r.getProcessedByAccount() != null && id.equals(r.getProcessedByAccount().getId())) {
+        r.setProcessedByAccount(null);
+        refunds.save(r);
+      }
+    }
 
-    boolean hasTournaments =
-        registrations.findAll().stream()
-            .anyMatch(
-                r ->
-                    id.equals(
-                            r.getAccount() != null ? r.getAccount().getId() : null)
-                        || id.equals(
-                            r.getRegisteredByAccount() != null
-                                ? r.getRegisteredByAccount().getId()
-                                : null))
-            || tournaments.findAll().stream()
-                .anyMatch(
-                    t ->
-                        t.getOrganizerAccount() != null
-                            && id.equals(t.getOrganizerAccount().getId()));
-    require(
-        !hasTournaments,
-        "Tài khoản có liên quan đến giải đấu (tổ chức hoặc đăng ký thi đấu). Vui lòng chọn Khóa tài khoản (LOCKED) thay vì xóa vĩnh viễn.");
+    // 4. Gỡ liên kết tài khoản tổ chức giải đấu & cập nhật tỉ số
+    for (Tournament t : tournaments.findAll()) {
+      if (t.getOrganizerAccount() != null && id.equals(t.getOrganizerAccount().getId())) {
+        t.setOrganizerAccount(null);
+        tournaments.save(t);
+      }
+    }
+    for (TournamentMatch m : matches.findAll()) {
+      if (m.getUpdatedByAccount() != null && id.equals(m.getUpdatedByAccount().getId())) {
+        m.setUpdatedByAccount(null);
+        matches.save(m);
+      }
+    }
 
+    // 5. Gỡ liên kết đăng ký thi đấu và thành viên đội giải đấu
+    for (TournamentRegistration r : registrations.findAll()) {
+      boolean modified = false;
+      if (r.getRegisteredByAccount() != null && id.equals(r.getRegisteredByAccount().getId())) {
+        r.setRegisteredByAccount(null);
+        modified = true;
+      }
+      if (r.getAccount() != null && id.equals(r.getAccount().getId())) {
+        r.setAccount(null);
+        modified = true;
+      }
+      if (modified) {
+        registrations.save(r);
+      }
+    }
+
+    if (teamMembers != null) {
+      for (TeamMember tm : teamMembers.findAll()) {
+        if (tm.getAccount() != null && id.equals(tm.getAccount().getId())) {
+          tm.setAccount(null);
+          teamMembers.save(tm);
+        }
+      }
+    }
+
+    // 6. Gỡ liên kết lịch sử sử dụng voucher
+    if (voucherRedemptions != null) {
+      for (VoucherRedemption vr : voucherRedemptions.findAll()) {
+        if (vr.getAccount() != null && id.equals(vr.getAccount().getId())) {
+          vr.setAccount(null);
+          voucherRedemptions.save(vr);
+        }
+      }
+    }
+
+    // 7. Xóa sạch OTP kích hoạt/reset và hồ sơ tạm của tài khoản
+    if (docs != null) {
+      if (target.getEmail() != null) {
+        docs.delete("otp:activation:" + target.getEmail().toLowerCase(Locale.ROOT));
+        docs.delete("otp:reset:" + target.getEmail().toLowerCase(Locale.ROOT));
+      }
+      for (var m : docs.list("membership:")) {
+        if (id.toString().equals(m.get("accountId"))) {
+          docs.delete("membership:" + m.get("id"));
+        }
+      }
+      for (var mp : docs.list("membership-payment:")) {
+        if (id.toString().equals(mp.get("accountId"))) {
+          docs.delete("membership-payment:" + mp.get("id"));
+        }
+      }
+      for (var tr : docs.list("transfer:")) {
+        if (id.toString().equals(tr.get("accountId"))) {
+          docs.delete("transfer:" + tr.get("id"));
+        }
+      }
+    }
+
+    // 8. Xóa vĩnh viễn tài khoản để giải phóng email cho phép đăng ký lại
     accounts.delete(target);
     audit.log("XÓA TÀI KHOẢN", target.getEmail() + " (" + target.getFullName() + ")");
   }

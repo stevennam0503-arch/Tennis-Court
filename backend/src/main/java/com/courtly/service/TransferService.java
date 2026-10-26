@@ -132,7 +132,7 @@ public class TransferService {
       if (o.getStatus().equals("HOLDING")) expires = o.getHoldExpiresAt();
     } else if (type.equals("TOURNAMENT")) {
       var r = registrations.findForUpdate(UUID.fromString(target)).orElseThrow();
-      own(a, r.getAccount().getId());
+      own(a, r.getAccount() == null ? null : r.getAccount().getId());
       require(
           !"CANCELLED".equals(r.getStatus()) && !"CANCELLED".equals(r.getTournament().getStatus()),
           "Đăng ký đã hủy");

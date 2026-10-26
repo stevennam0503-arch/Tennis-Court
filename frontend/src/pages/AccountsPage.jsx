@@ -24,7 +24,7 @@ export default function AccountsPage() {
   const handleDelete = async a => {
     if (a.id === data.viewer.accountId || a.isOwner || deletingId) return;
     const confirmed = window.confirm(
-      `Bạn có chắc chắn muốn xóa tài khoản "${a.name}" (${a.email})?\n\nLưu ý: Chỉ xóa được tài khoản chưa có đơn đặt sân hoặc dữ liệu giao dịch tài chính.`
+      `Bạn có chắc chắn muốn xóa tài khoản "${a.name}" (${a.email})?\n\nSau khi xóa, tài khoản sẽ được giải phóng hoàn toàn và bạn có thể dùng email này để kiểm tra đăng ký tài khoản mới (các đơn hàng trước đó vẫn được lưu giữ an toàn).`
     );
     if (!confirmed) return;
 
@@ -108,7 +108,7 @@ export default function AccountsPage() {
                       className="sm"
                       disabled={deletingId === a.id}
                       style={{ color: '#b91c1c', borderColor: '#fca5a5', background: '#fff' }}
-                      title="Xóa tài khoản nếu chưa có đơn hoặc giao dịch"
+                      title="Xóa tài khoản để giải phóng email (cho phép kiểm tra đăng ký lại)"
                       onClick={() => handleDelete(a)}
                     >
                       {deletingId === a.id ? 'Đang xóa…' : 'Xóa'}
@@ -122,7 +122,7 @@ export default function AccountsPage() {
       </Panel>
 
       <div className="notice warn" style={{ marginTop: 20 }}>
-        Khách chỉ xem và thao tác dữ liệu của mình. Admin được quản lý toàn bộ vận hành và tài khoản. Khóa tài khoản hoặc đổi quyền có hiệu lực ở lần gọi API tiếp theo. Nút "Xóa" dùng cho tài khoản rác/tạo nhầm chưa có lịch sử đơn; tài khoản đã giao dịch nên chuyển sang "LOCKED" (Khóa) để bảo toàn chứng từ.
+        Khách chỉ xem và thao tác dữ liệu của mình. Admin được quản lý toàn bộ vận hành và tài khoản. Nút "Xóa" cho phép giải phóng email để kiểm tra đăng ký lại (đơn đặt sân và chứng từ cũ vẫn được bảo lưu). Khóa tài khoản (LOCKED) dùng khi muốn chặn đăng nhập nhưng giữ nguyên liên kết hồ sơ.
       </div>
 
       {ticket && (

@@ -444,7 +444,7 @@ public class OverviewService {
                           "tournamentId",
                           r.getTournament().getId(),
                           "accountId",
-                          r.getAccount().getId(),
+                          r.getAccount() == null ? null : r.getAccount().getId(),
                           "name",
                           r.getTeamName(),
                           "status",

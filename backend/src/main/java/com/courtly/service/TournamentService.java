@@ -39,7 +39,7 @@ public class TournamentService {
     var current = registrations.findByTournamentId(id);
     require(current.size() < t.getMaxParticipants(), "Giải đã đủ người");
     require(
-        current.stream().noneMatch(x -> x.getAccount().getId().equals(request.accountId())),
+        current.stream().noneMatch(x -> x.getAccount() != null && x.getAccount().getId().equals(request.accountId())),
         "Tài khoản đã đăng ký giải");
     Account account =
         accounts

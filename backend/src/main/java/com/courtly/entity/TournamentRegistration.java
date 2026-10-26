@@ -17,7 +17,7 @@ public class TournamentRegistration extends BaseEntity {
   private Tournament tournament;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "account_id", nullable = false)
+  @JoinColumn(name = "account_id", nullable = true)
   private Account account;
 
   @ManyToOne(fetch = FetchType.LAZY)

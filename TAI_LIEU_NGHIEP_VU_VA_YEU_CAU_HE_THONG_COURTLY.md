@@ -296,13 +296,18 @@ Khắc phục nhược điểm đóng toàn bộ sân cả ngày, hệ thống h
 ---
 
 ### 6.13. Quy trình Xóa tài khoản Admin có kiểm tra ràng buộc toàn vẹn
-Nhằm ngăn chặn hành vi phá hủy dữ liệu và đảm bảo toàn vẹn kế toán:
+Nhằm tạo điều kiện cho quản trị viên kiểm thử đăng ký lại bằng cùng địa chỉ email nhưng vẫn đảm bảo toàn vẹn dữ liệu kế toán và lịch sử giao dịch:
 1. **Chỉ Quản trị viên tối cao (Owner/Admin)** mới có quyền truy cập chức năng xóa tài khoản tại danh mục Người dùng.
-2. **Quy tắc chặn xóa an toàn (Safety Invariants)**:
+2. **Quy tắc bảo vệ hệ thống (Safety Invariants)**:
    - Không được phép tự xóa tài khoản của chính mình.
    - Không được phép xóa tài khoản Chủ hệ thống (Owner Account).
-   - Không được xóa tài khoản đã có lịch sử phát sinh dữ liệu nghiệp vụ: Đã từng tạo đơn đặt sân, đã từng có giao dịch thanh toán hoặc đã từng đăng ký tham gia giải đấu.
-3. **Biện pháp xử lý tài khoản vi phạm**: Với các tài khoản có lịch sử giao dịch nhưng cần thu hồi quyền, chuyển trạng thái sang `LOCKED` (Khóa tài khoản) thay vì xóa vật lý khỏi cơ sở dữ liệu.
+3. **Cơ chế gỡ liên kết (Disassociation & Data Preservation)**:
+   - Khi xóa một tài khoản (kể cả tài khoản đã từng đặt đơn):
+     - Các đơn đặt sân (`orders`) được gỡ liên kết tài khoản (`customer_account_id = null`, `created_by_account_id = null`). Tên khách hàng, số điện thoại, số tiền, hóa đơn điện tử và các khung giờ sân của đơn vẫn được bảo lưu 100% để phục vụ đối soát và báo cáo doanh thu.
+     - Các bản ghi thanh toán (`payments`), hoàn tiền (`refunds`), giải đấu (`tournaments`, `matches`, `registrations`, `team_members`) và voucher (`voucher_redemptions`) được gỡ liên kết tài khoản an toàn.
+     - Các mã OTP kích hoạt và tài liệu tạm thời của tài khoản được dọn dẹp sạch sẽ.
+     - Bản ghi tài khoản trong bảng `accounts` được xóa vĩnh viễn, giải phóng địa chỉ email (`email`) ngay lập tức để người dùng/admin có thể kiểm thử đăng ký lại tài khoản mới bằng chính Gmail đó.
+4. **Khóa tài khoản (LOCKED)**: Với tài khoản khách hàng thực tế vi phạm quy định nhưng cần lưu giữ nguyên vẹn liên kết lịch sử thi đấu và hội viên, Admin chuyển trạng thái sang `LOCKED` thay vì xóa.
 
 ---
 
@@ -354,7 +359,7 @@ Nhằm ngăn chặn hành vi phá hủy dữ liệu và đảm bảo toàn vẹn
 - **FR-24 (Xuất báo cáo CSV)**: Xuất toàn bộ dữ liệu tài chính, cơ cấu doanh thu và danh sách đơn hàng ra file CSV chuẩn UTF-8 có BOM.
 - **FR-25 (Quản lý giải đấu)**: Tạo giải đấu, theo dõi VĐV đăng ký, bốc thăm nhánh đấu và gán lịch thi đấu vào các sân.
 - **FR-26 (Quản lý hội viên)**: Quản lý các gói Club, Plus; kích hoạt và theo dõi hạn sử dụng gói hội viên của từng khách hàng.
-- **FR-27 (Xóa tài khoản an toàn)**: Quản trị viên có thể xóa tài khoản người dùng với điều kiện tài khoản đó chưa từng phát sinh đơn hàng, thanh toán hoặc giải đấu.
+- **FR-27 (Xóa tài khoản & Tái đăng ký kiểm thử)**: Quản trị viên có thể xóa vĩnh viễn tài khoản người dùng ngay cả khi tài khoản đã có đơn đặt sân; hệ thống tự động gỡ liên kết an toàn để bảo toàn chứng từ tài chính và giải phóng email để người dùng có thể đăng ký lại bằng cùng Gmail.
 
 ---
 
