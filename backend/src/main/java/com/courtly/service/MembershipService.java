@@ -31,7 +31,7 @@ public class MembershipService {
             "name",
             "Club",
             "price",
-            299000,
+            249000,
             "days",
             30,
             "discountPercent",
@@ -39,14 +39,14 @@ public class MembershipService {
             "enabled",
             true,
             "description",
-            "Cho nhịp chơi đều đặn."),
+            "Cho nhịp chơi đều đặn · Miễn phí gửi xe."),
         map(
             "id",
             "plus",
             "name",
             "Plus",
             "price",
-            599000,
+            499000,
             "days",
             30,
             "discountPercent",
@@ -54,7 +54,7 @@ public class MembershipService {
             "enabled",
             true,
             "description",
-            "Dành cho người mê tennis."));
+            "Dành cho người mê tennis · Miễn phí gửi xe & VIP Lounge."));
   }
 
   public String status(Map<String, Object> m) {

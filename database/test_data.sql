@@ -666,9 +666,9 @@ BEGIN
       v_pay_id := pg_temp.seed_uuid('membership-pay:' || n)::text;
       
       IF n % 2 = 0 THEN
-        v_plan := 'Plus'; v_fee := 599000; v_disc := 15;
+        v_plan := 'Plus'; v_fee := 499000; v_disc := 15;
       ELSE
-        v_plan := 'Club'; v_fee := 299000; v_disc := 10;
+        v_plan := 'Club'; v_fee := 249000; v_disc := 10;
       END IF;
 
       INSERT INTO app_documents(document_key, data, version) VALUES

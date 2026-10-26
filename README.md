@@ -117,7 +117,7 @@ Ví dụ luồng tạo đơn: `BookingFlow.jsx → OrderController → OrderAppl
 - POS/admin quản lý sân, bảng giá, đơn, đồ uống, thiết bị thuê và trả/hỏng/mất, nhân sự và lịch làm việc. Check-out không tự ghi nhận trả thiết bị hoặc thanh toán; tiền và thiết bị vẫn theo dõi riêng như luồng hiện tại.
 - Giải đơn/đôi/đội, đăng ký, thu phí riêng, nhánh loại trực tiếp với số đăng ký 2^n, xếp sân/trọng tài, kết quả và đưa người thắng tới vòng sau.
 - Giới thiệu, liên hệ, tin tức, feedback có quyền đồng ý công khai và quản trị duyệt/trả lời.
-- Membership: so sánh Guest/Club/Plus, đăng ký chờ xác nhận, quầy xác minh nhận đủ phí mới kích hoạt; gói hết hạn tự mất quyền lợi. Chỉ giảm tiền sân của giờ chơi nằm trong kỳ hội viên; giữ snapshot ưu đãi trên đơn. Không tự gia hạn. Giá gói mặc định từ bản mẫu: Club 299.000đ/30 ngày, Plus 599.000đ/30 ngày; admin có thể sửa/tạm dừng gói. Giá và điều kiện đã đăng ký không bị sửa theo danh mục mới.
+- Membership: so sánh Guest/Club/Plus, đăng ký chờ xác nhận, quầy xác minh nhận đủ phí mới kích hoạt; gói hết hạn tự mất quyền lợi. Chỉ giảm tiền sân của giờ chơi nằm trong kỳ hội viên; giữ snapshot ưu đãi trên đơn. Không tự gia hạn. Giá gói mặc định từ bản mẫu: Club 249.000đ/30 ngày, Plus 499.000đ/30 ngày; admin có thể sửa/tạm dừng gói. Giá và điều kiện đã đăng ký không bị sửa theo danh mục mới.
 - Báo cáo, CSV, nhật ký và chính sách giữ cách tổ chức hiện có. Phí membership có phiếu thu riêng trong màn Membership và lịch sử thanh toán.
 
 Đơn khách hàng mới đặt cọc **50% tiền sân sau ưu đãi**, không gồm phí trọng tài. Đơn tạo tại quầy giữ quy tắc `depositPercent` trên tổng đơn. Lịch mới có bước 30 phút; lịch cũ đã được tham chiếu giữ ID, thời lượng và giá cũ.

@@ -1,9 +1,9 @@
 import React from 'react';
-import {ArrowUpRight,ArrowDown,Armchair,Coffee,ShowerHead,SquareParking,Dumbbell,ClipboardCheck} from 'lucide-react';
+import {ArrowUpRight,ArrowDown,Armchair,Coffee,ShowerHead,SquareParking,Dumbbell,ClipboardCheck,Sparkles} from 'lucide-react';
 import tree from './overview.json';
 import {useGuest,Action,dateToday,zone} from './context';
 import {EventCards} from './Tournaments';
-const icons={'arrow-up-right':ArrowUpRight,'arrow-down':ArrowDown,armchair:Armchair,coffee:Coffee,'shower-head':ShowerHead,'square-parking':SquareParking,dumbbell:Dumbbell,'clipboard-check':ClipboardCheck};
+const icons={'arrow-up-right':ArrowUpRight,'arrow-down':ArrowDown,armchair:Armchair,coffee:Coffee,'shower-head':ShowerHead,'square-parking':SquareParking,dumbbell:Dumbbell,'clipboard-check':ClipboardCheck,sparkles:Sparkles};
 export default function Overview(){const {t,navigate,date,setDate,setPreferredZone,preferredZone,data}=useGuest();
  const quick=<section className="ct-quick-book"><div className="haus-quick-intro"><span className="ct-eyebrow">LET'S PLAY</span><strong>{t('Trận tiếp theo')}<br/>{t('bắt đầu từ đây.')}</strong></div><label>{t('Ngày chơi')}<input type="date" value={date} min={dateToday()} onChange={e=>e.target.value&&setDate(e.target.value)}/></label><label>{t('Khu sân')}<select onChange={e=>setPreferredZone(e.target.value)} defaultValue="A"><option value="A">{t('Ngoài trời')}</option><option value="B">{t('Trong nhà')}</option><option value="V">VIP</option></select></label><Action onClick={()=>{if(preferredZone==='ALL')setPreferredZone('A');navigate('booking')}}>{t('Tìm giờ trống')}<ArrowUpRight/></Action></section>;
  function render(n,key){if(typeof n==='string')return t(n.trim());const a=n.attrs||{};
