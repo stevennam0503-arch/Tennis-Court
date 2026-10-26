@@ -749,6 +749,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-courtly_local}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@gmail.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      DEMO_MODE: ${DEMO_MODE:-true}
       PAYMENT_MODE: ${PAYMENT_MODE:-DEMO}
       PAYMENT_BANK_BIN: ${PAYMENT_BANK_BIN:-970422}
       PAYMENT_ACCOUNT_NUMBER: ${PAYMENT_ACCOUNT_NUMBER:-0345678999}
@@ -7842,20 +7843,35 @@ public class DemoDataInitializer implements ApplicationRunner {
   @Transactional
   public void run(ApplicationArguments args) {
     settings.get();
-    if (!adminPassword.isBlank() && accounts.findByEmailIgnoreCase(adminEmail).isEmpty()) {
-      com.courtly.util.Rules.require(
-          adminPassword.length() >= 5
-              && adminPassword.getBytes(java.nio.charset.StandardCharsets.UTF_8).length <= 72,
-          "ADMIN_PASSWORD cần ít nhất 5 ký tự, tối đa 72 byte");
+    
+    // 1. Khởi tạo tài khoản ADMIN nếu chưa tồn tại
+    var adminOpt = accounts.findByEmailIgnoreCase(adminEmail);
+    if (adminOpt.isEmpty()) {
       Account admin = new Account();
       admin.setFullName("Quản trị Courtly");
       admin.setEmail(adminEmail.toLowerCase());
       admin.setPhone("");
       admin.setRole("ADMIN");
-      admin.setPasswordHash(passwordEncoder.encode(adminPassword));
+      String initialPass = (!adminPassword.isBlank()) ? adminPassword : "12345";
+      admin.setPasswordHash(passwordEncoder.encode(initialPass));
       accounts.save(admin);
+    } else {
+      Account admin = adminOpt.get();
+      if (!"ADMIN".equals(admin.getRole())) {
+        admin.setRole("ADMIN");
+        accounts.save(admin);
+      }
+      // Chỉ khởi tạo mật khẩu nếu tài khoản chưa từng có mật khẩu
+      if (admin.getPasswordHash() == null || admin.getPasswordHash().isBlank()) {
+        String initialPass = (!adminPassword.isBlank()) ? adminPassword : "12345";
+        admin.setPasswordHash(passwordEncoder.encode(initialPass));
+        accounts.save(admin);
+      }
     }
-    if (accounts.findByEmailIgnoreCase("staff@gmail.com").isEmpty()) {
+
+    // 2. Khởi tạo tài khoản STAFF mẫu nếu chưa tồn tại
+    var staffOpt = accounts.findByEmailIgnoreCase("staff@gmail.com");
+    if (staffOpt.isEmpty()) {
       Account staffAcc = new Account();
       staffAcc.setFullName("Nhân viên Staff");
       staffAcc.setEmail("staff@gmail.com");
@@ -7864,28 +7880,38 @@ public class DemoDataInitializer implements ApplicationRunner {
       staffAcc.setPasswordHash(passwordEncoder.encode("12345"));
       accounts.save(staffAcc);
     } else {
-      accounts.findByEmailIgnoreCase("staff@gmail.com").ifPresent(acc -> {
-        if (!"STAFF".equals(acc.getRole())) {
-          acc.setRole("STAFF");
-          accounts.save(acc);
-        }
-      });
+      Account staffAcc = staffOpt.get();
+      if (!"STAFF".equals(staffAcc.getRole())) {
+        staffAcc.setRole("STAFF");
+        accounts.save(staffAcc);
+      }
+      // Chỉ khởi tạo mật khẩu nếu tài khoản chưa từng có mật khẩu
+      if (staffAcc.getPasswordHash() == null || staffAcc.getPasswordHash().isBlank()) {
+        staffAcc.setPasswordHash(passwordEncoder.encode("12345"));
+        accounts.save(staffAcc);
+      }
     }
-    // Đảm bảo duy nhất tài khoản chủ sân (adminEmail) mang quyền ADMIN, tất cả tài khoản vận hành khác chuyển về STAFF
+
+    // 3. Đảm bảo duy nhất tài khoản chủ sân (adminEmail) mang quyền ADMIN, tất cả tài khoản vận hành khác chuyển về STAFF
     for (Account a : accounts.findAll()) {
       if ("ADMIN".equals(a.getRole()) && !adminEmail.equalsIgnoreCase(a.getEmail())) {
         a.setRole("STAFF");
         accounts.save(a);
       }
     }
-    // Cập nhật mật khẩu 12345 cho toàn bộ tài khoản cấp quản trị và vận hành (ADMIN, STAFF)
+
+    // 4. Khởi tạo mật khẩu mặc định 12345 cho tài khoản ADMIN/STAFF NẾU VÀ CHỈ NẾU chưa có mật khẩu
+    // TUYỆT ĐỐI KHÔNG ghi đè mật khẩu của tài khoản đã có mật khẩu (khi người dùng đã đổi mật khẩu, bắt buộc giữ nguyên mật khẩu mới)
     String defaultPassHash = passwordEncoder.encode("12345");
     for (Account a : accounts.findAll()) {
       if (java.util.Set.of("ADMIN", "STAFF").contains(a.getRole())) {
-        a.setPasswordHash(defaultPassHash);
-        accounts.save(a);
+        if (a.getPasswordHash() == null || a.getPasswordHash().isBlank()) {
+          a.setPasswordHash(defaultPassHash);
+          accounts.save(a);
+        }
       }
     }
+
     if (!enabled || courts.count() > 0) return;
     for (int i = 1; i <= 10; i++) {
       Court c = new Court();
