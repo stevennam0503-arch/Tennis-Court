@@ -39,6 +39,8 @@ public class SecurityConfig {
             a ->
                 a.requestMatchers("/api/csrf", "/api/auth/**", "/api/public/**", "/api/webhooks/sepay")
                     .permitAll()
+                    .requestMatchers("/api/catalog/**", "/api/settings", "/api/settings/**", "/api/content/**", "/api/matches/**")
+                    .hasRole("ADMIN")
                     .requestMatchers("/api/**")
                     .authenticated()
                     .anyRequest()

@@ -30,7 +30,7 @@ spring:
   jackson:
     default-property-inclusion: non_null
 courtly:
-  demo-mode: ${DEMO_MODE:true}
+  demo-mode: ${DEMO_MODE:false}
   payment:
     mode: ${PAYMENT_MODE:DEMO}
     bank-bin: ${PAYMENT_BANK_BIN:970422}

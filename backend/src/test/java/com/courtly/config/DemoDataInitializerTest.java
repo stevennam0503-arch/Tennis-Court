@@ -4,12 +4,12 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.courtly.entity.Account;
+import com.courtly.exception.BusinessException;
 import com.courtly.repository.*;
 import com.courtly.service.SettingsService;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,6 +37,51 @@ class DemoDataInitializerTest {
     ReflectionTestUtils.setField(initializer, "adminEmail", "admin@gmail.com");
     ReflectionTestUtils.setField(initializer, "adminPassword", "");
     ReflectionTestUtils.setField(initializer, "enabled", false);
+  }
+
+  @Test
+  void productionModeDoesNotCreateAdminWithoutPassword() {
+    ReflectionTestUtils.setField(initializer, "enabled", false);
+    ReflectionTestUtils.setField(initializer, "adminPassword", "");
+    when(accounts.findByEmailIgnoreCase("admin@gmail.com")).thenReturn(Optional.empty());
+    when(accounts.findAll()).thenReturn(List.of());
+
+    initializer.run(new DefaultApplicationArguments());
+
+    // Never save admin with a guessed password when ADMIN_PASSWORD is blank in production
+    verify(accounts, never()).save(argThat(a -> "ADMIN".equals(a.getRole())));
+  }
+
+  @Test
+  void productionModeDoesNotCreateStaffSampleAccount() {
+    ReflectionTestUtils.setField(initializer, "enabled", false);
+    when(accounts.findByEmailIgnoreCase("staff@gmail.com")).thenReturn(Optional.empty());
+    when(accounts.findAll()).thenReturn(List.of());
+
+    initializer.run(new DefaultApplicationArguments());
+
+    // In production (enabled == false), staff@gmail.com must never be created
+    verify(accounts, never()).save(argThat(a -> "staff@gmail.com".equals(a.getEmail())));
+  }
+
+  @Test
+  void adminPasswordRequiresMinimum10Characters() {
+    ReflectionTestUtils.setField(initializer, "adminPassword", "Short1!"); // < 10 chars
+    when(accounts.findByEmailIgnoreCase("admin@gmail.com")).thenReturn(Optional.empty());
+
+    assertThrows(BusinessException.class, () -> initializer.run(new DefaultApplicationArguments()));
+  }
+
+  @Test
+  void adminCreatedWithSecurePasswordWhenConfigured() {
+    ReflectionTestUtils.setField(initializer, "adminPassword", "SecureClubAdmin2026!");
+    when(accounts.findByEmailIgnoreCase("admin@gmail.com")).thenReturn(Optional.empty());
+    when(accounts.findAll()).thenReturn(List.of());
+
+    initializer.run(new DefaultApplicationArguments());
+
+    verify(accounts).save(argThat(a ->
+        "ADMIN".equals(a.getRole()) && encoder.matches("SecureClubAdmin2026!", a.getPasswordHash())));
   }
 
   @Test
@@ -70,19 +115,17 @@ class DemoDataInitializerTest {
   }
 
   @Test
-  void initializesPasswordWhenEmpty() {
-    Account uninitializedAdmin = new Account();
-    uninitializedAdmin.setEmail("admin@gmail.com");
-    uninitializedAdmin.setRole("ADMIN");
-    uninitializedAdmin.setPasswordHash(null);
-
-    when(accounts.findByEmailIgnoreCase("admin@gmail.com")).thenReturn(Optional.of(uninitializedAdmin));
+  void devModeInitializesPasswordWhenEnabled() {
+    ReflectionTestUtils.setField(initializer, "enabled", true);
+    when(accounts.findByEmailIgnoreCase("admin@gmail.com")).thenReturn(Optional.empty());
     when(accounts.findByEmailIgnoreCase("staff@gmail.com")).thenReturn(Optional.empty());
-    when(accounts.findAll()).thenReturn(List.of(uninitializedAdmin));
+    when(accounts.findAll()).thenReturn(List.of());
 
     initializer.run(new DefaultApplicationArguments());
 
-    assertNotNull(uninitializedAdmin.getPasswordHash());
-    assertTrue(encoder.matches("12345", uninitializedAdmin.getPasswordHash()));
+    verify(accounts).save(argThat(a ->
+        "ADMIN".equals(a.getRole()) && encoder.matches("12345", a.getPasswordHash())));
+    verify(accounts).save(argThat(a ->
+        "STAFF".equals(a.getRole()) && encoder.matches("12345", a.getPasswordHash())));
   }
 }

@@ -672,7 +672,7 @@ spring:
   jackson:
     default-property-inclusion: non_null
 courtly:
-  demo-mode: ${DEMO_MODE:true}
+  demo-mode: ${DEMO_MODE:false}
   payment:
     mode: ${PAYMENT_MODE:DEMO}
     bank-bin: ${PAYMENT_BANK_BIN:970422}
@@ -749,7 +749,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-courtly_local}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@gmail.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
-      DEMO_MODE: ${DEMO_MODE:-true}
+      DEMO_MODE: ${DEMO_MODE:-false}
       PAYMENT_MODE: ${PAYMENT_MODE:-DEMO}
       PAYMENT_BANK_BIN: ${PAYMENT_BANK_BIN:-970422}
       PAYMENT_ACCOUNT_NUMBER: ${PAYMENT_ACCOUNT_NUMBER:-0345678999}
@@ -1421,7 +1421,7 @@ public class AuthService {
   @Value("${courtly.admin-email:admin@gmail.com}")
   private String adminEmail;
 
-  @Value("${courtly.demo-mode:true}")
+  @Value("${courtly.demo-mode:false}")
   private boolean demoMode;
 
   private final java.util.concurrent.ConcurrentHashMap<String, long[]> failures =
@@ -7812,14 +7812,17 @@ import com.courtly.entity.*;
 import com.courtly.repository.*;
 import com.courtly.service.SettingsService;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class DemoDataInitializer implements ApplicationRunner {
@@ -7843,33 +7846,63 @@ public class DemoDataInitializer implements ApplicationRunner {
   @Transactional
   public void run(ApplicationArguments args) {
     settings.get();
-    
-    // 1. Khởi tạo tài khoản ADMIN nếu chưa tồn tại
-    var adminOpt = accounts.findByEmailIgnoreCase(adminEmail);
-    if (adminOpt.isEmpty()) {
-      Account admin = new Account();
-      admin.setFullName("Quản trị Courtly");
-      admin.setEmail(adminEmail.toLowerCase());
-      admin.setPhone("");
-      admin.setRole("ADMIN");
-      String initialPass = (!adminPassword.isBlank()) ? adminPassword : "12345";
-      admin.setPasswordHash(passwordEncoder.encode(initialPass));
-      accounts.save(admin);
-    } else {
-      Account admin = adminOpt.get();
-      if (!"ADMIN".equals(admin.getRole())) {
-        admin.setRole("ADMIN");
-        accounts.save(admin);
-      }
-      // Chỉ khởi tạo mật khẩu nếu tài khoản chưa từng có mật khẩu
-      if (admin.getPasswordHash() == null || admin.getPasswordHash().isBlank()) {
-        String initialPass = (!adminPassword.isBlank()) ? adminPassword : "12345";
-        admin.setPasswordHash(passwordEncoder.encode(initialPass));
-        accounts.save(admin);
+
+    // 1. Phân định quyền duy nhất: chỉ tài khoản chủ sân (adminEmail) mang quyền ADMIN, tất cả tài khoản khác hạ về STAFF
+    for (Account a : accounts.findAll()) {
+      if ("ADMIN".equals(a.getRole()) && !adminEmail.equalsIgnoreCase(a.getEmail())) {
+        a.setRole("STAFF");
+        accounts.save(a);
       }
     }
 
-    // 2. Khởi tạo tài khoản STAFF mẫu nếu chưa tồn tại
+    // 2. Tài khoản ADMIN
+    if (adminPassword.isBlank()) {
+      log.warn("ADMIN_PASSWORD chưa được cấu hình cho tài khoản: {}", adminEmail);
+      // Chỉ trong môi trường demo/dev (enabled == true) và khi tài khoản admin chưa tồn tại:
+      // cấp tài khoản admin mặc định với mật khẩu 12345 để phục vụ kiểm thử và phát triển local
+      if (enabled && accounts.findByEmailIgnoreCase(adminEmail).isEmpty()) {
+        Account admin = new Account();
+        admin.setFullName("Quản trị Courtly");
+        admin.setEmail(adminEmail.toLowerCase(java.util.Locale.ROOT));
+        admin.setPhone("");
+        admin.setRole("ADMIN");
+        admin.setPasswordHash(passwordEncoder.encode("12345"));
+        accounts.save(admin);
+      }
+    } else {
+      // Khi CÓ cấu hình ADMIN_PASSWORD: bắt buộc kiểm tra độ an toàn (>= 10 ký tự, <= 72 byte chuẩn BCrypt)
+      com.courtly.util.Rules.require(
+          adminPassword.length() >= 10
+              && adminPassword.getBytes(StandardCharsets.UTF_8).length <= 72,
+          "ADMIN_PASSWORD cần ít nhất 10 ký tự, tối đa 72 byte UTF-8");
+      var adminOpt = accounts.findByEmailIgnoreCase(adminEmail);
+      if (adminOpt.isEmpty()) {
+        Account admin = new Account();
+        admin.setFullName("Quản trị Courtly");
+        admin.setEmail(adminEmail.toLowerCase(java.util.Locale.ROOT));
+        admin.setPhone("");
+        admin.setRole("ADMIN");
+        admin.setPasswordHash(passwordEncoder.encode(adminPassword));
+        accounts.save(admin);
+      } else {
+        Account admin = adminOpt.get();
+        if (!"ADMIN".equals(admin.getRole())) {
+          admin.setRole("ADMIN");
+          accounts.save(admin);
+        }
+        // Chỉ khởi tạo mật khẩu nếu admin chưa từng có mật khẩu (tuyệt đối không ghi đè nếu đã đổi)
+        if (admin.getPasswordHash() == null || admin.getPasswordHash().isBlank()) {
+          admin.setPasswordHash(passwordEncoder.encode(adminPassword));
+          accounts.save(admin);
+        }
+      }
+    }
+
+    // 3. BẢO VỆ MÔI TRƯỜNG THỰC: Toàn bộ dữ liệu mẫu (staff mẫu, sân mẫu, tài khoản demo...) PHẢI NẰM SAU DÒNG NÀY!
+    // Khi SEED_DEMO=false, hàm kết thúc ngay tại đây -> Không tạo staff@gmail.com, không seed sân hay demo users!
+    if (!enabled) return;
+
+    // 4. Khởi tạo tài khoản STAFF mẫu (chỉ chạy khi enabled == true)
     var staffOpt = accounts.findByEmailIgnoreCase("staff@gmail.com");
     if (staffOpt.isEmpty()) {
       Account staffAcc = new Account();
@@ -7885,34 +7918,16 @@ public class DemoDataInitializer implements ApplicationRunner {
         staffAcc.setRole("STAFF");
         accounts.save(staffAcc);
       }
-      // Chỉ khởi tạo mật khẩu nếu tài khoản chưa từng có mật khẩu
+      // Chỉ khởi tạo mật khẩu nếu chưa từng có mật khẩu (tuyệt đối không ghi đè nếu đã đổi)
       if (staffAcc.getPasswordHash() == null || staffAcc.getPasswordHash().isBlank()) {
         staffAcc.setPasswordHash(passwordEncoder.encode("12345"));
         accounts.save(staffAcc);
       }
     }
 
-    // 3. Đảm bảo duy nhất tài khoản chủ sân (adminEmail) mang quyền ADMIN, tất cả tài khoản vận hành khác chuyển về STAFF
-    for (Account a : accounts.findAll()) {
-      if ("ADMIN".equals(a.getRole()) && !adminEmail.equalsIgnoreCase(a.getEmail())) {
-        a.setRole("STAFF");
-        accounts.save(a);
-      }
-    }
+    // 5. Kiểm tra nếu đã có dữ liệu sân thì không seed lại
+    if (courts.count() > 0) return;
 
-    // 4. Khởi tạo mật khẩu mặc định 12345 cho tài khoản ADMIN/STAFF NẾU VÀ CHỈ NẾU chưa có mật khẩu
-    // TUYỆT ĐỐI KHÔNG ghi đè mật khẩu của tài khoản đã có mật khẩu (khi người dùng đã đổi mật khẩu, bắt buộc giữ nguyên mật khẩu mới)
-    String defaultPassHash = passwordEncoder.encode("12345");
-    for (Account a : accounts.findAll()) {
-      if (java.util.Set.of("ADMIN", "STAFF").contains(a.getRole())) {
-        if (a.getPasswordHash() == null || a.getPasswordHash().isBlank()) {
-          a.setPasswordHash(defaultPassHash);
-          accounts.save(a);
-        }
-      }
-    }
-
-    if (!enabled || courts.count() > 0) return;
     for (int i = 1; i <= 10; i++) {
       Court c = new Court();
       String zone = i <= 4 ? "A" : i <= 8 ? "B" : "V";
@@ -8001,6 +8016,8 @@ public class SecurityConfig {
             a ->
                 a.requestMatchers("/api/csrf", "/api/auth/**", "/api/public/**", "/api/webhooks/sepay")
                     .permitAll()
+                    .requestMatchers("/api/catalog/**", "/api/settings", "/api/settings/**", "/api/content/**", "/api/matches/**")
+                    .hasRole("ADMIN")
                     .requestMatchers("/api/**")
                     .authenticated()
                     .anyRequest()

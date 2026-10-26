@@ -34,7 +34,7 @@ public class AuthService {
   @Value("${courtly.admin-email:admin@gmail.com}")
   private String adminEmail;
 
-  @Value("${courtly.demo-mode:true}")
+  @Value("${courtly.demo-mode:false}")
   private boolean demoMode;
 
   private final java.util.concurrent.ConcurrentHashMap<String, long[]> failures =
