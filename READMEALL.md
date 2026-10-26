@@ -1018,6 +1018,7 @@ import org.springframework.web.bind.annotation.*;
 public class OrderController {
   private final OrderApplicationService service;
   private final AuthService auth;
+  private final VoucherService vouchers;
 
   @PostMapping("/orders")
   public Map<String, Object> create(@Valid @RequestBody BookingRequest b, HttpServletRequest r) {
@@ -1032,6 +1033,18 @@ public class OrderController {
   @GetMapping("/orders/{id}/cancellation-preview")
   public Map<String, Object> cancellationPreview(@PathVariable UUID id, HttpServletRequest r) {
     return service.cancellationPreview(id, auth.current(r));
+  }
+
+  @GetMapping("/public/vouchers")
+  public List<Map<String, Object>> vouchers() {
+    return vouchers.listAvailable();
+  }
+
+  @PostMapping("/public/vouchers/validate")
+  public Map<String, Object> validateVoucher(@RequestBody Map<String, Object> body) {
+    String code = (String) body.get("code");
+    java.math.BigDecimal amount = PresentationService.decimal(body.get("amount"));
+    return vouchers.calculate(code, amount);
   }
 
   @GetMapping("/orders/{id}/extension-options")
@@ -1902,6 +1915,7 @@ public class BookingSupportService {
   private final OverviewService views;
   private final SettingsService settings;
   private final MembershipService membership;
+  private final VoucherService vouchers;
 
   public void owns(Account a, UUID id) {
     var o = orders.findById(id).orElseThrow();
@@ -1921,10 +1935,14 @@ public class BookingSupportService {
   }
 
   public Map<String, Object> options(List<UUID> ids, UUID exclude, Account a) {
-    return options(ids, exclude, a, a.getId());
+    return options(ids, exclude, a, a.getId(), null);
   }
 
   public Map<String, Object> options(List<UUID> ids, UUID exclude, Account a, UUID account) {
+    return options(ids, exclude, a, account, null);
+  }
+
+  public Map<String, Object> options(List<UUID> ids, UUID exclude, Account a, UUID account, String voucherCode) {
     if (exclude != null) owns(a, exclude);
     var rows = selected(ids);
     service.future(rows);
@@ -1996,6 +2014,11 @@ public class BookingSupportService {
         }
       staffRows.add(map("scheduleId", s.getId(), "staff", people));
     }
+    BigDecimal courtTotal = rows.stream().map(CourtSchedule::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+    Map<String, Object> voucherBenefit = null;
+    if (voucherCode != null && !voucherCode.isBlank()) {
+      voucherBenefit = vouchers.calculate(voucherCode, courtTotal);
+    }
     return map(
         "courtQuote",
         membership.quote(account, rows),
@@ -2006,7 +2029,11 @@ public class BookingSupportService {
         "conflicts",
         conflict,
         "staffSlots",
-        staffRows);
+        staffRows,
+        "voucherBenefit",
+        voucherBenefit,
+        "availableVouchers",
+        vouchers.listAvailable());
   }
 
   public Map<String, Object> preview(UUID id, MoveBookingRequest r, Account a) {
@@ -3376,7 +3403,8 @@ public class OrderApplicationService {
                     a.getId(),
                     r.scheduleIds(),
                     r.assignments(),
-                    r.requestId());
+                    r.requestId(),
+                    r.voucherCode());
           }
           UUID id = service.create(effective);
           var o = service.lock(id);
@@ -3399,7 +3427,8 @@ public class OrderApplicationService {
         actor,
         Set.of("ADMIN", "STAFF").contains(actor.getRole())
             ? (b.get("accountId") == null ? null : UUID.fromString(b.get("accountId").toString()))
-            : actor.getId());
+            : actor.getId(),
+        (String) b.get("voucherCode"));
   }
 
   private List<UUID> ids(Object value) {
@@ -3672,8 +3701,13 @@ public class OrderApplicationService {
   }
 
   private void customerDeposit(CustomerOrder o) {
-    var benefit = (Map<String,Object>) docs.decode(o.getMetadata()).get("membershipBenefit");
+    var meta = docs.decode(o.getMetadata());
+    var benefit = (Map<String,Object>) meta.get("membershipBenefit");
     var net = benefit == null ? o.getTotalAmount() : PresentationService.decimal(benefit.get("net"));
+    var voucher = (Map<String,Object>) meta.get("voucherBenefit");
+    if (voucher != null && benefit != null) {
+      net = net.subtract(PresentationService.decimal(voucher.get("discount"))).max(java.math.BigDecimal.ZERO);
+    }
     o.setDepositRequired(net.multiply(new java.math.BigDecimal("0.5")).setScale(0, java.math.RoundingMode.HALF_UP));
   }
 
@@ -3725,6 +3759,7 @@ public class OrderService {
   private final AuditService audit;
   private final DocumentService documents;
   private final MembershipService membership;
+  private final VoucherService vouchers;
 
   @Transactional
   public UUID create(BookingRequest request) {
@@ -3756,6 +3791,7 @@ public class OrderService {
     allocate(booking, selected, "LOCKED");
     assignExact(booking, selected, request.assignments());
     quote(order, selected);
+    applyVoucher(order, request.voucherCode(), selected);
     totals.recalculate(order);
     order.setDepositRequired(
         depositBase(order)
@@ -3771,9 +3807,25 @@ public class OrderService {
 
   private BigDecimal depositBase(CustomerOrder o) {
     var metadata = documents.decode(o.getMetadata());
-    if (Boolean.TRUE.equals(metadata.get("customerFlow")) && metadata.get("membershipBenefit") instanceof Map<?,?> benefit)
-      return PresentationService.decimal(benefit.get("net"));
+    if (Boolean.TRUE.equals(metadata.get("customerFlow")) && metadata.get("membershipBenefit") instanceof Map<?,?> benefit) {
+      var net = PresentationService.decimal(benefit.get("net"));
+      if (metadata.get("voucherBenefit") instanceof Map<?,?> voucher) {
+        net = net.subtract(PresentationService.decimal(voucher.get("discount"))).max(BigDecimal.ZERO);
+      }
+      return net;
+    }
     return o.getTotalAmount();
+  }
+
+  private void applyVoucher(CustomerOrder o, String voucherCode, List<CourtSchedule> selected) {
+    if (voucherCode == null || voucherCode.isBlank()) return;
+    BigDecimal courtTotal = selected.stream().map(CourtSchedule::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+    var extra = documents.decode(o.getMetadata());
+    var voucherBenefit = vouchers.calculate(voucherCode, courtTotal);
+    if (voucherBenefit != null) {
+      extra.put("voucherBenefit", voucherBenefit);
+      o.setMetadata(documents.encode(extra));
+    }
   }
 
   public CustomerOrder lock(UUID id) {
@@ -4197,6 +4249,10 @@ public class OrderTotalsService {
       Object benefit = extra.get("membershipBenefit");
       if (benefit instanceof java.util.Map<?, ?> m)
         sum = sum.subtract(PresentationService.decimal(m.get("discount")));
+      Object voucher = extra.get("voucherBenefit");
+      if (voucher instanceof java.util.Map<?, ?> vm)
+        sum = sum.subtract(PresentationService.decimal(vm.get("discount")));
+      if (sum.compareTo(BigDecimal.ZERO) < 0) sum = BigDecimal.ZERO;
     }
     order.setSubtotal(sum);
     order.setTotalAmount(sum);
@@ -6222,6 +6278,137 @@ public class TransferService {
 }
 ```
 
+#### File: `backend/src/main/java/com/courtly/service/VoucherService.java`
+```java
+package com.courtly.service;
+
+import static com.courtly.util.Rules.map;
+
+import com.courtly.exception.BusinessException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.*;
+import org.springframework.stereotype.Service;
+
+@Service
+public class VoucherService {
+
+  public record VoucherDef(
+      String code,
+      String type, // FIXED or PERCENT
+      BigDecimal value,
+      BigDecimal minOrder,
+      BigDecimal maxDiscount,
+      String description) {}
+
+  private static final Map<String, VoucherDef> ACTIVE_VOUCHERS = new LinkedHashMap<>();
+
+  static {
+    ACTIVE_VOUCHERS.put(
+        "WELCOME",
+        new VoucherDef(
+            "WELCOME",
+            "FIXED",
+            BigDecimal.valueOf(50000),
+            BigDecimal.valueOf(100000),
+            BigDecimal.valueOf(50000),
+            "Giảm 50.000 đ chào mừng thành viên mới"));
+    ACTIVE_VOUCHERS.put(
+        "HE2026",
+        new VoucherDef(
+            "HE2026",
+            "FIXED",
+            BigDecimal.valueOf(50000),
+            BigDecimal.valueOf(150000),
+            BigDecimal.valueOf(50000),
+            "Giảm 50.000 đ mùa hè sôi động 2026"));
+    ACTIVE_VOUCHERS.put(
+        "COURTLY50K",
+        new VoucherDef(
+            "COURTLY50K",
+            "FIXED",
+            BigDecimal.valueOf(50000),
+            BigDecimal.valueOf(100000),
+            BigDecimal.valueOf(50000),
+            "Voucher tri ân 50.000 đ"));
+    ACTIVE_VOUCHERS.put(
+        "VIP10",
+        new VoucherDef(
+            "VIP10",
+            "PERCENT",
+            BigDecimal.valueOf(10),
+            BigDecimal.valueOf(200000),
+            BigDecimal.valueOf(100000),
+            "Giảm 10% (tối đa 100k) cho hội viên"));
+    ACTIVE_VOUCHERS.put(
+        "FLASH25",
+        new VoucherDef(
+            "FLASH25",
+            "PERCENT",
+            BigDecimal.valueOf(25),
+            BigDecimal.valueOf(100000),
+            BigDecimal.valueOf(150000),
+            "Ưu đãi Giờ Vàng giảm 25%"));
+  }
+
+  public List<Map<String, Object>> listAvailable() {
+    return ACTIVE_VOUCHERS.values().stream()
+        .map(
+            v ->
+                map(
+                    "code", v.code(),
+                    "type", v.type(),
+                    "value", v.value(),
+                    "minOrder", v.minOrder(),
+                    "description", v.description()))
+        .toList();
+  }
+
+  public Map<String, Object> calculate(String rawCode, BigDecimal totalAmount) {
+    if (rawCode == null || rawCode.isBlank()) {
+      return null;
+    }
+    String code = rawCode.trim().toUpperCase(Locale.ROOT);
+    VoucherDef def = ACTIVE_VOUCHERS.get(code);
+    if (def == null) {
+      throw new BusinessException("Mã voucher '" + rawCode + "' không tồn tại hoặc đã hết hạn");
+    }
+
+    BigDecimal total = totalAmount != null ? totalAmount : BigDecimal.ZERO;
+    if (total.compareTo(def.minOrder()) < 0) {
+      throw new BusinessException(
+          "Đơn đặt sân tối thiểu "
+              + def.minOrder().setScale(0, RoundingMode.HALF_UP)
+              + " đ để áp dụng voucher "
+              + code);
+    }
+
+    BigDecimal discount;
+    if ("PERCENT".equals(def.type())) {
+      discount =
+          total
+              .multiply(def.value())
+              .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+      if (def.maxDiscount() != null && discount.compareTo(def.maxDiscount()) > 0) {
+        discount = def.maxDiscount();
+      }
+    } else {
+      discount = def.value();
+    }
+
+    if (discount.compareTo(total) > 0) {
+      discount = total;
+    }
+
+    return map(
+        "code", def.code(),
+        "discount", discount,
+        "description", def.description(),
+        "applied", true);
+  }
+}
+```
+
 ### 6.3 Entities & JPA Models
 
 #### File: `backend/src/main/java/com/courtly/entity/Account.java`
@@ -7602,9 +7789,20 @@ public record BookingRequest(
     UUID accountId,
     @NotEmpty @Size(max = 48) List<UUID> scheduleIds,
     List<StaffAssignment> assignments,
-    String requestId) {
+    String requestId,
+    String voucherCode) {
   public BookingRequest(String name, String phone, UUID accountId, List<UUID> ids) {
-    this(name, phone, accountId, ids, List.of(), null);
+    this(name, phone, accountId, ids, List.of(), null, null);
+  }
+
+  public BookingRequest(
+      String name,
+      String phone,
+      UUID accountId,
+      List<UUID> ids,
+      List<StaffAssignment> assignments,
+      String requestId) {
+    this(name, phone, accountId, ids, assignments, requestId, null);
   }
 }
 ```
@@ -8738,7 +8936,7 @@ export default function GuestAuth({ onSuccess }) {
 #### File: `frontend/src/guest/Booking.jsx`
 ```jsx
 import React, {useState, useEffect, useRef} from 'react';
-import {ArrowUpRight, ArrowRight, Clock, UserRound, RotateCcw, Check, Plus} from 'lucide-react';
+import {ArrowUpRight, ArrowRight, Clock, UserRound, RotateCcw, Check, Plus, Tag} from 'lucide-react';
 import {api} from '../services/api';
 import {useGuest, Action, Empty, money, time, dateToday, zone, requestId} from './context';
 import {toMinutes, clock, rangeSlots, canEndAt, timePoints} from './bookingTime.mjs';
@@ -8753,6 +8951,10 @@ export default function Booking() {
   const [wantReferee, setWantReferee] = useState(false), [refStart, setRefStart] = useState(''), [refEnd, setRefEnd] = useState(''), [refId, setRefId] = useState('');
   const [options, setOptions] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [voucherInput, setVoucherInput] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
+  const [voucherError, setVoucherError] = useState('');
+  const [voucherBusy, setVoucherBusy] = useState(false);
   const req = useRef(requestId());
 
   const allCourts = data?.courts || [];
@@ -8773,6 +8975,9 @@ export default function Booking() {
     setRefId('');
     setOptions(null);
     setPreview(null);
+    setAppliedVoucher(null);
+    setVoucherInput('');
+    setVoucherError('');
     setError('');
   };
 
@@ -8815,13 +9020,14 @@ export default function Booking() {
     if (allChosen.length > 0 && user) {
       api('/booking/options', 'POST', {
         scheduleIds: allChosen.map(s => s.id),
+        voucherCode: appliedVoucher ? appliedVoucher.code : undefined,
         ...(moveOrder ? {excludeId: moveOrder.id} : {})
       })
         .then(x => { if (live) { setOptions(x); setError(''); } })
         .catch(e => { if (live) setError(e.message); });
     }
     return () => { live = false; };
-  }, [signature, allChosen.length, user?.id, moveOrder?.id]);
+  }, [signature, allChosen.length, user?.id, moveOrder?.id, appliedVoucher?.code]);
 
   const checkMultiCourtGap = (minuteStart, minuteEnd) => {
     const otherCourts = Object.entries(courtRanges).filter(([cid, val]) => cid !== court?.id && val.valid);
@@ -8890,9 +9096,39 @@ export default function Booking() {
   const refFee = referee ? (toMinutes(refEnd) - toMinutes(refStart)) * referee.rate / 60 : 0;
 
   const gross = allChosen.reduce((sum, s) => sum + s.price, 0);
-  const net = options?.courtQuote?.net ?? gross;
   const discount = options?.courtQuote?.discount ?? 0;
+  const baseCourtNet = options?.courtQuote?.net ?? Math.max(0, gross - discount);
+  const voucherDiscount = appliedVoucher ? appliedVoucher.discount : 0;
+  const net = Math.max(0, baseCourtNet - voucherDiscount);
+  const totalAmount = net + refFee;
+  const depositAmount = Math.round(net / 2);
   const displayDate = new Intl.DateTimeFormat(lang === 'en' ? 'en-GB' : 'vi-VN', {weekday: 'short', day: '2-digit', month: '2-digit'}).format(new Date(date + 'T12:00:00'));
+
+  const applyVoucher = async (codeToUse) => {
+    const code = (codeToUse || voucherInput).trim().toUpperCase();
+    if (!code) return;
+    if (!gross) {
+      setVoucherError(t('Vui lòng chọn giờ chơi trước khi áp dụng voucher.'));
+      return;
+    }
+    setVoucherBusy(true);
+    setVoucherError('');
+    try {
+      const res = await api('/public/vouchers/validate', 'POST', { code, amount: gross });
+      setAppliedVoucher(res);
+      setVoucherInput(code);
+    } catch (e) {
+      setVoucherError(e.message);
+    } finally {
+      setVoucherBusy(false);
+    }
+  };
+
+  const removeVoucher = () => {
+    setAppliedVoucher(null);
+    setVoucherInput('');
+    setVoucherError('');
+  };
 
   const selectedCourtEntries = Object.entries(courtRanges)
     .filter(([_, v]) => v.valid && v.slots?.length > 0)
@@ -8940,6 +9176,7 @@ export default function Booking() {
           accountId: user.id,
           scheduleIds: allChosen.map(s => s.id),
           assignments,
+          voucherCode: appliedVoucher?.code || undefined,
           requestId: req.current
         });
         resetAll();
@@ -9343,29 +9580,158 @@ export default function Booking() {
             </div>
           )}
 
+          {/* KHU VỰC NHẬP VÀ CHỌN VOUCHER */}
+          <div className="gx-voucher-box" style={{
+            margin: '14px 0',
+            padding: '12px',
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: 10
+          }}>
+            <div style={{display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8}}>
+              <Tag size={15} color="#173c32"/>
+              <span style={{fontSize: 12, fontWeight: 700, color: '#173c32', textTransform: 'uppercase', letterSpacing: '0.04em'}}>
+                {t('Mã ưu đãi / Voucher')}
+              </span>
+            </div>
+
+            {!appliedVoucher ? (
+              <>
+                <div style={{display: 'flex', gap: 6}}>
+                  <input
+                    type="text"
+                    aria-label={t('Mã voucher')}
+                    placeholder={t('VD: WELCOME, HE2026...')}
+                    value={voucherInput}
+                    onChange={e => { setVoucherInput(e.target.value.toUpperCase()); setVoucherError(''); }}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyVoucher(); } }}
+                    style={{
+                      flex: 1,
+                      padding: '6px 10px',
+                      borderRadius: 6,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      textTransform: 'uppercase'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={voucherBusy || !voucherInput.trim()}
+                    onClick={() => applyVoucher()}
+                    style={{
+                      background: '#173c32',
+                      color: '#def46a',
+                      border: 'none',
+                      padding: '0 12px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: voucherBusy || !voucherInput.trim() ? 'not-allowed' : 'pointer',
+                      opacity: voucherBusy || !voucherInput.trim() ? 0.6 : 1
+                    }}
+                  >
+                    {voucherBusy ? '…' : t('Áp dụng')}
+                  </button>
+                </div>
+
+                {/* Quick chips */}
+                <div style={{display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8}}>
+                  {['WELCOME', 'HE2026', 'COURTLY50K', 'VIP10', 'FLASH25'].map(vc => (
+                    <button
+                      key={vc}
+                      type="button"
+                      onClick={() => applyVoucher(vc)}
+                      style={{
+                        background: '#edf2e8',
+                        border: '1px solid #cbd2c2',
+                        borderRadius: 12,
+                        padding: '2px 8px',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: '#173c32',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      +{vc}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: 8,
+                padding: '8px 10px'
+              }}>
+                <div>
+                  <div style={{fontWeight: 700, fontSize: 13, color: '#16a34a'}}>
+                    ✓ {appliedVoucher.code} (−{money(appliedVoucher.discount)})
+                  </div>
+                  <div style={{fontSize: 11, color: '#15803d'}}>
+                    {appliedVoucher.description}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={removeVoucher}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#dc2626',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    padding: '4px'
+                  }}
+                >
+                  ✕ {t('Gỡ')}
+                </button>
+              </div>
+            )}
+
+            {voucherError && (
+              <div style={{color: '#dc2626', fontSize: 11, fontWeight: 600, marginTop: 6}}>
+                ⚠️ {voucherError}
+              </div>
+            )}
+          </div>
+
           <dl>
             <div>
               <dt>{t('Tiền sân')} ({allChosen.length * 30} {t('phút')})</dt>
               <dd>{money(gross)}</dd>
             </div>
-            <div>
-              <dt>{t('Ưu đãi hội viên')}</dt>
-              <dd>−{money(discount)}</dd>
-            </div>
+            {discount > 0 && (
+              <div>
+                <dt>{t('Ưu đãi hội viên')}</dt>
+                <dd>−{money(discount)}</dd>
+              </div>
+            )}
+            {appliedVoucher && (
+              <div>
+                <dt>{t('Voucher')} ({appliedVoucher.code})</dt>
+                <dd style={{color: '#16a34a', fontWeight: 700}}>−{money(appliedVoucher.discount)}</dd>
+              </div>
+            )}
             <div>
               <dt>{t('Trọng tài')}</dt>
               <dd>{money(refFee)}</dd>
             </div>
             <div className="gx-total">
               <dt>{t('Tổng tiền')}</dt>
-              <dd>{money(net + refFee)}</dd>
+              <dd>{money(totalAmount)}</dd>
             </div>
           </dl>
 
           <div className="gx-deposit">
             <div>
               <span>{t('Cọc 50% tiền sân')}</span>
-              <strong>{money(Math.round(net / 2))}</strong>
+              <strong>{money(depositAmount)}</strong>
             </div>
             <p>{t('Phí trọng tài nằm trong phần thanh toán còn lại.')}</p>
           </div>
@@ -9895,23 +10261,494 @@ export default function Portal({session,onSession,onLogout}){const [lang,setLang
 
 #### File: `frontend/src/guest/Pricing.jsx`
 ```jsx
-import React from 'react';
-import {ArrowUpRight} from 'lucide-react';
-import {useGuest,Action,Empty,money,zone} from './context';
-import {tariffRows} from './pricing.mjs';
+import React, { useState } from 'react';
+import { Sun, House, Crown, ArrowUpRight, Zap, Clock, ShieldCheck, CheckCircle2, Ticket, Gift, LogIn, AlertCircle, CreditCard, RefreshCw, Scale } from 'lucide-react';
+import { useGuest, Action, Empty, money, zone } from './context';
+import { WEEK_DAYS, getCourtMatrix } from './pricing.mjs';
 
-export default function Pricing(){
- const {t,data,setPreferredZone,navigate}=useGuest();
- const settings=data?.settings||{},policies=settings.policies||{};
- const groups=[['A','Ngoài trời'],['B','Trong nhà'],['V','VIP']];
- return <section className="ct-pad gx-pricing"><div className="gx-heading"><span className="ct-eyebrow">COURTLY / {t('BẢNG GIÁ')}</span><h1>{t('Bảng giá sân & dịch vụ')}</h1><p>{t('Giá theo giờ, áp dụng theo ngày chơi. Thứ 2–6 là ngày trong tuần; thứ 7 và Chủ nhật là cuối tuần.')}</p></div>
- <div className="gx-plan-grid">{groups.map(([id,label])=>{
-  const courts=(data?.courts||[]).filter(c=>zone(c)===id);
-  return <article className="ct-plan" key={id}><h2>{t(label)}</h2>{courts.length?<div className="gx-price-scroll"><table><caption>{t('Đơn vị: VND / giờ')}</caption><thead><tr><th>{t('Sân / Giờ chơi')}</th><th>{t('Thứ 2–6')}</th><th>{t('Thứ 7–CN')}</th></tr></thead><tbody>{courts.flatMap(c=>tariffRows(c,data?.prices||[]).map(r=><tr key={`${c.id}-${r.start}`}><th scope="row">{c.name}<small>{r.start}–{r.end}</small></th><td>{money(r.weekday)}</td><td>{money(r.weekend)}</td></tr>))}</tbody></table></div>:<Empty/>}<Action disabled={!courts.some(c=>c.status==='ACTIVE')} onClick={()=>{setPreferredZone(id);navigate('booking')}}>{t('Đặt sân ngay')} · {t(label)} <ArrowUpRight size={16}/></Action></article>;
- })}</div>
- <div className="gx-policy-grid"><article><h2>{t('Tiền cọc & giữ chỗ')}</h2><p>{t('Cọc 50% tiền sân sau ưu đãi hội viên. Phí trọng tài thanh toán riêng trong số tiền còn lại.')}</p><p>{t('Giữ chỗ trong')} <b>{settings.holdMinutes??5} {t('phút')}</b> {t('kể từ khi tạo đơn. Sân đang giữ không thể được khách khác đặt; hết hạn chưa đủ cọc thì giải phóng lịch.')}</p><p>{t('Chỉ tạo đơn sau khi đăng nhập. Tiền mặt do nhân viên tại quầy xác nhận; chuyển khoản được xác minh từ ngân hàng. Thông báo đã chuyển tiền chưa phải xác nhận thu tiền.')}</p></article>
- <article><h2>{t('Quy định hủy / đổi lịch')}</h2><p>{t('Đơn đã xác nhận: hủy trước giờ chơi ít nhất')} <b>{policies.cancelCutoffMinutes??1440} {t('phút')}</b>; {t('đổi lịch trước ít nhất')} <b>{policies.changeCutoffMinutes??1440} {t('phút')}</b>. {t('Quá hạn vui lòng liên hệ quầy.')}</p><p>{t('Đơn đang giữ chỗ có thể hủy hoặc đổi trước giờ chơi. Đổi lịch cần còn sân trống; hệ thống báo chênh lệch giá trước khi xác nhận. Hội viên áp dụng thêm điều kiện cùng khu sân, cùng thời lượng và số lượt của gói.')}</p><p>{t('Hủy hợp lệ: số tiền dự kiến hoàn bằng')} <b>{settings.cancelRefundPercent??100}%</b> {t('số tiền đã thu còn giữ. Khoản hoàn chuyển sang chờ CLB xử lý, không tự chuyển tiền về ngân hàng. Đổi sang lịch rẻ hơn cũng ghi nhận khoản chờ hoàn.')}</p></article>
- <article><h2>{t('Giá thuê trọng tài')}</h2>{data?.refereeRates?.length?<ul>{data.refereeRates.map((r,i)=><li key={i}><strong>{r.name}</strong> {r.level&&`· ${r.level}`}<br/>{money(r.rate)} / {t('giờ')}</li>)}</ul>:<p>{t('Chưa có trọng tài được niêm yết.')}</p>}<p>{t('Tính theo thời lượng thực tế đã chọn, tối thiểu một khung 30 phút. Chọn trọng tài còn lịch trống tại bước đặt sân.')}</p></article></div></section>;
+const TABS = [
+  { id: 'A', name: 'Sân Ngoài Trời', Icon: Sun, defaultMin: 105000 },
+  { id: 'B', name: 'Mái Che Trong Nhà', Icon: House, defaultMin: 135000 },
+  { id: 'V', name: 'Sân VIP Clubhouse', Icon: Crown, defaultMin: 200000 }
+];
+
+export default function Pricing() {
+  const { t, data, setPreferredZone, navigate } = useGuest();
+  const [selectedZone, setSelectedZone] = useState('A');
+  const [modalCell, setModalCell] = useState(null);
+
+  const settings = data?.settings || {};
+  const policies = settings.policies || {};
+
+  // Find courts in the selected zone
+  const courtsInZone = (data?.courts || []).filter(c => zone(c) === selectedZone);
+  const activeCourt = courtsInZone.find(c => c.status === 'ACTIVE') || courtsInZone[0];
+
+  // Calculate pricing matrix for active court
+  const matrix = activeCourt ? getCourtMatrix(activeCourt, data?.prices || []) : [];
+
+  const handleCellClick = (block, dayKey, dayData) => {
+    const dayMeta = WEEK_DAYS.find(d => d.key === dayKey);
+    const isDiscount = dayData.type === 'flash';
+    const origPrice = isDiscount ? Math.round(dayData.price / 0.75) : dayData.price;
+    const depositPercent = settings.depositPercent || 30;
+    const depositPrice = Math.round((dayData.price * depositPercent) / 100);
+
+    setModalCell({
+      block,
+      dayMeta,
+      price: dayData.price,
+      origPrice,
+      isDiscount,
+      depositPercent,
+      depositPrice,
+      courtName: activeCourt?.name || t('Sân Tennis')
+    });
+  };
+
+  const handleBookNow = () => {
+    setPreferredZone(selectedZone);
+    setModalCell(null);
+    navigate('booking');
+  };
+
+  return (
+    <section className="ct-pad gx-pricing" style={{ maxWidth: 1200, margin: '0 auto' }}>
+      {/* Header */}
+      <div className="gx-heading" style={{ marginBottom: 28 }}>
+        <span className="ct-eyebrow" style={{ color: '#6b8274', letterSpacing: '0.15em', fontWeight: 700, fontSize: 12 }}>
+          COURTLY · {t('BẢNG GIÁ NIÊM YẾT 2026')}
+        </span>
+        <h1 style={{ color: '#173c32', fontSize: 'clamp(28px, 3.5vw, 40px)', fontWeight: 800, margin: '8px 0 12px' }}>
+          {t('Bảng giá sân theo ngày & khung giờ')}
+        </h1>
+        <p style={{ color: '#52655a', fontSize: 14, lineHeight: 1.6, maxWidth: 720 }}>
+          {t('Biểu phí chuẩn theo giờ và phân bổ riêng biệt cho từng ngày trong tuần. Khung Giờ Vàng (-25%) tự động áp dụng trực tiếp khi tạo đơn.')}
+        </p>
+      </div>
+
+      {/* 1. HORIZONTAL TABS SELECTOR (HÀNG NGANG GỌN GÀNG, KHÔNG CÓ CHỮ NHỎ SÂN 1-4, KHÔNG CÓ Ô ĐƠN VỊ) */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#6b8274' }}>
+            {t('Chọn loại sân')}:
+          </span>
+          <span style={{ fontSize: 12, color: '#52655a' }}>
+            {t('Nhấp vào tab để xem biểu giá tương ứng')}
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+          {TABS.map(tab => {
+            const isActive = selectedZone === tab.id;
+            const Icon = tab.Icon;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setSelectedZone(tab.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 18px',
+                  borderRadius: 8,
+                  border: isActive ? '2px solid #173c32' : '1px solid #cbd2c2',
+                  background: isActive ? '#173c32' : '#fffefa',
+                  color: isActive ? '#ffffff' : '#173c32',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  boxShadow: isActive ? '0 4px 12px rgba(23,60,50,0.18)' : 'none',
+                  textAlign: 'left'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Icon size={20} stroke={isActive ? '#def46a' : '#173c32'} />
+                  <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.2px' }}>
+                    {t(tab.name)}
+                  </span>
+                </div>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                    padding: '3px 8px',
+                    borderRadius: 4,
+                    background: isActive ? '#def46a' : '#edf2e8',
+                    color: '#173c32',
+                    border: isActive ? 'none' : '1px solid #cbd2c2'
+                  }}
+                >
+                  {t('Từ')} {money(tab.defaultMin)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. THE EXCEL MATRIX TABLE */}
+      <div style={{ background: '#fffefa', borderRadius: 10, border: '1px solid #cbd2c2', overflow: 'hidden', boxShadow: '0 2px 12px rgba(23,60,50,0.06)', marginBottom: 36 }}>
+        {/* Sub-bar */}
+        <div style={{ background: '#edf1e6', padding: '12px 18px', borderBottom: '1px solid #cbd2c2', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+            <span style={{ fontWeight: 700, textTransform: 'uppercase', color: '#173c32' }}>{t('Đang xem')}:</span>
+            <span style={{ fontWeight: 700, background: '#ffffff', color: '#173c32', padding: '3px 10px', borderRadius: 4, border: '1px solid #bfc7ba' }}>
+              {t(TABS.find(z => z.id === selectedZone)?.name || 'Sân Ngoài Trời')}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 11, color: '#52655a' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#15803d', fontWeight: 600 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#15803d' }} /> {t('Giờ Vàng (-25%)')}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#9a3412', fontWeight: 600 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ea580c' }} /> {t('Cao điểm đèn')}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#6b21a8', fontWeight: 600 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#8b5cf6' }} /> {t('Cuối tuần')}
+            </span>
+          </div>
+        </div>
+
+        {/* Matrix Table */}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: '#e4e9dc', color: '#173c32', fontWeight: 700, textTransform: 'uppercase', fontSize: 11 }}>
+                <th style={{ padding: '12px 14px', width: 160, textAlign: 'center', background: '#d8e0ce', borderRight: '1px solid #cbd2c2', borderBottom: '1px solid #cbd2c2', position: 'sticky', left: 0, zIndex: 10 }}>
+                  {t('Khung Giờ')}
+                </th>
+                {WEEK_DAYS.map(day => {
+                  const isWeekend = day.dayType === 'WEEKEND';
+                  return (
+                    <th
+                      key={day.key}
+                      style={{
+                        padding: '12px 10px',
+                        textAlign: 'center',
+                        minWidth: 120,
+                        borderRight: '1px solid #cbd2c2',
+                        borderBottom: '1px solid #cbd2c2',
+                        background: isWeekend ? '#ede8f5' : day.key === 'fri' ? '#dde3d4' : '#e4e9dc',
+                        color: isWeekend ? '#5b21b6' : '#173c32'
+                      }}
+                    >
+                      <div>{t(day.label)}</div>
+                      <span style={{ fontSize: 9.5, opacity: 0.7, fontWeight: 400 }}>{day.short}</span>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody style={{ background: '#fffefa' }}>
+              {matrix.map((row, idx) => (
+                <tr key={idx}>
+                  <th style={{ padding: '12px 14px', textAlign: 'left', background: '#f3f6ee', borderRight: '1px solid #cbd2c2', borderBottom: '1px solid #cbd2c2', position: 'sticky', left: 0, zIndex: 5 }}>
+                    <div style={{ fontWeight: 700, color: '#173c32', fontVariantNumeric: 'tabular-nums' }}>{row.time}</div>
+                    <div style={{ fontSize: 11, color: '#52655a', fontWeight: 400, marginTop: 2 }}>{t(row.label)}</div>
+                  </th>
+                  {WEEK_DAYS.map(day => {
+                    const dayData = row.days[day.key];
+                    const isFlash = dayData.type === 'flash';
+                    const isPeak = dayData.type === 'peak';
+                    const isWeekend = dayData.type === 'weekend';
+
+                    let badgeStyle = { background: '#f1f4eb', color: '#52655a', border: '1px solid #cbd2c2' };
+                    let badgeText = t('Chuẩn');
+
+                    if (isFlash) {
+                      badgeStyle = { background: '#d6e9d7', color: '#15803d', border: '1px solid #a7d4aa' };
+                      badgeText = t('Giảm 25%');
+                    } else if (isPeak) {
+                      badgeStyle = { background: '#ffedd5', color: '#9a3412', border: '1px solid #fed7aa' };
+                      badgeText = t('Cao điểm');
+                    } else if (isWeekend) {
+                      badgeStyle = { background: '#ede8f5', color: '#5b21b6', border: '1px solid #ddd6fe' };
+                      badgeText = t('Cuối tuần');
+                    }
+
+                    return (
+                      <td
+                        key={day.key}
+                        onClick={() => handleCellClick(row, day.key, dayData)}
+                        title={t('Bấm để xem chi tiết tiền cọc & giữ chỗ')}
+                        style={{
+                          padding: '10px 8px',
+                          textAlign: 'center',
+                          borderRight: '1px solid #cbd2c2',
+                          borderBottom: '1px solid #cbd2c2',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.15s ease'
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#f0f4ea')}
+                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                      >
+                        <div style={{ fontWeight: 800, color: '#173c32', fontVariantNumeric: 'tabular-nums', fontSize: 13.5 }}>
+                          {money(dayData.price)}
+                        </div>
+                        <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, marginTop: 3, ...badgeStyle }}>
+                          {badgeText}
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer Note */}
+        <div style={{ background: '#edf1e6', padding: '12px 18px', borderTop: '1px solid #cbd2c2', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12, fontSize: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#52655a' }}>
+            <CheckCircle2 size={15} color="#173c32" />
+            <span>{t('Bấm trực tiếp vào ô giá bất kỳ để xem tiền cọc 30% và chuyển sang đặt lịch.')}</span>
+          </div>
+          <div style={{ fontWeight: 700, color: '#173c32' }}>
+            {t('Hội viên Courtly')}: <span style={{ color: '#15803d' }}>{t('Giảm thêm từ 10% – 20% trên giá niêm yết')}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. BỘ CHÍNH SÁCH VẬN HÀNH ĐẦY ĐỦ 7 NHÓM */}
+      <div style={{ marginTop: 44 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+          <ShieldCheck size={24} color="#173c32" />
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: '#173c32', margin: 0 }}>
+            {t('Quy định & Chính sách hoạt động của CLB')}
+          </h2>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+          
+          {/* Card 1: Tiền cọc */}
+          <article style={{ background: '#fffefa', border: '1px solid #cbd2c2', borderRadius: 8, padding: 22, lineHeight: 1.7 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: '#173c32' }}>
+              <CreditCard size={18} color="#173c32" />
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{t('Tiền cọc & Thanh toán')}</h3>
+            </div>
+            <p style={{ fontSize: 13, color: '#52655a', margin: '0 0 10px' }}>
+              {t('Đặt sân trực tuyến yêu cầu cọc')} <b>{settings.depositPercent || 30}%</b> {t('tiền sân sau khi trừ ưu đãi hội viên và voucher. Miễn cọc cho hội viên VIP.')}
+            </p>
+            <p style={{ fontSize: 13, color: '#52655a', margin: 0 }}>
+              {t('Thanh toán cọc nhanh qua mã VietQR tự động xác nhận trong 3 giây hoặc nộp tiền mặt tại quầy lễ tân.')}
+            </p>
+          </article>
+
+          {/* Card 2: Giữ chỗ */}
+          <article style={{ background: '#fffefa', border: '1px solid #cbd2c2', borderRadius: 8, padding: 22, lineHeight: 1.7 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: '#173c32' }}>
+              <Clock size={18} color="#173c32" />
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{t('Thời hạn giữ chỗ 15 phút')}</h3>
+            </div>
+            <p style={{ fontSize: 13, color: '#52655a', margin: '0 0 10px' }}>
+              {t('Hệ thống giữ chỗ trong')} <b>{settings.holdMinutes || 15} {t('phút')}</b> {t('kể từ khi tạo đơn. Khung giờ được khóa độc quyền để không ai khác đặt trùng.')}
+            </p>
+            <p style={{ fontSize: 13, color: '#52655a', margin: 0 }}>
+              {t('Hết 15 phút đếm ngược nếu chưa hoàn tất tiền cọc, hệ thống tự động hủy đơn và giải phóng lịch cho khách khác.')}
+            </p>
+          </article>
+
+          {/* Card 3: Hủy & Đổi lịch */}
+          <article style={{ background: '#fffefa', border: '1px solid #cbd2c2', borderRadius: 8, padding: 22, lineHeight: 1.7 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: '#173c32' }}>
+              <RefreshCw size={18} color="#173c32" />
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{t('Quy định Hủy / Đổi lịch')}</h3>
+            </div>
+            <p style={{ fontSize: 13, color: '#52655a', margin: '0 0 10px' }}>
+              {t('Hủy trước')} <b>{policies.cancelCutoffMinutes ? Math.round(policies.cancelCutoffMinutes / 60) : 24} {t('tiếng')}</b>: {t('Hoàn')} <b>{settings.cancelRefundPercent || 100}%</b> {t('tiền cọc vào ví hoàn của bạn. Hủy dưới 6 tiếng không hoàn cọc.')}
+            </p>
+            <p style={{ fontSize: 13, color: '#52655a', margin: 0 }}>
+              {t('Đổi lịch trước 24 tiếng hoàn toàn miễn phí. Hệ thống tự động bù hoặc hoàn chênh lệch giá giữa các khung giờ.')}
+            </p>
+          </article>
+
+          {/* Card 4: Trọng tài & HLV */}
+          <article style={{ background: '#fffefa', border: '1px solid #cbd2c2', borderRadius: 8, padding: 22, lineHeight: 1.7 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: '#173c32' }}>
+              <Scale size={18} color="#173c32" />
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{t('Dịch vụ Trọng tài & HLV')}</h3>
+            </div>
+            {data?.refereeRates?.length ? (
+              <ul style={{ margin: '0 0 10px', paddingLeft: 18, fontSize: 13, color: '#52655a' }}>
+                {data.refereeRates.slice(0, 3).map((r, i) => (
+                  <li key={i}>
+                    <strong>{r.name}</strong> {r.level && `· ${r.level}`}: <b>{money(r.rate)}</b> / {t('giờ')}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p style={{ fontSize: 13, color: '#52655a', margin: '0 0 10px' }}>
+                {t('Thù lao niêm yết từ 100.000 đ – 250.000 đ/giờ tùy cấp bậc trọng tài.')}
+              </p>
+            )}
+            <p style={{ fontSize: 13, color: '#52655a', margin: 0 }}>
+              {t('Tính theo slot 30 phút. Trọng tài có mặt trước trận 10 phút kiểm tra bóng và mặt sân tiêu chuẩn.')}
+            </p>
+          </article>
+
+          {/* Card 5: Khuyến mãi tự động */}
+          <article style={{ background: '#fffefa', border: '1px solid #cbd2c2', borderRadius: 8, padding: 22, lineHeight: 1.7 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: '#173c32' }}>
+              <Zap size={18} color="#15803d" />
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{t('Khuyến mãi Giờ Vàng Tự Động')}</h3>
+            </div>
+            <p style={{ fontSize: 13, color: '#52655a', margin: '0 0 10px' }}>
+              {t('Khung giờ 09:00 – 16:00 các ngày Thứ 2 đến Thứ 5 được tự động giảm')} <b>25%</b> {t('trên toàn bộ hệ thống sân.')}
+            </p>
+            <p style={{ fontSize: 13, color: '#52655a', margin: 0 }}>
+              {t('Đến đúng khung giờ khuyến mãi, hệ thống tự động áp giá ưu đãi mà người chơi không cần nhập mã.')}
+            </p>
+          </article>
+
+          {/* Card 6: Voucher & Điểm thưởng */}
+          <article style={{ background: '#fffefa', border: '1px solid #cbd2c2', borderRadius: 8, padding: 22, lineHeight: 1.7 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: '#173c32' }}>
+              <Ticket size={18} color="#173c32" />
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{t('Chính sách Voucher & Đổi Điểm')}</h3>
+            </div>
+            <p style={{ fontSize: 13, color: '#52655a', margin: '0 0 10px' }}>
+              {t('Người dùng nhập mã voucher tại trang đặt sân hoặc quầy thu ngân để được khấu trừ trực tiếp vào tiền cọc.')}
+            </p>
+            <p style={{ fontSize: 13, color: '#52655a', margin: 0 }}>
+              {t('Tích lũy 10 điểm cho mỗi 100.000 đ chi tiêu để đổi voucher giảm 50k, 100k hoặc slot thuê vợt miễn phí.')}
+            </p>
+          </article>
+
+          {/* Card 7: Check-in / Check-out */}
+          <article style={{ background: '#fffefa', border: '1px solid #cbd2c2', borderRadius: 8, padding: 22, lineHeight: 1.7 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: '#173c32' }}>
+              <LogIn size={18} color="#173c32" />
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{t('Quy định Check-in & Check-out')}</h3>
+            </div>
+            <p style={{ fontSize: 13, color: '#52655a', margin: '0 0 10px' }}>
+              {t('Cho phép quét mã QR vé điện tử sớm tối đa')} <b>15 {t('phút')}</b> {t('để nhận sân. Thời gian ân hạn dọn sân là 5 phút sau khi hết giờ.')}
+            </p>
+            <p style={{ fontSize: 13, color: '#52655a', margin: 0 }}>
+              {t('Chơi quá giờ khi sân sau trống sẽ tính phí gia hạn theo slot; nếu có khách kế tiếp, áp dụng phí phụ thu chiếm sân.')}
+            </p>
+          </article>
+
+        </div>
+      </div>
+
+      {/* 4. MODAL DRAWER ON CELL CLICK */}
+      {modalCell && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(14, 36, 22, 0.65)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16
+          }}
+          onClick={() => setModalCell(null)}
+        >
+          <div
+            style={{
+              background: '#f6f4ee',
+              borderRadius: 12,
+              maxWidth: 440,
+              width: '100%',
+              overflow: 'hidden',
+              border: '1px solid #b5c3ad',
+              boxShadow: '0 16px 40px rgba(0,0,0,0.2)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ background: '#173c32', color: '#ffffff', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#def46a', fontWeight: 700 }}>
+                  {modalCell.courtName}
+                </span>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: '4px 0 0' }}>
+                  {t(modalCell.dayMeta.label)} · {modalCell.block.time}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalCell(null)}
+                style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.8)', fontSize: 22, cursor: 'pointer', padding: 4 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ padding: 20 }}>
+              <div style={{ background: '#fffefa', padding: 16, borderRadius: 8, border: '1px solid #cbd2c2', marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#52655a', marginBottom: 6 }}>
+                  <span>{t('Giá niêm yết chuẩn')}:</span>
+                  <span style={{ textDecoration: modalCell.isDiscount ? 'line-through' : 'none' }}>
+                    {money(modalCell.origPrice)}
+                  </span>
+                </div>
+                {modalCell.isDiscount && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#15803d', fontWeight: 700, marginBottom: 8 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Zap size={14} /> {t('Ưu đãi Giờ Vàng')}:
+                    </span>
+                    <span>-25% ({t('Tiết kiệm')} {money(modalCell.origPrice - modalCell.price)})</span>
+                  </div>
+                )}
+                <div style={{ paddingTop: 8, borderTop: '1px solid #cbd2c2', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 16, fontWeight: 800, color: '#173c32' }}>
+                  <span>{t('Giá áp dụng')}:</span>
+                  <span style={{ color: '#15803d', fontSize: 19 }}>{money(modalCell.price)} / {t('giờ')}</span>
+                </div>
+              </div>
+
+              <div style={{ background: '#eef2e7', padding: 12, borderRadius: 8, border: '1px solid #cbd2c2', fontSize: 12, color: '#52655a', marginBottom: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 6, borderBottom: '1px solid #d8e0ce' }}>
+                  <span>{t('Tiền cọc giữ chỗ')} ({modalCell.depositPercent}%):</span>
+                  <b style={{ color: '#173c32' }}>{money(modalCell.depositPrice)}</b>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #d8e0ce' }}>
+                  <span>{t('Thời hạn giữ chỗ')}:</span>
+                  <b style={{ color: '#173c32' }}>{settings.holdMinutes || 15} {t('phút')} ({t('Đếm ngược')})</b>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6 }}>
+                  <span>{t('Chính sách hoàn tiền')}:</span>
+                  <span style={{ color: '#15803d', fontWeight: 600 }}>{t('Hoàn 100% nếu hủy trước 24h')}</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleBookNow}
+                style={{
+                  width: '100%',
+                  padding: '12px 20px',
+                  borderRadius: 6,
+                  background: '#173c32',
+                  color: '#f6f4ee',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  boxShadow: '0 4px 12px rgba(23,60,50,0.2)'
+                }}
+              >
+                <span>{t('Tiến hành đặt sân ngay')}</span>
+                <ArrowUpRight size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
 }
 ```
 
@@ -10448,21 +11285,26 @@ import {api} from '../services/api';
 import {PolicyNotice} from './OrderSummary';
 import {Modal,Button} from './UI';
 import {money} from '../utils/format';
+
 export function RefereeSlots({options,value,onChange,disabled=false}){
  return <div className="referee-slots">{options.staffSlots.map(row=>{const slot=options.slots.find(s=>s.id===row.scheduleId),staffId=value.find(x=>x.scheduleId===slot.id)?.staffId||'';return <label className="referee-slot" key={slot.id}><span>{slotLabel(slot)}</span><select aria-label={`Trọng tài ${slot.hour} giờ`} value={staffId} disabled={disabled} onChange={e=>onChange([...value.filter(x=>x.scheduleId!==slot.id),...(e.target.value?[{scheduleId:slot.id,staffId:e.target.value}]:[])])}><option value="">Không thuê trọng tài</option>{row.staff.map(st=><option key={st.id} value={st.id} disabled={!st.available}>{st.name} · {money(st.rate)}/giờ{!st.available?' · Không khả dụng':''}</option>)}</select>{!row.staff.some(st=>st.available)&&<small>Không có trọng tài có lịch làm việc và còn trống giờ này. Bạn vẫn có thể đặt sân.</small>}</label>;})}</div>;
 }
+
 export default function BookingFlow({scheduleIds,onCreated,onClose}){
  const {data,user,isAdmin,isStaff,mutate,show,notify}=useCourtly();
  const isInternal=isAdmin||isStaff;
  const [ids,setIds]=useState(scheduleIds);
  const [options,setOptions]=useState(null),[assignments,setAssignments]=useState([]),[step,setStep]=useState(3),[error,setError]=useState(''),[busy,setBusy]=useState(false),[customer,setCustomer]=useState({accountId:isInternal?'':user.accountId,name:isInternal?'':user.name,phone:isInternal?'':user.phone||''});
+ const [voucherCode,setVoucherCode]=useState(''),[appliedVoucher,setAppliedVoucher]=useState(null),[voucherErr,setVoucherErr]=useState('');
  const request=useRef(crypto.randomUUID());
  const load=()=>api('/booking/options','POST',{scheduleIds:ids,accountId:customer.accountId||null}).then(setOptions).catch(e=>setError(e.message));
  useEffect(()=>{load();},[ids.join('|'),customer.accountId]);
- const courtTotal=options?.slots.reduce((n,s)=>n+s.price,0)||0,staffTotal=assignments.reduce((n,a)=>n+(options?.staffSlots.find(x=>x.scheduleId===a.scheduleId)?.staff.find(x=>x.id===a.staffId)?.rate||0)*slotHours(options.slots.find(s=>s.id===a.scheduleId)),0),discount=options?.courtQuote?.discount||0,total=courtTotal-discount+staffTotal;
+ const courtTotal=options?.slots.reduce((n,s)=>n+s.price,0)||0,staffTotal=assignments.reduce((n,a)=>n+(options?.staffSlots.find(x=>x.scheduleId===a.scheduleId)?.staff.find(x=>x.id===a.staffId)?.rate||0)*slotHours(options.slots.find(s=>s.id===a.scheduleId)),0),discount=options?.courtQuote?.discount||0;
+ const voucherDiscount=appliedVoucher?.discount||0;
+ const total=Math.max(0, courtTotal-discount-voucherDiscount+staffTotal);
  const change=rows=>{setAssignments(rows);request.current=crypto.randomUUID();setStep(3);};
- const submit=async()=>{if(busy)return;setBusy(true);setError('');try{const r=await mutate('/orders',{...customer,accountId:customer.accountId||null,requestId:request.current,scheduleIds:ids,assignments});onCreated?.();notify(r.refreshFailed?'Đã tạo đơn thành công. Chưa tải lại được dữ liệu; hãy làm mới, không tạo lại đơn.':'Đã giữ chỗ. Liên hệ quầy để thanh toán cọc.');show({type:'order',id:r.id});}catch(e){setError(e.message);await load();}finally{setBusy(false);}};
- return <Modal title="Đặt sân · Trọng tài & xác nhận" onClose={()=>!busy&&onClose()} wide><ol className="booking-steps"><li>1. Sân & ngày ✓</li><li>2. Khoảng giờ ✓</li><li aria-current={step===3?'step':undefined}>3. Trọng tài tùy chọn</li><li aria-current={step===4?'step':undefined}>4. Kiểm tra & xác nhận</li></ol>{error&&<p role="alert" className="error">{error}</p>}{!options?<p role="status">Đang kiểm tra sân và lịch trọng tài…</p>:<>{isInternal?<div className="form-grid"><label className="field full">Khách hàng<select value={customer.accountId} onChange={e=>{const a=data.accounts.find(x=>x.id===e.target.value);setCustomer({accountId:e.target.value,name:a?.name||'',phone:a?.phone||''});request.current=crypto.randomUUID();}}><option value="">Khách lẻ tại quầy</option>{data.accounts.filter(a=>a.role==='CUSTOMER').map(a=><option key={a.id} value={a.id}>{a.name} ({a.phone})</option>)}</select></label><label className="field">Tên khách<input value={customer.name} onChange={e=>{setCustomer({...customer,name:e.target.value});request.current=crypto.randomUUID();}}/></label><label className="field">Điện thoại<input value={customer.phone} onChange={e=>{setCustomer({...customer,phone:e.target.value});request.current=crypto.randomUUID();}}/></label></div>:<p>{user.name} · {user.phone||'Chưa có số điện thoại'}</p>}{options.conflicts?.length>0&&<div className="error" role="alert"><p>Một số giờ không còn khả dụng: {options.conflicts.map(x=>options.slots.find(s=>s.id===x.scheduleId)?.hour+':00').join(', ')}.</p><Button onClick={()=>{const available=options.slots.filter(s=>!options.conflicts.some(c=>c.scheduleId===s.id)).sort((a,b)=>a.hour-b.hour),runs=[];for(const slot of available){const run=runs.at(-1);if(run&&run.at(-1).court===slot.court&&run.at(-1).hour+slotHours(run.at(-1))===slot.hour)run.push(slot);else runs.push([slot]);}const keep=runs.sort((a,b)=>b.length-a.length)[0];if(keep){setIds(keep.map(s=>s.id));setStep(3);request.current=crypto.randomUUID();}else onClose();}}>Giữ khoảng liên tục còn trống / chọn lại</Button></div>}<h3>{options.date} · {options.slots.reduce((n,s)=>n+slotHours(s),0)} giờ sân</h3>{step===3&&<><p className="subtitle">Chọn riêng từng giờ cần trọng tài. Giá được kiểm tra lại khi giữ chỗ.</p><RefereeSlots options={options} value={assignments} onChange={change} disabled={busy}/></>}{step===4&&<div className="slot-review">{options.slots.map(s=>{const a=assignments.find(a=>a.scheduleId===s.id),st=options.staffSlots.find(x=>x.scheduleId===s.id)?.staff.find(x=>x.id===a?.staffId);return <div className="order-line" key={s.id}><span>{data.courts.find(c=>c.id===s.court)?.name} · {slotLabel(s)}<small>{st?`${st.name} · ${slotHours(s)} giờ · ${money(st.rate*slotHours(s))}`:'Không thuê trọng tài'}</small></span><b>{money(s.price+(st?.rate||0)*slotHours(s))}</b></div>;})}</div>}<div className="summary-line"><span>Tiền sân</span><b>{money(courtTotal)}</b></div>{discount>0&&<div className="summary-line membership-discount"><span>Ưu đãi {options.courtQuote.planName}</span><b>−{money(discount)}</b></div>}<div className="summary-line"><span>Tiền trọng tài · {assignments.length} giờ</span><b>{money(staffTotal)}</b></div><div className="summary-line total"><span>Tổng tiền</span><b>{money(total)}</b></div><p className="notice">Cọc {money(total*data.settings.depositPercent/100)} ({data.settings.depositPercent}%) · giữ {data.settings.holdMinutes} phút. {data.club?.paymentInstructions||'Thanh toán và ghi nhận tại quầy.'}</p><PolicyNotice/><div className="step-row"><Button disabled={busy} onClick={step===4?()=>setStep(3):onClose}>{step===4?'Quay lại chọn trọng tài':'Quay lại'}</Button>{step===3?<Button className="primary" onClick={()=>setStep(4)}>Kiểm tra đơn</Button>:<Button className="primary" disabled={busy||!customer.name.trim()||!!options.conflicts?.length} onClick={submit}>{busy?'Đang giữ chỗ…':'Xác nhận giữ chỗ'}</Button>}</div></>}</Modal>;
+ const submit=async()=>{if(busy)return;setBusy(true);setError('');try{const r=await mutate('/orders',{...customer,accountId:customer.accountId||null,requestId:request.current,scheduleIds:ids,assignments,voucherCode:appliedVoucher?.code||undefined});onCreated?.();notify(r.refreshFailed?'Đã tạo đơn thành công. Chưa tải lại được dữ liệu; hãy làm mới, không tạo lại đơn.':'Đã giữ chỗ. Liên hệ quầy để thanh toán cọc.');show({type:'order',id:r.id});}catch(e){setError(e.message);await load();}finally{setBusy(false);}};
+ return <Modal title="Đặt sân · Trọng tài & xác nhận" onClose={()=>!busy&&onClose()} wide><ol className="booking-steps"><li>1. Sân & ngày ✓</li><li>2. Khoảng giờ ✓</li><li aria-current={step===3?'step':undefined}>3. Trọng tài tùy chọn</li><li aria-current={step===4?'step':undefined}>4. Kiểm tra & xác nhận</li></ol>{error&&<p role="alert" className="error">{error}</p>}{!options?<p role="status">Đang kiểm tra sân và lịch trọng tài…</p>:<>{isInternal?<div className="form-grid"><label className="field full">Khách hàng<select value={customer.accountId} onChange={e=>{const a=data.accounts.find(x=>x.id===e.target.value);setCustomer({accountId:e.target.value,name:a?.name||'',phone:a?.phone||''});request.current=crypto.randomUUID();}}><option value="">Khách lẻ tại quầy</option>{data.accounts.filter(a=>a.role==='CUSTOMER').map(a=><option key={a.id} value={a.id}>{a.name} ({a.phone})</option>)}</select></label><label className="field">Tên khách<input value={customer.name} onChange={e=>{setCustomer({...customer,name:e.target.value});request.current=crypto.randomUUID();}}/></label><label className="field">Điện thoại<input value={customer.phone} onChange={e=>{setCustomer({...customer,phone:e.target.value});request.current=crypto.randomUUID();}}/></label></div>:<p>{user.name} · {user.phone||'Chưa có số điện thoại'}</p>}{options.conflicts?.length>0&&<div className="error" role="alert"><p>Một số giờ không còn khả dụng: {options.conflicts.map(x=>options.slots.find(s=>s.id===x.scheduleId)?.hour+':00').join(', ')}.</p><Button onClick={()=>{const available=options.slots.filter(s=>!options.conflicts.some(c=>c.scheduleId===s.id)).sort((a,b)=>a.hour-b.hour),runs=[];for(const slot of available){const run=runs.at(-1);if(run&&run.at(-1).court===slot.court&&run.at(-1).hour+slotHours(run.at(-1))===slot.hour)run.push(slot);else runs.push([slot]);}const keep=runs.sort((a,b)=>b.length-a.length)[0];if(keep){setIds(keep.map(s=>s.id));setStep(3);request.current=crypto.randomUUID();}else onClose();}}>Giữ khoảng liên tục còn trống / chọn lại</Button></div>}<h3>{options.date} · {options.slots.reduce((n,s)=>n+slotHours(s),0)} giờ sân</h3>{step===3&&<><p className="subtitle">Chọn riêng từng giờ cần trọng tài. Giá được kiểm tra lại khi giữ chỗ.</p><RefereeSlots options={options} value={assignments} onChange={change} disabled={busy}/></>}{step===4&&<><div className="slot-review">{options.slots.map(s=>{const a=assignments.find(a=>a.scheduleId===s.id),st=options.staffSlots.find(x=>x.scheduleId===s.id)?.staff.find(x=>x.id===a?.staffId);return <div className="order-line" key={s.id}><span>{data.courts.find(c=>c.id===s.court)?.name} · {slotLabel(s)}<small>{st?`${st.name} · ${slotHours(s)} giờ · ${money(st.rate*slotHours(s))}`:'Không thuê trọng tài'}</small></span><b>{money(s.price+(st?.rate||0)*slotHours(s))}</b></div>;})}</div><div style={{margin:'14px 0',padding:'12px',background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:8}}><div style={{display:'flex',gap:8,alignItems:'center'}}><input aria-label="Mã Voucher" type="text" placeholder="Nhập mã voucher (VD: WELCOME, HE2026, VIP10...)" value={voucherCode} onChange={e=>{setVoucherCode(e.target.value.toUpperCase());setVoucherErr('');}} style={{textTransform:'uppercase',padding:'6px 10px',borderRadius:6,border:'1px solid #cbd5e1',flex:1,fontWeight:600}}/><Button type="button" disabled={busy||!voucherCode.trim()} onClick={async()=>{try{setVoucherErr('');const res=await api('/public/vouchers/validate','POST',{code:voucherCode,amount:courtTotal});setAppliedVoucher(res);}catch(e){setVoucherErr(e.message);}}}>Áp dụng</Button></div>{voucherErr&&<small style={{color:'#dc2626',display:'block',marginTop:6,fontWeight:500}}>⚠️ {voucherErr}</small>}{appliedVoucher&&<div style={{marginTop:8,padding:'6px 10px',background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:6,fontSize:13,color:'#16a34a',display:'flex',justifyContent:'space-between',alignItems:'center',fontWeight:600}}><span>✓ {appliedVoucher.code} ({appliedVoucher.description}): −{money(appliedVoucher.discount)}</span><button type="button" onClick={()=>{setAppliedVoucher(null);setVoucherCode('');}} style={{background:'none',border:'none',color:'#dc2626',cursor:'pointer',fontSize:12,fontWeight:700}}>✕ Gỡ</button></div>}</div></>}<div className="summary-line"><span>Tiền sân</span><b>{money(courtTotal)}</b></div>{discount>0&&<div className="summary-line membership-discount"><span>Ưu đãi {options.courtQuote.planName}</span><b>−{money(discount)}</b></div>}{appliedVoucher?.discount>0&&<div className="summary-line voucher-discount" style={{color:'#16a34a'}}><span>Voucher ({appliedVoucher.code})</span><b>−{money(appliedVoucher.discount)}</b></div>}<div className="summary-line"><span>Tiền trọng tài · {assignments.length} giờ</span><b>{money(staffTotal)}</b></div><div className="summary-line total"><span>Tổng tiền</span><b>{money(total)}</b></div><p className="notice">Cọc {money(Math.round(total*data.settings.depositPercent/100))} ({data.settings.depositPercent}%) · giữ {data.settings.holdMinutes} phút. {data.club?.paymentInstructions||'Thanh toán và ghi nhận tại quầy.'}</p><PolicyNotice/><div className="step-row"><Button disabled={busy} onClick={step===4?()=>setStep(3):onClose}>{step===4?'Quay lại chọn trọng tài':'Quay lại'}</Button>{step===3?<Button className="primary" onClick={()=>setStep(4)}>Kiểm tra đơn</Button>:<Button className="primary" disabled={busy||!customer.name.trim()||!!options.conflicts?.length} onClick={submit}>{busy?'Đang giữ chỗ…':'Xác nhận giữ chỗ'}</Button>}</div></>}</Modal>;
 }
 ```
 
@@ -10878,7 +11720,7 @@ export function RefundDialog({id,onClose}) {
 }
 export function InvoiceDialog({id,onClose}) {
   const {data}=useCourtly();const current=data.orders.find(x=>x.id===id);const o=current.invoiceSnapshot||current;
-  return <Modal title={`PHIẾU THU • ${o.invoice||''}`} onClose={onClose} wide footer={<><Button onClick={onClose}>Đóng</Button><Button className="primary" onClick={()=>window.print()}>In / Lưu PDF</Button></>}><h2>COURTLY TENNIS CLUB</h2><p className="subtitle">Ngày phát hành: {o.issuedAt?new Date(o.issuedAt).toLocaleString('vi-VN'):''}</p><div className="detail-head" style={{marginTop:20}}>Khách hàng: {o.name}<br/>Điện thoại: {o.phone}<br/>Ngày sử dụng: {o.date}</div><Table headings={['Dịch vụ','Thành tiền']}>{o.slots.map(s=><tr key={s.id}><td>{data.courts.find(c=>c.id===s.court)?.name} • {slotLabel(s)}</td><td>{money(s.price)}</td></tr>)}{o.products.map(p=><tr key={p.id}><td>{p.name} × {p.quantity}{p.type==='RENTAL'?` • ${p.hours} giờ`:''}</td><td>{money(p.lineTotal??p.price*p.quantity*(p.type==='RENTAL'?p.hours:1))}</td></tr>)}{o.staff.map(s=><tr key={s.id}><td>{s.name} • {s.hours} giờ</td><td>{money(s.rate*s.hours)}</td></tr>)}</Table>{o.membershipBenefit?.discount>0&&<div className="summary-line membership-discount"><span>Ưu đãi {o.membershipBenefit.planName}</span><b>–{money(o.membershipBenefit.discount)}</b></div>}<div className="summary-line total"><span>Tổng tiền</span><b>{money(o.total)}</b></div><div className="summary-line"><span>Đã thu</span><b>{money(o.paid)}</b></div><div className="summary-line"><span>{['CANCELLED','EXPIRED'].includes(o.status)?'Không thu thêm':'Còn phải thu'}</span><b>{money(['CANCELLED','EXPIRED'].includes(o.status)?0:Math.max(0,o.total-o.paid))}</b></div><p className="subtitle">Phiếu thu nội bộ • chưa tích hợp hóa đơn điện tử thuế.</p></Modal>;
+  return <Modal title={`PHIẾU THU • ${o.invoice||''}`} onClose={onClose} wide footer={<><Button onClick={onClose}>Đóng</Button><Button className="primary" onClick={()=>window.print()}>In / Lưu PDF</Button></>}><h2>COURTLY TENNIS CLUB</h2><p className="subtitle">Ngày phát hành: {o.issuedAt?new Date(o.issuedAt).toLocaleString('vi-VN'):''}</p><div className="detail-head" style={{marginTop:20}}>Khách hàng: {o.name}<br/>Điện thoại: {o.phone}<br/>Ngày sử dụng: {o.date}</div><Table headings={['Dịch vụ','Thành tiền']}>{o.slots.map(s=><tr key={s.id}><td>{data.courts.find(c=>c.id===s.court)?.name} • {slotLabel(s)}</td><td>{money(s.price)}</td></tr>)}{o.products.map(p=><tr key={p.id}><td>{p.name} × {p.quantity}{p.type==='RENTAL'?` • ${p.hours} giờ`:''}</td><td>{money(p.lineTotal??p.price*p.quantity*(p.type==='RENTAL'?p.hours:1))}</td></tr>)}{o.staff.map(s=><tr key={s.id}><td>{s.name} • {s.hours} giờ</td><td>{money(s.rate*s.hours)}</td></tr>)}</Table>{o.membershipBenefit?.discount>0&&<div className="summary-line membership-discount"><span>Ưu đãi {o.membershipBenefit.planName}</span><b>–{money(o.membershipBenefit.discount)}</b></div>}{o.voucherBenefit?.discount>0&&<div className="summary-line voucher-discount" style={{color:'#16a34a'}}><span>Voucher ({o.voucherBenefit.code})</span><b>–{money(o.voucherBenefit.discount)}</b></div>}<div className="summary-line total"><span>Tổng tiền</span><b>{money(o.total)}</b></div><div className="summary-line"><span>Đã thu</span><b>{money(o.paid)}</b></div><div className="summary-line"><span>{['CANCELLED','EXPIRED'].includes(o.status)?'Không thu thêm':'Còn phải thu'}</span><b>{money(['CANCELLED','EXPIRED'].includes(o.status)?0:Math.max(0,o.total-o.paid))}</b></div><p className="subtitle">Phiếu thu nội bộ • chưa tích hợp hóa đơn điện tử thuế.</p></Modal>;
 }
 
 export function ExtendOrderDialog({id, onClose}) {
@@ -11009,7 +11851,7 @@ import {Button} from './UI';
 import {money} from '../utils/format';
 const statuses={UNPAID:'Chưa thanh toán',PARTIAL:'Thanh toán một phần',PAID:'Đã thanh toán',REFUNDED:'Đã hoàn toàn bộ',PARTIAL_REFUND:'Đã hoàn một phần'};
 export function StaffLines({order}){const {data,isAdmin,show}=useCourtly();return <>{order.staff.map(s=><div className="order-line" key={s.id}><span>{s.name} · {s.hours} giờ<small>{s.allocations?s.allocations.map(a=>`${data.courts.find(c=>c.id===a.court)?.name||a.court} ${slotLabel(a)}`).join(', '):s.scheduleId?`${data.courts.find(c=>c.id===s.court)?.name||s.court} · ${slotLabel(s)}`:'Phân công cũ chưa xác định sân/slot · cần admin kiểm tra'}</small></span><div><b>{money(s.rate*s.hours)}</b>{isAdmin&&s.legacyNeedsReview&&['HOLDING','CONFIRMED','CHECKED_IN'].includes(order.status)&&<Button className="sm" onClick={()=>show({type:'legacy-staff',id:order.id,lineId:s.id})}>Xác minh slot cũ</Button>}</div></div>)}</>;}
-export function FinancialSummary({order:o}){const f=o.finance||{};return <div className="financial-summary"><h3>Thanh toán · {statuses[f.paymentStatus]||'Cần đối chiếu'}</h3><div className="summary-line"><span>Tiền sân</span><b>{money(o.slots.reduce((n,s)=>n+s.price,0))}</b></div>{o.membershipBenefit?.discount>0&&<div className="summary-line membership-discount"><span>Ưu đãi {o.membershipBenefit.planName}</span><b>−{money(o.membershipBenefit.discount)}</b></div>}<div className="summary-line"><span>Tiền trọng tài</span><b>{money(o.staff.reduce((n,s)=>n+s.rate*s.hours,0))}</b></div>{o.products.length>0&&<div className="summary-line"><span>Khoản thu dịch vụ cũ</span><b>{money(o.products.reduce((n,p)=>n+(p.lineTotal??p.price*p.quantity*(p.type==='RENTAL'?p.hours:1)),0))}</b></div>}<div className="summary-line"><span>Cọc yêu cầu</span><b>{money(o.deposit)}</b></div><div className="summary-line"><span>Tổng đã thu</span><b>{money(f.grossReceived??o.paid)}</b></div><div className="summary-line"><span>Đã hoàn thực tế</span><b>{money(f.refunded||0)}</b></div><div className="summary-line"><span>Còn phải thu</span><b>{money(f.due??Math.max(0,o.total-o.paid))}</b></div>{o.status==='HOLDING'&&<p className="notice">Hạn giữ chỗ: {new Date(o.holdUntil).toLocaleString('vi-VN')}</p>}{o.additionalDueAt&&<p>Hạn thu bổ sung: {new Date(o.additionalDueAt).toLocaleString('vi-VN')}</p>}{f.balanceNeedsReconciliation&&<p className="notice">Số dư lịch sử chưa khớp chứng từ chi tiết. Quầy cần đối chiếu; hệ thống không tạo giao dịch bù.</p>}{f.refundPending>0&&<p className="notice">Khoản hoàn đã duyệt, chờ thực hiện: {money(f.refundPending)}. Chưa ghi nhận là đã hoàn.</p>}{f.review&&<p className="notice">Cần quầy đối chiếu khoản tiền{f.excess>0?` chênh lệch ${money(f.excess)}`:''}. Số được hoàn tùy chính sách và quyết định được ghi nhận; chưa tự hoàn tiền.</p>}</div>;}
+export function FinancialSummary({order:o}){const f=o.finance||{};return <div className="financial-summary"><h3>Thanh toán · {statuses[f.paymentStatus]||'Cần đối chiếu'}</h3><div className="summary-line"><span>Tiền sân</span><b>{money(o.slots.reduce((n,s)=>n+s.price,0))}</b></div>{o.membershipBenefit?.discount>0&&<div className="summary-line membership-discount"><span>Ưu đãi {o.membershipBenefit.planName}</span><b>−{money(o.membershipBenefit.discount)}</b></div>}{o.voucherBenefit?.discount>0&&<div className="summary-line voucher-discount" style={{color:'#16a34a'}}><span>Voucher ({o.voucherBenefit.code})</span><b>−{money(o.voucherBenefit.discount)}</b></div>}<div className="summary-line"><span>Tiền trọng tài</span><b>{money(o.staff.reduce((n,s)=>n+s.rate*s.hours,0))}</b></div>{o.products.length>0&&<div className="summary-line"><span>Khoản thu dịch vụ cũ</span><b>{money(o.products.reduce((n,p)=>n+(p.lineTotal??p.price*p.quantity*(p.type==='RENTAL'?p.hours:1)),0))}</b></div>}<div className="summary-line"><span>Cọc yêu cầu</span><b>{money(o.deposit)}</b></div><div className="summary-line"><span>Tổng đã thu</span><b>{money(f.grossReceived??o.paid)}</b></div><div className="summary-line"><span>Đã hoàn thực tế</span><b>{money(f.refunded||0)}</b></div><div className="summary-line"><span>Còn phải thu</span><b>{money(f.due??Math.max(0,o.total-o.paid))}</b></div>{o.status==='HOLDING'&&<p className="notice">Hạn giữ chỗ: {new Date(o.holdUntil).toLocaleString('vi-VN')}</p>}{o.additionalDueAt&&<p>Hạn thu bổ sung: {new Date(o.additionalDueAt).toLocaleString('vi-VN')}</p>}{f.balanceNeedsReconciliation&&<p className="notice">Số dư lịch sử chưa khớp chứng từ chi tiết. Quầy cần đối chiếu; hệ thống không tạo giao dịch bù.</p>}{f.refundPending>0&&<p className="notice">Khoản hoàn đã duyệt, chờ thực hiện: {money(f.refundPending)}. Chưa ghi nhận là đã hoàn.</p>}{f.review&&<p className="notice">Cần quầy đối chiếu khoản tiền{f.excess>0?` chênh lệch ${money(f.excess)}`:''}. Số được hoàn tùy chính sách và quyết định được ghi nhận; chưa tự hoàn tiền.</p>}</div>;}
 
 export function PolicyNotice(){const {data}=useCourtly(),p=data.settings.policies||{};return <details className="history-details"><summary>Chính sách đổi / hủy và hỗ trợ</summary><p>Hạn đổi: {p.changeCutoffMinutes==null?'cần liên hệ quầy':p.changeCutoffMinutes+' phút trước giờ chơi'}. Hạn hủy: {p.cancelCutoffMinutes==null?'cần liên hệ quầy':p.cancelCutoffMinutes+' phút trước giờ chơi'}.</p><p>Hủy sát giờ: {p.lateCancellation||'cần liên hệ quầy'}</p><p>Không đến: {p.noShow||'cần liên hệ quầy'}</p><p>Sân đóng / bảo trì / thời tiết: {p.closureWeather||'cần liên hệ quầy'}</p><p>Thu bổ sung sau đổi: {p.additionalPaymentMinutes==null?'cần liên hệ quầy':p.additionalPaymentMinutes+' phút'}. Khoản hoàn cần quầy duyệt và thực hiện, không tự tính phí phạt.</p></details>;}
 ```
@@ -13219,6 +14061,79 @@ class TransferSecurityTest {
 }
 ```
 
+#### File: `backend/src/test/java/com/courtly/service/VoucherServiceTest.java`
+```java
+package com.courtly.service;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import com.courtly.exception.BusinessException;
+import java.math.BigDecimal;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+class VoucherServiceTest {
+
+  private VoucherService service;
+
+  @BeforeEach
+  void setUp() {
+    service = new VoucherService();
+  }
+
+  @Test
+  void welcomeVoucherApplies50kDiscountWhenEligible() {
+    var result = service.calculate("WELCOME", new BigDecimal("150000"));
+    assertNotNull(result);
+    assertEquals("WELCOME", result.get("code"));
+    assertEquals(new BigDecimal("50000"), result.get("discount"));
+    assertEquals(true, result.get("applied"));
+  }
+
+  @Test
+  void voucherThrowsWhenOrderBelowMinimum() {
+    var ex =
+        assertThrows(
+            BusinessException.class,
+            () -> service.calculate("WELCOME", new BigDecimal("80000")));
+    assertTrue(ex.getMessage().contains("tối thiểu 100000"));
+  }
+
+  @Test
+  void flash25AppliesPercentAndRespectsCap() {
+    // 25% of 200,000 = 50,000
+    var result = service.calculate("FLASH25", new BigDecimal("200000"));
+    assertNotNull(result);
+    assertEquals("FLASH25", result.get("code"));
+    assertEquals(new BigDecimal("50000.00"), result.get("discount"));
+
+    // 25% of 1,000,000 = 250,000, capped at maxDiscount 150,000
+    var capped = service.calculate("FLASH25", new BigDecimal("1000000"));
+    assertEquals(new BigDecimal("150000"), capped.get("discount"));
+  }
+
+  @Test
+  void unknownVoucherCodeThrowsException() {
+    var ex =
+        assertThrows(
+            BusinessException.class,
+            () -> service.calculate("INVALID_CODE", new BigDecimal("200000")));
+    assertTrue(ex.getMessage().contains("không tồn tại hoặc đã hết hạn"));
+  }
+
+  @Test
+  void listAvailableReturnsAllActiveVouchers() {
+    var list = service.listAvailable();
+    assertFalse(list.isEmpty());
+    assertTrue(list.stream().anyMatch(v -> "WELCOME".equals(v.get("code"))));
+    assertTrue(list.stream().anyMatch(v -> "HE2026".equals(v.get("code"))));
+    assertTrue(list.stream().anyMatch(v -> "COURTLY50K".equals(v.get("code"))));
+    assertTrue(list.stream().anyMatch(v -> "VIP10".equals(v.get("code"))));
+    assertTrue(list.stream().anyMatch(v -> "FLASH25".equals(v.get("code"))));
+  }
+}
+```
+
 ### 8.2 Node.js Integration & Regression Tests
 
 #### File: `tests/booking-time.test.mjs`
@@ -14064,14 +14979,57 @@ test('Password persistence across multiple backend restarts', async () => {
 ```javascript
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {tariffRows} from '../frontend/src/guest/pricing.mjs';
-const court={id:'vip',price:500000};
-test('weekday and weekend tariffs align across half-hour boundaries and base-price gaps',()=>{
- const rows=tariffRows(court,[{court:'vip',dayType:'WEEKDAY',start:17.5,end:21,price:600000},{court:'vip',dayType:'WEEKEND',start:6,end:23,price:700000},{court:'other',dayType:'WEEKDAY',start:8,end:10,price:1}]);
- assert.deepEqual(rows,[{start:'06:00',end:'17:30',weekday:500000,weekend:700000},{start:'17:30',end:'21:00',weekday:600000,weekend:700000},{start:'21:00',end:'23:00',weekday:500000,weekend:700000}]);
+import {tariffRows, getCourtMatrix, getSlotPrice, WEEK_DAYS, STANDARD_TIME_BLOCKS} from '../frontend/src/guest/pricing.mjs';
+
+const court = { id: 'vip', price: 500000 };
+
+test('weekday and weekend tariffs align across half-hour boundaries and base-price gaps', () => {
+  const rows = tariffRows(court, [
+    { court: 'vip', dayType: 'WEEKDAY', start: 17.5, end: 21, price: 600000 },
+    { court: 'vip', dayType: 'WEEKEND', start: 6, end: 23, price: 700000 },
+    { court: 'other', dayType: 'WEEKDAY', start: 8, end: 10, price: 1 }
+  ]);
+  assert.deepEqual(rows, [
+    { start: '06:00', end: '17:30', weekday: 500000, weekend: 700000 },
+    { start: '17:30', end: '21:00', weekday: 600000, weekend: 700000 },
+    { start: '21:00', end: '23:00', weekday: 500000, weekend: 700000 }
+  ]);
 });
-test('a court without special tariffs shows its actual base price on both calendars',()=>{
- assert.deepEqual(tariffRows(court,[]),[{start:'06:00',end:'23:00',weekday:500000,weekend:500000}]);
+
+test('a court without special tariffs shows its actual base price on both calendars', () => {
+  assert.deepEqual(tariffRows(court, []), [
+    { start: '06:00', end: '23:00', weekday: 500000, weekend: 500000 }
+  ]);
+});
+
+test('getCourtMatrix generates a 6x7 Excel-style matrix with 6 standard time blocks and 7 days', () => {
+  const matrix = getCourtMatrix(court, []);
+  assert.equal(matrix.length, 6);
+  assert.equal(matrix.length, STANDARD_TIME_BLOCKS.length);
+
+  for (const row of matrix) {
+    assert.ok(row.time);
+    assert.ok(row.label);
+    assert.equal(Object.keys(row.days).length, 7);
+    for (const day of WEEK_DAYS) {
+      assert.ok(row.days[day.key]);
+      assert.ok(typeof row.days[day.key].price === 'number');
+    }
+  }
+});
+
+test('getSlotPrice applies 25% automatic flash discount during weekday off-peak (09:00 - 16:00)', () => {
+  const testCourt = { id: 'outdoor', price: 140000 };
+  const mon = WEEK_DAYS.find(d => d.key === 'mon');
+  const sat = WEEK_DAYS.find(d => d.key === 'sat');
+
+  // Mon 10:00 -> 140,000 * 0.75 = 105,000
+  const flashPrice = getSlotPrice(testCourt, [], mon, 10);
+  assert.equal(flashPrice, 105000);
+
+  // Sat 10:00 -> weekend, no flash discount
+  const weekendPrice = getSlotPrice(testCourt, [], sat, 10);
+  assert.equal(weekendPrice, 140000);
 });
 ```
 

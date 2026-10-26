@@ -26,6 +26,7 @@ public class BookingSupportService {
   private final OverviewService views;
   private final SettingsService settings;
   private final MembershipService membership;
+  private final VoucherService vouchers;
 
   public void owns(Account a, UUID id) {
     var o = orders.findById(id).orElseThrow();
@@ -45,10 +46,14 @@ public class BookingSupportService {
   }
 
   public Map<String, Object> options(List<UUID> ids, UUID exclude, Account a) {
-    return options(ids, exclude, a, a.getId());
+    return options(ids, exclude, a, a.getId(), null);
   }
 
   public Map<String, Object> options(List<UUID> ids, UUID exclude, Account a, UUID account) {
+    return options(ids, exclude, a, account, null);
+  }
+
+  public Map<String, Object> options(List<UUID> ids, UUID exclude, Account a, UUID account, String voucherCode) {
     if (exclude != null) owns(a, exclude);
     var rows = selected(ids);
     service.future(rows);
@@ -120,6 +125,11 @@ public class BookingSupportService {
         }
       staffRows.add(map("scheduleId", s.getId(), "staff", people));
     }
+    BigDecimal courtTotal = rows.stream().map(CourtSchedule::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+    Map<String, Object> voucherBenefit = null;
+    if (voucherCode != null && !voucherCode.isBlank()) {
+      voucherBenefit = vouchers.calculate(voucherCode, courtTotal);
+    }
     return map(
         "courtQuote",
         membership.quote(account, rows),
@@ -130,7 +140,11 @@ public class BookingSupportService {
         "conflicts",
         conflict,
         "staffSlots",
-        staffRows);
+        staffRows,
+        "voucherBenefit",
+        voucherBenefit,
+        "availableVouchers",
+        vouchers.listAvailable());
   }
 
   public Map<String, Object> preview(UUID id, MoveBookingRequest r, Account a) {

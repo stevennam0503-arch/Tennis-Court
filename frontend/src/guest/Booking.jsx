@@ -1,5 +1,5 @@
 import React, {useState, useEffect, useRef} from 'react';
-import {ArrowUpRight, ArrowRight, Clock, UserRound, RotateCcw, Check, Plus} from 'lucide-react';
+import {ArrowUpRight, ArrowRight, Clock, UserRound, RotateCcw, Check, Plus, Tag} from 'lucide-react';
 import {api} from '../services/api';
 import {useGuest, Action, Empty, money, time, dateToday, zone, requestId} from './context';
 import {toMinutes, clock, rangeSlots, canEndAt, timePoints} from './bookingTime.mjs';
@@ -14,6 +14,10 @@ export default function Booking() {
   const [wantReferee, setWantReferee] = useState(false), [refStart, setRefStart] = useState(''), [refEnd, setRefEnd] = useState(''), [refId, setRefId] = useState('');
   const [options, setOptions] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [voucherInput, setVoucherInput] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
+  const [voucherError, setVoucherError] = useState('');
+  const [voucherBusy, setVoucherBusy] = useState(false);
   const req = useRef(requestId());
 
   const allCourts = data?.courts || [];
@@ -34,6 +38,9 @@ export default function Booking() {
     setRefId('');
     setOptions(null);
     setPreview(null);
+    setAppliedVoucher(null);
+    setVoucherInput('');
+    setVoucherError('');
     setError('');
   };
 
@@ -76,13 +83,14 @@ export default function Booking() {
     if (allChosen.length > 0 && user) {
       api('/booking/options', 'POST', {
         scheduleIds: allChosen.map(s => s.id),
+        voucherCode: appliedVoucher ? appliedVoucher.code : undefined,
         ...(moveOrder ? {excludeId: moveOrder.id} : {})
       })
         .then(x => { if (live) { setOptions(x); setError(''); } })
         .catch(e => { if (live) setError(e.message); });
     }
     return () => { live = false; };
-  }, [signature, allChosen.length, user?.id, moveOrder?.id]);
+  }, [signature, allChosen.length, user?.id, moveOrder?.id, appliedVoucher?.code]);
 
   const checkMultiCourtGap = (minuteStart, minuteEnd) => {
     const otherCourts = Object.entries(courtRanges).filter(([cid, val]) => cid !== court?.id && val.valid);
@@ -151,9 +159,39 @@ export default function Booking() {
   const refFee = referee ? (toMinutes(refEnd) - toMinutes(refStart)) * referee.rate / 60 : 0;
 
   const gross = allChosen.reduce((sum, s) => sum + s.price, 0);
-  const net = options?.courtQuote?.net ?? gross;
   const discount = options?.courtQuote?.discount ?? 0;
+  const baseCourtNet = options?.courtQuote?.net ?? Math.max(0, gross - discount);
+  const voucherDiscount = appliedVoucher ? appliedVoucher.discount : 0;
+  const net = Math.max(0, baseCourtNet - voucherDiscount);
+  const totalAmount = net + refFee;
+  const depositAmount = Math.round(net / 2);
   const displayDate = new Intl.DateTimeFormat(lang === 'en' ? 'en-GB' : 'vi-VN', {weekday: 'short', day: '2-digit', month: '2-digit'}).format(new Date(date + 'T12:00:00'));
+
+  const applyVoucher = async (codeToUse) => {
+    const code = (codeToUse || voucherInput).trim().toUpperCase();
+    if (!code) return;
+    if (!gross) {
+      setVoucherError(t('Vui lòng chọn giờ chơi trước khi áp dụng voucher.'));
+      return;
+    }
+    setVoucherBusy(true);
+    setVoucherError('');
+    try {
+      const res = await api('/public/vouchers/validate', 'POST', { code, amount: gross });
+      setAppliedVoucher(res);
+      setVoucherInput(code);
+    } catch (e) {
+      setVoucherError(e.message);
+    } finally {
+      setVoucherBusy(false);
+    }
+  };
+
+  const removeVoucher = () => {
+    setAppliedVoucher(null);
+    setVoucherInput('');
+    setVoucherError('');
+  };
 
   const selectedCourtEntries = Object.entries(courtRanges)
     .filter(([_, v]) => v.valid && v.slots?.length > 0)
@@ -201,6 +239,7 @@ export default function Booking() {
           accountId: user.id,
           scheduleIds: allChosen.map(s => s.id),
           assignments,
+          voucherCode: appliedVoucher?.code || undefined,
           requestId: req.current
         });
         resetAll();
@@ -604,29 +643,158 @@ export default function Booking() {
             </div>
           )}
 
+          {/* KHU VỰC NHẬP VÀ CHỌN VOUCHER */}
+          <div className="gx-voucher-box" style={{
+            margin: '14px 0',
+            padding: '12px',
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: 10
+          }}>
+            <div style={{display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8}}>
+              <Tag size={15} color="#173c32"/>
+              <span style={{fontSize: 12, fontWeight: 700, color: '#173c32', textTransform: 'uppercase', letterSpacing: '0.04em'}}>
+                {t('Mã ưu đãi / Voucher')}
+              </span>
+            </div>
+
+            {!appliedVoucher ? (
+              <>
+                <div style={{display: 'flex', gap: 6}}>
+                  <input
+                    type="text"
+                    aria-label={t('Mã voucher')}
+                    placeholder={t('VD: WELCOME, HE2026...')}
+                    value={voucherInput}
+                    onChange={e => { setVoucherInput(e.target.value.toUpperCase()); setVoucherError(''); }}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyVoucher(); } }}
+                    style={{
+                      flex: 1,
+                      padding: '6px 10px',
+                      borderRadius: 6,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      textTransform: 'uppercase'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={voucherBusy || !voucherInput.trim()}
+                    onClick={() => applyVoucher()}
+                    style={{
+                      background: '#173c32',
+                      color: '#def46a',
+                      border: 'none',
+                      padding: '0 12px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: voucherBusy || !voucherInput.trim() ? 'not-allowed' : 'pointer',
+                      opacity: voucherBusy || !voucherInput.trim() ? 0.6 : 1
+                    }}
+                  >
+                    {voucherBusy ? '…' : t('Áp dụng')}
+                  </button>
+                </div>
+
+                {/* Quick chips */}
+                <div style={{display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8}}>
+                  {['WELCOME', 'HE2026', 'COURTLY50K', 'VIP10', 'FLASH25'].map(vc => (
+                    <button
+                      key={vc}
+                      type="button"
+                      onClick={() => applyVoucher(vc)}
+                      style={{
+                        background: '#edf2e8',
+                        border: '1px solid #cbd2c2',
+                        borderRadius: 12,
+                        padding: '2px 8px',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: '#173c32',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      +{vc}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: 8,
+                padding: '8px 10px'
+              }}>
+                <div>
+                  <div style={{fontWeight: 700, fontSize: 13, color: '#16a34a'}}>
+                    ✓ {appliedVoucher.code} (−{money(appliedVoucher.discount)})
+                  </div>
+                  <div style={{fontSize: 11, color: '#15803d'}}>
+                    {appliedVoucher.description}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={removeVoucher}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#dc2626',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    padding: '4px'
+                  }}
+                >
+                  ✕ {t('Gỡ')}
+                </button>
+              </div>
+            )}
+
+            {voucherError && (
+              <div style={{color: '#dc2626', fontSize: 11, fontWeight: 600, marginTop: 6}}>
+                ⚠️ {voucherError}
+              </div>
+            )}
+          </div>
+
           <dl>
             <div>
               <dt>{t('Tiền sân')} ({allChosen.length * 30} {t('phút')})</dt>
               <dd>{money(gross)}</dd>
             </div>
-            <div>
-              <dt>{t('Ưu đãi hội viên')}</dt>
-              <dd>−{money(discount)}</dd>
-            </div>
+            {discount > 0 && (
+              <div>
+                <dt>{t('Ưu đãi hội viên')}</dt>
+                <dd>−{money(discount)}</dd>
+              </div>
+            )}
+            {appliedVoucher && (
+              <div>
+                <dt>{t('Voucher')} ({appliedVoucher.code})</dt>
+                <dd style={{color: '#16a34a', fontWeight: 700}}>−{money(appliedVoucher.discount)}</dd>
+              </div>
+            )}
             <div>
               <dt>{t('Trọng tài')}</dt>
               <dd>{money(refFee)}</dd>
             </div>
             <div className="gx-total">
               <dt>{t('Tổng tiền')}</dt>
-              <dd>{money(net + refFee)}</dd>
+              <dd>{money(totalAmount)}</dd>
             </div>
           </dl>
 
           <div className="gx-deposit">
             <div>
               <span>{t('Cọc 50% tiền sân')}</span>
-              <strong>{money(Math.round(net / 2))}</strong>
+              <strong>{money(depositAmount)}</strong>
             </div>
             <p>{t('Phí trọng tài nằm trong phần thanh toán còn lại.')}</p>
           </div>

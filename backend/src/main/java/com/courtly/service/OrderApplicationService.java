@@ -52,7 +52,8 @@ public class OrderApplicationService {
                     a.getId(),
                     r.scheduleIds(),
                     r.assignments(),
-                    r.requestId());
+                    r.requestId(),
+                    r.voucherCode());
           }
           UUID id = service.create(effective);
           var o = service.lock(id);
@@ -75,7 +76,8 @@ public class OrderApplicationService {
         actor,
         Set.of("ADMIN", "STAFF").contains(actor.getRole())
             ? (b.get("accountId") == null ? null : UUID.fromString(b.get("accountId").toString()))
-            : actor.getId());
+            : actor.getId(),
+        (String) b.get("voucherCode"));
   }
 
   private List<UUID> ids(Object value) {
@@ -348,8 +350,13 @@ public class OrderApplicationService {
   }
 
   private void customerDeposit(CustomerOrder o) {
-    var benefit = (Map<String,Object>) docs.decode(o.getMetadata()).get("membershipBenefit");
+    var meta = docs.decode(o.getMetadata());
+    var benefit = (Map<String,Object>) meta.get("membershipBenefit");
     var net = benefit == null ? o.getTotalAmount() : PresentationService.decimal(benefit.get("net"));
+    var voucher = (Map<String,Object>) meta.get("voucherBenefit");
+    if (voucher != null && benefit != null) {
+      net = net.subtract(PresentationService.decimal(voucher.get("discount"))).max(java.math.BigDecimal.ZERO);
+    }
     o.setDepositRequired(net.multiply(new java.math.BigDecimal("0.5")).setScale(0, java.math.RoundingMode.HALF_UP));
   }
 

@@ -30,6 +30,7 @@ public class OrderService {
   private final AuditService audit;
   private final DocumentService documents;
   private final MembershipService membership;
+  private final VoucherService vouchers;
 
   @Transactional
   public UUID create(BookingRequest request) {
@@ -61,6 +62,7 @@ public class OrderService {
     allocate(booking, selected, "LOCKED");
     assignExact(booking, selected, request.assignments());
     quote(order, selected);
+    applyVoucher(order, request.voucherCode(), selected);
     totals.recalculate(order);
     order.setDepositRequired(
         depositBase(order)
@@ -76,9 +78,25 @@ public class OrderService {
 
   private BigDecimal depositBase(CustomerOrder o) {
     var metadata = documents.decode(o.getMetadata());
-    if (Boolean.TRUE.equals(metadata.get("customerFlow")) && metadata.get("membershipBenefit") instanceof Map<?,?> benefit)
-      return PresentationService.decimal(benefit.get("net"));
+    if (Boolean.TRUE.equals(metadata.get("customerFlow")) && metadata.get("membershipBenefit") instanceof Map<?,?> benefit) {
+      var net = PresentationService.decimal(benefit.get("net"));
+      if (metadata.get("voucherBenefit") instanceof Map<?,?> voucher) {
+        net = net.subtract(PresentationService.decimal(voucher.get("discount"))).max(BigDecimal.ZERO);
+      }
+      return net;
+    }
     return o.getTotalAmount();
+  }
+
+  private void applyVoucher(CustomerOrder o, String voucherCode, List<CourtSchedule> selected) {
+    if (voucherCode == null || voucherCode.isBlank()) return;
+    BigDecimal courtTotal = selected.stream().map(CourtSchedule::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+    var extra = documents.decode(o.getMetadata());
+    var voucherBenefit = vouchers.calculate(voucherCode, courtTotal);
+    if (voucherBenefit != null) {
+      extra.put("voucherBenefit", voucherBenefit);
+      o.setMetadata(documents.encode(extra));
+    }
   }
 
   public CustomerOrder lock(UUID id) {

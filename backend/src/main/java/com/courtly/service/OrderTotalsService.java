@@ -54,6 +54,10 @@ public class OrderTotalsService {
       Object benefit = extra.get("membershipBenefit");
       if (benefit instanceof java.util.Map<?, ?> m)
         sum = sum.subtract(PresentationService.decimal(m.get("discount")));
+      Object voucher = extra.get("voucherBenefit");
+      if (voucher instanceof java.util.Map<?, ?> vm)
+        sum = sum.subtract(PresentationService.decimal(vm.get("discount")));
+      if (sum.compareTo(BigDecimal.ZERO) < 0) sum = BigDecimal.ZERO;
     }
     order.setSubtotal(sum);
     order.setTotalAmount(sum);

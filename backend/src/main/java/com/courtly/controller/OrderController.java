@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 public class OrderController {
   private final OrderApplicationService service;
   private final AuthService auth;
+  private final VoucherService vouchers;
 
   @PostMapping("/orders")
   public Map<String, Object> create(@Valid @RequestBody BookingRequest b, HttpServletRequest r) {
@@ -28,6 +29,18 @@ public class OrderController {
   @GetMapping("/orders/{id}/cancellation-preview")
   public Map<String, Object> cancellationPreview(@PathVariable UUID id, HttpServletRequest r) {
     return service.cancellationPreview(id, auth.current(r));
+  }
+
+  @GetMapping("/public/vouchers")
+  public List<Map<String, Object>> vouchers() {
+    return vouchers.listAvailable();
+  }
+
+  @PostMapping("/public/vouchers/validate")
+  public Map<String, Object> validateVoucher(@RequestBody Map<String, Object> body) {
+    String code = (String) body.get("code");
+    java.math.BigDecimal amount = PresentationService.decimal(body.get("amount"));
+    return vouchers.calculate(code, amount);
   }
 
   @GetMapping("/orders/{id}/extension-options")
