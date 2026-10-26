@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="bg5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#991b1b"/>
+      <stop offset="100%" stop-color="#450a0a"/>
+    </linearGradient>
+    <linearGradient id="skin5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fed7aa"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+    <linearGradient id="polo5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#dc2626"/>
+      <stop offset="100%" stop-color="#991b1b"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="100" fill="url(#bg5)"/>
+  <circle cx="100" cy="100" r="96" fill="none" stroke="#f87171" stroke-width="2" stroke-dasharray="6 4" opacity="0.6"/>
+  <path d="M35 200 C35 150 65 140 100 140 C135 140 165 150 165 200 Z" fill="url(#polo5)"/>
+  <path d="M85 125 L100 148 L115 125 Z" fill="#ffffff"/>
+  <path d="M78 120 L100 152 L88 152 L68 126 Z" fill="#ffffff"/>
+  <path d="M122 120 L100 152 L112 152 L132 126 Z" fill="#ffffff"/>
+  <path d="M92 140 Q100 165 100 172 Q100 165 108 140" stroke="#f8fafc" stroke-width="2" fill="none"/>
+  <circle cx="100" cy="175" r="5" fill="#fef08a"/>
+  <rect x="88" y="105" width="24" height="25" rx="4" fill="#fb923c"/>
+  <ellipse cx="100" cy="85" rx="30" ry="36" fill="url(#skin5)"/>
+  <ellipse cx="69" cy="86" rx="5" ry="9" fill="#ea580c"/>
+  <ellipse cx="131" cy="86" rx="5" ry="9" fill="#ea580c"/>
+  <path d="M69 76 C69 50 82 46 100 46 C118 46 131 50 131 76 C124 62 114 58 100 58 C86 58 76 62 69 76 Z" fill="#18181b"/>
+  <ellipse cx="87" cy="82" rx="3.5" ry="4" fill="#0f172a"/>
+  <ellipse cx="113" cy="82" rx="3.5" ry="4" fill="#0f172a"/>
+  <circle cx="88.5" cy="80.5" r="1" fill="#ffffff"/>
+  <circle cx="114.5" cy="80.5" r="1" fill="#ffffff"/>
+  <path d="M100 82 L98 92 L103 92" stroke="#c2410c" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <path d="M91 101 Q100 108 109 101" stroke="#9a3412" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <rect x="126" y="152" width="22" height="14" rx="3" fill="#ffffff" stroke="#fca5a5" stroke-width="1"/>
+  <text x="137" y="162" font-size="6.5" font-weight="900" font-family="sans-serif" fill="#dc2626" text-anchor="middle">QUỐC GIA</text>
+</svg>

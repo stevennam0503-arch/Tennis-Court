@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="bg1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="skin1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fcd34d"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="polo1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#0369a1"/>
+    </linearGradient>
+    <linearGradient id="gold1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="100%" stop-color="#eab308"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="200" height="200" rx="100" fill="url(#bg1)"/>
+  <circle cx="100" cy="100" r="96" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="6 4" opacity="0.6"/>
+  <!-- Tennis Court lines watermark in bg -->
+  <path d="M40 70 L160 70 M100 40 L100 120" stroke="#ffffff" stroke-width="1.5" opacity="0.15"/>
+  <!-- Body / Shoulders -->
+  <path d="M35 200 C35 150 65 140 100 140 C135 140 165 150 165 200 Z" fill="url(#polo1)"/>
+  <!-- Collar & Neck -->
+  <path d="M85 125 L100 148 L115 125 Z" fill="#e0f2fe"/>
+  <path d="M78 120 L100 152 L88 152 L68 126 Z" fill="#ffffff"/>
+  <path d="M122 120 L100 152 L112 152 L132 126 Z" fill="#ffffff"/>
+  <!-- Whistle cord & whistle -->
+  <path d="M92 140 Q100 165 100 172 Q100 165 108 140" stroke="#f8fafc" stroke-width="2" fill="none"/>
+  <circle cx="100" cy="175" r="5" fill="#94a3b8"/>
+  <rect x="98" y="178" width="4" height="6" rx="1" fill="#64748b"/>
+  <!-- Neck -->
+  <rect x="88" y="105" width="24" height="25" rx="4" fill="#fbbf24"/>
+  <!-- Head -->
+  <ellipse cx="100" cy="85" rx="30" ry="36" fill="url(#skin1)"/>
+  <!-- Ears -->
+  <ellipse cx="69" cy="86" rx="5" ry="9" fill="#f59e0b"/>
+  <ellipse cx="131" cy="86" rx="5" ry="9" fill="#f59e0b"/>
+  <!-- Hair -->
+  <path d="M70 78 C70 52 82 48 100 48 C118 48 130 52 130 78 C124 64 115 60 100 60 C85 60 76 64 70 78 Z" fill="#1e293b"/>
+  <!-- Eyebrows -->
+  <path d="M80 74 Q89 71 94 74" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <path d="M106 74 Q111 71 120 74" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <!-- Eyes -->
+  <ellipse cx="87" cy="82" rx="3.5" ry="4" fill="#0f172a"/>
+  <ellipse cx="113" cy="82" rx="3.5" ry="4" fill="#0f172a"/>
+  <circle cx="88.5" cy="80.5" r="1" fill="#ffffff"/>
+  <circle cx="114.5" cy="80.5" r="1" fill="#ffffff"/>
+  <!-- Nose -->
+  <path d="M100 82 L98 92 L103 92" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Smile -->
+  <path d="M91 101 Q100 108 109 101" stroke="#b45309" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <!-- VTF Badge -->
+  <rect x="126" y="152" width="22" height="14" rx="3" fill="url(#gold1)" stroke="#b45309" stroke-width="1"/>
+  <text x="137" y="162" font-size="7" font-weight="900" font-family="sans-serif" fill="#78350f" text-anchor="middle">VTF</text>
+</svg>

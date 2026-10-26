@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#065f46"/>
+      <stop offset="100%" stop-color="#022c22"/>
+    </linearGradient>
+    <linearGradient id="skin2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fed7aa"/>
+      <stop offset="100%" stop-color="#fb923c"/>
+    </linearGradient>
+    <linearGradient id="polo2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="100" fill="url(#bg2)"/>
+  <circle cx="100" cy="100" r="96" fill="none" stroke="#34d399" stroke-width="2" stroke-dasharray="6 4" opacity="0.6"/>
+  <!-- Body / Shoulders -->
+  <path d="M35 200 C35 150 65 140 100 140 C135 140 165 150 165 200 Z" fill="url(#polo2)"/>
+  <!-- Dark green trim on collar -->
+  <path d="M85 125 L100 148 L115 125 Z" fill="#ffffff"/>
+  <path d="M78 120 L100 152 L88 152 L68 126 Z" fill="#064e3b"/>
+  <path d="M122 120 L100 152 L112 152 L132 126 Z" fill="#064e3b"/>
+  <!-- Whistle -->
+  <path d="M92 140 Q100 165 100 172 Q100 165 108 140" stroke="#f8fafc" stroke-width="2" fill="none"/>
+  <circle cx="100" cy="175" r="5" fill="#e2e8f0"/>
+  <!-- Neck -->
+  <rect x="88" y="105" width="24" height="25" rx="4" fill="#f97316" opacity="0.5"/>
+  <rect x="88" y="105" width="24" height="25" rx="4" fill="#fdba74"/>
+  <!-- Head -->
+  <ellipse cx="100" cy="88" rx="29" ry="34" fill="url(#skin2)"/>
+  <!-- Ears -->
+  <ellipse cx="70" cy="88" rx="5" ry="8" fill="#ea580c"/>
+  <ellipse cx="130" cy="88" rx="5" ry="8" fill="#ea580c"/>
+  <!-- Tennis Cap -->
+  <path d="M71 78 C71 52 82 46 100 46 C118 46 129 52 129 78 Z" fill="#ffffff"/>
+  <!-- Cap Visor -->
+  <path d="M60 76 Q100 66 140 76 Q100 84 60 76 Z" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+  <circle cx="100" cy="62" r="5" fill="#f97316"/>
+  <!-- Eyes -->
+  <ellipse cx="88" cy="86" rx="3.5" ry="4" fill="#0f172a"/>
+  <ellipse cx="112" cy="86" rx="3.5" ry="4" fill="#0f172a"/>
+  <circle cx="89" cy="84.5" r="1" fill="#ffffff"/>
+  <circle cx="113" cy="84.5" r="1" fill="#ffffff"/>
+  <!-- Eyebrows -->
+  <path d="M82 79 Q88 77 94 80" stroke="#0f172a" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+  <path d="M106 80 Q112 77 118 79" stroke="#0f172a" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+  <!-- Nose & Smile -->
+  <path d="M100 86 L98 94 L103 94" stroke="#c2410c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M92 103 Q100 110 108 103" stroke="#9a3412" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <!-- Badge -->
+  <rect x="52" y="155" width="22" height="13" rx="3" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="63" y="164" font-size="7" font-weight="800" font-family="sans-serif" fill="#047857" text-anchor="middle">OFFICIAL</text>
+</svg>

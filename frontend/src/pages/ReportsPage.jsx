@@ -215,12 +215,11 @@ export default function ReportsPage() {
       ['Kỳ báo cáo', periodLabel],
       ['Từ ngày', startDate, 'Đến ngày', endDate],
       [''],
-      ['I. 4 TRỤ CỘT DOANH THU & TÀI CHÍNH'],
+      ['I. 3 TRỤ CỘT DOANH THU & TÀI CHÍNH'],
       ['Trụ cột / Hạng mục', 'Số tiền (VNĐ)'],
       ['1. Doanh thu tiền thuê sân', courtValue],
-      ['2. Doanh thu F&B & Đồ bán', legacyValue],
-      ['3. Dụng cụ & Dịch vụ trọng tài', staffValue],
-      ['4. Phí giải đấu & Phí hội viên', netTournamentCash + netMembershipCash],
+      ['2. Dịch vụ trọng tài', staffValue],
+      ['3. Phí giải đấu & Phí hội viên', netTournamentCash + netMembershipCash],
       ['Trừ: Khoản hoàn tiền', refundsInPeriod.reduce((a, r) => a + r.amount, 0)],
       ['TỔNG DOANH THU THUẦN (NET)', totalNetCash],
       [''],
@@ -393,37 +392,31 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* 4 Revenue Pillars */}
+      {/* 3 Core Revenue Pillars */}
       <div style={{ marginBottom: 20, padding: 18, background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: 16, color: '#173c32' }}>
-            🏛️ 4 Trụ Cột Doanh Thu ({periodLabel})
+            🏛️ 3 Trụ Cột Doanh Thu ({periodLabel})
           </h3>
-          <span style={{ fontSize: 13, color: '#64748b' }}>Doanh thu thuần = 4 trụ cột − Hoàn tiền</span>
+          <span style={{ fontSize: 13, color: '#64748b' }}>Doanh thu thuần = Tiền sân + Trọng tài + Giải & Hội viên − Hoàn tiền</span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>
-          <div style={{ padding: 14, background: '#f8fafc', borderRadius: 8, borderLeft: '4px solid #10b981' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+          <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8, borderLeft: '4px solid #10b981' }}>
             <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>1. DOANH THU THUÊ SÂN</span>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: '4px 0' }}>{money(courtValue)}</div>
-            <small style={{ color: '#64748b' }}>Khung giờ sân VIP, Trong nhà & Ngoài trời</small>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', margin: '4px 0' }}>{money(courtValue)}</div>
+            <small style={{ color: '#64748b' }}>Sân VIP, Sân trong nhà & Sân ngoài trời</small>
           </div>
 
-          <div style={{ padding: 14, background: '#f8fafc', borderRadius: 8, borderLeft: '4px solid #3b82f6' }}>
-            <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>2. F&B & ĐỒ BÁN</span>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: '4px 0' }}>{money(legacyValue)}</div>
-            <small style={{ color: '#64748b' }}>Nước uống, đồ ăn nhẹ & hàng hóa</small>
+          <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8, borderLeft: '4px solid #f59e0b' }}>
+            <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>2. DỊCH VỤ TRỌNG TÀI</span>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', margin: '4px 0' }}>{money(staffValue)}</div>
+            <small style={{ color: '#64748b' }}>Phí thuê trọng tài điều hành trận đấu</small>
           </div>
 
-          <div style={{ padding: 14, background: '#f8fafc', borderRadius: 8, borderLeft: '4px solid #f59e0b' }}>
-            <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>3. DỤNG CỤ & TRỌNG TÀI</span>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: '4px 0' }}>{money(staffValue)}</div>
-            <small style={{ color: '#64748b' }}>Thuê vợt, bóng & phí dịch vụ trọng tài</small>
-          </div>
-
-          <div style={{ padding: 14, background: '#f8fafc', borderRadius: 8, borderLeft: '4px solid #8b5cf6' }}>
-            <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>4. PHÍ GIẢI ĐẤU & HỘI VIÊN</span>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: '4px 0' }}>{money(netTournamentCash + netMembershipCash)}</div>
+          <div style={{ padding: 16, background: '#f8fafc', borderRadius: 8, borderLeft: '4px solid #8b5cf6' }}>
+            <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>3. GIẢI ĐẤU & HỘI VIÊN</span>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', margin: '4px 0' }}>{money(netTournamentCash + netMembershipCash)}</div>
             <small style={{ color: '#64748b' }}>Giải đấu ({money(netTournamentCash)}) · Hội viên ({money(netMembershipCash)})</small>
           </div>
         </div>

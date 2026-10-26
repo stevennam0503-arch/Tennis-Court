@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="bg7" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4c1d95"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="skin7" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fed7aa"/>
+      <stop offset="100%" stop-color="#fba86c"/>
+    </linearGradient>
+    <linearGradient id="polo7" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="100" fill="url(#bg7)"/>
+  <circle cx="100" cy="100" r="96" fill="none" stroke="#a78bfa" stroke-width="2" stroke-dasharray="6 4" opacity="0.6"/>
+  <!-- Ponytail in background -->
+  <path d="M125 75 Q155 85 145 125 Q135 120 128 85 Z" fill="#312e81"/>
+  <!-- Body / Shoulders -->
+  <path d="M38 200 C38 152 68 142 100 142 C132 142 162 152 162 200 Z" fill="url(#polo7)"/>
+  <!-- Collar -->
+  <path d="M86 126 L100 147 L114 126 Z" fill="#f5f3ff"/>
+  <path d="M78 122 L100 150 L89 150 L70 127 Z" fill="#ffffff"/>
+  <path d="M122 122 L100 150 L111 150 L130 127 Z" fill="#ffffff"/>
+  <!-- Whistle -->
+  <path d="M93 140 Q100 163 100 170 Q100 163 107 140" stroke="#f8fafc" stroke-width="2" fill="none"/>
+  <circle cx="100" cy="172" r="4.5" fill="#e2e8f0"/>
+  <!-- Neck -->
+  <rect x="89" y="106" width="22" height="24" rx="4" fill="url(#skin7)"/>
+  <!-- Head -->
+  <ellipse cx="100" cy="85" rx="27" ry="32" fill="url(#skin7)"/>
+  <!-- Ears & Pearl Earring -->
+  <ellipse cx="72" cy="86" rx="4" ry="7" fill="#fba86c"/>
+  <circle cx="72" cy="91" r="2" fill="#ffffff"/>
+  <ellipse cx="128" cy="86" rx="4" ry="7" fill="#fba86c"/>
+  <circle cx="128" cy="91" r="2" fill="#ffffff"/>
+  <!-- Hair & Visor -->
+  <path d="M73 75 C73 50 82 45 100 45 C118 45 127 50 127 75 Z" fill="#312e81"/>
+  <path d="M62 72 Q100 62 138 72 Q100 78 62 72 Z" fill="#fdf4ff" stroke="#e9d5ff" stroke-width="1.5"/>
+  <!-- Eyes -->
+  <ellipse cx="88" cy="83" rx="3.5" ry="4" fill="#0f172a"/>
+  <ellipse cx="112" cy="83" rx="3.5" ry="4" fill="#0f172a"/>
+  <circle cx="89" cy="81.5" r="1.2" fill="#ffffff"/>
+  <circle cx="113" cy="81.5" r="1.2" fill="#ffffff"/>
+  <!-- Eyebrows & Lashes -->
+  <path d="M83 77 Q89 74 94 77" stroke="#1e1b4b" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+  <path d="M106 77 Q111 74 117 77" stroke="#1e1b4b" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+  <!-- Nose & Smile with lipstick -->
+  <path d="M100 84 L99 91 L102 91" stroke="#ea580c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M92 98 Q100 106 108 98" stroke="#be123c" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <!-- Gold Badge -->
+  <rect x="124" y="154" width="22" height="13" rx="3" fill="#fde047" stroke="#ca8a04" stroke-width="1"/>
+  <text x="135" y="163" font-size="7" font-weight="900" font-family="sans-serif" fill="#713f12" text-anchor="middle">REFEREE</text>
+</svg>

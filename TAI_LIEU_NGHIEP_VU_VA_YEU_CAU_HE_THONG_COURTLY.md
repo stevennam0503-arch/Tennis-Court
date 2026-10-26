@@ -10,7 +10,7 @@
 2. [KIẾN TRÚC KỸ THUẬT & DỮ LIỆU](#2-kiến-trúc-kỹ-thuật--dữ-liệu)
 3. [MA TRẬN VAI TRÒ & PHÂN QUYỀN (RBAC)](#3-ma-trận-vai-trò--phân-quyền-rbac)
 4. [MÔ HÌNH SÂN BÃI, KHUNG GIỜ & BẢNG GIÁ](#4-mô-hình-sân-bãi-khung-giờ--bảng-giá)
-5. [4 TRỤ CỘT DOANH THU & NGUYÊN TẮC TÀI CHÍNH](#5-4-trụ-cột-doanh-thu--nguyên-tắc-tài-chính)
+5. [3 TRỤ CỘT DOANH THU & NGUYÊN TẮC TÀI CHÍNH](#5-3-trụ-cột-doanh-thu--nguyên-tắc-tài-chính)
 6. [QUY TRÌNH NGHIỆP VỤ CHI TIẾT (BUSINESS WORKFLOWS)](#6-quy-trình-nghiệp-vụ-chi-tiết-business-workflows)
    - 6.1. Quy trình Đặt sân Online (Khách lẻ & Đặt định kỳ 4, 8, 12 tuần)
    - 6.2. Quy trình Thanh toán cọc qua VietQR Napas 24/7 & Khớp lệnh tự động
@@ -37,7 +37,7 @@
 Courtly là giải pháp chuyển đổi số toàn diện cho câu lạc bộ tennis chuẩn quốc tế, giải quyết triệt để các bài toán:
 - **Khách hàng**: Đặt sân trực quan theo sơ đồ, thanh toán VietQR tức thì, đặt định kỳ dài hạn, đổi lịch linh hoạt, tra cứu vé điện tử.
 - **Lễ tân / Thu ngân**: Thu tiền mặt chuẩn chỉ, in phiếu thu ngay tại chỗ, chốt ca két cuối ngày không lệch số liệu, check-in/check-out nhanh chóng.
-- **Quản lý / Ban giám đốc**: Giám sát công suất lấp đầy sân theo thời gian thực, quản lý bảo trì cục bộ, đối soát ngân hàng tự động, báo cáo doanh thu bóc tách 4 trụ cột độc lập.
+- **Quản lý / Ban giám đốc**: Giám sát công suất lấp đầy sân theo thời gian thực, quản lý bảo trì cục bộ, đối soát ngân hàng tự động, báo cáo doanh thu bóc tách 3 trụ cột độc lập.
 
 ### 1.2. Đối tượng phục vụ
 1. **Khách vãng lai (Guest)**: Xem thông tin sân, bảng giá, sơ đồ sân, tin tức, điều lệ giải đấu; có thể đặt sân nhanh tại quầy hoặc đăng ký tài khoản để đặt online.
@@ -80,7 +80,7 @@ Courtly là giải pháp chuyển đổi số toàn diện cho câu lạc bộ t
 | Hủy đơn đặt sân (Theo chính sách hoàn 3 mốc) | ✗ | ✓ | ✓ | ✓ |
 | Duyệt chi hoàn tiền về tài khoản ngân hàng | ✗ | ✗ | ✗ | ✓ |
 | Đối soát giao dịch ngân hàng & Xử lý ngoại lệ | ✗ | ✗ | ✓ | ✓ |
-| Xem Dashboard doanh thu 4 trụ cột & Xuất CSV | ✗ | ✗ | ✗ | ✓ |
+| Xem Dashboard doanh thu 3 trụ cột & Xuất CSV | ✗ | ✗ | ✗ | ✓ |
 | Xóa tài khoản người dùng (Ràng buộc toàn vẹn) | ✗ | ✗ | ✗ | ✓ |
 
 ---
@@ -102,25 +102,24 @@ Hệ thống Courtly quản lý sân theo 3 chuẩn phân loại thực tế:
 
 ---
 
-## 5. 4 TRỤ CỘT DOANH THU & NGUYÊN TẮC TÀI CHÍNH
+## 5. 3 TRỤ CỘT DOANH THU & NGUYÊN TẮC TÀI CHÍNH
 
-Theo chuẩn quản trị tài chính CLB thể thao hiện đại (Module 48), toàn bộ doanh số vận hành được phân định rõ ràng thành 4 trụ cột độc lập:
+Theo chuẩn quản trị tài chính CLB thể thao tinh gọn (Module 48), toàn bộ dịch vụ F&B và thuê dụng cụ đã được lược bỏ để tập trung vào dịch vụ cốt lõi của sân bãi. Toàn bộ doanh số vận hành được phân định rõ ràng thành 3 trụ cột độc lập:
 
-$$\text{Doanh thu thuần (Net Revenue)} = \sum_{i=1}^4 \text{Trụ cột}_i - \text{Tổng tiền hoàn (Refunds)}$$
+$$\text{Doanh thu thuần (Net Revenue)} = \sum_{i=1}^3 \text{Trụ cột}_i - \text{Tổng tiền hoàn (Refunds)}$$
 
-### 5.1. Bóc tách 4 Trụ Cột Doanh Thu
+### 5.1. Bóc tách 3 Trụ Cột Doanh Thu Cốt Lõi
 1. **Trụ cột 1: Doanh thu thuê sân (Court Bookings)**:
-   - Toàn bộ giá trị giờ chơi từ các loại sân VIP, Trong nhà và Ngoài trời.
-   - Ghi nhận từ các đơn đặt online, đặt định kỳ và đặt trực tiếp tại quầy.
-2. **Trụ cột 2: F&B & Đồ bán kèm (Food & Beverage / Retail)**:
-   - Nước khoáng thể thao, nước điện giải, nước tăng lực.
-   - Đồ ăn nhẹ, thanh năng lượng, khăn lạnh, quả bóng tennis mua đứt.
-3. **Trụ cột 3: Dụng cụ & Dịch vụ trọng tài (Equipments & Staff Services)**:
-   - Thuê vợt tennis theo giờ, thuê máy bắn bóng tập luyện.
-   - Dịch vụ trọng tài chấm điểm trận đấu theo giờ chơi.
-4. **Trụ cột 4: Phí giải đấu & Hội viên (Tournaments & Memberships)**:
+   - Toàn bộ giá trị giờ chơi từ 3 loại sân hợp lệ: Sân VIP, Sân Trong nhà và Sân Ngoài trời.
+   - Ghi nhận từ các đơn đặt online, đặt định kỳ (4, 8, 12 tuần) và đặt trực tiếp tại quầy.
+2. **Trụ cột 2: Dịch vụ trọng tài (Referee / Staff Services)**:
+   - Phí phân công trọng tài chấm điểm chuyên nghiệp cho các trận đấu theo giờ chơi.
+   - Quản lý phân ca, chấm công và đối soát công tác trọng tài.
+3. **Trụ cột 3: Phí giải đấu & Hội viên (Tournaments & Memberships)**:
    - Lệ phí đăng ký thi đấu các giải phong trào và bán chuyên do CLB tổ chức.
-   - Phí kích hoạt gói hội viên thường niên / định kỳ (Gói Club, Gói Plus).
+   - Phí kích hoạt và gia hạn gói hội viên thường niên / định kỳ (Gói Club, Gói Plus).
+
+*(Lưu ý: Dịch vụ F&B và cho thuê dụng cụ ngoài đã ngừng kinh doanh trên hệ thống để đảm bảo mô hình vận hành tinh gọn, tập trung tối đa vào trải nghiệm mặt sân và trọng tài tiêu chuẩn).*
 
 ---
 
@@ -155,7 +154,7 @@ flowchart TD
 4. **Khởi tạo trạng thái giữ chỗ (`HOLDING`)**:
    - Khi khách bấm tiếp tục, hệ thống khóa bi quan (`PESSIMISTIC_WRITE`) các khung giờ đã chọn.
    - Đơn hàng được tạo ở trạng thái `HOLDING` với thời hạn giữ chỗ là 5 phút (`holdExpiresAt = Instant.now() + 5 minutes`).
-   - Tiền cọc yêu cầu chuẩn là **50% tiền sân** (Phí dịch vụ trọng tài và dụng cụ được thanh toán khi hoàn tất đơn).
+   - Tiền cọc yêu cầu chuẩn là **50% tiền sân** (Phí dịch vụ trọng tài được thanh toán khi hoàn tất đơn).
 
 ---
 
@@ -267,7 +266,7 @@ Khắc phục nhược điểm đóng toàn bộ sân cả ngày, hệ thống h
    - Thông tin CLB: Tên CLB, Mã số thuế, Hotline, Địa chỉ.
    - Mã hóa đơn duy nhất dạng `HD-XXXXXXXX`.
    - Thông tin khách hàng, số điện thoại, ngày thi đấu.
-   - Bảng kê chi tiết từng dòng: Khung giờ sân, Dụng cụ thuê, Đồ uống F&B, Dịch vụ trọng tài kèm đơn giá và thành tiền.
+   - Bảng kê chi tiết từng dòng: Khung giờ sân, Dịch vụ trọng tài kèm đơn giá và thành tiền.
    - Dòng giảm giá chiết khấu hội viên và voucher khuyến mãi.
    - Tổng thanh toán, Đã thanh toán và Số tiền còn lại.
 3. Hỗ trợ nút "🖨️ In Hóa Đơn / Xuất PDF" chuẩn tương thích khổ giấy in nhiệt K80 và in giấy A4/A5 tiêu chuẩn.
@@ -346,7 +345,7 @@ Nhằm tạo điều kiện cho quản trị viên kiểm thử đăng ký lại
 - **FR-13 (Check-in vào sân)**: Cho phép lễ tân quét mã hoặc tìm đơn để xác nhận khách đã có mặt và vào sân thi đấu (`CHECKED_IN`).
 - **FR-14 (Check-out hoàn tất)**: Kiểm tra tình trạng sân và bấm check-out (`COMPLETED`), tính toán công nợ còn lại để thu nốt tiền.
 - **FR-15 (Gia hạn giờ chơi)**: Cho phép gia hạn thêm 30p hoặc 60p cho đơn đang chơi nếu khung giờ liền kề của sân đó còn trống.
-- **FR-16 (Xuất hóa đơn dịch vụ)**: Khởi tạo hóa đơn chi tiết từng dòng (sân, thiết bị, F&B, trọng tài) kèm mã số thuế CLB và hỗ trợ in/xuất PDF.
+- **FR-16 (Xuất hóa đơn dịch vụ)**: Khởi tạo hóa đơn chi tiết từng dòng (sân, dịch vụ trọng tài) kèm mã số thuế CLB và hỗ trợ in/xuất PDF.
 - **FR-17 (Chốt ca thu ngân cuối ngày)**: Cho phép thu ngân tổng kết số tiền mặt đã thu, đối chiếu với số tiền mặt thực đếm trong két và lưu biên bản bàn giao ca.
 
 ### Phân hệ Quản trị & Tài chính
@@ -354,12 +353,15 @@ Nhằm tạo điều kiện cho quản trị viên kiểm thử đăng ký lại
 - **FR-19 (Bảo trì theo khung giờ)**: Cho phép quản trị viên chuyển trạng thái bảo trì (`MAINTENANCE`) cho một số khung giờ cụ thể mà không ảnh hưởng toàn bộ sân.
 - **FR-20 (Đối soát giao dịch ngân hàng)**: Bảng kiểm kê tự động phát hiện khách chuyển thừa tiền, đơn hủy chờ hoàn tiền và các khoản tiền đến muộn.
 - **FR-21 (Duyệt chi hoàn tiền)**: Cho phép quản trị viên thực hiện xác nhận đã hoàn trả tiền cọc cho khách hàng theo biên bản đối soát.
-- **FR-22 (Dashboard doanh thu 4 trụ cột)**: Phân tích bóc tách riêng biệt: (1) Sân, (2) F&B, (3) Dụng cụ & Trọng tài, (4) Phí giải đấu & Hội viên, trừ tiền hoàn ra doanh thu thuần.
+- **FR-22 (Dashboard doanh thu 3 trụ cột)**: Phân tích bóc tách riêng biệt: (1) Sân (`VIP`, `INDOOR`, `OUTDOOR`), (2) Dịch vụ trọng tài, (3) Phí giải đấu & Hội viên, trừ tiền hoàn ra doanh thu thuần (loại bỏ hoàn toàn F&B và dụng cụ thuê).
 - **FR-23 (Bộ lọc thời gian tùy chỉnh)**: Cho phép xem báo cáo theo ngày, tháng, quý, năm hoặc chọn khoảng ngày bất kỳ (`Từ ngày` - `Đến ngày`).
 - **FR-24 (Xuất báo cáo CSV)**: Xuất toàn bộ dữ liệu tài chính, cơ cấu doanh thu và danh sách đơn hàng ra file CSV chuẩn UTF-8 có BOM.
 - **FR-25 (Quản lý giải đấu)**: Tạo giải đấu, theo dõi VĐV đăng ký, bốc thăm nhánh đấu và gán lịch thi đấu vào các sân.
 - **FR-26 (Quản lý hội viên)**: Quản lý các gói Club, Plus; kích hoạt và theo dõi hạn sử dụng gói hội viên của từng khách hàng.
 - **FR-27 (Xóa tài khoản & Tái đăng ký kiểm thử)**: Quản trị viên có thể xóa vĩnh viễn tài khoản người dùng ngay cả khi tài khoản đã có đơn đặt sân; hệ thống tự động gỡ liên kết an toàn để bảo toàn chứng từ tài chính và giải phóng email để người dùng có thể đăng ký lại bằng cùng Gmail.
+- **FR-28 (Chuẩn hóa giao diện Quản trị tinh gọn & Phân trang)**: Các trang danh sách lớn trong phân hệ Quản trị (Quản lý tài khoản, Quản lý thanh toán & hoàn tiền, Lịch trực nhân sự, Danh mục bảng giá) bắt buộc trang bị phân trang chuẩn (Pagination 15 mục/trang), thanh tìm kiếm trực tiếp (live search) và các tab bộ lọc phân loại chuyên sâu, giải quyết triệt để vấn đề danh sách dài bất tiện.
+- **FR-29 (Nhân sự & Trọng tài có ảnh minh họa chuyên nghiệp)**: Toàn bộ danh mục nhân sự và trọng tài được trang bị ảnh chân dung đồ họa mô phỏng chuyên nghiệp với đồng phục polo, còi trọng tài, huy hiệu chứng chỉ VTF và nhãn "Ảnh minh họa", thay thế hoàn toàn chữ cái viết tắt đơn điệu.
+- **FR-30 (Quy chuẩn duy nhất 3 loại sân)**: Hệ thống chỉ quản lý và chấp nhận duy nhất 3 loại sân hợp lệ: Sân VIP (`VIP`), Sân Trong Nhà (`INDOOR`), Sân Ngoài Trời (`OUTDOOR`). Tuyệt đối loại bỏ các loại sân cứng/mềm (HARD, CLAY, GRASS) khỏi giao diện nhập liệu và cấu hình hệ thống.
 
 ---
 

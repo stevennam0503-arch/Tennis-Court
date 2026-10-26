@@ -200,7 +200,7 @@ export function ZaloZnsDialog({order, onClose}) {
             </div>
             <div style={{display: 'flex', justifyContent: 'space-between'}}>
               <span style={{color: '#6b7280'}}>Sân thi đấu:</span>
-              <strong style={{color: '#111827'}}>{court?.name || 'Sân tiêu chuẩn'} ({court?.type || 'Hard Court'})</strong>
+              <strong style={{color: '#111827'}}>{court?.name || 'Sân tiêu chuẩn'} ({labels[court?.type] || 'Sân ngoài trời'})</strong>
             </div>
             <div style={{display: 'flex', justifyContent: 'space-between'}}>
               <span style={{color: '#6b7280'}}>Thời gian chơi:</span>

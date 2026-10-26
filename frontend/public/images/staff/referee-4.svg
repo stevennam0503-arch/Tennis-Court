@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="bg4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="skin4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="100%" stop-color="#eab308"/>
+    </linearGradient>
+    <linearGradient id="polo4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="100" fill="url(#bg4)"/>
+  <circle cx="100" cy="100" r="96" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6 4" opacity="0.6"/>
+  <path d="M35 200 C35 150 65 140 100 140 C135 140 165 150 165 200 Z" fill="url(#polo4)"/>
+  <path d="M85 125 L100 148 L115 125 Z" fill="#ffffff"/>
+  <path d="M78 120 L100 152 L88 152 L68 126 Z" fill="#e2e8f0"/>
+  <path d="M122 120 L100 152 L112 152 L132 126 Z" fill="#e2e8f0"/>
+  <path d="M92 140 Q100 165 100 172 Q100 165 108 140" stroke="#f8fafc" stroke-width="2" fill="none"/>
+  <circle cx="100" cy="175" r="5" fill="#facc15"/>
+  <rect x="88" y="105" width="24" height="25" rx="4" fill="#eab308"/>
+  <ellipse cx="100" cy="85" rx="30" ry="36" fill="url(#skin4)"/>
+  <ellipse cx="69" cy="86" rx="5" ry="9" fill="#ca8a04"/>
+  <ellipse cx="131" cy="86" rx="5" ry="9" fill="#ca8a04"/>
+  <!-- Silver / Greyish hair -->
+  <path d="M69 76 C69 50 82 46 100 46 C118 46 131 50 131 76 C124 62 114 58 100 58 C86 58 76 62 69 76 Z" fill="#94a3b8"/>
+  <!-- Glasses -->
+  <rect x="76" y="76" width="20" height="15" rx="4" fill="none" stroke="#0f172a" stroke-width="2.5"/>
+  <rect x="104" y="76" width="20" height="15" rx="4" fill="none" stroke="#0f172a" stroke-width="2.5"/>
+  <line x1="96" y1="83" x2="104" y2="83" stroke="#0f172a" stroke-width="2.5"/>
+  <!-- Eyes behind glasses -->
+  <circle cx="86" cy="83.5" r="3" fill="#0f172a"/>
+  <circle cx="114" cy="83.5" r="3" fill="#0f172a"/>
+  <!-- Nose & Smile -->
+  <path d="M100 84 L98 93 L103 93" stroke="#a16207" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <path d="M92 102 Q100 107 108 102" stroke="#854d0e" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <!-- Gold Badge -->
+  <rect x="126" y="152" width="22" height="14" rx="3" fill="#fef08a" stroke="#ca8a04" stroke-width="1"/>
+  <text x="137" y="162" font-size="6.5" font-weight="900" font-family="sans-serif" fill="#854d0e" text-anchor="middle">CHIEF</text>
+</svg>
