@@ -73,13 +73,16 @@ public class DemoDataInitializer implements ApplicationRunner {
       } else {
         Account admin = adminOpt.get();
         if (!"ADMIN".equals(admin.getRole())) {
-          admin.setRole("ADMIN");
-          accounts.save(admin);
-        }
-        // Chỉ khởi tạo mật khẩu nếu admin chưa từng có mật khẩu (tuyệt đối không ghi đè nếu đã đổi)
-        if (admin.getPasswordHash() == null || admin.getPasswordHash().isBlank()) {
-          admin.setPasswordHash(passwordEncoder.encode(adminPassword));
-          accounts.save(admin);
+          log.warn(
+              "Tài khoản {} đã tồn tại với vai trò '{}' (không phải ADMIN). Bỏ qua khởi tạo để tránh nâng quyền trái phép.",
+              adminEmail,
+              admin.getRole());
+        } else {
+          // Chỉ khởi tạo mật khẩu nếu admin chưa từng có mật khẩu (tuyệt đối không ghi đè nếu đã đổi)
+          if (admin.getPasswordHash() == null || admin.getPasswordHash().isBlank()) {
+            admin.setPasswordHash(passwordEncoder.encode(adminPassword));
+            accounts.save(admin);
+          }
         }
       }
     }

@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.*;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -36,6 +38,9 @@ public class AuthService {
 
   @Value("${courtly.demo-mode:false}")
   private boolean demoMode;
+
+  @Value("${courtly.security.otp-secret:CourtlySecureHmacSecretKey2026!}")
+  private String otpSecret;
 
   private final java.util.concurrent.ConcurrentHashMap<String, long[]> failures =
       new java.util.concurrent.ConcurrentHashMap<>();
@@ -142,6 +147,16 @@ public class AuthService {
     }
   }
 
+  public String hashOtp(String code) {
+    try {
+      Mac mac = Mac.getInstance("HmacSHA256");
+      mac.init(new SecretKeySpec(otpSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+      return HexFormat.of().formatHex(mac.doFinal(code.getBytes(StandardCharsets.UTF_8)));
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to calculate HMAC-SHA-256 OTP hash", e);
+    }
+  }
+
   @Transactional
   public Map<String, Object> action(
       String action, Map<String, Object> b, HttpServletRequest req, HttpServletResponse res) {
@@ -171,7 +186,7 @@ public class AuthService {
                   "documentKey", otpKey,
                   "accountId", found.get().getId().toString(),
                   "email", found.get().getEmail(),
-                  "codeHash", hash(code),
+                  "codeHash", hashOtp(code),
                   "attempts", 0,
                   "used", false,
                   "expiresAt", Instant.now().plusSeconds(900).toString()));
@@ -228,7 +243,7 @@ public class AuthService {
                 "documentKey", otpKey,
                 "accountId", a.getId().toString(),
                 "email", a.getEmail(),
-                "codeHash", hash(code),
+                "codeHash", hashOtp(code),
                 "attempts", 0,
                 "used", false,
                 "expiresAt", Instant.now().plusSeconds(900).toString()));
@@ -264,7 +279,7 @@ public class AuthService {
               "documentKey", otpKey,
               "accountId", a.getId().toString(),
               "email", a.getEmail(),
-              "codeHash", hash(code),
+              "codeHash", hashOtp(code),
               "attempts", 0,
               "used", false,
               "expiresAt", Instant.now().plusSeconds(900).toString()));
@@ -292,7 +307,7 @@ public class AuthService {
                 "documentKey", key,
                 "accountId", a.getId().toString(),
                 "email", a.getEmail(),
-                "codeHash", hash(code),
+                "codeHash", hashOtp(code),
                 "attempts", 0,
                 "used", false,
                 "expiresAt", Instant.now().plusSeconds(900).toString()));
@@ -323,7 +338,9 @@ public class AuthService {
           if (attempts >= 5 || !Instant.parse((String) info.get("expiresAt")).isAfter(Instant.now())) {
             throw new BusinessException("Mã xác nhận đã hết hạn hoặc thử sai quá 5 lần. Vui lòng yêu cầu mã mới.");
           }
-          if (!hash(code).equals(info.get("codeHash"))) {
+          String storedHash = (String) info.get("codeHash");
+          boolean valid = hashOtp(code).equals(storedHash) || hash(code).equals(storedHash);
+          if (!valid) {
             info.put("attempts", attempts + 1);
             documents.save(row, info);
             throw new BusinessException("Mã xác nhận không đúng (còn " + (4 - attempts) + " lần thử).");
@@ -371,7 +388,9 @@ public class AuthService {
           if (attempts >= 5 || !Instant.parse((String) info.get("expiresAt")).isAfter(Instant.now())) {
             throw new BusinessException("Mã kích hoạt đã hết hạn hoặc thử sai quá 5 lần. Vui lòng yêu cầu mã mới.");
           }
-          if (!hash(token).equals(info.get("codeHash"))) {
+          String storedHash = (String) info.get("codeHash");
+          boolean valid = hashOtp(token).equals(storedHash) || hash(token).equals(storedHash);
+          if (!valid) {
             info.put("attempts", attempts + 1);
             documents.save(row, info);
             throw new BusinessException("Mã kích hoạt không đúng (còn " + (4 - attempts) + " lần thử).");

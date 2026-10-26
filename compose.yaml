@@ -30,6 +30,7 @@ services:
       SEPAY_WEBHOOK_KEY: ${SEPAY_WEBHOOK_KEY:-}
       SEED_DEMO: ${SEED_DEMO:-false}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      OTP_SECRET: ${OTP_SECRET:-CourtlySecureHmacSecretKey2026!}
       FRONTEND_ORIGIN: http://localhost:3000
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}

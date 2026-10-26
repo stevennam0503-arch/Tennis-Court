@@ -40,6 +40,8 @@ courtly:
   admin-email: ${ADMIN_EMAIL:admin@gmail.com}
   admin-password: ${ADMIN_PASSWORD:}
   seed-demo: ${SEED_DEMO:false}
+  security:
+    otp-secret: ${OTP_SECRET:CourtlySecureHmacSecretKey2026!}
   allowed-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
   mail:
     host: ${SMTP_HOST:}

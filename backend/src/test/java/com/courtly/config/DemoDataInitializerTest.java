@@ -165,4 +165,23 @@ class DemoDataInitializerTest {
     assertEquals("CUSTOMER", customerAccount.getRole());
     verify(accounts, never()).save(customerAccount);
   }
+
+  @Test
+  void doesNotElevateExistingCustomerToAdminWhenConfiguringAdminPassword() {
+    ReflectionTestUtils.setField(initializer, "adminPassword", "SecureClubAdmin2026!");
+    Account customerAccount = new Account();
+    customerAccount.setEmail("admin@gmail.com");
+    customerAccount.setRole("CUSTOMER");
+    customerAccount.setPasswordHash(null);
+
+    when(accounts.findByEmailIgnoreCase("admin@gmail.com")).thenReturn(Optional.of(customerAccount));
+    when(accounts.findAll()).thenReturn(List.of(customerAccount));
+
+    initializer.run(new DefaultApplicationArguments());
+
+    // Must NOT elevate existing non-admin account to ADMIN
+    assertEquals("CUSTOMER", customerAccount.getRole());
+    assertNull(customerAccount.getPasswordHash());
+    verify(accounts, never()).save(customerAccount);
+  }
 }

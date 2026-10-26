@@ -14,7 +14,7 @@ export async function runSmoke(base=process.env.COURTLY_API_URL||'http://localho
   }
  }
  const anon=new Client(),admin=new Client(),alice=new Client(),bob=new Client();
- const date=new Date(Date.now()+2*86400000).toISOString().slice(0,10),suffix=randomUUID().slice(0,8),password='CourtlyCustomer!2026';
+ const date=new Date(Date.now()+3*86400000).toISOString().slice(0,10),suffix=randomUUID().slice(0,8),password='CourtlyCustomer!2026';
  const emailA=`alice-${suffix}@example.com`,emailB=`bob-${suffix}@example.com`;
  assert.equal((await anon.call('/auth/session')).authenticated,false);
  const pub=await anon.call('/public/overview?date='+date);assert.equal(pub.accounts.length,0);assert.equal(pub.orders.length,0);assert(pub.courts.length>=2);results.push('Public overview does not expose private records');
@@ -23,14 +23,14 @@ export async function runSmoke(base=process.env.COURTLY_API_URL||'http://localho
  const sa=await alice.call('/auth/register','POST',{name:'Alice Test',email:emailA,password});const sb=await bob.call('/auth/register','POST',{name:'Bob Test',email:emailB,password});assert.equal(sa.user.role,'CUSTOMER');
  await alice.call('/catalog/courts','POST',{name:'Unauthorized'},403);results.push('Registration, cookie sessions, role enforcement');
  const raw=await admin.call('/overview?date='+date);assert(raw.viewer.role==='ADMIN');const c1=raw.courts.find(c=>c.status==='ACTIVE'),c2=raw.courts.find(c=>c.status==='ACTIVE'&&c.id!==c1.id),ref=raw.staff.find(s=>s.type==='REFEREE');
- await admin.call('/catalog/staff-schedules','POST',{staff:ref.id,date,start:6,end:23});
+ if(!raw.staffSchedules?.some(s=>s.staff===ref.id)) await admin.call('/catalog/staff-schedules','POST',{staff:ref.id,date,start:6,end:23});
  const slot=(c,h)=>raw.schedules.find(s=>s.court===c.id&&s.hour===h).id;
  const selected=[slot(c1,18),slot(c1,18.5)],assignment={scheduleId:selected[1],staffId:ref.id};
  const opt=await alice.call('/booking/options','POST',{scheduleIds:selected});assert(opt.staffSlots[1].staff.find(s=>s.id===ref.id).available);
  const payload={requestId:randomUUID(),scheduleIds:selected,assignments:[assignment]};const order=await alice.call('/orders','POST',payload);assert.equal((await alice.call('/orders','POST',payload)).id,order.id);assert.equal((await alice.call('/orders','POST',{assignments:payload.assignments,scheduleIds:payload.scheduleIds,requestId:payload.requestId})).id,order.id);
  await alice.call('/orders','POST',{...payload,scheduleIds:[slot(c1,20)]},400);
  let snapshot=await alice.call('/overview?date='+date),o=snapshot.orders.find(o=>o.id===order.id);assert.equal(o.staff.length,1);assert.equal(o.staff[0].scheduleId,selected[1]);assert.equal(o.staff[0].hours,0.5);assert.equal(snapshot.accounts.length,1);assert.equal(snapshot.staff.length,0);assert.equal(o.total,o.slots.reduce((n,s)=>n+s.price,0)+ref.rate/2);
- await bob.call(`/orders/${order.id}/cancel`,'POST',{},403);await alice.call(`/orders/${order.id}/services`,'GET',undefined,403);
+ await bob.call(`/orders/${order.id}/cancel`,'POST',{},403);await alice.call(`/orders/${order.id}/services`,'POST',{},403);
  const conflict=await bob.call('/orders','POST',{requestId:randomUUID(),scheduleIds:selected,assignments:[]},null);assert([400,409].includes(conflict.status));results.push('Continuous multi-slot booking, exact referee slot, idempotency, ownership, conflict');
  const receipt=await admin.call('/payments','POST',{orderId:order.id,amount:o.total,method:'CASH',transactionCode:'full-'+suffix});
  o=(await alice.call('/overview?date='+date)).orders.find(o=>o.id===order.id);assert.equal(o.status,'CONFIRMED');assert.equal(o.finance.paymentStatus,'PAID');
@@ -56,7 +56,7 @@ export async function runSmoke(base=process.env.COURTLY_API_URL||'http://localho
  const memberSlots=[slot(c1,20)];const memberQuote=await alice.call('/booking/options','POST',{scheduleIds:memberSlots});assert(memberQuote.courtQuote.discount>0);const mo=await alice.call('/orders','POST',{requestId:randomUUID(),scheduleIds:memberSlots,assignments:[]});const discounted=(await alice.call('/overview?date='+date)).orders.find(o=>o.id===mo.id);assert.equal(discounted.total,memberQuote.courtQuote.net);assert.equal(discounted.membershipBenefit.discount,memberQuote.courtQuote.discount);
  results.push('Membership registration, verified activation, exact-once receipt, private data and server discount');
  const tournament=await admin.call('/catalog/tournaments','POST',{name:'Test Singles '+suffix,format:'SINGLES',status:'OPEN',startDate:date,endDate:date,deadline:date,location:'Test Club',fee:0,max:2});
- await alice.call(`/tournaments/${tournament.id}/registrations`,'POST',{accountId:sb.user.accountId,name:'Forged',members:[]},400);
+ await alice.call(`/tournaments/${tournament.id}/registrations`,'POST',{accountId:sb.user.accountId,name:'Forged',members:[]},403);
  const regA=await alice.call(`/guest/tournaments/${tournament.id}/register`,'POST',{name:'Alice',phone:'0900000001',adult:true,rules:true,requestId:randomUUID()});await bob.call(`/guest/tournaments/${tournament.id}/register`,'POST',{name:'Bob',phone:'0900000002',adult:true,rules:true,requestId:randomUUID()});await alice.call(`/tournaments/${tournament.id}/draw`,'POST',{},403);await admin.call(`/tournaments/${tournament.id}/draw`,'POST',{});
  const tourView=await admin.call('/overview?date='+date);const match=tourView.matches.find(m=>m.tournamentId===tournament.id);await admin.call(`/matches/${match.id}/schedule`,'PUT',{scheduleIds:[slot(c2,12)],staffId:ref.id});await admin.call(`/matches/${match.id}/result`,'POST',{winnerId:regA.id,score:'6-4, 6-3'});assert.equal((await admin.call('/overview?date='+date)).tournaments.find(t=>t.id===tournament.id).status,'FINISHED');results.push('Tournament registration ownership, bracket, court/referee allocation and result progression');
  const contenders=await Promise.all([alice,bob].map(client=>client.call('/orders','POST',{requestId:randomUUID(),scheduleIds:[slot(c2,21)],assignments:[]},null)));assert.deepEqual(contenders.map(r=>r.status).sort(),[200,400]);results.push('Concurrent bookings commit exactly one allocation');

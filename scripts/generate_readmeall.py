@@ -253,15 +253,24 @@ Hệ thống sử dụng PostgreSQL 16 với 24 bảng dữ liệu nghiệp vụ
 
         # 8. TEST SUITE
         out.write("## 8. BỘ TEST TỰ ĐỘNG & KIỂM THỬ TÍCH HỢP\n\n")
-        test_files = [
-            "tests/multi-court.test.mjs",
-            "tests/booking-time.test.mjs",
-            "tests/pricing.test.mjs",
-            "tests/smoke-api.mjs"
-        ]
-        for tf in test_files:
-            if os.path.exists(tf):
-                out.write(f"### File: `{tf}`\n```javascript\n")
+
+        # 8.1 Backend Unit & Integration Tests (JUnit)
+        backend_tests = glob.glob("backend/src/test/java/**/*.java", recursive=True)
+        if backend_tests:
+            out.write("### 8.1 Backend JUnit Tests\n\n")
+            for tf in sorted(backend_tests):
+                rel_path = tf.replace('\\', '/')
+                out.write(f"#### File: `{rel_path}`\n```java\n")
+                out.write(read_file_safely(tf).strip())
+                out.write("\n```\n\n")
+
+        # 8.2 Node.js Integration & Regression Tests
+        node_tests = glob.glob("tests/*.mjs") + glob.glob("tests/*.js")
+        if node_tests:
+            out.write("### 8.2 Node.js Integration & Regression Tests\n\n")
+            for tf in sorted(set(node_tests)):
+                rel_path = tf.replace('\\', '/')
+                out.write(f"#### File: `{rel_path}`\n```javascript\n")
                 out.write(read_file_safely(tf).strip())
                 out.write("\n```\n\n")
 

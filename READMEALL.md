@@ -682,6 +682,8 @@ courtly:
   admin-email: ${ADMIN_EMAIL:admin@gmail.com}
   admin-password: ${ADMIN_PASSWORD:}
   seed-demo: ${SEED_DEMO:false}
+  security:
+    otp-secret: ${OTP_SECRET:CourtlySecureHmacSecretKey2026!}
   allowed-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
   mail:
     host: ${SMTP_HOST:}
@@ -757,6 +759,7 @@ services:
       SEPAY_WEBHOOK_KEY: ${SEPAY_WEBHOOK_KEY:-}
       SEED_DEMO: ${SEED_DEMO:-false}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      OTP_SECRET: ${OTP_SECRET:-CourtlySecureHmacSecretKey2026!}
       FRONTEND_ORIGIN: http://localhost:3000
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -1411,6 +1414,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.*;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -1437,6 +1442,9 @@ public class AuthService {
 
   @Value("${courtly.demo-mode:false}")
   private boolean demoMode;
+
+  @Value("${courtly.security.otp-secret:CourtlySecureHmacSecretKey2026!}")
+  private String otpSecret;
 
   private final java.util.concurrent.ConcurrentHashMap<String, long[]> failures =
       new java.util.concurrent.ConcurrentHashMap<>();
@@ -1543,6 +1551,16 @@ public class AuthService {
     }
   }
 
+  public String hashOtp(String code) {
+    try {
+      Mac mac = Mac.getInstance("HmacSHA256");
+      mac.init(new SecretKeySpec(otpSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+      return HexFormat.of().formatHex(mac.doFinal(code.getBytes(StandardCharsets.UTF_8)));
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to calculate HMAC-SHA-256 OTP hash", e);
+    }
+  }
+
   @Transactional
   public Map<String, Object> action(
       String action, Map<String, Object> b, HttpServletRequest req, HttpServletResponse res) {
@@ -1572,7 +1590,7 @@ public class AuthService {
                   "documentKey", otpKey,
                   "accountId", found.get().getId().toString(),
                   "email", found.get().getEmail(),
-                  "codeHash", hash(code),
+                  "codeHash", hashOtp(code),
                   "attempts", 0,
                   "used", false,
                   "expiresAt", Instant.now().plusSeconds(900).toString()));
@@ -1629,7 +1647,7 @@ public class AuthService {
                 "documentKey", otpKey,
                 "accountId", a.getId().toString(),
                 "email", a.getEmail(),
-                "codeHash", hash(code),
+                "codeHash", hashOtp(code),
                 "attempts", 0,
                 "used", false,
                 "expiresAt", Instant.now().plusSeconds(900).toString()));
@@ -1665,7 +1683,7 @@ public class AuthService {
               "documentKey", otpKey,
               "accountId", a.getId().toString(),
               "email", a.getEmail(),
-              "codeHash", hash(code),
+              "codeHash", hashOtp(code),
               "attempts", 0,
               "used", false,
               "expiresAt", Instant.now().plusSeconds(900).toString()));
@@ -1693,7 +1711,7 @@ public class AuthService {
                 "documentKey", key,
                 "accountId", a.getId().toString(),
                 "email", a.getEmail(),
-                "codeHash", hash(code),
+                "codeHash", hashOtp(code),
                 "attempts", 0,
                 "used", false,
                 "expiresAt", Instant.now().plusSeconds(900).toString()));
@@ -1724,7 +1742,9 @@ public class AuthService {
           if (attempts >= 5 || !Instant.parse((String) info.get("expiresAt")).isAfter(Instant.now())) {
             throw new BusinessException("Mã xác nhận đã hết hạn hoặc thử sai quá 5 lần. Vui lòng yêu cầu mã mới.");
           }
-          if (!hash(code).equals(info.get("codeHash"))) {
+          String storedHash = (String) info.get("codeHash");
+          boolean valid = hashOtp(code).equals(storedHash) || hash(code).equals(storedHash);
+          if (!valid) {
             info.put("attempts", attempts + 1);
             documents.save(row, info);
             throw new BusinessException("Mã xác nhận không đúng (còn " + (4 - attempts) + " lần thử).");
@@ -1772,7 +1792,9 @@ public class AuthService {
           if (attempts >= 5 || !Instant.parse((String) info.get("expiresAt")).isAfter(Instant.now())) {
             throw new BusinessException("Mã kích hoạt đã hết hạn hoặc thử sai quá 5 lần. Vui lòng yêu cầu mã mới.");
           }
-          if (!hash(token).equals(info.get("codeHash"))) {
+          String storedHash = (String) info.get("codeHash");
+          boolean valid = hashOtp(token).equals(storedHash) || hash(token).equals(storedHash);
+          if (!valid) {
             info.put("attempts", attempts + 1);
             documents.save(row, info);
             throw new BusinessException("Mã kích hoạt không đúng (còn " + (4 - attempts) + " lần thử).");
@@ -7781,17 +7803,7 @@ public class ApiAccessInterceptor implements HandlerInterceptor {
         || p.equals("/api/csrf") || p.equals("/api/webhooks/sepay")) return true;
     var a = auth.current(req);
     req.setAttribute("actor", a);
-    boolean admin = "ADMIN".equals(a.getRole());
     boolean staffOrAdmin = Set.of("ADMIN", "STAFF").contains(a.getRole());
-    boolean cashDesk = (p.equals("/api/payments") && req.getMethod().equals("POST"))
-        || (p.equals("/api/payments/cash-desk") && req.getMethod().equals("GET"));
-    if (cashDesk) auth.cashier(a);
-    if (p.startsWith("/api/catalog/")
-        || p.startsWith("/api/payments") && !cashDesk
-        || p.equals("/api/settings")
-        || p.startsWith("/api/matches/")
-        || p.matches("/api/tournaments/[^/]+/draw")
-        || p.startsWith("/api/content")) auth.admin(a);
     if (!staffOrAdmin && p.matches("/api/orders/[^/]+.*")) {
       String[] parts = p.split("/");
       UUID orderId;
@@ -7893,13 +7905,16 @@ public class DemoDataInitializer implements ApplicationRunner {
       } else {
         Account admin = adminOpt.get();
         if (!"ADMIN".equals(admin.getRole())) {
-          admin.setRole("ADMIN");
-          accounts.save(admin);
-        }
-        // Chỉ khởi tạo mật khẩu nếu admin chưa từng có mật khẩu (tuyệt đối không ghi đè nếu đã đổi)
-        if (admin.getPasswordHash() == null || admin.getPasswordHash().isBlank()) {
-          admin.setPasswordHash(passwordEncoder.encode(adminPassword));
-          accounts.save(admin);
+          log.warn(
+              "Tài khoản {} đã tồn tại với vai trò '{}' (không phải ADMIN). Bỏ qua khởi tạo để tránh nâng quyền trái phép.",
+              adminEmail,
+              admin.getRole());
+        } else {
+          // Chỉ khởi tạo mật khẩu nếu admin chưa từng có mật khẩu (tuyệt đối không ghi đè nếu đã đổi)
+          if (admin.getPasswordHash() == null || admin.getPasswordHash().isBlank()) {
+            admin.setPasswordHash(passwordEncoder.encode(adminPassword));
+            accounts.save(admin);
+          }
         }
       }
     }
@@ -7979,6 +7994,89 @@ public class DemoDataInitializer implements ApplicationRunner {
     t.setRegistrationFee(BigDecimal.valueOf(300000));
     t.setMaxParticipants(16);
     tournaments.save(t);
+  }
+}
+```
+
+#### File: `backend/src/main/java/com/courtly/config/ProductionSecurityValidator.java`
+```java
+package com.courtly.config;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
+import org.springframework.stereotype.Component;
+
+/**
+ * Fail-fast security invariant validator for production environments.
+ * Prevents the application from starting if insecure default credentials,
+ * unencrypted cookies, demo modes, or placeholder secrets are configured.
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class ProductionSecurityValidator implements ApplicationRunner {
+
+  private final Environment environment;
+
+  @Override
+  public void run(ApplicationArguments args) {
+    if (!environment.acceptsProfiles(Profiles.of("prod", "production"))) {
+      log.debug("Non-production profile active. Skipping strict production security validation.");
+      return;
+    }
+
+    log.info("Validating production security invariants...");
+
+    String dbPassword = environment.getProperty("spring.datasource.password", "");
+    if (dbPassword.isBlank() || "courtly_local".equalsIgnoreCase(dbPassword)) {
+      throw new IllegalStateException(
+          "FATAL: Insecure default database password ('courtly_local') detected in production profile! "
+              + "Please configure a secure DB_PASSWORD via environment variables.");
+    }
+
+    boolean cookieSecure = Boolean.parseBoolean(
+        environment.getProperty("server.servlet.session.cookie.secure", "false"));
+    if (!cookieSecure) {
+      throw new IllegalStateException(
+          "FATAL: server.servlet.session.cookie.secure must be true in production profile! "
+              + "Please set COOKIE_SECURE=true.");
+    }
+
+    boolean demoMode = Boolean.parseBoolean(
+        environment.getProperty("courtly.demo-mode", "false"));
+    if (demoMode) {
+      throw new IllegalStateException(
+          "FATAL: courtly.demo-mode must be false in production profile! "
+              + "Please set DEMO_MODE=false.");
+    }
+
+    boolean seedDemo = Boolean.parseBoolean(
+        environment.getProperty("courtly.seed-demo", "false"));
+    if (seedDemo) {
+      throw new IllegalStateException(
+          "FATAL: courtly.seed-demo must be false in production profile! "
+              + "Please set SEED_DEMO=false.");
+    }
+
+    String otpSecret = environment.getProperty("courtly.security.otp-secret", "");
+    if (otpSecret.isBlank() || "CourtlySecureHmacSecretKey2026!".equals(otpSecret)) {
+      throw new IllegalStateException(
+          "FATAL: Insecure default or blank courtly.security.otp-secret detected in production profile! "
+              + "Please configure a cryptographically random OTP_SECRET.");
+    }
+
+    String adminPassword = environment.getProperty("courtly.admin-password", "");
+    if (adminPassword.isBlank() || "12345".equals(adminPassword)) {
+      throw new IllegalStateException(
+          "FATAL: ADMIN_PASSWORD is missing or set to default '12345' in production profile! "
+              + "Please configure a strong ADMIN_PASSWORD.");
+    }
+
+    log.info("All production security invariants validated successfully.");
   }
 }
 ```
@@ -12582,7 +12680,1133 @@ export default function TournamentsPage(){
 
 ## 8. BỘ TEST TỰ ĐỘNG & KIỂM THỬ TÍCH HỢP
 
-### File: `tests/multi-court.test.mjs`
+### 8.1 Backend JUnit Tests
+
+#### File: `backend/src/test/java/com/courtly/config/DemoDataInitializerTest.java`
+```java
+package com.courtly.config;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import com.courtly.entity.Account;
+import com.courtly.exception.BusinessException;
+import com.courtly.repository.*;
+import com.courtly.service.SettingsService;
+import java.util.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.DefaultApplicationArguments;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
+
+class DemoDataInitializerTest {
+  private CourtRepository courts;
+  private AccountRepository accounts;
+  private StaffRepository staff;
+  private TournamentRepository tournaments;
+  private SettingsService settings;
+  private PasswordEncoder encoder;
+  private DemoDataInitializer initializer;
+
+  @BeforeEach
+  void setUp() {
+    courts = mock(CourtRepository.class);
+    accounts = mock(AccountRepository.class);
+    staff = mock(StaffRepository.class);
+    tournaments = mock(TournamentRepository.class);
+    settings = mock(SettingsService.class);
+    encoder = new BCryptPasswordEncoder();
+
+    initializer = new DemoDataInitializer(courts, accounts, staff, tournaments, settings, encoder);
+    ReflectionTestUtils.setField(initializer, "adminEmail", "admin@gmail.com");
+    ReflectionTestUtils.setField(initializer, "adminPassword", "");
+    ReflectionTestUtils.setField(initializer, "enabled", false);
+  }
+
+  @Test
+  void productionModeDoesNotCreateAdminWithoutPassword() {
+    ReflectionTestUtils.setField(initializer, "enabled", false);
+    ReflectionTestUtils.setField(initializer, "adminPassword", "");
+    when(accounts.findByEmailIgnoreCase("admin@gmail.com")).thenReturn(Optional.empty());
+    when(accounts.findAll()).thenReturn(List.of());
+
+    initializer.run(new DefaultApplicationArguments());
+
+    // Never save admin with a guessed password when ADMIN_PASSWORD is blank in production
+    verify(accounts, never()).save(argThat(a -> "ADMIN".equals(a.getRole())));
+  }
+
+  @Test
+  void productionModeDoesNotCreateStaffSampleAccount() {
+    ReflectionTestUtils.setField(initializer, "enabled", false);
+    when(accounts.findByEmailIgnoreCase("staff@gmail.com")).thenReturn(Optional.empty());
+    when(accounts.findAll()).thenReturn(List.of());
+
+    initializer.run(new DefaultApplicationArguments());
+
+    // In production (enabled == false), staff@gmail.com must never be created
+    verify(accounts, never()).save(argThat(a -> "staff@gmail.com".equals(a.getEmail())));
+  }
+
+  @Test
+  void adminPasswordRequiresMinimum10Characters() {
+    ReflectionTestUtils.setField(initializer, "adminPassword", "Short1!"); // < 10 chars
+    when(accounts.findByEmailIgnoreCase("admin@gmail.com")).thenReturn(Optional.empty());
+
+    assertThrows(BusinessException.class, () -> initializer.run(new DefaultApplicationArguments()));
+  }
+
+  @Test
+  void adminCreatedWithSecurePasswordWhenConfigured() {
+    ReflectionTestUtils.setField(initializer, "adminPassword", "SecureClubAdmin2026!");
+    when(accounts.findByEmailIgnoreCase("admin@gmail.com")).thenReturn(Optional.empty());
+    when(accounts.findAll()).thenReturn(List.of());
+
+    initializer.run(new DefaultApplicationArguments());
+
+    verify(accounts).save(argThat(a ->
+        "ADMIN".equals(a.getRole()) && encoder.matches("SecureClubAdmin2026!", a.getPasswordHash())));
+  }
+
+  @Test
+  void doesNotOverwriteExistingPasswordOnRestart() {
+    Account existingAdmin = new Account();
+    existingAdmin.setEmail("admin@gmail.com");
+    existingAdmin.setRole("ADMIN");
+    String changedPasswordHash = encoder.encode("CustomSecretPass2026!");
+    existingAdmin.setPasswordHash(changedPasswordHash);
+
+    Account existingStaff = new Account();
+    existingStaff.setEmail("staff@gmail.com");
+    existingStaff.setRole("STAFF");
+    String staffChangedPasswordHash = encoder.encode("StaffChangedPass2026!");
+    existingStaff.setPasswordHash(staffChangedPasswordHash);
+
+    when(accounts.findByEmailIgnoreCase("admin@gmail.com")).thenReturn(Optional.of(existingAdmin));
+    when(accounts.findByEmailIgnoreCase("staff@gmail.com")).thenReturn(Optional.of(existingStaff));
+    when(accounts.findAll()).thenReturn(List.of(existingAdmin, existingStaff));
+
+    initializer.run(new DefaultApplicationArguments());
+
+    // Password hashes must NOT be modified or reset to 12345
+    assertEquals(changedPasswordHash, existingAdmin.getPasswordHash());
+    assertTrue(encoder.matches("CustomSecretPass2026!", existingAdmin.getPasswordHash()));
+    assertFalse(encoder.matches("12345", existingAdmin.getPasswordHash()));
+
+    assertEquals(staffChangedPasswordHash, existingStaff.getPasswordHash());
+    assertTrue(encoder.matches("StaffChangedPass2026!", existingStaff.getPasswordHash()));
+    assertFalse(encoder.matches("12345", existingStaff.getPasswordHash()));
+  }
+
+  @Test
+  void devModeInitializesPasswordWhenEnabled() {
+    ReflectionTestUtils.setField(initializer, "enabled", true);
+    when(accounts.findByEmailIgnoreCase("admin@gmail.com")).thenReturn(Optional.empty());
+    when(accounts.findByEmailIgnoreCase("staff@gmail.com")).thenReturn(Optional.empty());
+    when(accounts.findAll()).thenReturn(List.of());
+
+    initializer.run(new DefaultApplicationArguments());
+
+    verify(accounts).save(argThat(a ->
+        "ADMIN".equals(a.getRole()) && encoder.matches("12345", a.getPasswordHash())));
+    verify(accounts).save(argThat(a ->
+        "STAFF".equals(a.getRole()) && encoder.matches("12345", a.getPasswordHash())));
+  }
+
+  @Test
+  void doesNotDemoteExistingAdminIfAdminEmailNotCreated() {
+    ReflectionTestUtils.setField(initializer, "enabled", false);
+    ReflectionTestUtils.setField(initializer, "adminEmail", "newowner@courtly.vn");
+    ReflectionTestUtils.setField(initializer, "adminPassword", ""); // blank, so newowner not created
+
+    Account oldAdmin = new Account();
+    oldAdmin.setEmail("oldadmin@courtly.vn");
+    oldAdmin.setRole("ADMIN");
+
+    when(accounts.findByEmailIgnoreCase("newowner@courtly.vn")).thenReturn(Optional.empty());
+    when(accounts.findAll()).thenReturn(List.of(oldAdmin));
+
+    initializer.run(new DefaultApplicationArguments());
+
+    // oldAdmin must NOT be demoted to STAFF because newowner does not exist
+    assertEquals("ADMIN", oldAdmin.getRole());
+  }
+
+  @Test
+  void doesNotElevateExistingAccountIfAlreadyCustomer() {
+    ReflectionTestUtils.setField(initializer, "enabled", true);
+    Account customerAccount = new Account();
+    customerAccount.setEmail("staff@gmail.com");
+    customerAccount.setRole("CUSTOMER");
+
+    when(accounts.findByEmailIgnoreCase("admin@gmail.com")).thenReturn(Optional.empty());
+    when(accounts.findByEmailIgnoreCase("staff@gmail.com")).thenReturn(Optional.of(customerAccount));
+    when(accounts.findAll()).thenReturn(List.of());
+
+    initializer.run(new DefaultApplicationArguments());
+
+    // Must NOT elevate existing customer to STAFF
+    assertEquals("CUSTOMER", customerAccount.getRole());
+    verify(accounts, never()).save(customerAccount);
+  }
+
+  @Test
+  void doesNotElevateExistingCustomerToAdminWhenConfiguringAdminPassword() {
+    ReflectionTestUtils.setField(initializer, "adminPassword", "SecureClubAdmin2026!");
+    Account customerAccount = new Account();
+    customerAccount.setEmail("admin@gmail.com");
+    customerAccount.setRole("CUSTOMER");
+    customerAccount.setPasswordHash(null);
+
+    when(accounts.findByEmailIgnoreCase("admin@gmail.com")).thenReturn(Optional.of(customerAccount));
+    when(accounts.findAll()).thenReturn(List.of(customerAccount));
+
+    initializer.run(new DefaultApplicationArguments());
+
+    // Must NOT elevate existing non-admin account to ADMIN
+    assertEquals("CUSTOMER", customerAccount.getRole());
+    assertNull(customerAccount.getPasswordHash());
+    verify(accounts, never()).save(customerAccount);
+  }
+}
+```
+
+#### File: `backend/src/test/java/com/courtly/config/ProductionSecurityValidatorTest.java`
+```java
+package com.courtly.config;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.DefaultApplicationArguments;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
+
+class ProductionSecurityValidatorTest {
+  private Environment environment;
+  private ProductionSecurityValidator validator;
+
+  @BeforeEach
+  void setUp() {
+    environment = mock(Environment.class);
+    validator = new ProductionSecurityValidator(environment);
+  }
+
+  @Test
+  void nonProdProfileDoesNotEnforceProductionInvariants() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(false);
+
+    // Should not throw even with default/insecure environment values
+    assertDoesNotThrow(() -> validator.run(new DefaultApplicationArguments()));
+  }
+
+  @Test
+  void prodProfileRejectsDefaultDatabasePassword() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
+    when(environment.getProperty("spring.datasource.password", "")).thenReturn("courtly_local");
+
+    IllegalStateException ex =
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments()));
+    assertTrue(ex.getMessage().contains("Insecure default database password"));
+  }
+
+  @Test
+  void prodProfileRejectsInsecureCookieSetting() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
+    when(environment.getProperty("spring.datasource.password", "")).thenReturn("SecureProdDbPass123!");
+    when(environment.getProperty("server.servlet.session.cookie.secure", "false")).thenReturn("false");
+
+    IllegalStateException ex =
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments()));
+    assertTrue(ex.getMessage().contains("cookie.secure must be true"));
+  }
+
+  @Test
+  void prodProfileRejectsDemoMode() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
+    when(environment.getProperty("spring.datasource.password", "")).thenReturn("SecureProdDbPass123!");
+    when(environment.getProperty("server.servlet.session.cookie.secure", "false")).thenReturn("true");
+    when(environment.getProperty("courtly.demo-mode", "false")).thenReturn("true");
+
+    IllegalStateException ex =
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments()));
+    assertTrue(ex.getMessage().contains("courtly.demo-mode must be false"));
+  }
+
+  @Test
+  void prodProfileRejectsDefaultOtpSecret() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
+    when(environment.getProperty("spring.datasource.password", "")).thenReturn("SecureProdDbPass123!");
+    when(environment.getProperty("server.servlet.session.cookie.secure", "false")).thenReturn("true");
+    when(environment.getProperty("courtly.demo-mode", "false")).thenReturn("false");
+    when(environment.getProperty("courtly.seed-demo", "false")).thenReturn("false");
+    when(environment.getProperty("courtly.security.otp-secret", "")).thenReturn("CourtlySecureHmacSecretKey2026!");
+
+    IllegalStateException ex =
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments()));
+    assertTrue(ex.getMessage().contains("courtly.security.otp-secret"));
+  }
+
+  @Test
+  void prodProfileAcceptsFullySecuredConfiguration() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
+    when(environment.getProperty("spring.datasource.password", "")).thenReturn("SecureProdDbPass123!");
+    when(environment.getProperty("server.servlet.session.cookie.secure", "false")).thenReturn("true");
+    when(environment.getProperty("courtly.demo-mode", "false")).thenReturn("false");
+    when(environment.getProperty("courtly.seed-demo", "false")).thenReturn("false");
+    when(environment.getProperty("courtly.security.otp-secret", "")).thenReturn("SuperSecretCryptoRandomKey987654321");
+    when(environment.getProperty("courtly.admin-password", "")).thenReturn("AdminStrongPassword2026!");
+
+    assertDoesNotThrow(() -> validator.run(new DefaultApplicationArguments()));
+  }
+}
+```
+
+#### File: `backend/src/test/java/com/courtly/service/OrderTotalsServiceTest.java`
+```java
+package com.courtly.service;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import com.courtly.entity.OrderProduct;
+import java.math.BigDecimal;
+import java.time.Instant;
+import org.junit.jupiter.api.Test;
+
+class OrderTotalsServiceTest {
+  private final OrderTotalsService service = new OrderTotalsService(null, null, null, null);
+
+  @Test
+  void rentalUsesPriceSnapshotQuantityAndDuration() {
+    OrderProduct p = new OrderProduct();
+    p.setItemType("RENTAL");
+    p.setQuantity(2);
+    p.setUnitPrice(new BigDecimal("50000"));
+    p.setRentStartAt(Instant.parse("2026-10-08T01:00:00Z"));
+    p.setRentEndAt(Instant.parse("2026-10-08T03:00:00Z"));
+    assertEquals(new BigDecimal("200000.00"), service.productTotal(p));
+  }
+
+  @Test
+  void drinksAreNotChargedByRentalDuration() {
+    OrderProduct p = new OrderProduct();
+    p.setItemType("DRINK");
+    p.setQuantity(3);
+    p.setUnitPrice(new BigDecimal("15000"));
+    assertEquals(new BigDecimal("45000.00"), service.productTotal(p));
+  }
+}
+```
+
+#### File: `backend/src/test/java/com/courtly/service/PaymentServiceTest.java`
+```java
+package com.courtly.service;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import com.courtly.dto.request.*;
+import com.courtly.entity.*;
+import com.courtly.exception.BusinessException;
+import com.courtly.repository.*;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.*;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.*;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+class PaymentServiceTest {
+  @Mock PaymentRepository payments;
+  @Mock RefundRepository refunds;
+  @Mock CustomerOrderRepository orders;
+  @Mock TournamentRegistrationRepository registrations;
+  @Mock TournamentMatchRepository matches;
+  @Mock BookingRepository bookings;
+  @Mock BookingSlotRepository slots;
+  @Mock OrderTotalsService totals;
+  @Mock AuditService audit;
+  @InjectMocks PaymentService service;
+
+  private CustomerOrder order() {
+    CustomerOrder o = new CustomerOrder();
+    o.setId(UUID.randomUUID());
+    o.setTotalAmount(new BigDecimal("400000"));
+    o.setDepositRequired(new BigDecimal("200000"));
+    o.setPaidAmount(BigDecimal.ZERO);
+    o.setHoldExpiresAt(Instant.now().plusSeconds(600));
+    return o;
+  }
+
+  @Test
+  void rejectsOverpaymentBeforePersisting() {
+    CustomerOrder o = order();
+    when(orders.findForUpdate(o.getId())).thenReturn(Optional.of(o));
+    var request =
+        new PaymentRequest(o.getId(), null, new BigDecimal("400001"), "CASH", "test-overpay");
+    assertThrows(BusinessException.class, () -> service.collect(request));
+    verify(payments, never()).save(any());
+    assertEquals(BigDecimal.ZERO, o.getPaidAmount());
+  }
+
+  @Test
+  void enoughDepositConfirmsBookingAndMarksSlotsBooked() {
+    CustomerOrder o = order();
+    Booking b = new Booking();
+    b.setId(UUID.randomUUID());
+    b.setOrder(o);
+    CourtSchedule schedule = new CourtSchedule();
+    schedule.setStatus("LOCKED");
+    BookingSlot slot = new BookingSlot();
+    slot.setSchedule(schedule);
+    when(orders.findForUpdate(o.getId())).thenReturn(Optional.of(o));
+    when(bookings.findByOrderId(o.getId())).thenReturn(List.of(b));
+    when(slots.findByBookingId(b.getId())).thenReturn(List.of(slot));
+    when(payments.save(any()))
+        .thenAnswer(
+            call -> {
+              Payment p = call.getArgument(0);
+              p.setId(UUID.randomUUID());
+              return p;
+            });
+    service.collect(
+        new PaymentRequest(o.getId(), null, new BigDecimal("200000"), "CASH", "test-deposit"));
+    assertEquals("CONFIRMED", o.getStatus());
+    assertEquals("CONFIRMED", b.getStatus());
+    assertEquals("BOOKED", schedule.getStatus());
+    assertEquals(0, o.getPaidAmount().compareTo(new BigDecimal("200000")));
+  }
+
+  @Test
+  void expiredHoldCannotBePaid() {
+    CustomerOrder o = order();
+    o.setHoldExpiresAt(Instant.now().minusSeconds(1));
+    when(orders.findForUpdate(o.getId())).thenReturn(Optional.of(o));
+    assertThrows(
+        BusinessException.class,
+        () ->
+            service.collect(
+                new PaymentRequest(o.getId(), null, new BigDecimal("100"), "CASH", "expired")));
+    verify(payments, never()).save(any());
+  }
+
+  @Test
+  void sameTransactionCodeCannotPayAnotherOrder() {
+    Payment p = new Payment();
+    p.setId(UUID.randomUUID());
+    p.setOrder(order());
+    p.setAmount(new BigDecimal("100"));
+    p.setMethod("CASH");
+    when(payments.findByTransactionCode("duplicate")).thenReturn(Optional.of(p));
+    assertThrows(
+        BusinessException.class,
+        () ->
+            service.collect(
+                new PaymentRequest(
+                    UUID.randomUUID(), null, new BigDecimal("100"), "CASH", "duplicate")));
+    verify(orders, never()).findForUpdate(any());
+  }
+
+  @Test
+  void refundCannotExceedRemainingReceipt() {
+    CustomerOrder o = order();
+    o.setStatus("CONFIRMED");
+    o.setPaidAmount(new BigDecimal("100"));
+    Payment p = new Payment();
+    p.setId(UUID.randomUUID());
+    p.setOrder(o);
+    p.setAmount(new BigDecimal("200"));
+    Refund prior = new Refund();
+    prior.setAmount(new BigDecimal("100"));
+    when(payments.findById(p.getId())).thenReturn(Optional.of(p));
+    when(payments.findForUpdate(p.getId())).thenReturn(Optional.of(p));
+    when(orders.findForUpdate(o.getId())).thenReturn(Optional.of(o));
+    when(refunds.findByPaymentId(p.getId())).thenReturn(List.of(prior));
+    assertThrows(
+        BusinessException.class,
+        () -> service.refund(p.getId(), new RefundRequest(new BigDecimal("101"), "test")));
+    verify(refunds, never()).save(any());
+    assertEquals(new BigDecimal("100"), o.getPaidAmount());
+  }
+}
+```
+
+#### File: `backend/src/test/java/com/courtly/service/ScheduleServiceTest.java`
+```java
+package com.courtly.service;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import com.courtly.entity.*;
+import com.courtly.exception.BusinessException;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
+class ScheduleServiceTest {
+  private final ScheduleService service = new ScheduleService(null, null, null, null);
+
+  @Test
+  void matchOccupancyBlocksCustomerBooking() {
+    Court c = new Court();
+    c.setStatus("ACTIVE");
+    CourtSchedule s = new CourtSchedule();
+    s.setCourt(c);
+    s.setStatus("IN_MATCH");
+    assertThrows(BusinessException.class, () -> service.requireAvailable(List.of(s)));
+  }
+
+  @Test
+  void maintenanceBlocksEvenAnAvailableSlot() {
+    Court c = new Court();
+    c.setStatus("MAINTENANCE");
+    CourtSchedule s = new CourtSchedule();
+    s.setCourt(c);
+    s.setStatus("AVAILABLE");
+    assertThrows(BusinessException.class, () -> service.requireAvailable(List.of(s)));
+  }
+}
+```
+
+#### File: `backend/src/test/java/com/courtly/service/TransferSecurityTest.java`
+```java
+package com.courtly.service;
+
+import static org.junit.jupiter.api.Assertions.*;
+import com.courtly.entity.Account;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.server.ResponseStatusException;
+
+class TransferSecurityTest {
+  private TransferService service() {
+    return new TransferService(null, null, null, null, null, null, null);
+  }
+
+  @Test
+  void missingWebhookKeyCannotAcceptBankEvents() {
+    var service = service();
+    ReflectionTestUtils.setField(service, "mode", "LIVE");
+    ReflectionTestUtils.setField(service, "webhookKey", "");
+    assertEquals(503, assertThrows(ResponseStatusException.class,
+        () -> service.webhook(null, Map.of())).getStatusCode().value());
+  }
+
+  @Test
+  void unconfiguredBankDoesNotExposeInventedAccount() {
+    var config = service().config();
+    assertEquals(false, config.get("bankConfigured"));
+    assertEquals("", config.get("accountNumber"));
+  }
+
+  @Test
+  void directConfirmationCannotCreditCustomerOrAdministrator() {
+    var service = service();
+    for (var role : new String[]{"CUSTOMER", "STAFF", "ADMIN"}) {
+      var actor = new Account(); actor.setRole(role);
+      assertEquals(403, assertThrows(ResponseStatusException.class,
+          () -> service.confirm(actor, "any-intent")).getStatusCode().value());
+    }
+    assertEquals(403, assertThrows(ResponseStatusException.class,
+        () -> service.adminConfirm("any-intent")).getStatusCode().value());
+  }
+}
+```
+
+### 8.2 Node.js Integration & Regression Tests
+
+#### File: `tests/booking-time.test.mjs`
+```javascript
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {canEndAt, timePoints, rangeSlots, clock} from '../frontend/src/guest/bookingTime.mjs';
+const rows=[['18:00','18:30','AVAILABLE'],['18:30','19:00','AVAILABLE'],['19:00','19:30','AVAILABLE'],['19:30','20:00','BOOKED'],['20:00','20:30','AVAILABLE'],['22:30','23:00','AVAILABLE']].map(([start,end,status])=>({start,end,status}));
+const available=s=>s.status==='AVAILABLE';
+test('first click has no completed range; second click uses its exact boundary',()=>{
+ assert.equal(canEndAt(rows,null,1080,available),false);
+ assert.equal(canEndAt(rows,1080,1080,available),false);
+ assert.equal(canEndAt(rows,1080,1170,available),true);
+ assert.equal(rangeSlots(rows,1080,1170).length,3);
+});
+test('30-minute minimum, reverse range rejected',()=>{
+ assert.equal(canEndAt(rows,1080,1110,available),true);
+ assert.equal(canEndAt(rows,1110,1080,available),false);
+});
+test('can end exactly when a booked slot begins, cannot cross it',()=>{
+ assert.equal(canEndAt(rows,1080,1170,available),true);
+ assert.equal(canEndAt(rows,1080,1200,available),false);
+ assert.equal(canEndAt(rows,1080,1230,available),false);
+});
+test('missing schedule intervals cannot be bridged',()=>assert.equal(canEndAt(rows,1200,1380,available),false));
+test('closing time is available as an end boundary',()=>{
+ assert.equal(canEndAt(rows,1350,1380,available),true);
+ assert.equal(timePoints(rows).at(-1),1380);
+ assert.equal(clock(1380),'23:00');
+});
+test('existing hourly bookings retain their real boundaries',()=>{
+ const legacy=[{start:'06:00:00',end:'07:00:00',status:'AVAILABLE'}];
+ assert.equal(canEndAt(legacy,360,420,available),true);
+ assert.equal(canEndAt(legacy,360,390,available),false);
+ assert.deepEqual(timePoints(legacy),[360,420]);
+});
+test('a refreshed unavailable slot invalidates the previously selected range',()=>{
+ const updated=rows.map(s=>s.start==='18:30'?{...s,status:'LOCKED'}:s);
+ assert.equal(canEndAt(updated,1080,1170,available),false);
+});
+```
+
+#### File: `tests/booking-ux-browser.mjs`
+```javascript
+import assert from 'node:assert/strict';
+import {mkdir} from 'node:fs/promises';
+import {chromium} from '../frontend/node_modules/playwright-core/index.mjs';
+
+// Reads the demo fixtures only; never creates bookings or payments.
+const output = process.env.COURTLY_SCREENSHOTS || '/tmp/courtly-booking-ux';
+await mkdir(output, {recursive:true});
+const base = process.env.COURTLY_WEB_URL || 'http://127.0.0.1:5175';
+const browser = await chromium.launch({executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless:true, args:['--no-sandbox']});
+try {
+  const page = await browser.newPage({viewport:{width:1440,height:1000}});
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto(base + '/dat-san');
+  await page.locator('[data-court-id="A01"]').waitFor();
+  const day = offset => new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+offset*86400000));
+  const changeDate = async value => {
+    const loaded = page.waitForResponse(r => r.url().includes('/overview?date='+value) && r.ok());
+    await page.getByLabel('Ngày chơi', {exact:true}).fill(value);
+    await loaded;
+    await page.locator('[data-time="09:00"]').waitFor();
+  };
+  const point = value => page.locator(`[data-time="${value}"]`);
+  const empty = '— — : — —';
+  await changeDate(day(4));
+  await page.locator('[data-court-id="A01"]').click();
+  assert.equal(await point('10:00').isDisabled(), true, 'Fixture has a booked 10:00–11:00 interval');
+  await point('09:00').focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('[data-range-start]').innerText(), '09:00');
+  assert.equal(await page.locator('[data-range-end]').innerText(), empty);
+  assert.equal(await page.locator('.gx-quote .ct-primary').isDisabled(), true);
+  assert.equal(await point('10:00').isEnabled(), true, 'Can finish where another booking starts');
+  assert.equal(await point('10:30').isDisabled(), true, 'Cannot cross a booked interval');
+  await point('10:00').click();
+  assert.equal(await page.locator('[data-range-end]').innerText(), '10:00');
+  assert.match(await page.locator('.gx-quote-range').innerText(), /60 phút/);
+  await point('22:30').click();
+  assert.equal(await page.locator('[data-range-end]').innerText(), empty, 'Third click starts a new range');
+  await point('23:00').click();
+  assert.match(await page.locator('.gx-quote-range').innerText(), /30 phút/);
+  await page.locator('[data-court-id="B01"]').click();
+  assert.equal(await page.locator('[data-range-start]').innerText(), empty, 'Changing court clears range');
+  await point('18:00').click();
+  await point('19:30').click();
+  await changeDate(day(5));
+  assert.equal(await page.locator('[data-range-end]').innerText(), empty, 'Changing date clears range');
+  await point('18:00').click();
+  await point('19:30').click();
+  await page.getByRole('button', {name:'Đăng nhập',exact:true}).click();
+  await page.getByLabel('Email', {exact:true}).fill('minh.anh@example.com');
+  await page.getByLabel('Mật khẩu', {exact:true}).fill('CourtlyDemo2026');
+  await page.locator('.gx-dialog').getByRole('button', {name:'Đăng nhập',exact:true}).click();
+  await page.locator('.gx-dialog').waitFor({state:'hidden'});
+  await page.locator('.gx-quote .ct-primary:not(:disabled)').waitFor();
+  await page.locator('.gx-referee-toggle input').check();
+  await page.locator('.gx-referee-panel select').first().waitFor();
+  await page.getByLabel('Đến giờ', {exact:true}).selectOption('18:30');
+  await page.getByLabel('Từ giờ', {exact:true}).selectOption('19:00');
+  assert.equal(await page.getByLabel('Đến giờ', {exact:true}).inputValue(), '19:30', 'Referee end stays after new start');
+  await page.locator('.gx-referee-toggle input').uncheck();
+
+  for (const width of [1440,1024,768,650,390,320]) {
+    await page.setViewportSize({width,height:1000});
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Booking overflow '+width);
+    const cells = await page.locator('.dg-art').evaluateAll(nodes => nodes.map(n => n.getBoundingClientRect().width));
+    assert.ok(cells.every(w => w >= 65), 'Court illustrations remain visible at '+width);
+    await page.evaluate(() => window.scrollTo(0,0));
+    if ([1440,390].includes(width)) await page.screenshot({path:`${output}/booking-${width}.png`,fullPage:true});
+  }
+  await page.goto(base);
+  await page.locator('.haus-hero').waitFor();
+  for (const width of [1440,1024,768,390,320]) {
+    await page.setViewportSize({width,height:1000});
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Overview overflow '+width);
+    if ([1440,390].includes(width)) await page.screenshot({path:`${output}/overview-${width}.png`,fullPage:true});
+  }
+  assert.deepEqual(errors, []);
+  console.log('PASS booking UX: keyboard, exact end boundary, blocked ranges, closing time, court/date reset, referee hours, responsive booking and overview. No bookings created.');
+} finally {
+  await browser.close();
+}
+```
+
+#### File: `tests/customer-booking-api.mjs`
+```javascript
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+
+assert.equal(process.env.COURTLY_TEST_WRITE,'1','Run only against a disposable database');
+const base=process.env.COURTLY_API_URL||'http://127.0.0.1:8084/api';
+const key=process.env.COURTLY_TEST_WEBHOOK_KEY;
+assert.ok(key,'A local webhook test key is required');
+const db=process.env.COURTLY_TEST_DB||'courtly_booking_test';
+assert.match(db,/^courtly_booking_test(?:_[a-z0-9_]+)?$/);
+let checks=0;
+const check=(condition,label)=>{assert.ok(condition,label);console.log('PASS',++checks,label)};
+class Client{
+ cookies=new Map();
+ async raw(path,method='GET',body,headers={}){
+  if(method!=='GET'&&!path.startsWith('/webhooks/')){
+   const csrf=await this.raw('/csrf');headers={...headers,[csrf.data.headerName]:csrf.data.token};
+  }
+  const r=await fetch(base+path,{method,headers:{'content-type':'application/json',cookie:[...this.cookies].map(([k,v])=>k+'='+v).join('; '),...headers},body:body===undefined?undefined:JSON.stringify(body)});
+  for(const c of r.headers.getSetCookie()){const pair=c.split(';')[0],i=pair.indexOf('=');this.cookies.set(pair.slice(0,i),pair.slice(i+1))}
+  const text=await r.text();return {status:r.status,data:text?JSON.parse(text):null};
+ }
+ async call(path,method='GET',body){const r=await this.raw(path,method,body);assert.ok(r.status<400,`${method} ${path}: ${r.status} ${JSON.stringify(r.data)}`);return r.data}
+}
+const anon=new Client(),admin=new Client(),a=new Client(),b=new Client();
+await admin.call('/auth/login','POST',{email:process.env.ADMIN_EMAIL||'admin@gmail.com',password:process.env.ADMIN_PASSWORD||'12345'});
+for(const [c,name] of [[a,'Alice'],[b,'Bob']])await c.call('/auth/register','POST',{name,email:`booking-${randomUUID()}@example.com`,password:'CustomerBooking!2026'});
+const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+4*86400000));
+const view=await anon.call('/public/overview?date='+date);
+check(view.settings.holdMinutes===5&&view.settings.policies.cancelCutoffMinutes===1440,'five-minute hold and 24-hour default cancellation policy');
+check(view.refereeRates.length>0&&!JSON.stringify(view.refereeRates).includes('phone'),'public referee prices without private staff fields');
+const court=zone=>view.courts.find(c=>c.name.startsWith(zone)&&c.status==='ACTIVE');
+const slot=(zone,hour)=>view.schedules.find(s=>s.court===court(zone).id&&s.hour===hour);
+const orderBody=slots=>({scheduleIds:slots.map(s=>s.id),assignments:[],requestId:randomUUID()});
+check((await anon.raw('/orders','POST',orderBody([slot('A',6)]))).status===401,'anonymous users cannot create an order');
+const raced=await Promise.all([a.raw('/orders','POST',orderBody([slot('A',6)])),b.raw('/orders','POST',orderBody([slot('A',6)]))]);
+check(raced.filter(r=>r.status===200).length===1&&raced.filter(r=>r.status===400).length===1,'concurrent customers: exactly one hold succeeds');
+const winner=raced[0].status===200?a:b,loser=winner===a?b:a,held=raced.find(r=>r.status===200).data;
+let heldView=(await winner.call('/overview?date='+date)).orders.find(o=>o.id===held.id);
+check(heldView.status==='HOLDING'&&Date.parse(heldView.holdUntil)-Date.now()>285000,'pending order reserves a slot immediately for five minutes');
+check((await loser.raw(`/orders/${held.id}/cancel`,'POST',{requestId:randomUUID()})).status===403,'another customer cannot cancel a hold');
+const intent=await winner.call('/transfers','POST',{type:'ORDER',targetId:held.id});
+await winner.call(`/transfers/${intent.id}/declared`,'POST',{});
+check((await winner.call('/overview?date='+date)).orders.find(o=>o.id===held.id).paid===0,'declaring a transfer does not credit money');
+check((await winner.raw(`/transfers/${intent.id}/confirm`,'POST',{})).status===403,'customer self-confirmation is rejected');
+check((await winner.raw(`/transfers/${intent.id}/sandbox`,'POST',{scenario:'SUCCESS'})).status===403,'customer cannot simulate a payment');
+check((await admin.raw(`/transfers/${intent.id}/sandbox`,'POST',{scenario:'SUCCESS'})).status===403,'sandbox cannot run in LIVE mode, including for admin');
+check((await admin.raw(`/admin/transfers/${intent.id}/confirm`,'POST',{})).status===403,'manual online confirmation cannot bypass bank verification');
+check((await winner.raw('/payments','POST',{orderId:held.id,amount:intent.amount,method:'CASH',transactionCode:randomUUID()})).status===403,'customer cannot create a cash receipt');
+check((await admin.raw('/payments','POST',{orderId:held.id,amount:intent.amount,method:'BANK_TRANSFER',transactionCode:randomUUID()})).status===400,'online receipts require a bank callback');
+const bank=new Client();let eventId=Date.now();
+const notification=(i,amount=i.amount)=>({id:++eventId,accountNumber:'999999999999',transferType:'in',content:'PAY '+i.reference,transferAmount:amount});
+const send=body=>bank.raw('/webhooks/sepay','POST',body,{Authorization:'Apikey '+key});
+let event=notification(intent);
+check((await bank.raw('/webhooks/sepay','POST',event)).status===401,'unauthenticated webhook rejected');
+check((await send({...event,accountNumber:'00000'})).status===400,'wrong receiving bank account rejected');
+const callbacks=await Promise.all([send(event),send(event)]);
+check(callbacks.every(r=>r.status===200),'simultaneous duplicate callbacks acknowledged');
+heldView=(await winner.call('/overview?date='+date)).orders.find(o=>o.id===held.id);
+check(heldView.paid===intent.amount&&heldView.status==='CONFIRMED','bank callback credits the deposit exactly once and confirms booking');
+check((await send({...event,transferAmount:event.transferAmount+1})).status===400,'same event ID cannot carry changed payment data');
+// Enforce the configured deadline for both preview and the final mutation.
+const settings=(await admin.call('/overview?date='+date)).settings;
+await admin.call('/settings','PUT',{...settings,policies:{...settings.policies,cancelCutoffMinutes:10080,changeCutoffMinutes:10080}});
+check((await winner.raw(`/orders/${held.id}/cancellation-preview`)).status===400,'cancellation preview enforces deadline');
+check((await winner.raw(`/orders/${held.id}/cancel`,'POST',{requestId:randomUUID()})).status===400,'cancellation commit enforces deadline');
+check((await winner.raw(`/orders/${held.id}/schedule`,'PATCH',{...orderBody([slot('A',7)]),reason:'test'})).status===400,'reschedule commit enforces deadline');
+await admin.call('/settings','PUT',settings);
+const quote=await winner.call(`/orders/${held.id}/cancellation-preview`);
+check(quote.refundAmount===heldView.paid&&quote.retainedAmount===0,'eligible cancellation quotes the refundable amount');
+const cancelBody={requestId:randomUUID()};await winner.call(`/orders/${held.id}/cancel`,'POST',cancelBody);await winner.call(`/orders/${held.id}/cancel`,'POST',cancelBody);
+heldView=(await winner.call('/overview?date='+date)).orders.find(o=>o.id===held.id);
+check(heldView.status==='CANCELLED'&&heldView.finance.refundPending===intent.amount&&heldView.paid===intent.amount,'cancel paid booking: release slot, queue refund, preserve collected balance');
+check(heldView.history.filter(h=>h.type==='CANCEL').length===1&&heldView.history.at(-1).previous.status==='CONFIRMED','cancellation history is idempotent and preserves prior booking');
+await loser.call('/orders','POST',orderBody([slot('A',6)]));
+check(true,'released slot can be reserved by another customer');
+// Expire only a test-owned hold, then book directly without an overview refresh.
+const expired=await a.call('/orders','POST',orderBody([slot('A',8)]));
+const lateIntent=await a.call('/transfers','POST',{type:'ORDER',targetId:expired.id});
+assert.match(expired.id,/^[a-f0-9-]{36}$/);
+execFileSync('docker',['compose','-p','courtly-cloud','exec','-T','postgres','psql','-U','courtly','-d',db,'-v','ON_ERROR_STOP=1','-c',`UPDATE orders SET hold_expires_at=NOW()-INTERVAL '1 second' WHERE id='${expired.id}'`],{cwd:new URL('..',import.meta.url),stdio:'pipe'});
+await b.call('/orders','POST',orderBody([slot('A',8)]));
+check((await a.call('/overview?date='+date)).orders.find(o=>o.id===expired.id).status==='EXPIRED','expired hold is released before the next booking command');
+check((await send(notification(lateIntent))).status===200,'late money event is acknowledged');
+check((await a.call('/transfers')).find(i=>i.id===lateIntent.id).status==='REVIEW','late payment enters reconciliation instead of reclaiming another booking');
+// A fully paid VIP booking may move to a cheaper available court; report credit and history.
+const vip=await a.call('/orders','POST',orderBody([slot('V',10),slot('V',10.5)]));
+let vipView=(await a.call('/overview?date='+date)).orders.find(o=>o.id===vip.id);
+await admin.call('/payments','POST',{orderId:vip.id,amount:vipView.total,method:'CASH',transactionCode:randomUUID()});
+const move={...orderBody([slot('A',10),slot('A',10.5)]),reason:'Change to outdoor'};
+const preview=await a.call(`/orders/${vip.id}/preview`,'POST',move);
+check(preview.difference<0&&preview.reviewAmount>0,'reschedule preview reports cheaper price and amount pending refund');
+await a.call(`/orders/${vip.id}/schedule`,'PATCH',move);
+vipView=(await a.call('/overview?date='+date)).orders.find(o=>o.id===vip.id);
+check(vipView.status==='CONFIRMED'&&vipView.total===preview.next.total&&vipView.finance.refundPending===preview.reviewAmount,'paid reschedule updates booking and queues the excess for refund');
+check(vipView.history.some(h=>h.type==='SCHEDULE'&&h.previous.total>h.total),'reschedule records previous booking and amount');
+const other=await b.call('/orders','POST',orderBody([slot('A',11)]));
+check((await a.raw(`/orders/${vip.id}/schedule`,'PATCH',{...orderBody([slot('A',11)]),reason:'conflict'})).status===400,'reschedule cannot steal another active hold');
+check((await a.call('/overview?date='+date)).orders.find(o=>o.id===vip.id).slots[0].id===vipView.slots[0].id,'failed reschedule rolls back and preserves the old booking');
+// A STAFF account can collect cash, but cannot access management or refunds.
+const staffEmail=`cashier-${randomUUID()}@example.com`;
+const staffAccount=await admin.call('/catalog/accounts','POST',{name:'Test Cashier',email:staffEmail,phone:'0900000009',role:'STAFF',status:'ACTIVE'});
+const ticket=await admin.call('/auth/ticket','POST',{accountId:staffAccount.id});
+const staff=new Client();await staff.call('/auth/activate','POST',{token:ticket.token,password:'CashierBooking!2026'});
+const cashDesk=await staff.call('/payments/cash-desk');
+check(cashDesk.some(o=>o.id===other.id),'STAFF can view unpaid bookings at the cash desk');
+check((await a.raw('/payments/cash-desk')).status===403,'customers cannot access cash desk bookings');
+const otherView=(await b.call('/overview?date='+date)).orders.find(o=>o.id===other.id);
+const cashBody={orderId:other.id,amount:otherView.deposit,method:'CASH',transactionCode:randomUUID()};
+const receipt=await staff.call('/payments','POST',cashBody);const repeated=await staff.call('/payments','POST',cashBody);
+check(receipt.id===repeated.id&&(await b.call('/overview?date='+date)).orders.find(o=>o.id===other.id).paid===otherView.deposit,'STAFF confirms actual cash once with an idempotent receipt');
+check((await staff.raw('/catalog/accounts','POST',{name:'Forbidden'})).status===403,'STAFF cannot create privileged accounts');
+check((await staff.raw(`/payments/${receipt.id}/refunds`,'POST',{requestId:randomUUID(),amount:1,reason:'Forbidden'})).status===403,'cashier role does not grant refund approval');
+check((await staff.raw(`/transfers/${intent.id}/confirm`,'POST',{})).status===403,'STAFF cannot self-confirm online payments');
+await admin.call('/settings','PUT',{...settings,cancelRefundPercent:50});
+const partialQuote=await b.call(`/orders/${other.id}/cancellation-preview`);
+check(partialQuote.refundAmount===Math.round(otherView.deposit/2)&&partialQuote.retainedAmount===otherView.deposit-partialQuote.refundAmount,'configured partial refund separates refundable and retained funds');
+await b.call(`/orders/${other.id}/cancel`,'POST',{requestId:randomUUID()});
+await admin.call(`/payments/${receipt.id}/refunds`,'POST',{requestId:randomUUID(),amount:partialQuote.refundAmount,reason:'Local test: refund actually processed'});
+const settled=(await b.call('/overview?date='+date)).orders.find(o=>o.id===other.id);
+check(settled.finance.refundPending===0&&settled.paid===partialQuote.retainedAmount&&!settled.finance.review,'recorded refund clears pending review and preserves the policy retention');
+await admin.call('/settings','PUT',settings);
+console.log(`Completed ${checks} customer booking and payment checks against a disposable database.`);
+```
+
+#### File: `tests/customer-booking-browser.mjs`
+```javascript
+import assert from 'node:assert/strict';
+import {mkdir} from 'node:fs/promises';
+import {chromium} from '../frontend/node_modules/playwright-core/index.mjs';
+const base=process.env.COURTLY_WEB_URL||'http://localhost:5173';
+const output=process.env.COURTLY_SCREENSHOTS||'/tmp/courtly-customer-changes';
+await mkdir(output,{recursive:true});
+const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
+try{
+ const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ let created=0;page.on('request',r=>{if(r.method()==='POST'&&new URL(r.url()).pathname==='/api/orders')created++});
+ await page.goto(base+'/bang-gia');await page.getByRole('heading',{name:'Bảng giá sân & dịch vụ'}).waitFor();await page.locator('.gx-pricing table').first().waitFor();
+ for(const name of ['Bảng giá','Giải đấu','Hội viên'])assert.equal(await page.locator('#guest-primary-navigation').getByRole('button',{name,exact:true}).count(),1);
+ assert.equal(await page.locator('.gx-pricing table').count(),3);
+ assert.ok(await page.locator('.gx-pricing').innerText().then(s=>s.includes('Thứ 2–6')&&s.includes('Thứ 7–CN')&&s.includes('Giá thuê trọng tài')));
+ for(const width of [1880,1440,1180,1179,768,390,320]){
+  await page.setViewportSize({width,height:1000});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`no horizontal overflow at ${width}`);
+  const logo=await page.locator('header .ct-logo').boundingBox(),tools=await page.locator('.cl-header-tools').boundingBox();
+  assert.ok(logo.x+logo.width<=tools.x,`header logo/tools fit at ${width}`);
+ }
+ await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:output+'/pricing-desktop.png',fullPage:true});
+ await page.getByRole('button',{name:'Đặt sân ngay · VIP'}).click();
+ assert.equal(new URL(page.url()).pathname,'/dat-san');
+ assert.equal(await page.getByLabel('Loại sân',{exact:true}).inputValue(),'V');
+ assert.equal(await page.locator('.dg-court').count(),2);
+ assert.equal(await page.locator('.dg-outdoor').count(),0);
+ const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+3*86400000));
+ const loaded=page.waitForResponse(r=>r.url().includes('/overview?date='+day)&&r.ok());await page.getByLabel('Ngày chơi',{exact:true}).fill(day);await loaded;
+ await page.locator('[data-time="14:00"]').click();await page.locator('[data-time="15:00"]').click();
+ await page.getByRole('button',{name:'Đăng nhập để đặt sân',exact:true}).click();
+ await page.getByRole('dialog').waitFor();assert.equal(created,0,'anonymous click only opens authentication');
+ await page.getByRole('button',{name:'Đăng ký',exact:true}).click();
+ await page.getByLabel('Họ và tên',{exact:true}).fill('Browser Booking');await page.getByLabel('Email',{exact:true}).fill('browser-'+crypto.randomUUID()+'@example.com');
+ await page.getByLabel('Mật khẩu',{exact:true}).fill('BrowserBooking!2026');await page.getByLabel('Nhập lại mật khẩu',{exact:true}).fill('BrowserBooking!2026');
+ await page.getByRole('button',{name:'Tạo tài khoản',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+ await page.getByRole('button',{name:'Tiếp tục thanh toán',exact:true}).click();
+ await page.getByRole('heading',{name:'Chọn phương thức thanh toán'}).waitFor();assert.equal(created,1,'signed-in customer creates one account-linked hold');
+ await page.getByRole('button',{name:'Tiền mặt tại quầy',exact:true}).click();
+ await page.getByRole('heading',{name:'Đơn của tôi',exact:true}).waitFor();
+ assert.ok(await page.locator('[role="timer"]').innerText().then(s=>s.includes('Còn giữ chỗ')));
+ assert.equal(await page.getByRole('button',{name:/Duyệt ngay|Xác nhận đã thanh toán/}).count(),0);
+ await page.getByRole('button',{name:'Hủy đơn',exact:true}).first().click();await page.getByText('Dự kiến hoàn:').waitFor();
+ await page.getByRole('button',{name:'Xác nhận hủy',exact:true}).click();await page.getByRole('dialog').waitFor({state:'hidden'});
+ assert.ok(await page.locator('.gx-records').innerText().then(s=>s.includes('Đã hủy')));
+ await page.setViewportSize({width:390,height:1000});await page.goto(base+'/bang-gia');await page.getByRole('heading',{name:'Bảng giá sân & dịch vụ'}).waitFor();await page.locator('.gx-pricing table').first().waitFor();await page.screenshot({path:output+'/pricing-mobile.png',fullPage:true});
+ // Exercise the cashier UI with a separate STAFF login and a local test booking.
+ const call=async(context,path,method='GET',body)=>{
+  const headers={};if(method!=='GET'){const c=await context.request.get(base+'/api/csrf');const token=await c.json();headers[token.headerName]=token.token}
+  const r=await context.request.fetch(base+'/api'+path,{method,headers,data:body});assert.ok(r.ok(),path+': '+await r.text());return r.status()===204?null:r.json();
+ };
+ const customer=page.context();
+ const overview=await call(customer,'/overview?date='+day);
+ const vip=overview.courts.find(c=>c.name==='V02');
+ const available=overview.schedules.filter(s=>s.court===vip.id&&s.status==='AVAILABLE').sort((a,b)=>a.start.localeCompare(b.start));
+ const first=available.findIndex((s,i)=>available[i+1]?.start===s.end);assert.ok(first>=0);
+ const ids=available.slice(first,first+2).map(s=>s.id);
+ const held=await call(customer,'/orders','POST',{scheduleIds:ids,assignments:[],requestId:crypto.randomUUID()});
+ const admin=await browser.newContext();
+ await call(admin,'/auth/login','POST',{email:process.env.ADMIN_EMAIL||'admin@gmail.com',password:process.env.ADMIN_PASSWORD||'12345'});
+ const account=await call(admin,'/catalog/accounts','POST',{name:'Browser Cashier',email:'cashier-'+crypto.randomUUID()+'@example.com',phone:'0900000008',role:'STAFF',status:'ACTIVE'});
+ const ticket=await call(admin,'/auth/ticket','POST',{accountId:account.id});
+ const staff=await browser.newContext();await call(staff,'/auth/activate','POST',{token:ticket.token,password:'BrowserCashier!2026'});
+ const desk=await staff.newPage();desk.on('pageerror',e=>errors.push(e.message));await desk.goto(base+'/quay-thu');
+ await desk.getByRole('heading',{name:'Thu tiền mặt tại quầy',exact:true}).waitFor();
+ await desk.getByLabel('Chọn đơn',{exact:true}).selectOption(held.id);
+ await desk.getByRole('checkbox').check();await desk.getByRole('button',{name:'Xác nhận tiền mặt đã thu',exact:true}).click();
+ await desk.getByText('Đã ghi nhận phiếu thu:',{exact:false}).waitFor({timeout:10000}).catch(async error=>{await desk.screenshot({path:output+'/cashier-failure.png'});throw new Error(error.message+'\n'+await desk.locator('main').innerText())});
+ assert.equal((await call(customer,'/overview?date='+day)).orders.find(o=>o.id===held.id).status,'CONFIRMED');
+ await call(customer,`/orders/${held.id}/cancel`,'POST',{requestId:crypto.randomUUID()});
+ await staff.close();await admin.close();
+ assert.deepEqual(errors,[]);console.log('PASS browser: navigation, responsive pricing, VIP filter, login gate, account-linked hold, cash choice, countdown, cancellation and STAFF cash collection; no page errors.');
+}finally{await browser.close()}
+```
+
+#### File: `tests/handoff-admin-api.mjs`
+```javascript
+import assert from 'node:assert/strict';
+const base=process.env.COURTLY_API_URL||'http://127.0.0.1:8083/api';
+if(!process.env.COURTLY_TEST_WRITE)throw Error('Set COURTLY_TEST_WRITE=1; run only against a disposable test database.');
+let checks=0;const check=(x,msg)=>{assert.ok(x,msg);console.log('PASS',++checks,msg)};
+class Client{cookies=new Map();async raw(path,method='GET',body,headers={}){const res=await fetch(base+path,{method,headers:{Cookie:[...this.cookies].map(([k,v])=>k+'='+v).join('; '),'Content-Type':'application/json',...headers},body:body===undefined?undefined:JSON.stringify(body)});for(const c of res.headers.getSetCookie()){const [k,...v]=c.split(';')[0].split('=');this.cookies.set(k,v.join('='))}let data;try{data=await res.json()}catch{data=null}return {status:res.status,data}}
+async call(path,method='GET',body){let headers={};if(method!=='GET'){const c=await this.raw('/csrf');headers[c.data.headerName]=c.data.token}const r=await this.raw(path,method,body,headers);if(r.status>=400)throw Object.assign(Error(path+': '+JSON.stringify(r)),r);return r.data}
+async fails(path,method,body,status){let failed=false;try{await this.call(path,method,body)}catch(e){failed=true;if(status)assert.equal(e.status,status)}check(failed,'reject '+path)}
+async login(email){return this.call('/auth/login','POST',{email,password:email==='admin@gmail.com'?'12345':'CourtlyDemo2026'})}}
+
+const admin=new Client();await admin.login('admin@gmail.com');
+const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+31*86400000));
+let view=await admin.call('/overview?date='+date);const person=view.staff.find(s=>s.type==='REFEREE');
+const result=await admin.call('/catalog/staff-schedules','POST',{staff:person.id,date,start:8.5,end:10.5});
+view=await admin.call('/overview?date='+date);const shifts=view.staffSchedules.filter(s=>s.staff===person.id&&s.date===date);
+check(shifts.length===4&&shifts.some(s=>s.start===8.5&&s.end===9),'admin creates four half-hour shifts with accurate times');
+const first=shifts.find(s=>s.start===8.5);await admin.call('/catalog/staff-schedules/'+first.id,'PUT',{staff:person.id,date,start:8.5,end:9});check(true,'admin edits existing half-hour shift');
+await admin.fails('/catalog/staff-schedules','POST',{staff:person.id,date,start:8.25,end:9});
+check(view.schedules.length===340,'admin generates future half-hour court calendar');
+console.log('Completed',checks,'admin half-hour API checks');
+```
+
+#### File: `tests/handoff-admin-browser.mjs`
+```javascript
+import assert from 'node:assert/strict';
+import {chromium} from '../frontend/node_modules/playwright-core/index.mjs';
+import {mkdir} from 'node:fs/promises';
+const output=process.env.COURTLY_SCREENSHOTS||'/tmp/courtly-handoff-screens';await mkdir(output,{recursive:true});
+const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
+try {
+ const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(process.env.COURTLY_WEB_URL||'http://127.0.0.1:5175');
+ await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();
+ await page.getByLabel('Email',{exact:true}).fill('admin@gmail.com');await page.getByLabel('Mật khẩu',{exact:true}).fill('12345');
+ await page.locator('.gx-dialog').getByRole('button',{name:'Đăng nhập',exact:true}).click();
+ await page.locator('.sidebar').waitFor();await page.locator('.main h1').waitFor();
+ assert.equal(await page.locator('#courtly-balanced-amenities').count(),0,'Guest layout does not wrap admin');
+ assert.equal(await page.locator('.sidebar nav').getByRole('button',{name:'Đồ uống & đồ thuê',exact:true}).count(),0);
+ const buttons=page.locator('.sidebar nav button');const count=await buttons.count();
+ for(let i=0;i<count;i++){const label=await buttons.nth(i).innerText();await buttons.nth(i).click();await page.locator('.main h1').waitFor();assert.equal(await page.locator('.main .error').count(),0,label);console.log('PASS admin page',label)}
+ await page.locator('.sidebar nav').getByRole('button',{name:'Dịch vụ trọng tài',exact:true}).click();
+ await page.locator('.main').getByRole('button',{name:'Chọn trọng tài',exact:true}).first().click();
+ await page.getByRole('button',{name:'Kiểm tra sân và trọng tài',exact:true}).click();
+ await page.getByRole('button',{name:'Xác nhận phân công',exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'Thêm sản phẩm',exact:true}).count(),0);
+ assert.equal(await page.getByRole('heading',{name:'Thiết bị thuê theo giờ',exact:true}).count(),0);
+ await page.screenshot({path:output+'/admin-referee-only.png'});
+ await page.keyboard.press('Escape');
+ console.log('PASS referee selection dialog and retired product controls absent');
+ await page.locator('.sidebar nav').getByRole('button',{name:'Lịch sân',exact:true}).click();await page.locator('.main h1').waitFor();
+ assert.ok((await page.locator('.main').innerText()).includes('06:30'),'Half-hour calendar labels');
+ await page.screenshot({path:output+'/admin-calendar.png'});
+ assert.deepEqual(errors,[]);console.log('PASS admin layout, navigation and 30-minute calendar');
+}finally{await browser.close()}
+```
+
+#### File: `tests/handoff-api.mjs`
+```javascript
+import assert from 'node:assert/strict';
+const base=process.env.COURTLY_API_URL||'http://127.0.0.1:8083/api';
+if(!process.env.COURTLY_TEST_WRITE)throw Error('Set COURTLY_TEST_WRITE=1; run only against a disposable test database.');
+let checks=0;const check=(x,msg)=>{assert.ok(x,msg);console.log('PASS',++checks,msg)};
+class Client{cookies=new Map();async raw(path,method='GET',body,headers={}){const res=await fetch(base+path,{method,headers:{Cookie:[...this.cookies].map(([k,v])=>k+'='+v).join('; '),'Content-Type':'application/json',...headers},body:body===undefined?undefined:JSON.stringify(body)});for(const c of res.headers.getSetCookie()){const [k,...v]=c.split(';')[0].split('=');this.cookies.set(k,v.join('='))}let data;try{data=await res.json()}catch{data=null}return {status:res.status,data}}
+async call(path,method='GET',body){let headers={};if(method!=='GET'){const c=await this.raw('/csrf');headers[c.data.headerName]=c.data.token}const r=await this.raw(path,method,body,headers);if(r.status>=400)throw Object.assign(Error(path+': '+JSON.stringify(r)),r);return r.data}
+async fails(path,method,body,status){let failed=false;try{await this.call(path,method,body)}catch(e){failed=true;if(status)assert.equal(e.status,status)}check(failed,'reject '+path)}
+async login(email){return this.call('/auth/login','POST',{email,password:email==='admin@gmail.com'?'12345':'CourtlyDemo2026'})}}
+const admin=new Client(),user=new Client(),other=new Client();
+const as=await admin.login('admin@gmail.com'),us=await user.login('minh.anh@example.com'),os=await other.login('player2@courtly.example');check(as.user.role==='ADMIN'&&as.user.isOwner,'admin login and owner');check(us.user.role==='CUSTOMER','demo customer login');
+const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+86400000));
+let view=await user.call('/overview?date='+date);check(view.courts.length===10,'10 courts');check(view.orders.length>=140,'abundant demo booking history');check(view.schedules.length===340,'30-minute court schedules');check(view.accounts.length===1&&view.accounts[0].id===us.user.id,'account privacy');
+await user.fails('/payments','POST',{orderId:view.orders[0].id,amount:1,method:'CASH',transactionCode:'forged'},403);
+const slots=(name,start,end)=>view.schedules.filter(s=>s.court===view.courts.find(c=>c.name===name).id&&s.start>=start&&s.end<=end).sort((a,b)=>a.start.localeCompare(b.start));
+const chosen=slots('A01','15:00','16:30:00');check(chosen.length===3,'90-minute contiguous selection');
+const options=await user.call('/booking/options','POST',{scheduleIds:chosen.map(s=>s.id)});const ref=options.staffSlots[0].staff.find(p=>p.rate===150000&&p.available);check(!!ref,'referee available');
+const req={scheduleIds:chosen.map(s=>s.id),assignments:[{scheduleId:chosen[0].id,staffId:ref.id}],requestId:crypto.randomUUID()};
+const created=await user.call('/orders','POST',req);const duplicate=await user.call('/orders','POST',req);check(created.id===duplicate.id,'booking request idempotency');
+await other.fails('/orders','POST',{scheduleIds:chosen.map(s=>s.id),assignments:[],requestId:crypto.randomUUID()});
+view=await user.call('/overview?date='+date);let order=view.orders.find(o=>o.id===created.id);check(order.total===375000&&order.deposit===150000,'90min A court + 30min referee: 375000 total / 150000 deposit');
+let intent=await user.call('/transfers','POST',{type:'ORDER',targetId:created.id});const again=await user.call('/transfers','POST',{type:'ORDER',targetId:created.id});check(intent.id===again.id,'reuse pending payment intent');
+await other.fails('/transfers/'+intent.id+'/declared','POST',{},403);
+intent=await user.call('/transfers/'+intent.id+'/declared','POST',{});check(intent.status==='CHECKING'&&intent.received===0,'customer declaration does not receive money');
+intent=await user.call('/transfers/'+intent.id+'/sandbox','POST',{scenario:'PARTIAL'});check(intent.received===75000&&intent.remaining===75000,'partial transfer');
+intent=await user.call('/transfers/'+intent.id+'/sandbox','POST',{scenario:'DUPLICATE'});check(intent.received===150000&&intent.status==='CONFIRMED','duplicate notification counted once');
+view=await user.call('/overview?date='+date);order=view.orders.find(o=>o.id===created.id);check(order.status==='CONFIRMED'&&order.paid===150000,'deposit confirms booking');
+const balance=await user.call('/transfers','POST',{type:'ORDER',targetId:created.id,purpose:'BALANCE'});check(balance.amount===225000,'remaining court + referee balance');
+await user.call('/transfers/'+balance.id+'/sandbox','POST',{scenario:'SUCCESS'});view=await user.call('/overview?date='+date);check(view.orders.find(o=>o.id===created.id).paid===375000,'balance fully paid');
+const next=slots('A02','16:00','16:30:00');const late=await user.call('/orders','POST',{scheduleIds:next.map(s=>s.id),assignments:[],requestId:crypto.randomUUID()});const lateIntent=await user.call('/transfers','POST',{type:'ORDER',targetId:late.id});const reviewed=await user.call('/transfers/'+lateIntent.id+'/sandbox','POST',{scenario:'LATE'});check(reviewed.status==='REVIEW'&&reviewed.received===0&&reviewed.reviewAmount===50000,'late money goes to review');
+view=await user.call('/overview?date='+date);check(view.orders.find(o=>o.id===late.id).status==='EXPIRED'&&view.schedules.find(s=>s.id===next[0].id).status==='AVAILABLE','late payment does not reclaim court');
+const vip=slots('V01','17:00','17:30:00');const vopt=await other.call('/booking/options','POST',{scheduleIds:vip.map(s=>s.id)});check(vopt.courtQuote.net===237500,'Club VIP discount 5%');
+const vref=vopt.staffSlots[0].staff.find(p=>p.rate===150000&&p.available);const vb=await other.call('/orders','POST',{scheduleIds:vip.map(s=>s.id),assignments:[{scheduleId:vip[0].id,staffId:vref.id}],requestId:crypto.randomUUID()});const ov=await other.call('/overview?date='+date);const vo=ov.orders.find(o=>o.id===vb.id);check(vo.total===312500&&vo.deposit===118750,'Club VIP + referee price/deposit example');
+const single=view.tournaments.find(t=>t.format==='SINGLES'&&t.status==='OPEN');const tr=await user.call(`/guest/tournaments/${single.id}/register`,'POST',{name:'Demo user',phone:'0901234567',adult:true,rules:true,requestId:crypto.randomUUID()});const fee=await user.call('/transfers','POST',{type:'TOURNAMENT',targetId:tr.id});await user.call('/transfers/'+fee.id+'/sandbox','POST',{scenario:'SUCCESS'});check((await user.call('/overview?date='+date)).registrations.find(r=>r.id===tr.id).status==='CONFIRMED','tournament fee confirms registration');
+const doubles=view.tournaments.find(t=>t.format==='DOUBLES'&&t.status==='OPEN');await user.fails(`/guest/tournaments/${doubles.id}/register`,'POST',{name:'Demo',phone:'0901234567',teamName:'Team',partnerName:'Same player',partnerEmail:'minh.anh@example.com',adult:true,rules:true,requestId:crypto.randomUUID()});
+await user.fails('/feedback','POST',{rating:4.5,message:'Sample feedback with invalid rating',topic:'COURT',publishConsent:false,requestId:crypto.randomUUID()});
+const fb=await user.call('/feedback','POST',{rating:5,message:'Feedback test: clear booking and payment information.',topic:'WEBSITE',publishConsent:false,requestId:crypto.randomUUID()});const content=await user.call('/public/content');check(!content.feedback.some(f=>f.id===fb.id),'private feedback not published');
+const member=await user.call('/membership/requests','POST',{planId:'club',requestId:crypto.randomUUID()});let mv=await user.call('/overview?date='+date);check(mv.memberships.find(m=>m.id===member.id).status==='PENDING','membership pending before payment');const mi=await user.call('/transfers','POST',{type:'MEMBERSHIP',targetId:member.id});await user.call('/transfers/'+mi.id+'/sandbox','POST',{scenario:'PARTIAL'});const reuseMember=await user.call('/transfers','POST',{type:'MEMBERSHIP',targetId:member.id});check(reuseMember.id===mi.id&&reuseMember.remaining===149500,'membership partial payment resumes remaining amount');await user.call('/transfers/'+mi.id+'/sandbox','POST',{scenario:'SUCCESS'});mv=await user.call('/overview?date='+date);check(mv.memberships.find(m=>m.id===member.id).status==='ACTIVE','full membership payment activates plan');
+const futureDate=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+3*86400000));
+const future=await user.call('/overview?date='+futureDate);const at=(start)=>future.schedules.filter(s=>s.court===future.courts.find(c=>c.name==='A04').id&&s.start===start);
+const original=await user.call('/orders','POST',{scheduleIds:at('18:00:00').map(s=>s.id),assignments:[],requestId:crypto.randomUUID()});
+const change={scheduleIds:at('19:00:00').map(s=>s.id),assignments:[],requestId:crypto.randomUUID()};await user.call('/orders/'+original.id+'/schedule','PATCH',change);await user.call('/orders/'+original.id+'/schedule','PATCH',change);
+check((await user.call('/overview?date='+futureDate)).memberships.find(m=>m.id===member.id).rescheduleUsage===1,'membership reschedule consumes one allowance, retry is idempotent');
+await user.fails('/orders/'+original.id+'/schedule','PATCH',{scheduleIds:at('20:00:00').map(s=>s.id),assignments:[],requestId:crypto.randomUUID()});
+console.log('Completed',checks,'checks');
+```
+
+#### File: `tests/handoff-browser.mjs`
+```javascript
+import assert from 'node:assert/strict';
+import {mkdir} from 'node:fs/promises';
+const output=process.env.COURTLY_SCREENSHOTS||'/tmp/courtly-handoff-screens';await mkdir(output,{recursive:true});
+assert.equal(process.env.COURTLY_TEST_WRITE,'1','Use a disposable seeded database and set COURTLY_TEST_WRITE=1');
+import {chromium} from '../frontend/node_modules/playwright-core/index.mjs';
+const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
+const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+const base=process.env.COURTLY_WEB_URL||'http://127.0.0.1:5175';
+await page.goto(base);await page.locator('.haus-hero').waitFor();
+await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();
+await page.getByLabel('Email',{exact:true}).fill('minh.anh@example.com');await page.getByLabel('Mật khẩu',{exact:true}).fill('CourtlyDemo2026');await page.locator('.gx-dialog').getByRole('button',{name:'Đăng nhập',exact:true}).click();await page.locator('.gx-dialog').waitFor({state:'hidden'}).catch(async e=>{console.log(await page.locator('.gx-dialog').innerText());throw e});
+await page.locator('.ct-header nav').getByRole('button',{name:'Đặt sân',exact:true}).click();
+const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+2*86400000));
+await page.locator('.gx-booking').getByLabel('Ngày chơi',{exact:true}).fill(day);
+await page.locator('[data-court-id="A03"]').click();
+await page.locator('[data-time="18:00"]').click();assert.equal(await page.locator('[data-range-end]').innerText(),'— — : — —');await page.locator('[data-time="19:30"]').click();
+await page.locator('.gx-quote').getByRole('button',{name:'Tiếp tục thanh toán',exact:true}).waitFor();
+await page.getByRole('button',{name:'EN',exact:true}).click();
+assert.equal(await page.locator('[data-range-start]').innerText(),'18:00');assert.equal(await page.locator('[data-range-end]').innerText(),'19:30');
+await page.getByRole('button',{name:'VI',exact:true}).click();
+await page.screenshot({path:output+'/booking.png',fullPage:true});
+await page.locator('.gx-quote').getByRole('button',{name:'Tiếp tục thanh toán',exact:true}).click();
+await page.locator('.gx-payment').waitFor({timeout:30000});assert.match(await page.locator('.gx-payment').innerText(),/THỬ NGHIỆM/);
+await page.screenshot({path:output+'/payment.png'});
+await page.getByRole('button',{name:'Chuyển đủ',exact:true}).click();await page.locator('.gx-payment .gx-CONFIRMED').waitFor();await page.keyboard.press('Escape');
+await page.reload();await page.locator('.gx-records').waitFor();assert.ok((await page.locator('.gx-records article').count())>0);
+for(const width of [1440,1024,736,390,320]){await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'overflow '+width)}
+await page.goto(base+'/feedback');await page.locator('.gx-stars input[value="4"]').check();assert.equal(await page.locator('.gx-stars input:checked').inputValue(),'4');
+await page.goto(base+'/tin-tuc');await page.locator('.gx-event-grid article').first().getByRole('button').click();await page.locator('.gx-article').waitFor();await page.keyboard.press('Escape');
+await page.goto(base+'/lien-he');await page.locator('.gx-split').waitFor();assert.ok((await page.locator('.gx-split').innerText()).includes('DEMO'));assert.ok((await page.locator('footer').innerText()).includes('DEMO'));
+assert.deepEqual(errors,[]);console.log('PASS browser: login, 90-minute selection, language state persistence, payment sandbox, reload persistence, feedback, article, consistent contact, responsive widths.');
+await browser.close();
+```
+
+#### File: `tests/handoff-webhook.mjs`
+```javascript
+import assert from 'node:assert/strict';
+const base=process.env.COURTLY_API_URL||'http://127.0.0.1:8084/api';
+assert.equal(process.env.COURTLY_TEST_WRITE,'1','Disposable test DB only');
+const key=process.env.COURTLY_TEST_WEBHOOK_KEY;assert.ok(key,'Set local test webhook key');
+let checks=0;const check=(x,msg)=>{assert.ok(x,msg);console.log('PASS',++checks,msg)};
+class Client{cookies=new Map();async raw(path,method='GET',body,headers={}){const res=await fetch(base+path,{method,headers:{Cookie:[...this.cookies].map(([k,v])=>k+'='+v).join('; '),'Content-Type':'application/json',...headers},body:body===undefined?undefined:JSON.stringify(body)});for(const c of res.headers.getSetCookie()){const [k,...v]=c.split(';')[0].split('=');this.cookies.set(k,v.join('='))}let data;try{data=await res.json()}catch{data=null}return {status:res.status,data}}
+async call(path,method='GET',body){let headers={};if(method!=='GET'){const c=await this.raw('/csrf');headers[c.data.headerName]=c.data.token}const r=await this.raw(path,method,body,headers);if(r.status>=400)throw Object.assign(Error(path+': '+JSON.stringify(r)),r);return r.data}
+async fails(path,method,body,status){let failed=false;try{await this.call(path,method,body)}catch(e){failed=true;if(status)assert.equal(e.status,status)}check(failed,'reject '+path)}
+async login(email){return this.call('/auth/login','POST',{email,password:email==='admin@gmail.com'?'12345':'CourtlyDemo2026'})}}
+
+const user=new Client();await user.login('player3@courtly.example');
+const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+4*86400000));
+const view=await user.call('/overview?date='+date);const slot=view.schedules.find(s=>s.court===view.courts.find(c=>c.name==='B04').id&&s.start==='21:00:00');
+const order=await user.call('/orders','POST',{scheduleIds:[slot.id],assignments:[],requestId:crypto.randomUUID()});
+const intent=await user.call('/transfers','POST',{type:'ORDER',targetId:order.id});
+check(intent.mode==='LIVE'&&intent.qrPayload.startsWith('000201010212'),'local VietQR EMV payload');
+let crc=0xffff;for(const v of new TextEncoder().encode(intent.qrPayload.slice(0,-4))){crc^=v<<8;for(let i=0;i<8;i++)crc=(crc&0x8000)?(crc<<1)^0x1021:crc<<1;crc&=0xffff}
+check(crc.toString(16).toUpperCase().padStart(4,'0')===intent.qrPayload.slice(-4),'QR CRC16 checksum');
+await user.fails('/transfers/'+intent.id+'/sandbox','POST',{scenario:'SUCCESS'},404);
+const bank=new Client();const notification={id:800001,accountNumber:'999999999999',transferType:'in',content:'PAY '+intent.reference,transferAmount:intent.amount};
+check((await bank.raw('/webhooks/sepay','POST',notification)).status===401,'webhook requires API key');
+const send=b=>bank.raw('/webhooks/sepay','POST',b,{Authorization:'Apikey '+key});
+check((await send({...notification,id:null})).status>=400,'reject absent bank event ID');
+check((await send({...notification,accountNumber:'00000'})).status>=400,'reject incorrect receiving account');
+check((await send(notification)).status===200,'verified incoming transfer accepted');
+check((await send(notification)).status===200,'duplicate event acknowledged');
+let current=(await user.call('/overview?date='+date)).orders.find(o=>o.id===order.id);
+check(current.paid===intent.amount&&current.status==='CONFIRMED','callback credited once, order confirmed');
+check((await send({...notification,transferAmount:intent.amount+1})).status>=400,'reject changed contents for same event ID');
+await send({...notification,id:800002,transferAmount:intent.amount*10});
+const reviewed=(await user.call('/transfers')).find(x=>x.id===intent.id);
+check(reviewed.status==='REVIEW'&&reviewed.reviewAmount===intent.amount*10,'overpayment routed to reconciliation');
+current=(await user.call('/overview?date='+date)).orders.find(o=>o.id===order.id);check(current.paid===intent.amount,'overpayment does not alter verified order balance');
+console.log('Completed',checks,'local webhook contract checks; no real bank contacted.');
+```
+
+#### File: `tests/header-courts-browser.mjs`
+```javascript
+import assert from 'node:assert/strict';
+import {mkdir} from 'node:fs/promises';
+import {chromium} from '../frontend/node_modules/playwright-core/index.mjs';
+const base = process.env.COURTLY_WEB_URL || 'http://127.0.0.1:5175';
+const output = process.env.COURTLY_SCREENSHOTS || '/tmp/courtly-header-courts';
+await mkdir(output, {recursive:true});
+const browser = await chromium.launch({executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium',headless:true,args:['--no-sandbox']});
+try {
+  const page = await browser.newPage({viewport:{width:1880,height:1050}});
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto(base+'/dat-san');
+  await page.locator('.dg-court').first().waitFor();
+  assert.equal(await page.locator('.dg-indoor .dg-court').count(), 4);
+  assert.equal(await page.locator('.dg-vip .dg-court').count(), 2);
+  const day = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+3*86400000));
+  const loaded = page.waitForResponse(r => r.url().includes('/overview?date='+day) && r.ok());
+  await page.getByLabel('Ngày chơi',{exact:true}).fill(day);
+  await loaded;
+  for (const code of ['B01','B02','B03','B04','V01','V02']) {
+    await page.locator(`[data-court-id="${code}"]`).click();
+    await page.locator('[data-time="18:00"]').click();
+    await page.locator('[data-time="19:00"]').click();
+    assert.equal(await page.locator('[data-range-end]').innerText(),'19:00');
+    assert.equal(await page.locator('.gx-quote .ct-primary').isEnabled(),true,code+' has real selectable schedules');
+  }
+  await page.evaluate(() => window.scrollTo(0,0));
+  await page.screenshot({path:output+'/courts-desktop.png'});
+  const checkHeader = async state => {
+    for (const lang of ['VI','EN']) {
+      await page.getByRole('button',{name:lang,exact:true}).click();
+      for (const width of [1880,1440,1180,1179,1024,768,390,320]) {
+        await page.setViewportSize({width,height:1000});
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth>innerWidth),false,`${state} ${lang} overflow ${width}`);
+        const logo=await page.locator('header .ct-logo').boundingBox();
+        const tools=await page.locator('.cl-header-tools').boundingBox();
+        assert.ok(logo.x+logo.width<=tools.x, 'Logo and tools do not overlap');
+        if (width>=1180) {
+          const nav=await page.locator('#guest-primary-navigation').boundingBox();
+          assert.ok(nav && nav.x>=logo.x+logo.width && nav.x+nav.width<=tools.x,'Three header regions do not overlap');
+          assert.ok(await page.locator('#guest-primary-navigation button').first().evaluate(n => parseFloat(getComputedStyle(n).fontSize)>=16),'Readable desktop navigation');
+          if (width===1880 && lang==='VI') {
+            await page.evaluate(() => window.scrollTo(0,0));
+            await page.screenshot({path:`${output}/header-${state}.png`,clip:{x:0,y:0,width,height:140}});
+          }
+        } else {
+          const toggle=page.locator('.gx-menu');
+          await toggle.click();
+          assert.equal(await toggle.getAttribute('aria-expanded'),'true');
+          assert.equal(await page.locator('#guest-primary-navigation button:visible').count(),5);
+          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth>innerWidth),false,'Open menu stays within screen');
+          if (width===390 && lang==='VI') await page.screenshot({path:`${output}/menu-${state}-390.png`});
+          await page.locator('#guest-primary-navigation button').nth(1).click();
+          assert.equal(await toggle.getAttribute('aria-expanded'),'false','Navigation closes mobile menu');
+        }
+      }
+    }
+    await page.setViewportSize({width:1440,height:1000});
+    await page.getByRole('button',{name:'VI',exact:true}).click();
+  };
+  await checkHeader('guest');
+  // The migration-only fixture has no customer accounts; use the SQL demo for this part.
+  if (process.env.COURTLY_SKIP_LOGIN !== '1') {
+    await page.getByRole('button',{name:'Đăng nhập',exact:true}).click();
+    await page.getByLabel('Email',{exact:true}).fill('minh.anh@example.com');
+    await page.getByLabel('Mật khẩu',{exact:true}).fill('CourtlyDemo2026');
+    await page.locator('.gx-dialog').getByRole('button',{name:'Đăng nhập',exact:true}).click();
+    await page.locator('.gx-dialog').waitFor({state:'hidden'});
+    await checkHeader('customer');
+  }
+  assert.deepEqual(errors,[]);
+  console.log('PASS four indoor/two VIP courts with schedules; readable header, VI/EN, responsive menu and non-overlapping regions.');
+} finally {await browser.close();}
+```
+
+#### File: `tests/multi-court.test.mjs`
 ```javascript
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -12692,47 +13916,151 @@ test('Multi-court booking in single order validation', async () => {
 });
 ```
 
-### File: `tests/booking-time.test.mjs`
+#### File: `tests/password-persistence.test.mjs`
 ```javascript
-import {test} from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
-import {canEndAt, timePoints, rangeSlots, clock} from '../frontend/src/guest/bookingTime.mjs';
-const rows=[['18:00','18:30','AVAILABLE'],['18:30','19:00','AVAILABLE'],['19:00','19:30','AVAILABLE'],['19:30','20:00','BOOKED'],['20:00','20:30','AVAILABLE'],['22:30','23:00','AVAILABLE']].map(([start,end,status])=>({start,end,status}));
-const available=s=>s.status==='AVAILABLE';
-test('first click has no completed range; second click uses its exact boundary',()=>{
- assert.equal(canEndAt(rows,null,1080,available),false);
- assert.equal(canEndAt(rows,1080,1080,available),false);
- assert.equal(canEndAt(rows,1080,1170,available),true);
- assert.equal(rangeSlots(rows,1080,1170).length,3);
-});
-test('30-minute minimum, reverse range rejected',()=>{
- assert.equal(canEndAt(rows,1080,1110,available),true);
- assert.equal(canEndAt(rows,1110,1080,available),false);
-});
-test('can end exactly when a booked slot begins, cannot cross it',()=>{
- assert.equal(canEndAt(rows,1080,1170,available),true);
- assert.equal(canEndAt(rows,1080,1200,available),false);
- assert.equal(canEndAt(rows,1080,1230,available),false);
-});
-test('missing schedule intervals cannot be bridged',()=>assert.equal(canEndAt(rows,1200,1380,available),false));
-test('closing time is available as an end boundary',()=>{
- assert.equal(canEndAt(rows,1350,1380,available),true);
- assert.equal(timePoints(rows).at(-1),1380);
- assert.equal(clock(1380),'23:00');
-});
-test('existing hourly bookings retain their real boundaries',()=>{
- const legacy=[{start:'06:00:00',end:'07:00:00',status:'AVAILABLE'}];
- assert.equal(canEndAt(legacy,360,420,available),true);
- assert.equal(canEndAt(legacy,360,390,available),false);
- assert.deepEqual(timePoints(legacy),[360,420]);
-});
-test('a refreshed unavailable slot invalidates the previously selected range',()=>{
- const updated=rows.map(s=>s.start==='18:30'?{...s,status:'LOCKED'}:s);
- assert.equal(canEndAt(updated,1080,1170,available),false);
+import { execSync } from 'node:child_process';
+
+const BASE = process.env.COURTLY_API_URL || 'http://localhost:8081/api';
+
+class Client {
+  cookies = new Map();
+  csrf = null;
+
+  async call(path, method = 'GET', body, expected = 200) {
+    if (!['GET', 'HEAD'].includes(method) && !this.csrf) {
+      const r = await this.call('/csrf');
+      this.csrf = r;
+    }
+    const r = await fetch(BASE + path, {
+      method,
+      headers: {
+        'content-type': 'application/json',
+        origin: new URL(BASE).origin,
+        cookie: [...this.cookies].map(([k, v]) => k + '=' + v).join('; '),
+        ...(this.csrf ? { [this.csrf.headerName]: this.csrf.token } : {})
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) })
+    });
+    for (const raw of r.headers.getSetCookie()) {
+      const pair = raw.split(';')[0], idx = pair.indexOf('=');
+      this.cookies.set(pair.slice(0, idx), pair.slice(idx + 1));
+    }
+    const text = await r.text();
+    let data;
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text.slice(0, 300) }; }
+    if (expected !== null) {
+      assert.equal(r.status, expected, `${method} ${path}: ${r.status} ${JSON.stringify(data)}`);
+    }
+    return expected === null ? { status: r.status, body: data } : data;
+  }
+}
+
+async function waitForBackend() {
+  for (let i = 0; i < 30; i++) {
+    try {
+      const ping = await fetch(BASE + '/auth/session');
+      if (ping.ok) return true;
+    } catch {}
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  return false;
+}
+
+test('Password persistence across multiple backend restarts', async () => {
+  const staffClient = new Client();
+
+  // 1. Initial login with 12345
+  const loginRes = await staffClient.call('/auth/login', 'POST', {
+    email: 'staff@gmail.com',
+    password: '12345'
+  });
+  assert.equal(loginRes.authenticated, true);
+  assert.equal(loginRes.user.email, 'staff@gmail.com');
+  assert.equal(loginRes.user.role, 'STAFF');
+
+  // 2. Change password to StaffSecure!2026
+  const changeRes = await staffClient.call('/auth/password', 'POST', {
+    currentPassword: '12345',
+    password: 'StaffSecure!2026',
+    confirm: 'StaffSecure!2026'
+  });
+  assert.equal(changeRes.authenticated, true);
+
+  // 3. Verify old password 12345 is immediately rejected
+  const oldLoginClient = new Client();
+  const oldLoginRes = await oldLoginClient.call('/auth/login', 'POST', {
+    email: 'staff@gmail.com',
+    password: '12345'
+  }, 400);
+  assert.match(oldLoginRes.message, /Email hoặc mật khẩu không đúng/);
+
+  // 4. Verify new password works
+  const newLoginClient = new Client();
+  const newLoginRes = await newLoginClient.call('/auth/login', 'POST', {
+    email: 'staff@gmail.com',
+    password: 'StaffSecure!2026'
+  });
+  assert.equal(newLoginRes.authenticated, true);
+
+  // 5. FIRST RESTART: Restart backend container (simulating server reboot #1)
+  console.log('Restarting backend container (Restart 1)...');
+  execSync('docker compose restart backend', { stdio: 'inherit' });
+  assert.equal(await waitForBackend(), true, 'Backend failed to restart within 30s');
+
+  // 6. Verify old password 12345 is STILL REJECTED after restart 1
+  const postRestart1OldClient = new Client();
+  const postRestart1OldRes = await postRestart1OldClient.call('/auth/login', 'POST', {
+    email: 'staff@gmail.com',
+    password: '12345'
+  }, 400);
+  assert.match(postRestart1OldRes.message, /Email hoặc mật khẩu không đúng/);
+
+  // 7. Verify changed password is STILL ACCEPTED after restart 1!
+  const postRestart1NewClient = new Client();
+  const postRestart1NewRes = await postRestart1NewClient.call('/auth/login', 'POST', {
+    email: 'staff@gmail.com',
+    password: 'StaffSecure!2026'
+  });
+  assert.equal(postRestart1NewRes.authenticated, true);
+
+  // 8. SECOND RESTART: Restart backend container AGAIN (simulating server reboot #2)
+  console.log('Restarting backend container (Restart 2)...');
+  execSync('docker compose restart backend', { stdio: 'inherit' });
+  assert.equal(await waitForBackend(), true, 'Backend failed to restart within 30s on reboot 2');
+
+  // 9. Verify old password is STILL REJECTED and new password STILL WORKS on reboot 2!
+  const postRestart2OldClient = new Client();
+  await postRestart2OldClient.call('/auth/login', 'POST', {
+    email: 'staff@gmail.com',
+    password: '12345'
+  }, 400);
+
+  const postRestart2NewClient = new Client();
+  const postRestart2NewRes = await postRestart2NewClient.call('/auth/login', 'POST', {
+    email: 'staff@gmail.com',
+    password: 'StaffSecure!2026'
+  });
+  assert.equal(postRestart2NewRes.authenticated, true);
+
+  // 10. Revert password back to 12345 directly via DB so other test suites stay consistent
+  execSync(
+    'docker compose exec -T postgres psql -U courtly -d courtly -c ' +
+    '"UPDATE accounts SET password_hash = \'$2a$12$Vz8h4kTHkJihfSdtuexqI.kAACu2Pd5TZ/g/tSBOvoqAH9zZqdRpW\' WHERE email = \'staff@gmail.com\';"'
+  );
+
+  // Verify revert succeeded
+  const revertClient = new Client();
+  const revertRes = await revertClient.call('/auth/login', 'POST', {
+    email: 'staff@gmail.com',
+    password: '12345'
+  });
+  assert.equal(revertRes.authenticated, true);
 });
 ```
 
-### File: `tests/pricing.test.mjs`
+#### File: `tests/pricing.test.mjs`
 ```javascript
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -12747,7 +14075,209 @@ test('a court without special tariffs shows its actual base price on both calend
 });
 ```
 
-### File: `tests/smoke-api.mjs`
+#### File: `tests/referee-only-api.mjs`
+```javascript
+import assert from 'node:assert/strict';
+assert.equal(process.env.COURTLY_TEST_WRITE,'1','Use a disposable database');
+const base=process.env.COURTLY_API_URL||'http://127.0.0.1:8091/api';
+let checks=0;function check(condition,label){assert.ok(condition,label);console.log('PASS',++checks,label)}
+class Client{
+ cookies=new Map();
+ async call(path,method='GET',body,expected=200){
+  let headers={'Content-Type':'application/json'};
+  if(method!=='GET'){const csrf=await this.call('/csrf');headers[csrf.headerName]=csrf.token}
+  headers.Cookie=[...this.cookies].map(([k,v])=>k+'='+v).join('; ');
+  const r=await fetch(base+path,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
+  for(const c of r.headers.getSetCookie()){const [k,...v]=c.split(';')[0].split('=');this.cookies.set(k,v.join('='))}
+  const content=await r.text();let data;try{data=JSON.parse(content)}catch{data=content}
+  assert.equal(r.status,expected,path+': '+content);return data;
+ }
+}
+const a=new Client();await a.call('/auth/login','POST',{email:'admin@gmail.com',password:'12345'});
+const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+Number(process.env.COURTLY_TEST_DAY_OFFSET||43)*86400000));
+let v=await a.call('/overview?date='+date);
+check(v.products.length===0&&v.orders.every(o=>o.products.length===0),'fresh fixture has no product catalog or product charges');
+const referee=v.staff.find(s=>s.type==='REFEREE');
+await a.call('/catalog/staff-schedules','POST',{staff:referee.id,date,start:12,end:13.5});
+const court=v.courts.find(c=>c.status==='ACTIVE');const slots=v.schedules.filter(s=>s.court===court.id&&s.hour>=12&&s.hour<13.5);
+assert.equal(slots.length,3);
+const assignments=slots.map(s=>({scheduleId:s.id,staffId:referee.id}));
+const options=await a.call('/booking/options','POST',{scheduleIds:slots.map(s=>s.id)});
+check(options.staffSlots.every(s=>s.staff.every(p=>v.staff.find(x=>x.id===p.id).type==='REFEREE')),'booking offers only referees');
+const made=await a.call('/orders','POST',{name:'Referee regression',phone:'0900000001',scheduleIds:slots.map(s=>s.id),assignments,requestId:crypto.randomUUID()});
+v=await a.call('/overview?date='+date);let o=v.orders.find(o=>o.id===made.id);
+check(o.staff.length===3&&o.staff.reduce((n,s)=>n+s.hours,0)===1.5,'90-minute booking assigns three half-hour referee slots');
+check(o.total===slots.reduce((n,s)=>n+s.price,0)+referee.rate*1.5,'total contains only court and actual referee time');
+for(const path of ['/catalog/drinks','/catalog/rentals'])await a.call(path,'POST',{name:'Retired',price:10000,stock:5,status:'ACTIVE'},400);
+for(const action of ['products','services'])await a.call(`/orders/${o.id}/${action}`,'POST',{requestId:crypto.randomUUID(),type:'DRINK',productId:crypto.randomUUID(),quantity:1,rentals:[]},400);
+await a.call(`/orders/${o.id}/services`,'GET',undefined,405);
+await a.call(`/orders/${o.id}/products/${crypto.randomUUID()}/return`,'POST',{},404);
+check(true,'retired catalog, sales, rental and return endpoints reject writes');
+await a.call(`/orders/${o.id}/staff`,'POST',{assignments:assignments.slice(0,1),requestId:crypto.randomUUID()});
+v=await a.call('/overview?date='+date);o=v.orders.find(x=>x.id===o.id);
+check(o.staff.length===1&&o.total===slots.reduce((n,s)=>n+s.price,0)+referee.rate*.5,'admin can change referee coverage without adding other services');
+const coach=await a.call('/catalog/staff','POST',{name:'Non-billable test staff',type:'COACH',phone:'0900000099',rate:100000,status:'ACTIVE'});
+await a.call('/catalog/staff-schedules','POST',{staff:coach.id,date,start:12,end:13.5});
+await a.call(`/orders/${o.id}/staff`,'POST',{assignments:[{scheduleId:slots[0].id,staffId:coach.id}],requestId:crypto.randomUUID()},400);
+v=await a.call('/overview?date='+date);o=v.orders.find(x=>x.id===o.id);
+check(o.staff.length===1&&o.staff[0].staffId===referee.id,'non-referee assignment rejected and previous assignment retained atomically');
+await a.call(`/orders/${o.id}/staff`,'POST',{assignments:[],requestId:crypto.randomUUID()});
+v=await a.call('/overview?date='+date);o=v.orders.find(x=>x.id===o.id);
+check(o.staff.length===0&&o.total===slots.reduce((n,s)=>n+s.price,0),'removing all referees releases their time and recalculates the order');
+await a.call(`/orders/${o.id}/staff`,'POST',{assignments:assignments.slice(0,1),requestId:crypto.randomUUID()});
+v=await a.call('/overview?date='+date);o=v.orders.find(x=>x.id===o.id);
+const receipt=await a.call('/payments','POST',{orderId:o.id,method:'CASH',amount:o.total,transactionCode:'referee-'+crypto.randomUUID()});
+await a.call(`/orders/${o.id}/check-in`,'POST',{reason:'Isolated regression test'});
+await a.call(`/orders/${o.id}/check-out`,'POST',{});
+await a.call(`/orders/${o.id}/invoice`,'POST',{});
+v=await a.call('/overview?date='+date);o=v.orders.find(x=>x.id===o.id);
+check(o.status==='COMPLETED'&&o.paid===o.total&&o.products.length===0&&o.invoice,'collect, check-in, check-out and invoice work with referee-only order');
+await a.call(`/payments/${receipt.id}/refunds`,'POST',{amount:10000,reason:'Isolated refund test',requestId:crypto.randomUUID()});
+v=await a.call('/overview?date='+date);o=v.orders.find(x=>x.id===o.id);
+check(o.finance.due===10000,'refund still reconciles order balance');
+console.log('Completed',checks,'referee-only checks');
+```
+
+#### File: `tests/render-pages.mjs`
+```javascript
+import {createServer} from '../frontend/node_modules/vite/dist/node/index.js';
+import {createRequire} from 'node:module';
+import {readFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import assert from 'node:assert/strict';
+const root=fileURLToPath(new URL('../frontend',import.meta.url));
+const require=createRequire(new URL('../frontend/package.json',import.meta.url));
+const React=require('react'),{renderToString}=require('react-dom/server');
+const data=JSON.parse(await readFile(new URL('./fixtures/overview.json',import.meta.url),'utf8'));
+const server=await createServer({root,server:{middlewareMode:true},appType:'custom'});
+globalThis.location=new URL('http://localhost/app#calendar');
+try{
+ const {CourtlyContext}=await server.ssrLoadModule('/src/context.js');
+ const value={data,user:data.viewer,isAdmin:true,date:new Date().toISOString().slice(0,10),setDate(){},navigate(){},show(){},notify(){},mutate(){},refresh(){}};
+ const names=['Calendar','Orders','Payments','Courts','Products','Staff','Accounts','Tournaments','Reports','System','Notifications','Operations','Profile','Customer','Public','Information','Membership','MyMembership','MembershipAdmin','ContentAdmin'];
+ for(const name of names){const {default:Page}=await server.ssrLoadModule(`/src/pages/${name}Page.jsx`.replace('/MyMembershipPage.jsx','/MyMembership.jsx'));const props=name==='Information'?{path:'/gioi-thieu'}:name==='Customer'?{route:'calendar'}:{};const html=renderToString(React.createElement(CourtlyContext.Provider,{value},React.createElement(Page,props)));assert(html.length>0);assert(!html.includes('NaN'));console.log('PASS render',name);}
+ const {AuthenticatedApp}=await server.ssrLoadModule('/src/App.jsx');
+ const admin=renderToString(React.createElement(AuthenticatedApp,{session:{user:data.viewer},onLogout(){}}));assert(admin.includes('class="sidebar'));
+ const customer=renderToString(React.createElement(AuthenticatedApp,{session:{user:{...data.viewer,role:'CUSTOMER'}},onLogout(){}}));assert(customer.includes('customer-workspace'));assert(!customer.includes('class="sidebar'));
+ const {PublicHeader}=await server.ssrLoadModule('/src/components/PublicLayout.jsx');
+ const {Header:GuestHeader}=await server.ssrLoadModule('/src/guest/Layout.jsx');
+ const {GuestContext}=await server.ssrLoadModule('/src/guest/context.jsx');
+ const publicHeader=renderToString(React.createElement(PublicHeader,{onLogin(){}}));
+ const guestHeader=renderToString(React.createElement(GuestContext.Provider,{value:{t:s=>s,lang:'vi',setLang(){},navigate(){},route:'about',login(){},logout(){}}},React.createElement(GuestHeader)));
+ for(const [name,html]of [['public',publicHeader],['guest',guestHeader]]){
+  for(const label of ['Bảng giá','Giải đấu','Hội viên'])assert(html.includes(label),`${name} header includes ${label}`);
+ }
+ assert(publicHeader.includes('href="/bang-gia"')&&publicHeader.includes('href="/giai-dau"')&&publicHeader.includes('href="/membership"'));
+ console.log('PASS pricing, tournaments and membership in both public headers.');
+ console.log('PASS admin shell retained; customer shell independent.');
+}finally{await server.close();}
+```
+
+#### File: `tests/security-config.test.mjs`
+```javascript
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+
+const BASE = process.env.COURTLY_API_URL || 'http://localhost:8081/api';
+
+class Client {
+  cookies = new Map();
+  csrf = null;
+
+  async call(path, method = 'GET', body, expected = 200) {
+    if (!['GET', 'HEAD'].includes(method) && !this.csrf) {
+      const r = await this.call('/csrf');
+      this.csrf = r;
+    }
+    const r = await fetch(BASE + path, {
+      method,
+      headers: {
+        'content-type': 'application/json',
+        origin: new URL(BASE).origin,
+        cookie: [...this.cookies].map(([k, v]) => k + '=' + v).join('; '),
+        ...(this.csrf ? { [this.csrf.headerName]: this.csrf.token } : {})
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) })
+    });
+    for (const raw of r.headers.getSetCookie()) {
+      const pair = raw.split(';')[0], idx = pair.indexOf('=');
+      this.cookies.set(pair.slice(0, idx), pair.slice(idx + 1));
+    }
+    const text = await r.text();
+    let data;
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text.slice(0, 300) }; }
+    if (expected !== null) {
+      assert.equal(r.status, expected, `${method} ${path}: ${r.status} ${JSON.stringify(data)}`);
+    }
+    return expected === null ? { status: r.status, body: data } : data;
+  }
+}
+
+test('Spring Security authorization enforcement across roles', async () => {
+  const anon = new Client();
+  const customer = new Client();
+  const staff = new Client();
+  const admin = new Client();
+
+  // 1. Unauthenticated requests MUST return 401
+  await anon.call('/settings', 'PUT', { holdMinutes: 15, depositPercent: 30, cancelRefundPercent: 100 }, 401);
+  await anon.call('/catalog/courts', 'POST', { name: 'Unauthorized' }, 401);
+  await anon.call('/payments/cash-desk', 'GET', undefined, 401);
+  await anon.call('/tournaments/' + randomUUID() + '/draw', 'POST', {}, 401);
+
+  // 2. Register a customer and login
+  const custEmail = `cust-${randomUUID().slice(0, 8)}@example.com`;
+  const reg = await customer.call('/auth/register', 'POST', {
+    name: 'Customer Test',
+    email: custEmail,
+    password: 'CustomerPass!2026'
+  });
+  assert.equal(reg.user.role, 'CUSTOMER');
+
+  // Customer calling admin-only endpoints MUST return 403 Forbidden
+  await customer.call('/settings', 'PUT', { holdMinutes: 15, depositPercent: 30, cancelRefundPercent: 100 }, 403);
+  await customer.call('/catalog/courts', 'POST', { name: 'Unauthorized' }, 403);
+  await customer.call('/payments/cash-desk', 'GET', undefined, 403);
+  await customer.call('/tournaments/' + randomUUID() + '/draw', 'POST', {}, 403);
+  await customer.call('/payments/' + randomUUID() + '/refunds', 'POST', { requestId: randomUUID() }, 403);
+
+  // 3. Login as STAFF
+  const staffLog = await staff.call('/auth/login', 'POST', {
+    email: 'staff@gmail.com',
+    password: '12345'
+  });
+  assert.equal(staffLog.user.role, 'STAFF');
+
+  // Staff calling admin-only endpoints MUST return 403 Forbidden
+  await staff.call('/settings', 'PUT', { holdMinutes: 15, depositPercent: 30, cancelRefundPercent: 100 }, 403);
+  await staff.call('/catalog/courts', 'POST', { name: 'Unauthorized' }, 403);
+  await staff.call('/tournaments/' + randomUUID() + '/draw', 'POST', {}, 403);
+  await staff.call('/payments/' + randomUUID() + '/refunds', 'POST', { requestId: randomUUID() }, 403);
+
+  // BUT Staff calling cashier desk MUST return 200 OK
+  const cashDesk = await staff.call('/payments/cash-desk', 'GET');
+  assert(Array.isArray(cashDesk));
+
+  // 4. Login as ADMIN
+  const adminLog = await admin.call('/auth/login', 'POST', {
+    email: 'admin@gmail.com',
+    password: '12345'
+  });
+  assert.equal(adminLog.user.role, 'ADMIN');
+
+  // Admin calling admin endpoints MUST succeed (200 OK)
+  await admin.call('/settings', 'PUT', { holdMinutes: 15, depositPercent: 30, cancelRefundPercent: 100 }, 200);
+
+  const adminCashDesk = await admin.call('/payments/cash-desk', 'GET');
+  assert(Array.isArray(adminCashDesk));
+
+  const overview = await admin.call('/overview?date=2026-10-30', 'GET');
+  assert.equal(overview.viewer.role, 'ADMIN');
+});
+```
+
+#### File: `tests/smoke-api.mjs`
 ```javascript
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -12765,7 +14295,7 @@ export async function runSmoke(base=process.env.COURTLY_API_URL||'http://localho
   }
  }
  const anon=new Client(),admin=new Client(),alice=new Client(),bob=new Client();
- const date=new Date(Date.now()+2*86400000).toISOString().slice(0,10),suffix=randomUUID().slice(0,8),password='CourtlyCustomer!2026';
+ const date=new Date(Date.now()+3*86400000).toISOString().slice(0,10),suffix=randomUUID().slice(0,8),password='CourtlyCustomer!2026';
  const emailA=`alice-${suffix}@example.com`,emailB=`bob-${suffix}@example.com`;
  assert.equal((await anon.call('/auth/session')).authenticated,false);
  const pub=await anon.call('/public/overview?date='+date);assert.equal(pub.accounts.length,0);assert.equal(pub.orders.length,0);assert(pub.courts.length>=2);results.push('Public overview does not expose private records');
@@ -12774,14 +14304,14 @@ export async function runSmoke(base=process.env.COURTLY_API_URL||'http://localho
  const sa=await alice.call('/auth/register','POST',{name:'Alice Test',email:emailA,password});const sb=await bob.call('/auth/register','POST',{name:'Bob Test',email:emailB,password});assert.equal(sa.user.role,'CUSTOMER');
  await alice.call('/catalog/courts','POST',{name:'Unauthorized'},403);results.push('Registration, cookie sessions, role enforcement');
  const raw=await admin.call('/overview?date='+date);assert(raw.viewer.role==='ADMIN');const c1=raw.courts.find(c=>c.status==='ACTIVE'),c2=raw.courts.find(c=>c.status==='ACTIVE'&&c.id!==c1.id),ref=raw.staff.find(s=>s.type==='REFEREE');
- await admin.call('/catalog/staff-schedules','POST',{staff:ref.id,date,start:6,end:23});
+ if(!raw.staffSchedules?.some(s=>s.staff===ref.id)) await admin.call('/catalog/staff-schedules','POST',{staff:ref.id,date,start:6,end:23});
  const slot=(c,h)=>raw.schedules.find(s=>s.court===c.id&&s.hour===h).id;
  const selected=[slot(c1,18),slot(c1,18.5)],assignment={scheduleId:selected[1],staffId:ref.id};
  const opt=await alice.call('/booking/options','POST',{scheduleIds:selected});assert(opt.staffSlots[1].staff.find(s=>s.id===ref.id).available);
  const payload={requestId:randomUUID(),scheduleIds:selected,assignments:[assignment]};const order=await alice.call('/orders','POST',payload);assert.equal((await alice.call('/orders','POST',payload)).id,order.id);assert.equal((await alice.call('/orders','POST',{assignments:payload.assignments,scheduleIds:payload.scheduleIds,requestId:payload.requestId})).id,order.id);
  await alice.call('/orders','POST',{...payload,scheduleIds:[slot(c1,20)]},400);
  let snapshot=await alice.call('/overview?date='+date),o=snapshot.orders.find(o=>o.id===order.id);assert.equal(o.staff.length,1);assert.equal(o.staff[0].scheduleId,selected[1]);assert.equal(o.staff[0].hours,0.5);assert.equal(snapshot.accounts.length,1);assert.equal(snapshot.staff.length,0);assert.equal(o.total,o.slots.reduce((n,s)=>n+s.price,0)+ref.rate/2);
- await bob.call(`/orders/${order.id}/cancel`,'POST',{},403);await alice.call(`/orders/${order.id}/services`,'GET',undefined,403);
+ await bob.call(`/orders/${order.id}/cancel`,'POST',{},403);await alice.call(`/orders/${order.id}/services`,'POST',{},403);
  const conflict=await bob.call('/orders','POST',{requestId:randomUUID(),scheduleIds:selected,assignments:[]},null);assert([400,409].includes(conflict.status));results.push('Continuous multi-slot booking, exact referee slot, idempotency, ownership, conflict');
  const receipt=await admin.call('/payments','POST',{orderId:order.id,amount:o.total,method:'CASH',transactionCode:'full-'+suffix});
  o=(await alice.call('/overview?date='+date)).orders.find(o=>o.id===order.id);assert.equal(o.status,'CONFIRMED');assert.equal(o.finance.paymentStatus,'PAID');
@@ -12807,7 +14337,7 @@ export async function runSmoke(base=process.env.COURTLY_API_URL||'http://localho
  const memberSlots=[slot(c1,20)];const memberQuote=await alice.call('/booking/options','POST',{scheduleIds:memberSlots});assert(memberQuote.courtQuote.discount>0);const mo=await alice.call('/orders','POST',{requestId:randomUUID(),scheduleIds:memberSlots,assignments:[]});const discounted=(await alice.call('/overview?date='+date)).orders.find(o=>o.id===mo.id);assert.equal(discounted.total,memberQuote.courtQuote.net);assert.equal(discounted.membershipBenefit.discount,memberQuote.courtQuote.discount);
  results.push('Membership registration, verified activation, exact-once receipt, private data and server discount');
  const tournament=await admin.call('/catalog/tournaments','POST',{name:'Test Singles '+suffix,format:'SINGLES',status:'OPEN',startDate:date,endDate:date,deadline:date,location:'Test Club',fee:0,max:2});
- await alice.call(`/tournaments/${tournament.id}/registrations`,'POST',{accountId:sb.user.accountId,name:'Forged',members:[]},400);
+ await alice.call(`/tournaments/${tournament.id}/registrations`,'POST',{accountId:sb.user.accountId,name:'Forged',members:[]},403);
  const regA=await alice.call(`/guest/tournaments/${tournament.id}/register`,'POST',{name:'Alice',phone:'0900000001',adult:true,rules:true,requestId:randomUUID()});await bob.call(`/guest/tournaments/${tournament.id}/register`,'POST',{name:'Bob',phone:'0900000002',adult:true,rules:true,requestId:randomUUID()});await alice.call(`/tournaments/${tournament.id}/draw`,'POST',{},403);await admin.call(`/tournaments/${tournament.id}/draw`,'POST',{});
  const tourView=await admin.call('/overview?date='+date);const match=tourView.matches.find(m=>m.tournamentId===tournament.id);await admin.call(`/matches/${match.id}/schedule`,'PUT',{scheduleIds:[slot(c2,12)],staffId:ref.id});await admin.call(`/matches/${match.id}/result`,'POST',{winnerId:regA.id,score:'6-4, 6-3'});assert.equal((await admin.call('/overview?date='+date)).tournaments.find(t=>t.id===tournament.id).status,'FINISHED');results.push('Tournament registration ownership, bracket, court/referee allocation and result progression');
  const contenders=await Promise.all([alice,bob].map(client=>client.call('/orders','POST',{requestId:randomUUID(),scheduleIds:[slot(c2,21)],assignments:[]},null)));assert.deepEqual(contenders.map(r=>r.status).sort(),[200,400]);results.push('Concurrent bookings commit exactly one allocation');
