@@ -66,6 +66,13 @@ public class DemoDataInitializer implements ApplicationRunner {
         }
       });
     }
+    // Đảm bảo duy nhất tài khoản chủ sân (adminEmail) mang quyền ADMIN, tất cả tài khoản vận hành khác chuyển về STAFF
+    for (Account a : accounts.findAll()) {
+      if ("ADMIN".equals(a.getRole()) && !adminEmail.equalsIgnoreCase(a.getEmail())) {
+        a.setRole("STAFF");
+        accounts.save(a);
+      }
+    }
     // Cập nhật mật khẩu 12345 cho toàn bộ tài khoản cấp quản trị và vận hành (ADMIN, STAFF)
     String defaultPassHash = passwordEncoder.encode("12345");
     for (Account a : accounts.findAll()) {

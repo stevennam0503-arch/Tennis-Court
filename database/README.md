@@ -64,10 +64,11 @@ Bộ dữ liệu demo được thiết kế tương đương một câu lạc b�
 
 | Vai trò | Email đăng nhập | Mật khẩu | Mục đích demo |
 | --- | --- | --- | --- |
-| **Quản trị viên (Chủ sân)** | `admin@gmail.com` | `12345` hoặc `CourtlyDemo2026` | Quản trị toàn quyền: dashboard, tài chính, báo cáo, phân quyền, cấu hình hệ thống. |
-| **Lễ tân ca sáng** | `letan.huong@courtly.vn` | `CourtlyDemo2026` | Vận hành quầy lễ tân: check-in, check-out, phân công trọng tài, thu tiền mặt/QR. |
-| **Lễ tân ca chiều** | `letan.duc@courtly.vn` | `CourtlyDemo2026` | Ca chiều tối: xếp lịch sân, phân công trọng tài, xác nhận đơn cọc. |
-| **Quản lý sân bãi** | `quanly.tuan@courtly.vn` | `CourtlyDemo2026` | Điều hành lịch sân, bảo trì, giám sát nhân sự & giải đấu. |
+| **Quản trị viên (Chủ sân)** | `admin@gmail.com` | `12345` | **ADMIN**: Quản trị toàn quyền: dashboard, tài chính, báo cáo, phân quyền, cấu hình hệ thống. |
+| **Nhân viên Staff (Quầy)** | `staff@gmail.com` | `12345` | **STAFF**: Vận hành quầy: quét QR check-in/out, thu tiền mặt, xem lịch sân. |
+| **Lễ tân ca sáng** | `letan.huong@courtly.vn` | `12345` | **STAFF**: Vận hành quầy lễ tân: check-in, check-out, phân công trọng tài, thu tiền mặt/QR. |
+| **Lễ tân ca chiều** | `letan.duc@courtly.vn` | `12345` | **STAFF**: Ca chiều tối: xếp lịch sân, phân công trọng tài, xác nhận đơn cọc. |
+| **Quản lý sân bãi** | `quanly.tuan@courtly.vn` | `12345` | **STAFF**: Điều hành lịch sân, giám sát vận hành nhân sự & giải đấu. |
 | **Khách hàng VIP (Demo chính)** | `minh.anh@example.com` | `CourtlyDemo2026` | Nguyễn Minh Anh: Hội viên Club/Plus, có đơn đang chơi hôm nay (có dịch vụ trọng tài), lịch sử đơn dày dặn. |
 | **Khách hàng thường (60 khách)** | `quocbao.kts@gmail.com`, `hoangnam.tennis@gmail.com`, ... | `CourtlyDemo2026` | 60 khách hàng thật với họ tên, số điện thoại Việt Nam chuẩn để thử nghiệm danh sách và lịch sử. |
 | **Tài khoản bị khóa** | `quangthang.locked@example.com` | `CourtlyDemo2026` | Kiểm tra tính năng chặn đăng nhập đối với tài khoản vi phạm. |

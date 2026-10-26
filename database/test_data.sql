@@ -68,11 +68,11 @@ BEGIN
   VALUES (pg_temp.seed_uuid('settings:default'), 15, 50, 50,
           '{"cancelCutoffMinutes":60,"changeCutoffMinutes":60,"checkInEarlyMinutes":30}');
 
-  -- 3. FRONT-DESK STAFF ACCOUNTS (Role ADMIN for front-desk operation)
+  -- 3. FRONT-DESK STAFF ACCOUNTS (Role STAFF for front-desk operation)
   INSERT INTO accounts(id, full_name, email, phone, password_hash, role, status, created_at, auth_version) VALUES
-  (pg_temp.seed_uuid('staff_acc:1'), 'Trần Thu Hương (Lễ tân sáng)', 'letan.huong@courtly.vn', '0938112233', v_passwd, 'ADMIN', 'ACTIVE', v_now - interval '60 days', 0),
-  (pg_temp.seed_uuid('staff_acc:2'), 'Nguyễn Minh Đức (Lễ tân chiều)', 'letan.duc@courtly.vn', '0938445566', v_passwd, 'ADMIN', 'ACTIVE', v_now - interval '60 days', 0),
-  (pg_temp.seed_uuid('staff_acc:3'), 'Lê Anh Tuấn (Quản lý sân)', 'quanly.tuan@courtly.vn', '0909998877', v_passwd, 'ADMIN', 'ACTIVE', v_now - interval '60 days', 0);
+  (pg_temp.seed_uuid('staff_acc:1'), 'Trần Thu Hương (Lễ tân sáng)', 'letan.huong@courtly.vn', '0938112233', v_passwd, 'STAFF', 'ACTIVE', v_now - interval '60 days', 0),
+  (pg_temp.seed_uuid('staff_acc:2'), 'Nguyễn Minh Đức (Lễ tân chiều)', 'letan.duc@courtly.vn', '0938445566', v_passwd, 'STAFF', 'ACTIVE', v_now - interval '60 days', 0),
+  (pg_temp.seed_uuid('staff_acc:3'), 'Lê Anh Tuấn (Quản lý sân)', 'quanly.tuan@courtly.vn', '0909998877', v_passwd, 'STAFF', 'ACTIVE', v_now - interval '60 days', 0);
 
   -- 4. MAIN DEMO CUSTOMER (VIP Player)
   v_demo_id := pg_temp.seed_uuid('customer:demo');
