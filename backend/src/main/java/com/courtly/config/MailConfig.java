@@ -25,16 +25,14 @@ public class MailConfig {
   @Bean
   public JavaMailSender javaMailSender() {
     JavaMailSenderImpl sender = new JavaMailSenderImpl();
-    if (host != null && !host.isBlank()) {
-      sender.setHost(host);
+    if (host != null && !host.isBlank() && password != null && !password.isBlank()) {
+      sender.setHost(host.trim());
       sender.setPort(port);
       if (username != null && !username.isBlank()) {
         sender.setUsername(username.trim());
       }
-      if (password != null && !password.isBlank()) {
-        String cleanPassword = host.contains("gmail") ? password.trim().replace(" ", "") : password.trim();
-        sender.setPassword(cleanPassword);
-      }
+      String cleanPassword = host.contains("gmail") ? password.trim().replace(" ", "") : password.trim();
+      sender.setPassword(cleanPassword);
       Properties props = sender.getJavaMailProperties();
       props.put("mail.transport.protocol", "smtp");
       props.put("mail.smtp.auth", "true");

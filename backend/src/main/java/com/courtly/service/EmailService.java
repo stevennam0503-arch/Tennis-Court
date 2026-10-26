@@ -32,6 +32,9 @@ public class EmailService {
   @Value("${courtly.mail.username:}")
   private String username;
 
+  @Value("${courtly.mail.password:}")
+  private String password;
+
   @Value("${courtly.mail.from:no-reply@courtly.vn}")
   private String fromAddress;
 
@@ -39,7 +42,7 @@ public class EmailService {
   private String fromName;
 
   public boolean isConfigured() {
-    return host != null && !host.isBlank();
+    return host != null && !host.isBlank() && password != null && !password.isBlank();
   }
 
   @Async
@@ -160,7 +163,7 @@ public class EmailService {
   public boolean send(String to, String subject, String textBody, String htmlBody) {
     if (!isConfigured()) {
       log.info("\n======================================================\n" +
-               "[COURTLY EMAIL - DEMO MODE (No SMTP server configured)]\n" +
+               "[COURTLY EMAIL - DEV/DEMO MODE (Chưa cấu hình mật khẩu SMTP)]\n" +
                "To: {}\nSubject: {}\n" +
                "------------------------------------------------------\n" +
                "{}\n" +
@@ -189,6 +192,12 @@ public class EmailService {
       return true;
     } catch (Exception e) {
       log.error("Failed to send email via SMTP ({}:{}): {}", host, port, e.getMessage(), e);
+      log.info("\n======================================================\n" +
+               "[COURTLY EMAIL - FALLBACK OTP (SMTP gửi thất bại)]\n" +
+               "To: {}\nSubject: {}\n" +
+               "------------------------------------------------------\n" +
+               "{}\n" +
+               "======================================================", to, subject, textBody);
       logEmailMetadata(to, subject, "FAILED");
       return false;
     }

@@ -362,6 +362,7 @@ Nhằm tạo điều kiện cho quản trị viên kiểm thử đăng ký lại
 - **FR-28 (Chuẩn hóa giao diện Quản trị tinh gọn & Phân trang)**: Các trang danh sách lớn trong phân hệ Quản trị (Quản lý tài khoản, Quản lý thanh toán & hoàn tiền, Lịch trực nhân sự, Danh mục bảng giá) bắt buộc trang bị phân trang chuẩn (Pagination 15 mục/trang), thanh tìm kiếm trực tiếp (live search) và các tab bộ lọc phân loại chuyên sâu, giải quyết triệt để vấn đề danh sách dài bất tiện.
 - **FR-29 (Nhân sự & Trọng tài có ảnh minh họa chuyên nghiệp)**: Toàn bộ danh mục nhân sự và trọng tài được trang bị ảnh chân dung đồ họa mô phỏng chuyên nghiệp với đồng phục polo, còi trọng tài, huy hiệu chứng chỉ VTF và nhãn "Ảnh minh họa", thay thế hoàn toàn chữ cái viết tắt đơn điệu.
 - **FR-30 (Quy chuẩn duy nhất 3 loại sân)**: Hệ thống chỉ quản lý và chấp nhận duy nhất 3 loại sân hợp lệ: Sân VIP (`VIP`), Sân Trong Nhà (`INDOOR`), Sân Ngoài Trời (`OUTDOOR`). Tuyệt đối loại bỏ các loại sân cứng/mềm (HARD, CLAY, GRASS) khỏi giao diện nhập liệu và cấu hình hệ thống.
+- **FR-31 (Quy chuẩn phân trang toàn diện cho Việc cần xử lý & Tra cứu lịch sử)**: Phân hệ Việc cần xử lý (`OperationsPage`), Lịch sử đặt sân (`MyHistory`), Lịch sử thanh toán (`MyPayments`) và Dịch vụ trọng tài (`MyServices`) bắt buộc trang bị phân trang chuẩn (10 - 15 bản ghi/trang), thanh tìm kiếm trực tiếp và các thẻ tab lọc phân loại chuyên sâu theo tính chất công việc, loại bỏ hoàn toàn hiện tượng danh sách kéo dài gây khó khăn khi thao tác.
 
 ---
 
@@ -383,6 +384,7 @@ Nhằm tạo điều kiện cho quản trị viên kiểm thử đăng ký lại
 - **TR-09 (Responsive đa nền tảng)**: Giao diện tối ưu hoàn hảo trên cả máy tính để bàn (Desktop), máy tính bảng (Tablet) và điện thoại thông minh (Mobile).
 - **TR-10 (Đa ngôn ngữ)**: Hỗ trợ chuyển đổi mượt mà giữa tiếng Việt và tiếng Anh (VI / EN) cho toàn bộ nhãn, thông báo và trạng thái hệ thống.
 - **TR-11 (Khả năng tương thích in ấn)**: Các modal phiếu thu và hóa đơn phải tích hợp CSS `@media print` để ẩn các nút điều hướng và canh lề chuẩn cho máy in nhiệt và máy in văn phòng.
+- **TR-12 (Cơ chế Dev OTP & Fallback SMTP linh hoạt)**: Khi chưa cấu hình mật khẩu SMTP ứng dụng Gmail (`SMTP_PASSWORD`), hệ thống tự động kích hoạt chế độ phát triển (Dev Mode): trả về `devCode` trên response API để giao diện tự động bật nút "Điền mã", đồng thời in mã OTP ra console backend. Khi xảy ra ngoại lệ gửi email, hệ thống tự động fallback in mã OTP ra log để ngăn chặn triệt để tình trạng thành viên mới kéo mã nguồn từ GitHub về bị chặn đăng ký/kích hoạt tài khoản bởi lỗi `MailAuthenticationException`.
 
 ---
 **TÀI LIỆU NÀY LÀ CĂN CỨ NGHIỆP VỤ VÀ YÊU CẦU CHÍNH THỨC CỦA HỆ THỐNG COURTLY.**
