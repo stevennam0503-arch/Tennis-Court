@@ -1140,5 +1140,13 @@
   "Đang kiểm tra tính khả dụng của sân và bảng giá…": "Checking court availability and pricing schedule…",
   "Đang tạo mã QR…": "Generating QR code…",
   "Đang tạo mã VietQR...": "Generating VietQR code...",
-  "Đã xác nhận lịch đặt.": "Booking confirmed."
+  "Đã xác nhận lịch đặt.": "Booking confirmed.",
+  "Đăng nhập Courtly": "Sign in to Courtly",
+  "Tạo tài khoản mới": "Create a new account",
+  "Chào mừng trở lại! Đăng nhập để đặt sân và quản lý lịch thi đấu.": "Welcome back! Sign in to book courts and manage your schedule.",
+  "Đăng ký nhanh chóng để giữ chỗ sân trực tuyến và tích lũy ưu đãi.": "Sign up quickly to reserve courts online and earn member benefits.",
+  "Mã kích hoạt OTP 6 số": "6-digit OTP activation code",
+  "Quên mật khẩu / Có mã?": "Forgot password / Have a code?",
+  "Quay lại Đăng nhập": "Back to Sign In",
+  "Liên hệ quầy lễ tân để xác minh và nhận mã đặt lại mật khẩu trực tiếp.": "Please contact the front desk to verify and receive a password reset token."
 }

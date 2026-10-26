@@ -26,6 +26,10 @@ public class CatalogService {
   private final TournamentRegistrationRepository registrations;
   private final TournamentMatchRepository matches;
   private final TournamentService tournamentService;
+  private final CustomerOrderRepository orders;
+  private final PaymentRepository payments;
+  private final RefundRepository refunds;
+  private final AuthService auth;
   private final AuditService audit;
 
   @Transactional
@@ -42,6 +46,82 @@ public class CatalogService {
         };
     audit.log("LƯU " + collection.toUpperCase(), result.toString());
     return result;
+  }
+
+  @Transactional
+  public void delete(String collection, UUID id, Account actor) {
+    switch (collection) {
+      case "accounts" -> deleteAccount(id, actor);
+      default -> throw new BusinessException("Danh mục không hỗ trợ xóa");
+    }
+  }
+
+  private void deleteAccount(UUID id, Account actor) {
+    Account target =
+        accounts
+            .findForUpdate(id)
+            .orElseThrow(() -> new BusinessException("Tài khoản không tồn tại"));
+
+    require(!id.equals(actor.getId()), "Không thể tự xóa tài khoản của chính mình");
+    require(!auth.owner(target), "Không thể xóa tài khoản chủ hệ thống (Owner)");
+
+    boolean hasOrders =
+        orders.findAll().stream()
+            .anyMatch(
+                o ->
+                    id.equals(
+                            o.getCustomerAccount() != null
+                                ? o.getCustomerAccount().getId()
+                                : null)
+                        || id.equals(
+                            o.getCreatedByAccount() != null
+                                ? o.getCreatedByAccount().getId()
+                                : null));
+    require(
+        !hasOrders,
+        "Tài khoản đã có đơn đặt sân hoặc dữ liệu giao dịch đối soát. Để bảo toàn chứng từ, vui lòng chọn Khóa tài khoản (LOCKED) thay vì xóa vĩnh viễn.");
+
+    boolean hasPayments =
+        payments.findAll().stream()
+            .anyMatch(
+                p ->
+                    p.getReceivedByAccount() != null
+                        && id.equals(p.getReceivedByAccount().getId()));
+    require(
+        !hasPayments,
+        "Tài khoản đã từng thu tiền thanh toán. Để bảo toàn chứng từ, vui lòng chọn Khóa tài khoản (LOCKED) thay vì xóa vĩnh viễn.");
+
+    boolean hasRefunds =
+        refunds.findAll().stream()
+            .anyMatch(
+                r ->
+                    r.getProcessedByAccount() != null
+                        && id.equals(r.getProcessedByAccount().getId()));
+    require(
+        !hasRefunds,
+        "Tài khoản đã từng xử lý hoàn tiền. Để bảo toàn chứng từ, vui lòng chọn Khóa tài khoản (LOCKED) thay vì xóa vĩnh viễn.");
+
+    boolean hasTournaments =
+        registrations.findAll().stream()
+            .anyMatch(
+                r ->
+                    id.equals(
+                            r.getAccount() != null ? r.getAccount().getId() : null)
+                        || id.equals(
+                            r.getRegisteredByAccount() != null
+                                ? r.getRegisteredByAccount().getId()
+                                : null))
+            || tournaments.findAll().stream()
+                .anyMatch(
+                    t ->
+                        t.getOrganizerAccount() != null
+                            && id.equals(t.getOrganizerAccount().getId()));
+    require(
+        !hasTournaments,
+        "Tài khoản có liên quan đến giải đấu (tổ chức hoặc đăng ký thi đấu). Vui lòng chọn Khóa tài khoản (LOCKED) thay vì xóa vĩnh viễn.");
+
+    accounts.delete(target);
+    audit.log("XÓA TÀI KHOẢN", target.getEmail() + " (" + target.getFullName() + ")");
   }
 
   private UUID court(UUID id, CatalogRequest r) {

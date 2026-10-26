@@ -56,4 +56,14 @@ public class CatalogController {
         request,
         () -> com.courtly.util.Rules.map("id", service.save(collection, id, request)));
   }
+
+  @DeleteMapping("/{collection}/{id}")
+  public Map<String, Object> delete(
+      @PathVariable String collection,
+      @PathVariable UUID id,
+      jakarta.servlet.http.HttpServletRequest req) {
+    var actor = auth.current(req);
+    service.delete(collection, id, actor);
+    return com.courtly.util.Rules.map("success", true, "id", id);
+  }
 }

@@ -398,7 +398,20 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
 
         {error && <div className="error" role="alert">{error}</div>}
 
-        <button className="btn primary auth-submit" disabled={busy}>
+        <button
+          className="btn primary auth-submit"
+          disabled={busy}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: 'center',
+            width: '100%',
+            minHeight: 46,
+            fontSize: 14,
+            fontWeight: 700
+          }}
+        >
           {busy
             ? 'Đang xử lý…'
             : mode === 'login'

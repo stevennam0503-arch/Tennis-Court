@@ -41,3 +41,18 @@
 #courtly-balanced-amenities .gx-zone-filter {display:flex;gap:16px;align-items:center;margin:20px 0}
 #courtly-balanced-amenities .gx-zone-filter select {padding:10px;border:1px solid #c3cebc;border-radius:6px}
 @media(max-width:1000px){#courtly-balanced-amenities .gx-policy-grid {grid-template-columns:1fr}}
+
+/* Auth modal sizing & centered alignment */
+#courtly-balanced-amenities .gx-dialog:has(.gx-auth-card) {
+  width: min(500px, 94vw);
+  padding: 38px 32px 32px;
+  border-radius: 14px;
+}
+#courtly-balanced-amenities .gx-auth-submit-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  width: 100% !important;
+}
+
