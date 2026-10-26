@@ -213,9 +213,10 @@ public class EmailService {
       if (username != null && !username.isBlank() && password != null && !password.isBlank()) {
         sendLine(writer, "AUTH LOGIN");
         expect(reader, "334");
-        sendLine(writer, Base64.getEncoder().encodeToString(username.getBytes(StandardCharsets.UTF_8)));
+        sendLine(writer, Base64.getEncoder().encodeToString(username.trim().getBytes(StandardCharsets.UTF_8)));
         expect(reader, "334");
-        sendLine(writer, Base64.getEncoder().encodeToString(password.getBytes(StandardCharsets.UTF_8)));
+        String cleanPassword = (host != null && host.contains("gmail")) ? password.trim().replace(" ", "") : password.trim();
+        sendLine(writer, Base64.getEncoder().encodeToString(cleanPassword.getBytes(StandardCharsets.UTF_8)));
         expect(reader, "235");
       }
 
