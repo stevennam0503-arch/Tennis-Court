@@ -13,6 +13,7 @@ export default function Booking() {
   const [error, setError] = useState(''), [saving, setSaving] = useState(false);
   const [wantReferee, setWantReferee] = useState(false), [refStart, setRefStart] = useState(''), [refEnd, setRefEnd] = useState(''), [refId, setRefId] = useState('');
   const [preview,setPreview]=useState(null);
+  const [bookedCourts, setBookedCourts] = useState([]);
   const req = useRef(requestId());
   const allCourts = data?.courts || [];
   const courts = preferredZone==='ALL'?allCourts:allCourts.filter(c=>zone(c)===preferredZone);
@@ -23,39 +24,97 @@ export default function Booking() {
   const available = s => (s.status === 'AVAILABLE' || ownIds.has(s.id)) && Date.parse(`${date}T${s.start}+07:00`) > Date.now();
   const valid = court?.status === 'ACTIVE' && end !== null && canEndAt(rows, start, end, available);
   const chosen = valid ? rangeSlots(rows, start, end) : [];
-  const signature = chosen.map(s => s.id).join(',');
-  const reset = () => {setStart(null); setEnd(null); setHover(null); setPhase('start'); setRefId(''); setOptions(null); setPreview(null); setError('');};
-  useEffect(reset, [court?.id, date, moveOrder?.id]);
-  useEffect(()=>setPreview(null),[signature,refId,refStart,refEnd,wantReferee]);
-  useEffect(() => {setCourtId('');}, [preferredZone]);
-  useEffect(() => {setRefStart(start === null ? '' : clock(start)); setRefEnd(end === null ? '' : clock(end)); setRefId(''); req.current = requestId();}, [start, end, court?.id, date]);
+
+  const checkMultiCourtGap = (booked, currentStart, currentEnd) => {
+    if (!booked.length || currentStart === null || currentEnd === null) return true;
+    for (const b of booked) {
+      const overlap = !(currentEnd <= b.start || currentStart >= b.end);
+      if (overlap) return true;
+      const gapBefore = currentStart - b.end;
+      const gapAfter = b.start - currentEnd;
+      if ((gapBefore >= 0 && gapBefore <= 30) || (gapAfter >= 0 && gapAfter <= 30)) return true;
+    }
+    return false;
+  };
+
+  const allChosen = [...bookedCourts.flatMap(b => b.slots), ...chosen];
+  const signature = allChosen.map(s => s.id).sort().join(',');
+
+  const reset = () => {
+    setStart(null); setEnd(null); setHover(null); setPhase('start'); setRefId(''); setOptions(null); setPreview(null); setError('');
+  };
+
   useEffect(() => {
-    let live = true; setOptions(null);
-    if (valid && user) api('/booking/options', 'POST', {scheduleIds:chosen.map(s => s.id), ...(moveOrder ? {excludeId:moveOrder.id} : {})})
-      .then(x => {if (live) {setOptions(x); setError('');}}).catch(e => {if (live) setError(e.message);});
-    return () => {live = false;};
-  }, [signature, valid, user?.id, moveOrder?.id]);
+    setBookedCourts([]);
+    reset();
+  }, [date, moveOrder?.id]);
+
+  useEffect(reset, [court?.id]);
+  useEffect(() => setPreview(null), [signature, refId, refStart, refEnd, wantReferee]);
+  useEffect(() => { setCourtId(''); }, [preferredZone]);
+  useEffect(() => { setRefStart(start === null ? '' : clock(start)); setRefEnd(end === null ? '' : clock(end)); setRefId(''); req.current = requestId(); }, [start, end, court?.id, date]);
+
+  useEffect(() => {
+    let live = true;
+    setOptions(null);
+    if (allChosen.length > 0 && user) {
+      api('/booking/options', 'POST', {
+        scheduleIds: allChosen.map(s => s.id),
+        ...(moveOrder ? {excludeId: moveOrder.id} : {})
+      })
+        .then(x => { if (live) { setOptions(x); setError(''); } })
+        .catch(e => { if (live) setError(e.message); });
+    }
+    return () => { live = false; };
+  }, [signature, allChosen.length, user?.id, moveOrder?.id]);
+
+  const addCourt = () => {
+    if (!valid || !court) return;
+    if (bookedCourts.some(b => b.court.id === court.id)) {
+      setError(t('Sân này đã có trong đơn. Vui lòng chọn sân khác.'));
+      return;
+    }
+    if (bookedCourts.length >= 2) {
+      setError(t('Tối đa 3 sân trong cùng một đơn.'));
+      return;
+    }
+    if (!checkMultiCourtGap(bookedCourts, start, end)) {
+      setError(t('Các sân trong cùng đơn phải cùng khung giờ hoặc nối tiếp nhau (không cách quá 30 phút).'));
+      return;
+    }
+    setBookedCourts(prev => [...prev, { court, start, end, slots: chosen }]);
+    reset();
+  };
+
+  const removeCourt = idx => {
+    setBookedCourts(prev => prev.filter((_, i) => i !== idx));
+  };
 
   const pickTime = minute => {
     setError(''); setHover(null);
     if (phase === 'end' && start !== null) {
       if (!canEndAt(rows, start, minute, available)) return;
+      if (bookedCourts.length > 0 && !checkMultiCourtGap(bookedCourts, start, minute)) {
+        setError(t('Các sân trong cùng đơn phải cùng khung giờ hoặc nối tiếp nhau (không cách quá 30 phút).'));
+        return;
+      }
       setEnd(minute); setPhase('start');
     } else {
       if (!rows.some(s => toMinutes(s.start) === minute && available(s))) return;
       setStart(minute); setEnd(null); setPhase('end'); setOptions(null);
     }
   };
+
   const refSlots = chosen.filter(s => refStart && refEnd && toMinutes(s.start) >= toMinutes(refStart) && toMinutes(s.end) <= toMinutes(refEnd));
   const refValid = refSlots.length > 0 && time(refSlots[0].start) === refStart && time(refSlots.at(-1).end) === refEnd;
   const people = refValid && options ? (options.staffSlots?.find(s => s.scheduleId === refSlots[0]?.id)?.staff || [])
     .filter(p => refSlots.every(s => options.staffSlots.find(x => x.scheduleId === s.id)?.staff.some(x => x.id === p.id && x.available))) : [];
   const referee = wantReferee ? people.find(p => p.id === refId) : null;
   const refFee = referee ? (toMinutes(refEnd) - toMinutes(refStart)) * referee.rate / 60 : 0;
-  const gross = chosen.reduce((sum,s) => sum+s.price,0), net = options?.courtQuote?.net ?? gross, discount = options?.courtQuote?.discount ?? 0;
+  const gross = allChosen.reduce((sum,s) => sum+s.price,0), net = options?.courtQuote?.net ?? gross, discount = options?.courtQuote?.discount ?? 0;
   const rangeLabel = valid ? `${clock(start)}–${clock(end)}` : '';
   const displayDate = new Intl.DateTimeFormat(lang === 'en' ? 'en-GB' : 'vi-VN', {weekday:'short', day:'2-digit', month:'2-digit'}).format(new Date(date+'T12:00:00'));
-  const ready = valid && !saving && (!user || !!options) && !options?.conflicts?.length && (!wantReferee || !!referee);
+  const ready = allChosen.length > 0 && !saving && (!user || !!options) && !options?.conflicts?.length && (!wantReferee || !!referee);
   const previewEnd = phase === 'end' && hover !== null && canEndAt(rows, start, hover, available) ? hover : null;
   const instruction = phase === 'end' ? t('Chọn mốc kết thúc cho buổi chơi của bạn.') : valid ? t('Đã chọn giờ chơi. Nhấn mốc khác để bắt đầu chọn lại.') : t('Nhấn một mốc giờ để bắt đầu.');
 
@@ -67,14 +126,18 @@ export default function Booking() {
       const assignments = referee ? refSlots.map(s => ({scheduleId:s.id, staffId:referee.id})) : [];
       if (moveOrder) {
         if(!preview){
-          const result=await api(`/orders/${moveOrder.id}/preview`,'POST',{scheduleIds:chosen.map(s=>s.id),assignments});
+          const result=await api(`/orders/${moveOrder.id}/preview`,'POST',{scheduleIds:allChosen.map(s=>s.id),assignments});
           setPreview(result);return;
         }
-        await api(`/orders/${moveOrder.id}/schedule`, 'PATCH', {scheduleIds:chosen.map(s => s.id), assignments, reason:'Khách đổi lịch', expectedTotal:preview.next.total, requestId:req.current});
+        await api(`/orders/${moveOrder.id}/schedule`, 'PATCH', {scheduleIds:allChosen.map(s => s.id), assignments, reason:'Khách đổi lịch', expectedTotal:preview.next.total, requestId:req.current});
         setMoveOrder(null); navigate('orders'); notify(t('Đã đổi lịch')); await refresh();
       } else {
-        const result = await api('/orders', 'POST', {name:user.name, phone:'', accountId:user.id, scheduleIds:chosen.map(s => s.id), assignments, requestId:req.current});
-        reset(); navigate('orders'); await refresh(); await pay('ORDER',result.id);
+        const result = await api('/orders', 'POST', {name:user.name, phone:'', accountId:user.id, scheduleIds:allChosen.map(s => s.id), assignments, requestId:req.current});
+        setBookedCourts([]);
+        reset();
+        navigate('orders');
+        await refresh();
+        await pay('ORDER',result.id);
       }
     } catch (e) {setError(e.message); notify(e.message);} finally {setSaving(false);}
   };
@@ -150,10 +213,87 @@ export default function Booking() {
         </section>
       </section>
       <aside className="gx-quote" aria-label={t('Chi phí buổi chơi')}>
-        <span className="ct-eyebrow">{t('BUỔI CHƠI CỦA BẠN')}</span><h2>{court?.name || 'Courtly'}</h2><p className="gx-quote-date">{displayDate}</p>
-        <div className="gx-quote-range"><Clock size={18}/><div><strong>{rangeLabel || t('Chưa chọn giờ')}</strong><span>{valid?`${end-start} ${t('phút')}`:t('Chọn giờ bắt đầu và kết thúc')}</span></div></div>
-        <dl><div><dt>{t('Tiền sân')}</dt><dd>{money(gross)}</dd></div><div><dt>{t('Ưu đãi hội viên')}</dt><dd>−{money(discount)}</dd></div><div><dt>{t('Trọng tài')}</dt><dd>{money(refFee)}</dd></div><div className="gx-total"><dt>{t('Tổng tiền')}</dt><dd>{money(net+refFee)}</dd></div></dl>
-        <div className="gx-deposit"><div><span>{t('Cọc 50% tiền sân')}</span><strong>{money(Math.round(net/2))}</strong></div><p>{t('Phí trọng tài nằm trong phần thanh toán còn lại.')}</p></div>
+        <span className="ct-eyebrow">{t('BUỔI CHƠI CỦA BẠN')}</span>
+        <h2>{bookedCourts.length > 0 ? `${bookedCourts.length + (valid ? 1 : 0)} ${t('sân')} · Courtly` : court?.name || 'Courtly'}</h2>
+        <p className="gx-quote-date">{displayDate}</p>
+
+        {bookedCourts.length > 0 && (
+          <div style={{background: '#f8f9fa', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 12px', marginBottom: 12}}>
+            <div style={{fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6}}>{t('Các sân trong đơn:')}</div>
+            {bookedCourts.map((bc, idx) => (
+              <div key={bc.court.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '4px 0', borderBottom: idx < bookedCourts.length - 1 ? '1px dashed #e2e8f0' : 'none'}}>
+                <span><b>{bc.court.name}</b> ({clock(bc.start)}–{clock(bc.end)})</span>
+                <button type="button" onClick={() => removeCourt(idx)} style={{background: 'none', border: 'none', color: '#e53e3e', cursor: 'pointer', fontSize: 14, fontWeight: 'bold'}} title={t('Bỏ sân này')}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {valid && (
+          <div className="gx-quote-range">
+            <Clock size={18}/>
+            <div>
+              <strong>{court.name}: {rangeLabel}</strong>
+              <span>{`${end-start} ${t('phút')}`}</span>
+            </div>
+          </div>
+        )}
+        {!valid && bookedCourts.length === 0 && (
+          <div className="gx-quote-range">
+            <Clock size={18}/>
+            <div>
+              <strong>{t('Chưa chọn giờ')}</strong>
+              <span>{t('Chọn giờ bắt đầu và kết thúc')}</span>
+            </div>
+          </div>
+        )}
+
+        {valid && (bookedCourts.length < 2) && !moveOrder && (
+          <button
+            type="button"
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              marginBottom: 14,
+              background: '#f4fbf7',
+              border: '1px dashed #2e7d32',
+              color: '#1b5e20',
+              borderRadius: 6,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+            onClick={addCourt}
+          >
+            + {t('Thêm sân này & chọn tiếp sân khác')}
+          </button>
+        )}
+
+        <dl>
+          <div>
+            <dt>{t('Tiền sân')} ({allChosen.length * 30} {t('phút')})</dt>
+            <dd>{money(gross)}</dd>
+          </div>
+          <div>
+            <dt>{t('Ưu đãi hội viên')}</dt>
+            <dd>−{money(discount)}</dd>
+          </div>
+          <div>
+            <dt>{t('Trọng tài')}</dt>
+            <dd>{money(refFee)}</dd>
+          </div>
+          <div className="gx-total">
+            <dt>{t('Tổng tiền')}</dt>
+            <dd>{money(net+refFee)}</dd>
+          </div>
+        </dl>
+        <div className="gx-deposit">
+          <div>
+            <span>{t('Cọc 50% tiền sân')}</span>
+            <strong>{money(Math.round(net/2))}</strong>
+          </div>
+          <p>{t('Phí trọng tài nằm trong phần thanh toán còn lại.')}</p>
+        </div>
         {preview&&<div className="gx-notice" role="status"><h3>{t('Xem trước đổi lịch')}</h3><p>{t('Tổng cũ')}: {money(preview.previous.total)} → {t('Tổng mới')}: {money(preview.next.total)}</p><p>{t('Chênh lệch')}: {money(preview.difference)}</p><p>{t('Còn thanh toán')}: {money(preview.additionalDue)}</p><p>{t('Chờ hoàn / đối soát')}: {money(preview.reviewAmount)}</p></div>}
         {!user&&<p className="gx-notice">{t('Đăng nhập để tạo đơn gắn với tài khoản của bạn. Lựa chọn hiện tại được giữ khi đăng nhập.')}</p>}
         {error && <div className="gx-error" role="alert">{t(error)}</div>}

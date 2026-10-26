@@ -277,14 +277,44 @@ public class OrderService {
   }
 
   public void continuous(List<CourtSchedule> rows) {
-    require(
-        rows.stream().map(s -> s.getCourt().getId()).distinct().count() == 1,
-        "Chọn một khoảng liên tục trên cùng sân");
-    var sorted = rows.stream().sorted(Comparator.comparing(CourtSchedule::getStartTime)).toList();
-    for (int i = 1; i < sorted.size(); i++)
-      require(
-          sorted.get(i - 1).getEndTime().equals(sorted.get(i).getStartTime()),
-          "Các giờ chơi phải liên tiếp");
+    require(rows != null && !rows.isEmpty(), "Chọn ít nhất một khung giờ");
+    Map<UUID, List<CourtSchedule>> byCourt =
+        rows.stream().collect(java.util.stream.Collectors.groupingBy(s -> s.getCourt().getId()));
+    require(byCourt.size() <= 3, "Tối đa 3 sân trong cùng một đơn đặt");
+
+    for (var entry : byCourt.entrySet()) {
+      var sorted = entry.getValue().stream().sorted(Comparator.comparing(CourtSchedule::getStartTime)).toList();
+      for (int i = 1; i < sorted.size(); i++) {
+        require(
+            sorted.get(i - 1).getEndTime().equals(sorted.get(i).getStartTime()),
+            "Các giờ chơi trên cùng sân phải liên tiếp nhau");
+      }
+    }
+
+    if (byCourt.size() > 1) {
+      record CourtSpan(LocalTime start, LocalTime end) {}
+      List<CourtSpan> spans = new ArrayList<>();
+      for (var list : byCourt.values()) {
+        LocalTime min = list.stream().map(CourtSchedule::getStartTime).min(Comparator.naturalOrder()).orElseThrow();
+        LocalTime max = list.stream().map(CourtSchedule::getEndTime).max(Comparator.naturalOrder()).orElseThrow();
+        spans.add(new CourtSpan(min, max));
+      }
+      spans.sort(Comparator.comparing(CourtSpan::start));
+
+      LocalTime maxEndSoFar = spans.get(0).end;
+      for (int i = 1; i < spans.size(); i++) {
+        CourtSpan next = spans.get(i);
+        if (next.start.isAfter(maxEndSoFar)) {
+          long gapMinutes = Duration.between(maxEndSoFar, next.start).toMinutes();
+          require(
+              gapMinutes <= 30,
+              "Các sân trong cùng đơn phải diễn ra cùng khung giờ hoặc nối tiếp nhau (không cách quá 30 phút)");
+        }
+        if (next.end.isAfter(maxEndSoFar)) {
+          maxEndSoFar = next.end;
+        }
+      }
+    }
   }
 
   public void assignExact(Booking b, List<CourtSchedule> courtSlots, List<StaffAssignment> input) {
