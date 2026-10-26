@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -35,6 +36,7 @@ public class OverviewController {
   }
 
   @PostMapping("/schedules/generate")
+  @PreAuthorize("hasRole('ADMIN')")
   public Map<String, Object> generate(
       @Valid @RequestBody ScheduleRequest body, HttpServletRequest r) {
     var a = auth.current(r);
@@ -50,6 +52,7 @@ public class OverviewController {
   }
 
   @PutMapping("/settings")
+  @PreAuthorize("hasRole('ADMIN')")
   public void settings(@Valid @RequestBody SettingsRequest b) {
     settings.update(b);
   }

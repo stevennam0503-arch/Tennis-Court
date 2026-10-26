@@ -41,15 +41,7 @@ public class DemoDataInitializer implements ApplicationRunner {
   public void run(ApplicationArguments args) {
     settings.get();
 
-    // 1. Phân định quyền duy nhất: chỉ tài khoản chủ sân (adminEmail) mang quyền ADMIN, tất cả tài khoản khác hạ về STAFF
-    for (Account a : accounts.findAll()) {
-      if ("ADMIN".equals(a.getRole()) && !adminEmail.equalsIgnoreCase(a.getEmail())) {
-        a.setRole("STAFF");
-        accounts.save(a);
-      }
-    }
-
-    // 2. Tài khoản ADMIN
+    // 1. Tài khoản ADMIN
     if (adminPassword.isBlank()) {
       log.warn("ADMIN_PASSWORD chưa được cấu hình cho tài khoản: {}", adminEmail);
       // Chỉ trong môi trường demo/dev (enabled == true) và khi tài khoản admin chưa tồn tại:
@@ -92,11 +84,26 @@ public class DemoDataInitializer implements ApplicationRunner {
       }
     }
 
+    // 2. Phân định quyền duy nhất: CHỈ hạ quyền các tài khoản ADMIN khác NẾU VÀ CHỈ NẾU
+    // tài khoản chủ sân (adminEmail) thực sự tồn tại và đang mang quyền ADMIN!
+    // Tránh tình trạng: cấu hình sai hoặc thiếu ADMIN_PASSWORD dẫn đến hạ quyền admin cũ làm mất sạch admin.
+    accounts.findByEmailIgnoreCase(adminEmail).ifPresent(adminAcc -> {
+      if ("ADMIN".equals(adminAcc.getRole())) {
+        for (Account a : accounts.findAll()) {
+          if ("ADMIN".equals(a.getRole()) && !adminEmail.equalsIgnoreCase(a.getEmail())) {
+            a.setRole("STAFF");
+            accounts.save(a);
+          }
+        }
+      }
+    });
+
     // 3. BẢO VỆ MÔI TRƯỜNG THỰC: Toàn bộ dữ liệu mẫu (staff mẫu, sân mẫu, tài khoản demo...) PHẢI NẰM SAU DÒNG NÀY!
     // Khi SEED_DEMO=false, hàm kết thúc ngay tại đây -> Không tạo staff@gmail.com, không seed sân hay demo users!
     if (!enabled) return;
 
     // 4. Khởi tạo tài khoản STAFF mẫu (chỉ chạy khi enabled == true)
+    // TUYỆT ĐỐI KHÔNG tự động nâng quyền tài khoản đã tồn tại (tránh nâng quyền nhầm nếu khách hàng đã đăng ký với email này)
     var staffOpt = accounts.findByEmailIgnoreCase("staff@gmail.com");
     if (staffOpt.isEmpty()) {
       Account staffAcc = new Account();
@@ -106,17 +113,6 @@ public class DemoDataInitializer implements ApplicationRunner {
       staffAcc.setRole("STAFF");
       staffAcc.setPasswordHash(passwordEncoder.encode("12345"));
       accounts.save(staffAcc);
-    } else {
-      Account staffAcc = staffOpt.get();
-      if (!"STAFF".equals(staffAcc.getRole())) {
-        staffAcc.setRole("STAFF");
-        accounts.save(staffAcc);
-      }
-      // Chỉ khởi tạo mật khẩu nếu chưa từng có mật khẩu (tuyệt đối không ghi đè nếu đã đổi)
-      if (staffAcc.getPasswordHash() == null || staffAcc.getPasswordHash().isBlank()) {
-        staffAcc.setPasswordHash(passwordEncoder.encode("12345"));
-        accounts.save(staffAcc);
-      }
     }
 
     // 5. Kiểm tra nếu đã có dữ liệu sân thì không seed lại

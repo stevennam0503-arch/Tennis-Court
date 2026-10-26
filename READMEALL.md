@@ -681,7 +681,7 @@ courtly:
     webhook-key: ${SEPAY_WEBHOOK_KEY:}
   admin-email: ${ADMIN_EMAIL:admin@gmail.com}
   admin-password: ${ADMIN_PASSWORD:}
-  seed-demo: ${SEED_DEMO:true}
+  seed-demo: ${SEED_DEMO:false}
   allowed-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
   mail:
     host: ${SMTP_HOST:}
@@ -755,7 +755,7 @@ services:
       PAYMENT_ACCOUNT_NUMBER: ${PAYMENT_ACCOUNT_NUMBER:-0345678999}
       PAYMENT_ACCOUNT_NAME: ${PAYMENT_ACCOUNT_NAME:-CLB TENNIS COURTLY}
       SEPAY_WEBHOOK_KEY: ${SEPAY_WEBHOOK_KEY:-}
-      SEED_DEMO: ${SEED_DEMO:-true}
+      SEED_DEMO: ${SEED_DEMO:-false}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       FRONTEND_ORIGIN: http://localhost:3000
       SMTP_HOST: ${SMTP_HOST:-}
@@ -829,10 +829,12 @@ import com.courtly.service.CatalogService;
 import jakarta.validation.Valid;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/catalog")
+@PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 public class CatalogController {
   private final CatalogService service;
@@ -1069,6 +1071,7 @@ import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -1097,6 +1100,7 @@ public class OverviewController {
   }
 
   @PostMapping("/schedules/generate")
+  @PreAuthorize("hasRole('ADMIN')")
   public Map<String, Object> generate(
       @Valid @RequestBody ScheduleRequest body, HttpServletRequest r) {
     var a = auth.current(r);
@@ -1112,6 +1116,7 @@ public class OverviewController {
   }
 
   @PutMapping("/settings")
+  @PreAuthorize("hasRole('ADMIN')")
   public void settings(@Valid @RequestBody SettingsRequest b) {
     settings.update(b);
   }
@@ -1130,6 +1135,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -1145,6 +1151,7 @@ public class PaymentController {
   private final jakarta.validation.Validator validator;
 
   @GetMapping("/cash-desk")
+  @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
   @org.springframework.transaction.annotation.Transactional
   public List<Map<String, Object>> cashDesk(HttpServletRequest r) {
     auth.cashier(auth.current(r));
@@ -1160,6 +1167,7 @@ public class PaymentController {
   }
 
   @PostMapping
+  @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
   public Map<String, Object> collect(@RequestBody Map<String, Object> b, HttpServletRequest r) {
     var a = auth.current(r);
     auth.cashier(a);
@@ -1173,6 +1181,7 @@ public class PaymentController {
   }
 
   @PostMapping("/{id}/refunds")
+  @PreAuthorize("hasRole('ADMIN')")
   public Map<String, Object> refund(
       @PathVariable UUID id, @RequestBody Map<String, Object> b, HttpServletRequest r) {
     var a = auth.current(r);
@@ -1246,6 +1255,7 @@ import com.courtly.service.TournamentService;
 import jakarta.validation.Valid;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -1257,6 +1267,7 @@ public class TournamentController {
   private final com.courtly.service.RequestService requests;
 
   @PostMapping("/tournaments/{id}/registrations")
+  @PreAuthorize("hasRole('ADMIN')")
   public Map<String, UUID> register(
       @PathVariable UUID id,
       @Valid @RequestBody RegistrationRequest request,
@@ -1267,16 +1278,19 @@ public class TournamentController {
   }
 
   @PostMapping("/tournaments/{id}/draw")
+  @PreAuthorize("hasRole('ADMIN')")
   public void draw(@PathVariable UUID id) {
     service.draw(id);
   }
 
   @PutMapping("/matches/{id}/schedule")
+  @PreAuthorize("hasRole('ADMIN')")
   public void schedule(@PathVariable UUID id, @Valid @RequestBody MatchScheduleRequest request) {
     service.schedule(id, request);
   }
 
   @PostMapping("/matches/{id}/result")
+  @PreAuthorize("hasRole('ADMIN')")
   public void result(@PathVariable UUID id, @Valid @RequestBody MatchResultRequest request) {
     service.result(id, request);
   }
@@ -7847,15 +7861,7 @@ public class DemoDataInitializer implements ApplicationRunner {
   public void run(ApplicationArguments args) {
     settings.get();
 
-    // 1. Phân định quyền duy nhất: chỉ tài khoản chủ sân (adminEmail) mang quyền ADMIN, tất cả tài khoản khác hạ về STAFF
-    for (Account a : accounts.findAll()) {
-      if ("ADMIN".equals(a.getRole()) && !adminEmail.equalsIgnoreCase(a.getEmail())) {
-        a.setRole("STAFF");
-        accounts.save(a);
-      }
-    }
-
-    // 2. Tài khoản ADMIN
+    // 1. Tài khoản ADMIN
     if (adminPassword.isBlank()) {
       log.warn("ADMIN_PASSWORD chưa được cấu hình cho tài khoản: {}", adminEmail);
       // Chỉ trong môi trường demo/dev (enabled == true) và khi tài khoản admin chưa tồn tại:
@@ -7898,11 +7904,26 @@ public class DemoDataInitializer implements ApplicationRunner {
       }
     }
 
+    // 2. Phân định quyền duy nhất: CHỈ hạ quyền các tài khoản ADMIN khác NẾU VÀ CHỈ NẾU
+    // tài khoản chủ sân (adminEmail) thực sự tồn tại và đang mang quyền ADMIN!
+    // Tránh tình trạng: cấu hình sai hoặc thiếu ADMIN_PASSWORD dẫn đến hạ quyền admin cũ làm mất sạch admin.
+    accounts.findByEmailIgnoreCase(adminEmail).ifPresent(adminAcc -> {
+      if ("ADMIN".equals(adminAcc.getRole())) {
+        for (Account a : accounts.findAll()) {
+          if ("ADMIN".equals(a.getRole()) && !adminEmail.equalsIgnoreCase(a.getEmail())) {
+            a.setRole("STAFF");
+            accounts.save(a);
+          }
+        }
+      }
+    });
+
     // 3. BẢO VỆ MÔI TRƯỜNG THỰC: Toàn bộ dữ liệu mẫu (staff mẫu, sân mẫu, tài khoản demo...) PHẢI NẰM SAU DÒNG NÀY!
     // Khi SEED_DEMO=false, hàm kết thúc ngay tại đây -> Không tạo staff@gmail.com, không seed sân hay demo users!
     if (!enabled) return;
 
     // 4. Khởi tạo tài khoản STAFF mẫu (chỉ chạy khi enabled == true)
+    // TUYỆT ĐỐI KHÔNG tự động nâng quyền tài khoản đã tồn tại (tránh nâng quyền nhầm nếu khách hàng đã đăng ký với email này)
     var staffOpt = accounts.findByEmailIgnoreCase("staff@gmail.com");
     if (staffOpt.isEmpty()) {
       Account staffAcc = new Account();
@@ -7912,17 +7933,6 @@ public class DemoDataInitializer implements ApplicationRunner {
       staffAcc.setRole("STAFF");
       staffAcc.setPasswordHash(passwordEncoder.encode("12345"));
       accounts.save(staffAcc);
-    } else {
-      Account staffAcc = staffOpt.get();
-      if (!"STAFF".equals(staffAcc.getRole())) {
-        staffAcc.setRole("STAFF");
-        accounts.save(staffAcc);
-      }
-      // Chỉ khởi tạo mật khẩu nếu chưa từng có mật khẩu (tuyệt đối không ghi đè nếu đã đổi)
-      if (staffAcc.getPasswordHash() == null || staffAcc.getPasswordHash().isBlank()) {
-        staffAcc.setPasswordHash(passwordEncoder.encode("12345"));
-        accounts.save(staffAcc);
-      }
     }
 
     // 5. Kiểm tra nếu đã có dữ liệu sân thì không seed lại
@@ -7978,6 +7988,8 @@ public class DemoDataInitializer implements ApplicationRunner {
 package com.courtly.config;
 
 import org.springframework.context.annotation.*;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -7986,6 +7998,7 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.security.web.csrf.*;
 
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
   @Bean
   org.springframework.security.core.userdetails.UserDetailsService users() {
@@ -8016,7 +8029,19 @@ public class SecurityConfig {
             a ->
                 a.requestMatchers("/api/csrf", "/api/auth/**", "/api/public/**", "/api/webhooks/sepay")
                     .permitAll()
-                    .requestMatchers("/api/catalog/**", "/api/settings", "/api/settings/**", "/api/content/**", "/api/matches/**")
+                    // Thu ngân / thu tiền tại quầy: ADMIN và STAFF
+                    .requestMatchers(HttpMethod.GET, "/api/payments/cash-desk").hasAnyRole("ADMIN", "STAFF")
+                    .requestMatchers(HttpMethod.POST, "/api/payments").hasAnyRole("ADMIN", "STAFF")
+                    // Toàn bộ các route quản trị nhạy cảm: chỉ ADMIN
+                    .requestMatchers(
+                        "/api/catalog/**",
+                        "/api/settings",
+                        "/api/settings/**",
+                        "/api/content/**",
+                        "/api/matches/**",
+                        "/api/tournaments/*/draw",
+                        "/api/tournaments/*/registrations",
+                        "/api/payments/*/refunds")
                     .hasRole("ADMIN")
                     .requestMatchers("/api/**")
                     .authenticated()

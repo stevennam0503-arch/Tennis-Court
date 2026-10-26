@@ -128,4 +128,41 @@ class DemoDataInitializerTest {
     verify(accounts).save(argThat(a ->
         "STAFF".equals(a.getRole()) && encoder.matches("12345", a.getPasswordHash())));
   }
+
+  @Test
+  void doesNotDemoteExistingAdminIfAdminEmailNotCreated() {
+    ReflectionTestUtils.setField(initializer, "enabled", false);
+    ReflectionTestUtils.setField(initializer, "adminEmail", "newowner@courtly.vn");
+    ReflectionTestUtils.setField(initializer, "adminPassword", ""); // blank, so newowner not created
+
+    Account oldAdmin = new Account();
+    oldAdmin.setEmail("oldadmin@courtly.vn");
+    oldAdmin.setRole("ADMIN");
+
+    when(accounts.findByEmailIgnoreCase("newowner@courtly.vn")).thenReturn(Optional.empty());
+    when(accounts.findAll()).thenReturn(List.of(oldAdmin));
+
+    initializer.run(new DefaultApplicationArguments());
+
+    // oldAdmin must NOT be demoted to STAFF because newowner does not exist
+    assertEquals("ADMIN", oldAdmin.getRole());
+  }
+
+  @Test
+  void doesNotElevateExistingAccountIfAlreadyCustomer() {
+    ReflectionTestUtils.setField(initializer, "enabled", true);
+    Account customerAccount = new Account();
+    customerAccount.setEmail("staff@gmail.com");
+    customerAccount.setRole("CUSTOMER");
+
+    when(accounts.findByEmailIgnoreCase("admin@gmail.com")).thenReturn(Optional.empty());
+    when(accounts.findByEmailIgnoreCase("staff@gmail.com")).thenReturn(Optional.of(customerAccount));
+    when(accounts.findAll()).thenReturn(List.of());
+
+    initializer.run(new DefaultApplicationArguments());
+
+    // Must NOT elevate existing customer to STAFF
+    assertEquals("CUSTOMER", customerAccount.getRole());
+    verify(accounts, never()).save(customerAccount);
+  }
 }

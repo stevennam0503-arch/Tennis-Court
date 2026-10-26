@@ -1,6 +1,8 @@
 package com.courtly.config;
 
 import org.springframework.context.annotation.*;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -9,6 +11,7 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.security.web.csrf.*;
 
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
   @Bean
   org.springframework.security.core.userdetails.UserDetailsService users() {
@@ -39,7 +42,19 @@ public class SecurityConfig {
             a ->
                 a.requestMatchers("/api/csrf", "/api/auth/**", "/api/public/**", "/api/webhooks/sepay")
                     .permitAll()
-                    .requestMatchers("/api/catalog/**", "/api/settings", "/api/settings/**", "/api/content/**", "/api/matches/**")
+                    // Thu ngân / thu tiền tại quầy: ADMIN và STAFF
+                    .requestMatchers(HttpMethod.GET, "/api/payments/cash-desk").hasAnyRole("ADMIN", "STAFF")
+                    .requestMatchers(HttpMethod.POST, "/api/payments").hasAnyRole("ADMIN", "STAFF")
+                    // Toàn bộ các route quản trị nhạy cảm: chỉ ADMIN
+                    .requestMatchers(
+                        "/api/catalog/**",
+                        "/api/settings",
+                        "/api/settings/**",
+                        "/api/content/**",
+                        "/api/matches/**",
+                        "/api/tournaments/*/draw",
+                        "/api/tournaments/*/registrations",
+                        "/api/payments/*/refunds")
                     .hasRole("ADMIN")
                     .requestMatchers("/api/**")
                     .authenticated()

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -23,6 +24,7 @@ public class PaymentController {
   private final jakarta.validation.Validator validator;
 
   @GetMapping("/cash-desk")
+  @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
   @org.springframework.transaction.annotation.Transactional
   public List<Map<String, Object>> cashDesk(HttpServletRequest r) {
     auth.cashier(auth.current(r));
@@ -38,6 +40,7 @@ public class PaymentController {
   }
 
   @PostMapping
+  @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
   public Map<String, Object> collect(@RequestBody Map<String, Object> b, HttpServletRequest r) {
     var a = auth.current(r);
     auth.cashier(a);
@@ -51,6 +54,7 @@ public class PaymentController {
   }
 
   @PostMapping("/{id}/refunds")
+  @PreAuthorize("hasRole('ADMIN')")
   public Map<String, Object> refund(
       @PathVariable UUID id, @RequestBody Map<String, Object> b, HttpServletRequest r) {
     var a = auth.current(r);

@@ -5,6 +5,7 @@ import com.courtly.service.TournamentService;
 import jakarta.validation.Valid;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,6 +17,7 @@ public class TournamentController {
   private final com.courtly.service.RequestService requests;
 
   @PostMapping("/tournaments/{id}/registrations")
+  @PreAuthorize("hasRole('ADMIN')")
   public Map<String, UUID> register(
       @PathVariable UUID id,
       @Valid @RequestBody RegistrationRequest request,
@@ -26,16 +28,19 @@ public class TournamentController {
   }
 
   @PostMapping("/tournaments/{id}/draw")
+  @PreAuthorize("hasRole('ADMIN')")
   public void draw(@PathVariable UUID id) {
     service.draw(id);
   }
 
   @PutMapping("/matches/{id}/schedule")
+  @PreAuthorize("hasRole('ADMIN')")
   public void schedule(@PathVariable UUID id, @Valid @RequestBody MatchScheduleRequest request) {
     service.schedule(id, request);
   }
 
   @PostMapping("/matches/{id}/result")
+  @PreAuthorize("hasRole('ADMIN')")
   public void result(@PathVariable UUID id, @Valid @RequestBody MatchResultRequest request) {
     service.result(id, request);
   }

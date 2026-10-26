@@ -37,7 +37,18 @@ class Client {
   }
 }
 
-test('Password persistence across backend restarts', async () => {
+async function waitForBackend() {
+  for (let i = 0; i < 30; i++) {
+    try {
+      const ping = await fetch(BASE + '/auth/session');
+      if (ping.ok) return true;
+    } catch {}
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  return false;
+}
+
+test('Password persistence across multiple backend restarts', async () => {
   const staffClient = new Client();
 
   // 1. Initial login with 12345
@@ -73,42 +84,47 @@ test('Password persistence across backend restarts', async () => {
   });
   assert.equal(newLoginRes.authenticated, true);
 
-  // 5. Restart backend container (simulating server reboot)
-  console.log('Restarting backend container...');
+  // 5. FIRST RESTART: Restart backend container (simulating server reboot #1)
+  console.log('Restarting backend container (Restart 1)...');
   execSync('docker compose restart backend', { stdio: 'inherit' });
+  assert.equal(await waitForBackend(), true, 'Backend failed to restart within 30s');
 
-  // Wait for backend to be ready
-  let ready = false;
-  for (let i = 0; i < 30; i++) {
-    try {
-      const ping = await fetch(BASE + '/auth/session');
-      if (ping.ok) {
-        ready = true;
-        break;
-      }
-    } catch {}
-    await new Promise(r => setTimeout(r, 1000));
-  }
-  assert.equal(ready, true, 'Backend failed to restart within 30s');
-
-  // 6. CRUCIAL TEST: Verify old password 12345 is STILL REJECTED after restart (not reset!)
-  const postRestartOldClient = new Client();
-  const postRestartOldRes = await postRestartOldClient.call('/auth/login', 'POST', {
+  // 6. Verify old password 12345 is STILL REJECTED after restart 1
+  const postRestart1OldClient = new Client();
+  const postRestart1OldRes = await postRestart1OldClient.call('/auth/login', 'POST', {
     email: 'staff@gmail.com',
     password: '12345'
   }, 400);
-  assert.match(postRestartOldRes.message, /Email hoặc mật khẩu không đúng/);
+  assert.match(postRestart1OldRes.message, /Email hoặc mật khẩu không đúng/);
 
-  // 7. Verify changed password is STILL ACCEPTED after restart!
-  const postRestartNewClient = new Client();
-  const postRestartNewRes = await postRestartNewClient.call('/auth/login', 'POST', {
+  // 7. Verify changed password is STILL ACCEPTED after restart 1!
+  const postRestart1NewClient = new Client();
+  const postRestart1NewRes = await postRestart1NewClient.call('/auth/login', 'POST', {
     email: 'staff@gmail.com',
     password: 'StaffSecure!2026'
   });
-  assert.equal(postRestartNewRes.authenticated, true);
-  assert.equal(postRestartNewRes.user.email, 'staff@gmail.com');
+  assert.equal(postRestart1NewRes.authenticated, true);
 
-  // 8. Revert password back to 12345 directly via DB so other test suites stay consistent
+  // 8. SECOND RESTART: Restart backend container AGAIN (simulating server reboot #2)
+  console.log('Restarting backend container (Restart 2)...');
+  execSync('docker compose restart backend', { stdio: 'inherit' });
+  assert.equal(await waitForBackend(), true, 'Backend failed to restart within 30s on reboot 2');
+
+  // 9. Verify old password is STILL REJECTED and new password STILL WORKS on reboot 2!
+  const postRestart2OldClient = new Client();
+  await postRestart2OldClient.call('/auth/login', 'POST', {
+    email: 'staff@gmail.com',
+    password: '12345'
+  }, 400);
+
+  const postRestart2NewClient = new Client();
+  const postRestart2NewRes = await postRestart2NewClient.call('/auth/login', 'POST', {
+    email: 'staff@gmail.com',
+    password: 'StaffSecure!2026'
+  });
+  assert.equal(postRestart2NewRes.authenticated, true);
+
+  // 10. Revert password back to 12345 directly via DB so other test suites stay consistent
   execSync(
     'docker compose exec -T postgres psql -U courtly -d courtly -c ' +
     '"UPDATE accounts SET password_hash = \'$2a$12$Vz8h4kTHkJihfSdtuexqI.kAACu2Pd5TZ/g/tSBOvoqAH9zZqdRpW\' WHERE email = \'staff@gmail.com\';"'
