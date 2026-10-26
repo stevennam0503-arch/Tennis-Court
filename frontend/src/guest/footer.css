@@ -1,0 +1,365 @@
+/* ==========================================================================
+   COURTLY TENNIS CLUB - MODERN PROFESSIONAL FOOTER STYLES
+   ========================================================================== */
+
+#courtly-balanced-amenities .ct-footer-pro {
+  background: #112921;
+  color: #e5ede8;
+  border-top: 1px solid rgba(222, 244, 106, 0.2);
+  padding: 0;
+  margin-top: 60px;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* --------------------------------------------------------------------------
+   1. TRUST / VALUE PROPOSITION BAR
+   -------------------------------------------------------------------------- */
+#courtly-balanced-amenities .ct-footer-trust-bar {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 36px 28px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#courtly-balanced-amenities .ct-trust-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+#courtly-balanced-amenities .ct-trust-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(222, 244, 106, 0.12);
+  color: #def46a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+  border: 1px solid rgba(222, 244, 106, 0.25);
+}
+
+#courtly-balanced-amenities .ct-trust-item strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 4px;
+  letter-spacing: -0.2px;
+}
+
+#courtly-balanced-amenities .ct-trust-item p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #9eb5a7;
+}
+
+/* --------------------------------------------------------------------------
+   2. MAIN 4-COLUMN FOOTER GRID
+   -------------------------------------------------------------------------- */
+#courtly-balanced-amenities .ct-footer-main {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 56px 28px 48px;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1.35fr;
+  gap: 48px;
+}
+
+#courtly-balanced-amenities .ct-footer-col {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Brand Column */
+#courtly-balanced-amenities .ct-footer-brand .ct-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+#courtly-balanced-amenities .ct-footer-brand .ct-logo img {
+  width: 38px;
+  height: 38px;
+}
+
+#courtly-balanced-amenities .ct-footer-brand .ct-original-wordmark {
+  color: #ffffff;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+}
+
+#courtly-balanced-amenities .ct-footer-brand .ct-original-wordmark em {
+  display: block;
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 2.2px;
+  color: #def46a;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+#courtly-balanced-amenities .ct-footer-desc {
+  margin: 18px 0 22px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: #a4baa9;
+  max-width: 340px;
+}
+
+#courtly-balanced-amenities .ct-footer-hours-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: #d1dfd5;
+  width: fit-content;
+}
+
+#courtly-balanced-amenities .ct-footer-hours-badge svg {
+  color: #def46a;
+  flex-shrink: 0;
+}
+
+#courtly-balanced-amenities .ct-footer-hours-badge strong {
+  color: #def46a;
+  font-weight: 700;
+}
+
+/* Column Headings */
+#courtly-balanced-amenities .ct-footer-heading {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: #def46a;
+  text-transform: uppercase;
+  margin: 0 0 20px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgba(222, 244, 106, 0.25);
+  width: fit-content;
+}
+
+/* Navigation Links */
+#courtly-balanced-amenities .ct-footer-links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#courtly-balanced-amenities .ct-footer-links button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: #cbdad0;
+  font-size: 13.5px;
+  font-weight: 400;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#courtly-balanced-amenities .ct-footer-links button:hover {
+  color: #def46a;
+  transform: translateX(4px);
+}
+
+/* Contact Column */
+#courtly-balanced-amenities .ct-footer-address {
+  font-style: normal;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+#courtly-balanced-amenities .ct-contact-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #cbdad0;
+}
+
+#courtly-balanced-amenities .ct-contact-row .ct-icon {
+  color: #def46a;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+#courtly-balanced-amenities .ct-contact-row a {
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+#courtly-balanced-amenities .ct-contact-row a:hover {
+  color: #def46a;
+  text-decoration: underline;
+}
+
+/* Payment Badges */
+#courtly-balanced-amenities .ct-footer-payments {
+  padding-top: 14px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+}
+
+#courtly-balanced-amenities .ct-payment-label {
+  display: block;
+  font-size: 11.5px;
+  color: #8fa697;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+#courtly-balanced-amenities .ct-payment-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#courtly-balanced-amenities .ct-payment-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #def46a;
+  letter-spacing: 0.3px;
+}
+
+/* --------------------------------------------------------------------------
+   3. SUB-FOOTER / BOTTOM LEGAL & COPYRIGHT BAR
+   -------------------------------------------------------------------------- */
+#courtly-balanced-amenities .ct-footer-sub {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 22px 28px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12.5px;
+  color: #8fa697;
+}
+
+#courtly-balanced-amenities .ct-sub-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#courtly-balanced-amenities .ct-sub-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+#courtly-balanced-amenities .ct-sub-right button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #a4baa9;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+#courtly-balanced-amenities .ct-sub-right button:hover {
+  color: #def46a;
+}
+
+#courtly-balanced-amenities .ct-dot {
+  color: rgba(255, 255, 255, 0.25);
+  user-select: none;
+}
+
+#courtly-balanced-amenities .ct-back-to-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(222, 244, 106, 0.12) !important;
+  color: #def46a !important;
+  border: 1px solid rgba(222, 244, 106, 0.3) !important;
+  padding: 6px 14px !important;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 12px !important;
+  transition: all 0.2s ease;
+}
+
+#courtly-balanced-amenities .ct-back-to-top:hover {
+  background: #def46a !important;
+  color: #112921 !important;
+}
+
+/* --------------------------------------------------------------------------
+   4. RESPONSIVE MEDIA QUERIES
+   -------------------------------------------------------------------------- */
+@media (max-width: 960px) {
+  #courtly-balanced-amenities .ct-footer-trust-bar {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 24px 20px;
+  }
+
+  #courtly-balanced-amenities .ct-footer-main {
+    grid-template-columns: 1fr 1fr;
+    gap: 36px 28px;
+    padding: 40px 20px 32px;
+  }
+
+  #courtly-balanced-amenities .ct-footer-brand {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 580px) {
+  #courtly-balanced-amenities .ct-footer-main {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  #courtly-balanced-amenities .ct-footer-sub {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 20px;
+  }
+
+  #courtly-balanced-amenities .ct-sub-right {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+}
