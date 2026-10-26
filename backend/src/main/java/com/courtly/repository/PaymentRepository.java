@@ -10,6 +10,7 @@ public interface PaymentRepository extends LockingRepository<Payment> {
 
   java.util.Optional<Payment> findByTransactionCode(String code);
 
-  @Query("select p from Payment p left join fetch p.order left join fetch p.registration order by p.paidAt desc")
+  @Query(
+      "select p from Payment p left join fetch p.order left join fetch p.registration left join fetch p.receivedByAccount order by p.paidAt desc")
   java.util.List<Payment> findAllWithOrderAndRegistration();
 }

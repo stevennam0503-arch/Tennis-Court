@@ -33,6 +33,7 @@ export function OrderDetail({id,onClose}) {
     {o.status==='CONFIRMED'&&<Button className="primary" onClick={()=>show({type:'check-in',id})}>Thực hiện Check-in vào sân</Button>}
     {o.status==='CHECKED_IN'&&<Button className="primary" onClick={()=>doAction('check-out')}>Check-out & Hoàn tất</Button>}
     {o.status==='CHECKED_IN'&&<Button onClick={()=>show({type:'extend-order',id})}>⚡ Gia hạn giờ chơi</Button>}
+    {['HOLDING','CONFIRMED'].includes(o.status)&&<Button onClick={()=>show({type:'move',id})}>🔄 Đổi lịch sân</Button>}
     {active(o)&&o.paid<o.total&&o.status!=='HOLDING'&&<Button className="lime" onClick={()=>show({type:'payment',id})}>Thu nốt tiền ({money(o.total-o.paid)})</Button>}
     {!['HOLDING','CANCELLED','EXPIRED'].includes(o.status)&&<Button onClick={async()=>{await doAction('invoice');show({type:'invoice',id});}}>In phiếu thu</Button>}
     <Button onClick={onClose}>Đóng</Button>
@@ -155,9 +156,121 @@ export function RefundDialog({id,onClose}) {
   const {data,mutate,notify}=useCourtly();const p=data.payments.find(p=>p.id===id);
   return <FormDialog title="Ghi nhận hoàn tiền" submitText="Xác nhận đã hoàn" initial={{amount:p.refundable,reason:'',requestId:crypto.randomUUID()}} fields={[{name:'amount',label:'Số tiền hoàn (đ)',type:'number',min:1,max:p.refundable,full:true},{name:'reason',label:'Lý do hoàn',full:true}]} onClose={onClose} onSubmit={async v=>{await mutate(`/payments/${id}/refunds`,v);notify('Đã ghi nhận khoản hoàn');onClose();}}><div className="notice" style={{marginBottom:18}}>Có thể hoàn tối đa <b>{money(p.refundable)}</b>.</div></FormDialog>;
 }
-export function InvoiceDialog({id,onClose}) {
-  const {data}=useCourtly();const current=data.orders.find(x=>x.id===id);const o=current.invoiceSnapshot||current;
-  return <Modal title={`PHIẾU THU • ${o.invoice||''}`} onClose={onClose} wide footer={<><Button onClick={onClose}>Đóng</Button><Button className="primary" onClick={()=>window.print()}>In / Lưu PDF</Button></>}><h2>COURTLY TENNIS CLUB</h2><p className="subtitle">Ngày phát hành: {o.issuedAt?new Date(o.issuedAt).toLocaleString('vi-VN'):''}</p><div className="detail-head" style={{marginTop:20}}>Khách hàng: {o.name}<br/>Điện thoại: {o.phone}<br/>Ngày sử dụng: {o.date}</div><Table headings={['Dịch vụ','Thành tiền']}>{o.slots.map(s=><tr key={s.id}><td>{data.courts.find(c=>c.id===s.court)?.name} • {slotLabel(s)}</td><td>{money(s.price)}</td></tr>)}{o.products.map(p=><tr key={p.id}><td>{p.name} × {p.quantity}{p.type==='RENTAL'?` • ${p.hours} giờ`:''}</td><td>{money(p.lineTotal??p.price*p.quantity*(p.type==='RENTAL'?p.hours:1))}</td></tr>)}{o.staff.map(s=><tr key={s.id}><td>{s.name} • {s.hours} giờ</td><td>{money(s.rate*s.hours)}</td></tr>)}</Table>{o.membershipBenefit?.discount>0&&<div className="summary-line membership-discount"><span>Ưu đãi {o.membershipBenefit.planName}</span><b>–{money(o.membershipBenefit.discount)}</b></div>}{o.voucherBenefit?.discount>0&&<div className="summary-line voucher-discount" style={{color:'#16a34a'}}><span>Voucher ({o.voucherBenefit.code})</span><b>–{money(o.voucherBenefit.discount)}</b></div>}<div className="summary-line total"><span>Tổng tiền</span><b>{money(o.total)}</b></div><div className="summary-line"><span>Đã thu</span><b>{money(o.paid)}</b></div><div className="summary-line"><span>{['CANCELLED','EXPIRED'].includes(o.status)?'Không thu thêm':'Còn phải thu'}</span><b>{money(['CANCELLED','EXPIRED'].includes(o.status)?0:Math.max(0,o.total-o.paid))}</b></div><p className="subtitle">Phiếu thu nội bộ • chưa tích hợp hóa đơn điện tử thuế.</p></Modal>;
+export function InvoiceDialog({id, onClose}) {
+  const {data} = useCourtly();
+  const current = data.orders.find(x => x.id === id);
+  const o = current.invoiceSnapshot || current;
+  const invoiceCode = o.invoice || ('HD-' + o.id.slice(0, 8).toUpperCase());
+  const issueDate = o.issuedAt ? new Date(o.issuedAt).toLocaleString('vi-VN') : new Date().toLocaleString('vi-VN');
+
+  return (
+    <Modal
+      title={`HÓA ĐƠN DỊCH VỤ • ${invoiceCode}`}
+      onClose={onClose}
+      wide
+      footer={
+        <>
+          <Button onClick={onClose}>Đóng</Button>
+          <Button className="primary" onClick={() => window.print()}>
+            🖨️ In Hóa Đơn / Xuất PDF
+          </Button>
+        </>
+      }
+    >
+      <div className="printable-invoice" style={{ padding: '8px 4px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #173c32', paddingBottom: 16, marginBottom: 16 }}>
+          <div>
+            <h2 style={{ margin: 0, color: '#173c32', fontSize: 22, fontWeight: 800 }}>COURTLY TENNIS CLUB</h2>
+            <div style={{ fontSize: 13, color: '#475569', marginTop: 4 }}>Khu liên hợp thể thao Courtly Tennis Club</div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>MST: 0109887766 · Hotline: 0988 123 456 · Email: contact@courtly.vn</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#173c32' }}>HÓA ĐƠN DỊCH VỤ</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#0284c7' }}>Số: #{invoiceCode}</div>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Ngày: {issueDate}</div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, background: '#f8fafc', padding: 12, borderRadius: 8, marginBottom: 18, fontSize: 13 }}>
+          <div>
+            <span style={{ color: '#64748b' }}>Khách hàng:</span>
+            <div style={{ fontWeight: 700, color: '#0f172a' }}>{o.name}</div>
+          </div>
+          <div>
+            <span style={{ color: '#64748b' }}>Số điện thoại:</span>
+            <div style={{ fontWeight: 600 }}>{o.phone || 'Khách vãng lai'}</div>
+          </div>
+          <div>
+            <span style={{ color: '#64748b' }}>Ngày sử dụng:</span>
+            <div style={{ fontWeight: 600 }}>{o.date}</div>
+          </div>
+        </div>
+
+        <Table headings={['STT', 'Dịch vụ / Hạng mục', 'Thời lượng / SL', 'Đơn giá', 'Thành tiền']}>
+          {o.slots.map((s, idx) => (
+            <tr key={s.id}>
+              <td>{idx + 1}</td>
+              <td><b>{data.courts.find(c => c.id === s.court)?.name}</b> • {slotLabel(s)}</td>
+              <td>{slotHours(s) * 60} phút</td>
+              <td>{money(s.price)}</td>
+              <td className="name">{money(s.price)}</td>
+            </tr>
+          ))}
+          {o.products.map((p, idx) => (
+            <tr key={p.id}>
+              <td>{o.slots.length + idx + 1}</td>
+              <td>{p.name} {p.type === 'RENTAL' ? '(Thuê)' : '(F&B / Hàng hóa)'}</td>
+              <td>{p.quantity} {p.type === 'RENTAL' ? `(${p.hours} giờ)` : 'món'}</td>
+              <td>{money(p.price)}</td>
+              <td className="name">{money(p.lineTotal ?? p.price * p.quantity * (p.type === 'RENTAL' ? p.hours : 1))}</td>
+            </tr>
+          ))}
+          {o.staff.map((s, idx) => (
+            <tr key={s.id}>
+              <td>{o.slots.length + o.products.length + idx + 1}</td>
+              <td>Dịch vụ trọng tài • {s.name}</td>
+              <td>{s.hours} giờ</td>
+              <td>{money(s.rate)}/h</td>
+              <td className="name">{money(s.rate * s.hours)}</td>
+            </tr>
+          ))}
+        </Table>
+
+        <div style={{ marginTop: 16, borderTop: '1px solid #e2e8f0', paddingTop: 12 }}>
+          {o.membershipBenefit?.discount > 0 && (
+            <div className="summary-line membership-discount" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span>Ưu đãi hội viên ({o.membershipBenefit.planName})</span>
+              <b style={{ color: '#16a34a' }}>–{money(o.membershipBenefit.discount)}</b>
+            </div>
+          )}
+          {o.voucherBenefit?.discount > 0 && (
+            <div className="summary-line voucher-discount" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span>Voucher giảm giá ({o.voucherBenefit.code})</span>
+              <b style={{ color: '#16a34a' }}>–{money(o.voucherBenefit.discount)}</b>
+            </div>
+          )}
+          <div className="summary-line total" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, marginBottom: 6 }}>
+            <span>Tổng cộng thanh toán:</span>
+            <b style={{ color: '#173c32' }}>{money(o.total)}</b>
+          </div>
+          <div className="summary-line" style={{ display: 'flex', justifyContent: 'space-between', color: '#059669', marginBottom: 6 }}>
+            <span>Đã thanh toán:</span>
+            <b>{money(o.paid)}</b>
+          </div>
+          <div className="summary-line" style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+            <span>{['CANCELLED', 'EXPIRED'].includes(o.status) ? 'Trạng thái đơn' : 'Còn lại cần thu:'}</span>
+            <b style={{ color: ['CANCELLED', 'EXPIRED'].includes(o.status) ? '#dc2626' : o.total - o.paid > 0 ? '#b45309' : '#059669' }}>
+              {['CANCELLED', 'EXPIRED'].includes(o.status) ? (labels[o.status] || o.status) : money(Math.max(0, o.total - o.paid))}
+            </b>
+          </div>
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: 24, paddingTop: 12, borderTop: '1px dashed #cbd5e1', fontSize: 12, color: '#64748b' }}>
+          <i>Cảm ơn Quý khách đã sử dụng dịch vụ tại Courtly Tennis Club! Hẹn gặp lại Quý khách.</i>
+        </div>
+      </div>
+    </Modal>
+  );
 }
 
 export function ExtendOrderDialog({id, onClose}) {

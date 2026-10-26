@@ -50,7 +50,30 @@ public class PaymentController {
         "receipt:" + AuthService.hash(text((String) b.get("transactionCode"), "Mã giao dịch")),
         "payment",
         b,
-        () -> map("id", service.collect(dto(b, PaymentRequest.class))));
+        () -> map("id", service.collect(dto(b, PaymentRequest.class), a)));
+  }
+
+  @GetMapping("/shift/current")
+  @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+  public Map<String, Object> currentShift(HttpServletRequest r) {
+    var a = auth.current(r);
+    auth.cashier(a);
+    return service.currentShift(a);
+  }
+
+  @PostMapping("/shift/close")
+  @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+  public Map<String, Object> closeShift(@RequestBody Map<String, Object> body, HttpServletRequest r) {
+    var a = auth.current(r);
+    auth.cashier(a);
+    return service.closeShift(body, a);
+  }
+
+  @GetMapping("/reconciliation")
+  @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+  public Map<String, Object> reconciliation(HttpServletRequest r) {
+    auth.cashier(auth.current(r));
+    return service.reconciliation();
   }
 
   @PostMapping("/{id}/refunds")

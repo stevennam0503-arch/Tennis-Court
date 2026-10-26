@@ -18,6 +18,8 @@ export default function ReportsPage() {
   const [selectedQuarter, setSelectedQuarter] = useState(`Q${currentQuarter}`);
   const [selectedQuarterYear, setSelectedQuarterYear] = useState(currentYear);
   const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [customStart, setCustomStart] = useState(currentToday);
+  const [customEnd, setCustomEnd] = useState(currentToday);
 
   // Compute startDate and endDate based on periodType
   const { startDate, endDate, periodLabel } = useMemo(() => {
@@ -56,12 +58,19 @@ export default function ReportsPage() {
         periodLabel: `Năm ${selectedYear}`
       };
     }
+    if (periodType === 'custom') {
+      return {
+        startDate: customStart,
+        endDate: customEnd,
+        periodLabel: `Từ ${customStart} đến ${customEnd}`
+      };
+    }
     return {
       startDate: '1970-01-01',
       endDate: '2099-12-31',
       periodLabel: 'Toàn bộ thời gian'
     };
-  }, [periodType, selectedDay, selectedMonth, selectedQuarter, selectedQuarterYear, selectedYear]);
+  }, [periodType, selectedDay, selectedMonth, selectedQuarter, selectedQuarterYear, selectedYear, customStart, customEnd]);
 
   // Filter orders in period
   const ordersInPeriod = useMemo(() => {
@@ -206,13 +215,14 @@ export default function ReportsPage() {
       ['Kỳ báo cáo', periodLabel],
       ['Từ ngày', startDate, 'Đến ngày', endDate],
       [''],
-      ['I. TỔNG QUAN TÀI CHÍNH'],
-      ['Chỉ số', 'Số tiền (VNĐ)'],
-      ['Tổng thực thu ròng', totalNetCash],
-      ['Thu ròng từ đơn sân', netOrderCash],
-      ['Thu ròng phí giải đấu', netTournamentCash],
-      ['Thu phí hội viên Membership', netMembershipCash],
-      ['Giá trị dịch vụ trên đơn', totalValue],
+      ['I. 4 TRỤ CỘT DOANH THU & TÀI CHÍNH'],
+      ['Trụ cột / Hạng mục', 'Số tiền (VNĐ)'],
+      ['1. Doanh thu tiền thuê sân', courtValue],
+      ['2. Doanh thu F&B & Đồ bán', legacyValue],
+      ['3. Dụng cụ & Dịch vụ trọng tài', staffValue],
+      ['4. Phí giải đấu & Phí hội viên', netTournamentCash + netMembershipCash],
+      ['Trừ: Khoản hoàn tiền', refundsInPeriod.reduce((a, r) => a + r.amount, 0)],
+      ['TỔNG DOANH THU THUẦN (NET)', totalNetCash],
       [''],
       ['II. THỐNG KÊ ĐƠN HÀNG'],
       ['Tổng đơn trong kỳ', ordersInPeriod.length],
@@ -278,6 +288,7 @@ export default function ReportsPage() {
               ['month', 'Theo Tháng'],
               ['quarter', 'Theo Quý'],
               ['year', 'Theo Năm'],
+              ['custom', 'Khoảng ngày'],
               ['all', 'Tất cả']
             ].map(([mode, label]) => (
               <button
@@ -354,9 +365,77 @@ export default function ReportsPage() {
               </select>
             )}
 
+            {periodType === 'custom' && (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <span style={{ fontSize: 13, color: 'var(--muted)' }}>Từ:</span>
+                <input
+                  type="date"
+                  aria-label="Từ ngày"
+                  value={customStart}
+                  onChange={e => e.target.value && setCustomStart(e.target.value)}
+                  style={{ width: 140 }}
+                />
+                <span style={{ fontSize: 13, color: 'var(--muted)' }}>Đến:</span>
+                <input
+                  type="date"
+                  aria-label="Đến ngày"
+                  value={customEnd}
+                  onChange={e => e.target.value && setCustomEnd(e.target.value)}
+                  style={{ width: 140 }}
+                />
+              </div>
+            )}
+
             <span className="chip green" style={{ fontWeight: 600 }}>
               {periodLabel}
             </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 4 Revenue Pillars */}
+      <div style={{ marginBottom: 20, padding: 18, background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <h3 style={{ margin: 0, fontSize: 16, color: '#173c32' }}>
+            🏛️ 4 Trụ Cột Doanh Thu ({periodLabel})
+          </h3>
+          <span style={{ fontSize: 13, color: '#64748b' }}>Doanh thu thuần = 4 trụ cột − Hoàn tiền</span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12 }}>
+          <div style={{ padding: 14, background: '#f8fafc', borderRadius: 8, borderLeft: '4px solid #10b981' }}>
+            <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>1. DOANH THU THUÊ SÂN</span>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: '4px 0' }}>{money(courtValue)}</div>
+            <small style={{ color: '#64748b' }}>Khung giờ sân VIP, Trong nhà & Ngoài trời</small>
+          </div>
+
+          <div style={{ padding: 14, background: '#f8fafc', borderRadius: 8, borderLeft: '4px solid #3b82f6' }}>
+            <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>2. F&B & ĐỒ BÁN</span>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: '4px 0' }}>{money(legacyValue)}</div>
+            <small style={{ color: '#64748b' }}>Nước uống, đồ ăn nhẹ & hàng hóa</small>
+          </div>
+
+          <div style={{ padding: 14, background: '#f8fafc', borderRadius: 8, borderLeft: '4px solid #f59e0b' }}>
+            <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>3. DỤNG CỤ & TRỌNG TÀI</span>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: '4px 0' }}>{money(staffValue)}</div>
+            <small style={{ color: '#64748b' }}>Thuê vợt, bóng & phí dịch vụ trọng tài</small>
+          </div>
+
+          <div style={{ padding: 14, background: '#f8fafc', borderRadius: 8, borderLeft: '4px solid #8b5cf6' }}>
+            <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>4. PHÍ GIẢI ĐẤU & HỘI VIÊN</span>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', margin: '4px 0' }}>{money(netTournamentCash + netMembershipCash)}</div>
+            <small style={{ color: '#64748b' }}>Giải đấu ({money(netTournamentCash)}) · Hội viên ({money(netMembershipCash)})</small>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ fontSize: 13, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>Trừ hoàn tiền:</span>
+            <b>−{money(refundsInPeriod.reduce((a, r) => a + r.amount, 0))}</b>
+          </div>
+          <div style={{ fontSize: 15 }}>
+            <span>Doanh thu thuần (Net): </span>
+            <b style={{ color: '#059669', fontSize: 18 }}>{money(totalNetCash)}</b>
           </div>
         </div>
       </div>

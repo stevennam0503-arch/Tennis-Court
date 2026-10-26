@@ -77,6 +77,21 @@ public class ScheduleService {
     }
   }
 
+  @Transactional
+  public void toggleSlotMaintenance(List<UUID> slotIds, boolean maintenance, String reason) {
+    List<CourtSchedule> slots = lockSlots(slotIds);
+    for (CourtSchedule slot : slots) {
+      if (maintenance) {
+        require("AVAILABLE".equals(slot.getStatus()), "Chỉ có thể đưa khung giờ trống vào bảo trì (khung giờ có khách đặt cần đổi lịch hoặc hủy trước)");
+        slot.setStatus("MAINTENANCE");
+      } else {
+        if ("MAINTENANCE".equals(slot.getStatus())) {
+          slot.setStatus("AVAILABLE");
+        }
+      }
+    }
+  }
+
   public List<StaffSchedule> lockStaffSlots(UUID staffId, List<CourtSchedule> courtSlots) {
     Set<LocalTime> starts = new HashSet<>();
     courtSlots.forEach(x -> starts.add(x.getStartTime()));

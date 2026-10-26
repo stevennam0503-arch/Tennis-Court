@@ -361,6 +361,16 @@ public class OverviewService {
                             p.getPaidAt(),
                             "transactionCode",
                             p.getTransactionCode(),
+                            "receivedBy",
+                            p.getReceivedByAccount() == null
+                                ? null
+                                : map(
+                                    "id",
+                                    p.getReceivedByAccount().getId(),
+                                    "name",
+                                    p.getReceivedByAccount().getFullName(),
+                                    "phone",
+                                    p.getReceivedByAccount().getPhone()),
                             "refundable",
                             p.getAmount()
                                 .subtract(

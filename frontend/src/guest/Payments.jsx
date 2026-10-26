@@ -4,6 +4,51 @@ import {Copy,CheckCircle2,ArrowRight} from 'lucide-react';
 import {api} from '../services/api';
 import {useGuest,Action,State,Empty,money} from './context';
 
+function PaymentCountdown({ expiresAt, t }) {
+  const [sec, setSec] = useState(() => {
+    if (!expiresAt) return 0;
+    return Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
+  });
+
+  useEffect(() => {
+    if (!expiresAt) return;
+    const i = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
+      setSec(remaining);
+      if (remaining <= 0) clearInterval(i);
+    }, 1000);
+    return () => clearInterval(i);
+  }, [expiresAt]);
+
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  const formatted = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+  if (sec <= 0) {
+    return (
+      <div style={{ color: '#dc2626', fontWeight: 700, fontSize: 13, textAlign: 'center', marginBottom: 12 }}>
+        ⚠️ {t('Đã hết thời hạn giữ chỗ đơn đặt. Nếu chưa chuyển tiền, vui lòng quay lại đặt sân mới.')}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      textAlign: 'center',
+      marginBottom: 12,
+      padding: '8px 12px',
+      background: '#fffbeb',
+      border: '1px solid #fde68a',
+      borderRadius: 6,
+      color: '#92400e',
+      fontSize: 13,
+      fontWeight: 600
+    }}>
+      ⏱️ {t('Thời gian giữ chỗ VietQR còn lại')}: <span style={{ fontSize: 15, fontWeight: 700, color: '#b45309' }}>{formatted}</span>
+    </div>
+  );
+}
+
 export function PaymentDialog({intent,onClose}){
   const {t,refresh,notify,navigate}=useGuest();
   const lastStatus=useRef(intent.status);
@@ -126,6 +171,8 @@ export function PaymentDialog({intent,onClose}){
       <p className="gx-notice" style={{fontSize:12.5, lineHeight:1.5, color:'#475569', background:'#f8fafc', border:'1px solid #e2e8f0', borderRadius:6, padding:'10px 14px', margin:'0 0 12px'}}>
         {t('Vui lòng quét mã VietQR hoặc chuyển khoản đúng nội dung bên dưới. Sau khi ngân hàng xác nhận giao dịch, hệ thống sẽ tự động đối soát và cấp Vé Điện Tử.')}
       </p>
+      <PaymentCountdown expiresAt={current.expiresAt} t={t} />
+
       {/* VietQR Display */}
       <div className="gx-qr" style={{textAlign:'center',margin:'10px 0'}}>
         {qrSrc ? (

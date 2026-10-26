@@ -8,6 +8,8 @@ import com.courtly.exception.BusinessException;
 import com.courtly.repository.*;
 import java.math.*;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -44,6 +46,11 @@ public class PaymentService {
 
   @Transactional
   public UUID collect(PaymentRequest request) {
+    return collect(request, null);
+  }
+
+  @Transactional
+  public UUID collect(PaymentRequest request, Account cashier) {
     require(
         (request.orderId() == null) != (request.registrationId() == null),
         "Chỉ chọn một đơn hoặc đăng ký giải");
@@ -70,6 +77,7 @@ public class PaymentService {
     payment.setMethod(oneOf(request.method(), "CASH", "BANK_TRANSFER"));
     payment.setTransactionCode(text(request.transactionCode(), "Mã giao dịch"));
     payment.setPaidAt(Instant.now());
+    payment.setReceivedByAccount(cashier);
     if (request.orderId() != null) {
       CustomerOrder order =
           orders
@@ -168,5 +176,144 @@ public class PaymentService {
     if (reg != null) reg.setStatus("PENDING");
     audit.log("HOÀN TIỀN", refund.getId().toString());
     return refund.getId();
+  }
+
+  public Map<String, Object> currentShift(Account cashier) {
+    Instant startOfDay = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant();
+    var all = payments.findAllWithOrderAndRegistration().stream()
+        .filter(p -> p.getPaidAt().isAfter(startOfDay))
+        .toList();
+
+    var cashierCashPayments = all.stream()
+        .filter(p -> "CASH".equals(p.getMethod()))
+        .filter(p -> cashier == null || p.getReceivedByAccount() == null || cashier.getId().equals(p.getReceivedByAccount().getId()))
+        .toList();
+
+    BigDecimal cashCollected = cashierCashPayments.stream()
+        .map(Payment::getAmount)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    BigDecimal bankCollected = all.stream()
+        .filter(p -> "BANK_TRANSFER".equals(p.getMethod()))
+        .map(Payment::getAmount)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    return map(
+        "shiftDate", LocalDate.now().toString(),
+        "cashier", cashier != null ? map("id", cashier.getId(), "name", cashier.getFullName(), "phone", cashier.getPhone()) : null,
+        "cashCollected", cashCollected,
+        "bankCollected", bankCollected,
+        "transactionCount", cashierCashPayments.size(),
+        "recentPayments", cashierCashPayments.stream().limit(10).map(p -> map(
+            "id", p.getId(),
+            "amount", p.getAmount(),
+            "code", p.getTransactionCode(),
+            "time", p.getPaidAt(),
+            "type", p.getType()
+        )).toList()
+    );
+  }
+
+  @Transactional
+  public Map<String, Object> closeShift(Map<String, Object> body, Account cashier) {
+    Instant startOfDay = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant();
+    var cashierCashPayments = payments.findAllWithOrderAndRegistration().stream()
+        .filter(p -> p.getPaidAt().isAfter(startOfDay))
+        .filter(p -> "CASH".equals(p.getMethod()))
+        .filter(p -> cashier == null || p.getReceivedByAccount() == null || cashier.getId().equals(p.getReceivedByAccount().getId()))
+        .toList();
+
+    BigDecimal cashCollected = cashierCashPayments.stream()
+        .map(Payment::getAmount)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    BigDecimal startingCash = PresentationService.decimal(body.get("startingCash"));
+    BigDecimal actualCash = PresentationService.decimal(body.get("actualCash"));
+    BigDecimal expectedCash = startingCash.add(cashCollected);
+    BigDecimal difference = actualCash.subtract(expectedCash);
+    String note = body.getOrDefault("note", "").toString();
+
+    String reportId = UUID.randomUUID().toString();
+    Map<String, Object> report = map(
+        "id", reportId,
+        "date", LocalDate.now().toString(),
+        "closedAt", Instant.now().toString(),
+        "cashierId", cashier != null ? cashier.getId().toString() : "SYSTEM",
+        "cashierName", cashier != null ? cashier.getFullName() : "Hệ thống",
+        "startingCash", startingCash,
+        "cashCollected", cashCollected,
+        "expectedCash", expectedCash,
+        "actualCash", actualCash,
+        "difference", difference,
+        "txCount", cashierCashPayments.size(),
+        "note", note
+    );
+
+    if (documents != null) {
+      documents.put("shift-report:" + reportId, report);
+    }
+    audit.log("CHỐT CA", "Ca " + (cashier != null ? cashier.getFullName() : "Hệ thống") + ": Thực tế=" + actualCash + ", Lệch=" + difference);
+    return report;
+  }
+
+  public Map<String, Object> reconciliation() {
+    var allOrders = orders.findAllWithCustomerAccount();
+    List<Map<String, Object>> overpayments = new ArrayList<>();
+    List<Map<String, Object>> pendingRefunds = new ArrayList<>();
+    List<Map<String, Object>> latePayments = new ArrayList<>();
+
+    for (var o : allOrders) {
+      Map<String, Object> meta = documents != null ? documents.decode(o.getMetadata()) : Map.of();
+      BigDecimal paid = o.getPaidAmount() != null ? o.getPaidAmount() : BigDecimal.ZERO;
+      BigDecimal total = o.getTotalAmount() != null ? o.getTotalAmount() : BigDecimal.ZERO;
+
+      // Overpayment: paid > total
+      if (paid.compareTo(total) > 0) {
+        overpayments.add(map(
+            "orderId", o.getId(),
+            "customerName", o.getCustomerName(),
+            "customerPhone", o.getCustomerPhone(),
+            "total", total,
+            "paid", paid,
+            "excess", paid.subtract(total),
+            "status", o.getStatus()
+        ));
+      }
+
+      // Pending refund: financialReview == REFUND_PENDING or refundPending > 0
+      Object review = meta.get("financialReview");
+      BigDecimal refundPending = PresentationService.decimal(meta.get("refundPending"));
+      if ("REFUND_PENDING".equals(review) || refundPending.signum() > 0) {
+        pendingRefunds.add(map(
+            "orderId", o.getId(),
+            "customerName", o.getCustomerName(),
+            "customerPhone", o.getCustomerPhone(),
+            "total", total,
+            "paid", paid,
+            "refundPending", refundPending.signum() > 0 ? refundPending : paid,
+            "reason", meta.getOrDefault("cancellationReason", "Yêu cầu hoàn tiền"),
+            "status", o.getStatus()
+        ));
+      }
+
+      // Late payments: EXPIRED or CANCELLED but paid > 0
+      if (Set.of("EXPIRED", "CANCELLED").contains(o.getStatus()) && paid.signum() > 0) {
+        latePayments.add(map(
+            "orderId", o.getId(),
+            "customerName", o.getCustomerName(),
+            "customerPhone", o.getCustomerPhone(),
+            "paid", paid,
+            "status", o.getStatus(),
+            "review", review
+        ));
+      }
+    }
+
+    return map(
+        "overpayments", overpayments,
+        "pendingRefunds", pendingRefunds,
+        "latePayments", latePayments,
+        "count", overpayments.size() + pendingRefunds.size() + latePayments.size()
+    );
   }
 }

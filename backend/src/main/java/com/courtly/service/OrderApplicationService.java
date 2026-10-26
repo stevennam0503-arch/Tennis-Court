@@ -53,17 +53,21 @@ public class OrderApplicationService {
                     r.scheduleIds(),
                     r.assignments(),
                     r.requestId(),
-                    r.voucherCode());
+                    r.voucherCode(),
+                    r.recurringWeeks());
           }
           UUID id = service.create(effective);
           var o = service.lock(id);
           o.setCreatedByAccount(a);
+          var meta = docs.decode(o.getMetadata());
           if (!Set.of("ADMIN", "STAFF").contains(a.getRole())) {
-            var meta = docs.decode(o.getMetadata());
             meta.put("customerFlow", true);
-            o.setMetadata(docs.encode(meta));
             customerDeposit(o);
           }
+          if (r.recurringWeeks() != null && r.recurringWeeks() > 1) {
+            meta.put("recurringWeeks", r.recurringWeeks());
+          }
+          o.setMetadata(docs.encode(meta));
           presentation.history(o, "CREATED", null);
           return map("id", id);
         });
@@ -112,11 +116,48 @@ public class OrderApplicationService {
     support.owns(actor, id);
     var o = service.lock(id);
     customerPolicy(actor, o, "cancel");
-    var percent = settings.get().getCancelRefundPercent();
-    var refund = o.getPaidAmount().multiply(java.math.BigDecimal.valueOf(percent))
-        .divide(java.math.BigDecimal.valueOf(100), 0, java.math.RoundingMode.HALF_UP);
-    return map("paid", o.getPaidAmount(), "refundPercent", percent, "refundAmount", refund,
-        "retainedAmount", o.getPaidAmount().subtract(refund),
+
+    var slots = service.allocated(service.booking(o));
+    var matchStart =
+        slots.stream()
+            .map(s -> s.getScheduleDate().atTime(s.getStartTime()).atZone(ZONE).toInstant())
+            .min(Comparator.naturalOrder())
+            .orElse(Instant.now());
+
+    long minutes = Duration.between(Instant.now(), matchStart).toMinutes();
+    double hours = Math.max(0, minutes / 60.0);
+
+    int percent;
+    String tier;
+    String description;
+    if (hours >= 24.0) {
+      percent = 100;
+      tier = "HOAN_100";
+      description = "Hủy trước giờ chơi trên 24 tiếng: Hoàn lại 100% tiền cọc.";
+    } else if (hours >= 12.0) {
+      percent = 50;
+      tier = "HOAN_50";
+      description = "Hủy trước giờ chơi từ 12 đến 24 tiếng: Giữ 50% tiền cọc, hoàn lại 50%.";
+    } else {
+      percent = 0;
+      tier = "GIU_100";
+      description = "Hủy cận giờ chơi (dưới 12 tiếng): Giữ lại 100% tiền cọc theo chính sách CLB.";
+    }
+
+    var refund =
+        o.getPaidAmount()
+            .multiply(java.math.BigDecimal.valueOf(percent))
+            .divide(java.math.BigDecimal.valueOf(100), 0, java.math.RoundingMode.HALF_UP);
+    var retained = o.getPaidAmount().subtract(refund);
+
+    return map(
+        "paid", o.getPaidAmount(),
+        "refundPercent", percent,
+        "refundAmount", refund,
+        "retainedAmount", retained,
+        "hoursUntilMatch", Math.round(hours * 10.0) / 10.0,
+        "tier", tier,
+        "description", description,
         "status", refund.signum() > 0 ? "REFUND_PENDING" : "NO_REFUND",
         "requestedAt", Instant.now().toString());
   }

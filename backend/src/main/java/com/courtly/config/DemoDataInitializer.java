@@ -127,7 +127,7 @@ public class DemoDataInitializer implements ApplicationRunner {
       String zone = i <= 4 ? "A" : i <= 8 ? "B" : "V";
       int number = i <= 4 ? i : i <= 8 ? i - 4 : i - 8;
       c.setName(zone + "0" + number);
-      c.setType("HARD");
+      c.setType(i <= 4 ? "OUTDOOR" : i <= 8 ? "INDOOR" : "VIP");
       c.setStatus("ACTIVE");
       c.setBasePrice(BigDecimal.valueOf(i <= 4 ? 200000 : i <= 8 ? 300000 : 500000));
       c.setImageUrl("/guest/zone-" + zone.toLowerCase(java.util.Locale.ROOT)

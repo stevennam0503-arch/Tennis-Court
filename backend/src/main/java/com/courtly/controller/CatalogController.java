@@ -17,6 +17,8 @@ public class CatalogController {
   private final com.courtly.service.AuthService auth;
   private final com.courtly.repository.AccountRepository accounts;
   private final com.courtly.service.RequestService requests;
+  private final com.courtly.service.ScheduleService schedules;
+  private final com.courtly.service.AuditService audit;
 
   @PostMapping("/{collection}")
   public Map<String, Object> create(
@@ -65,5 +67,20 @@ public class CatalogController {
     var actor = auth.current(req);
     service.delete(collection, id, actor);
     return com.courtly.util.Rules.map("success", true, "id", id);
+  }
+
+  @PostMapping("/schedules/maintenance")
+  public Map<String, Object> setSlotMaintenance(
+      @RequestBody Map<String, Object> body,
+      jakarta.servlet.http.HttpServletRequest req) {
+    var actor = auth.current(req);
+    List<UUID> ids = ((List<?>) body.get("scheduleIds")).stream()
+        .map(x -> UUID.fromString(x.toString()))
+        .toList();
+    boolean maintenance = Boolean.TRUE.equals(body.get("maintenance"));
+    String reason = (String) body.get("reason");
+    schedules.toggleSlotMaintenance(ids, maintenance, reason);
+    audit.log("BẢO TRÌ KHUNG GIỜ", (maintenance ? "BẬT BẢO TRÌ" : "MỞ LẠI SÂN") + " (" + ids.size() + " slot)" + (reason != null && !reason.isBlank() ? ": " + reason : ""));
+    return com.courtly.util.Rules.map("success", true, "count", ids.size());
   }
 }

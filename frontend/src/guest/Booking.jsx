@@ -19,6 +19,7 @@ export default function Booking() {
   const [voucherError, setVoucherError] = useState('');
   const [voucherBusy, setVoucherBusy] = useState(false);
   const [publicVouchers, setPublicVouchers] = useState([]);
+  const [recurringWeeks, setRecurringWeeks] = useState(1);
   const req = useRef(requestId());
 
   useEffect(() => {
@@ -245,6 +246,7 @@ export default function Booking() {
           scheduleIds: allChosen.map(s => s.id),
           assignments,
           voucherCode: appliedVoucher?.code || undefined,
+          recurringWeeks: recurringWeeks > 1 ? recurringWeeks : undefined,
           requestId: req.current
         });
         resetAll();
