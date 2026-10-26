@@ -1,5 +1,6 @@
 server:
   port: ${SERVER_PORT:8080}
+  forward-headers-strategy: native
   servlet:
     session:
       timeout: 8h
@@ -29,6 +30,7 @@ spring:
   jackson:
     default-property-inclusion: non_null
 courtly:
+  demo-mode: ${DEMO_MODE:true}
   payment:
     mode: ${PAYMENT_MODE:DEMO}
     bank-bin: ${PAYMENT_BANK_BIN:970422}

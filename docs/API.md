@@ -33,7 +33,7 @@ Lấy `GET /csrf` trước mutation; gửi token qua header được trả trong
 | POST | `/orders/{id}/restore` | Admin khôi phục sau đối soát, kiểm tra lại tài nguyên |
 | POST | `/payments` | Admin xác minh đã nhận tiền; đúng một orderId/registrationId, amount, method, transactionCode |
 | POST | `/payments/{id}/refunds` | Admin ghi nhận hoàn thực tế; requestId, amount, reason |
-| POST, PUT | `/catalog/{collection}[/{id}]` | Admin danh mục sân, giá, tài khoản, đồ uống/đồ thuê, nhân sự, lịch nhân sự, giải |
+| POST, PUT | `/catalog/{collection}[/{id}]` | Admin danh mục sân, giá, tài khoản, nhân sự, lịch nhân sự, giải (đồ uống/đồ thuê đã ngừng kinh doanh từ V8) |
 | POST | `/tournaments/{id}/registrations` | Đăng ký giải; customer chỉ đăng ký tài khoản của mình |
 | POST | `/tournaments/{id}/draw` | Admin bốc thăm 2/4/8/16... đăng ký xác nhận |
 | PUT | `/matches/{id}/schedule` | Admin xếp sân và trọng tài |

@@ -8,7 +8,7 @@ export const labels = {
   ACTIVE: 'Hoạt động', INACTIVE: 'Ngừng hoạt động', MAINTENANCE: 'Bảo trì', PENDING: 'Chờ thanh toán', OPEN: 'Mở đăng ký', CLOSED: 'Đã đóng đăng ký',
   DRAFT: 'Bản nháp', ONGOING: 'Đang diễn ra', FINISHED: 'Kết thúc', SCHEDULED: 'Chờ thi đấu', HARD: 'Sân cứng', CLAY: 'Sân đất nện', GRASS: 'Sân cỏ',
   REFEREE: 'Trọng tài', COACH: 'Huấn luyện viên', BALL_BOY: 'Nhặt bóng', CASH: 'Tiền mặt', BANK_TRANSFER: 'Chuyển khoản', DEPOSIT: 'Tiền cọc', BALANCE: 'Thanh toán',
-  TOURNAMENT_FEE: 'Phí giải', DRINK: 'Đồ uống', RENTAL: 'Đồ thuê', ADMIN: 'Quản trị', STAFF: 'Staff', CUSTOMER: 'Khách hàng', LOCKED: 'Đã khóa',
+  TOURNAMENT_FEE: 'Phí giải', MEMBERSHIP_FEE: 'Phí hội viên', DRINK: 'Đồ uống', RENTAL: 'Đồ thuê', ADMIN: 'Quản trị', STAFF: 'Staff', CUSTOMER: 'Khách hàng', LOCKED: 'Đã khóa',
   SINGLES: 'Đơn', DOUBLES: 'Đôi', TEAM: 'Đồng đội', WEEKDAY: 'Ngày thường', WEEKEND: 'Cuối tuần', AVAILABLE: 'Còn trống', BOOKED: 'Đã đặt', IN_MATCH: 'Thi đấu',
 };
 export const options = keys => keys.map(value => ({ value, label: labels[value] || value }));

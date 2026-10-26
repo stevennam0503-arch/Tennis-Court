@@ -8,7 +8,7 @@
 | Sân & lịch | courts, court_prices, court_schedules |
 | Đơn & đặt sân | orders, bookings, booking_slots, booking_staff, order_products |
 | Thanh toán | payments, refunds |
-| Sản phẩm | drinks, rental_items |
+| Sản phẩm (lịch sử) | drinks, rental_items (đã ngừng kinh doanh từ V8; lưu đọc dữ liệu cũ) |
 | Nhân sự | staff, staff_schedules |
 | Giải | tournaments, tournament_registrations, team_members, matches |
 | Tài nguyên trận | match_slots, match_staff |
@@ -24,7 +24,7 @@ Khóa chính UUID; khóa ngoại và index được tạo bởi Flyway. Entity `
 - Partial unique index chặn hai liên kết chưa nhả cùng slot trong từng bảng. Trigger kiểm tra chéo BookingSlots/MatchSlots và BookingStaff/MatchStaff, khóa dòng slot chung.
 - Các thao tác đặt và xếp trận kiểm tra, khóa và cập nhật trạng thái slot trong một transaction. Khóa theo UUID có thứ tự khi xử lý nhiều slot.
 - Ghi nhận tiền khóa Order hoặc Registration; hoàn khóa đối tượng gốc rồi Payment. Số tiền có CHECK và giới hạn nghiệp vụ trong service.
-- Stock đồ uống được cập nhật dưới khóa ghi; đồ thuê khóa RentalItem rồi tính tổng số lượng chồng khoảng thuê trước khi thêm.
+- Dịch vụ đồ uống và thuê thiết bị đã ngừng kinh doanh (từ V8); các bảng và bản ghi cũ được giữ nguyên trạng thái chỉ đọc phục vụ kiểm tra và đối soát doanh thu lịch sử.
 - FK kép OrderProduct(booking,order) và các liên kết giải/đăng ký bảo vệ tính nhất quán của quan hệ.
 - Scheduler kiểm tra giữ chỗ hết hạn mỗi 30 giây. Thời gian nhả thực tế có thể trễ tối đa một chu kỳ khi backend đang chạy.
 - Các cột version trên Order, CourtSchedule, RentalItem, StaffSchedule dùng JPA @Version.

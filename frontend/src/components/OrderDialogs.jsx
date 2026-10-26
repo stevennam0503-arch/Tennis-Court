@@ -120,50 +120,33 @@ export function PaymentDialog({id,registrationId,onClose}) {
   const order=data.orders.find(o=>o.id===id)||orders[0];
   const reg=data.registrations.find(r=>r.id===registrationId);
   const due=reg?data.tournaments.find(t=>t.id===reg.tournamentId).fee-reg.paid:order?order.total-order.paid:0;
-  const [method,setMethod]=useState('CASH');
   const targetId=reg?reg.id:order?.id;
   const refCode=targetId?('CT'+targetId.replace(/-/g,'').substring(0,16).toUpperCase()):'';
-  const qrUrl=due>0&&refCode?`https://img.vietqr.io/image/970422-0345678999-compact2.png?amount=${due}&addInfo=${refCode}&accountName=CLB%20TENNIS%20COURTLY`:null;
 
   return <FormDialog
-    title="Ghi nhận khoản thu"
-    submitText="Xác nhận đã thu"
+    title="Ghi nhận thu tiền mặt tại quầy"
+    submitText="Xác nhận đã nhận tiền mặt"
     initial={{orderId:reg?null:order?.id,amount:due,method:'CASH',transactionCode:refCode||crypto.randomUUID()}}
     fields={[
       ...(!reg?[{name:'orderId',label:'Đơn đặt sân',full:true,options:orders.map(o=>({value:o.id,label:`${o.name} • còn ${money(o.total-o.paid)}`}))}]:[]),
-      {name:'amount',label:'Số tiền (đ)',type:'number',min:1},
-      {name:'method',label:'Phương thức',options:options(['CASH','BANK_TRANSFER'])},
+      {name:'amount',label:'Số tiền mặt (đ)',type:'number',min:1},
       {name:'reason',label:'Lý do (bắt buộc với tiền đến muộn)',required:false,full:true}
     ]}
     onChange={(v,name)=>{
-      if(name==='method')setMethod(v.method);
       const o=data.orders.find(o=>o.id===v.orderId);
       return name==='orderId'&&o?{...v,amount:o.total-o.paid}:v;
     }}
     onClose={onClose}
     onSubmit={async v=>{
-      await mutate('/payments',{...v,orderId:reg?null:v.orderId,registrationId:registrationId||null});
-      notify('Đã ghi nhận khoản thu thành công');
+      await mutate('/payments',{...v,method:'CASH',orderId:reg?null:v.orderId,registrationId:registrationId||null});
+      notify('Đã ghi nhận thu tiền mặt thành công');
       onClose();
     }}
   >
     {reg&&<div className="notice" style={{marginBottom:15}}>Phí giải • {reg.name} • cần {money(due)}</div>}
 
-    {method==='BANK_TRANSFER'&&qrUrl&&(
-      <div style={{background:'#fdfcf8',border:'1px solid #dcdad2',borderRadius:8,padding:14,marginBottom:16,textAlign:'center'}}>
-        <div style={{fontSize:12,fontWeight:700,color:'#173c32',marginBottom:8}}>MÃ VIETQR THU TIỀN TẠI QUẦY (MB BANK)</div>
-        <img src={qrUrl} alt="VietQR" style={{maxWidth:240,width:'100%',borderRadius:6,border:'1px solid #ddd',boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}} />
-        <div style={{fontSize:11,color:'#555',marginTop:8}}>
-          Khách quét app ngân hàng bất kỳ • STK: <b>0345678999</b> (MB Bank)<br/>
-          Nội dung chuyển khoản: <b style={{color:'#b71c1c'}}>{refCode}</b>
-        </div>
-      </div>
-    )}
-
     <div className="notice" style={{marginBottom:14}}>
-      {method==='BANK_TRANSFER'
-        ? 'Cho khách quét mã VietQR trên điện thoại. Sau khi tiền vào tài khoản hoặc khách báo thành công, bấm [Xác nhận đã thu].'
-        : 'Nhận đủ tiền mặt từ khách trước khi bấm [Xác nhận đã thu].'}
+      Nhận đủ tiền mặt từ khách tại quầy trước khi bấm [Xác nhận đã nhận tiền mặt]. Khách muốn chuyển khoản vui lòng quét mã VietQR trên đơn đặt sân hoặc hồ sơ cá nhân.
     </div>
   </FormDialog>;
 }

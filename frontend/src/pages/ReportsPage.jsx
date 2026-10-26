@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Wallet, Trophy, Check, Clock, Calendar, TrendingUp, Download } from 'lucide-react';
 import { useCourtly } from '../context';
 import { Title, Stat, Panel, Button, Table, Chip } from '../components/UI';
-import { money, labels, today, localDate } from '../utils/format';
+import { money, labels, today, localDate, slotHours } from '../utils/format';
 
 export default function ReportsPage() {
   const { data } = useCourtly();
@@ -106,15 +106,22 @@ export default function ReportsPage() {
     return collected - refunded;
   }, [paymentsInPeriod, refundsInPeriod, data.payments]);
 
+  const membershipPaymentsInPeriod = useMemo(() => {
+    return (data.membershipPayments || []).filter(p => {
+      const d = localDate(p.createdAt);
+      return d >= startDate && d <= endDate;
+    });
+  }, [data.membershipPayments, startDate, endDate]);
+
   const netMembershipCash = useMemo(() => {
-    return paymentsInPeriod.filter(p => p.type === 'MEMBERSHIP_FEE').reduce((a, p) => a + p.amount, 0);
-  }, [paymentsInPeriod]);
+    return membershipPaymentsInPeriod.reduce((a, p) => a + p.amount, 0);
+  }, [membershipPaymentsInPeriod]);
 
   const totalNetCash = useMemo(() => {
-    const totalPaid = paymentsInPeriod.reduce((a, p) => a + p.amount, 0);
+    const totalOrderAndTournPaid = paymentsInPeriod.reduce((a, p) => a + p.amount, 0);
     const totalRefund = refundsInPeriod.reduce((a, r) => a + r.amount, 0);
-    return totalPaid - totalRefund;
-  }, [paymentsInPeriod, refundsInPeriod]);
+    return totalOrderAndTournPaid + netMembershipCash - totalRefund;
+  }, [paymentsInPeriod, netMembershipCash, refundsInPeriod]);
 
   // Value by categories on valid orders
   const courtValue = validOrders.flatMap(o => o.slots).reduce((a, s) => a + (s.price || 0), 0);
@@ -136,23 +143,27 @@ export default function ReportsPage() {
     return Math.max(1, Math.min(366, diff));
   }, [startDate, endDate]);
 
-  // Occupancy per court
+  // Occupancy per court (calculated by actual hours using slotHours)
   const courtOccupancy = useMemo(() => {
-    const totalPossibleSlots = 17 * periodDays;
+    const totalPossibleHours = 17 * periodDays;
     return data.courts.map(c => {
-      const orderSlots = validOrders.flatMap(o => o.slots).filter(s => s.court === c.id).length;
-      const matchSlots = data.matches
+      const orderHours = validOrders
+        .flatMap(o => o.slots)
+        .filter(s => s.court === c.id)
+        .reduce((sum, s) => sum + slotHours(s), 0);
+      const matchHours = data.matches
         .filter(m => m.date >= startDate && m.date <= endDate && m.status !== 'CANCELLED')
         .flatMap(m => m.slots)
-        .filter(s => s.court === c.id).length;
-      const totalUsed = orderSlots + matchSlots;
-      const percent = Math.min(100, Math.round((totalUsed / totalPossibleSlots) * 100));
+        .filter(s => s.court === c.id)
+        .reduce((sum, s) => sum + slotHours(s), 0);
+      const totalUsedHours = orderHours + matchHours;
+      const percent = totalPossibleHours > 0 ? Math.round((totalUsedHours / totalPossibleHours) * 100) : 0;
       return {
         id: c.id,
         name: c.name,
         type: c.type,
-        used: totalUsed,
-        totalPossible: totalPossibleSlots,
+        used: totalUsedHours,
+        totalPossible: totalPossibleHours,
         percent
       };
     });
@@ -420,7 +431,7 @@ export default function ReportsPage() {
               </div>
             ))}
             <small style={{ marginTop: 14, display: 'block' }}>
-              Tính trên {periodDays} ngày vận hành ({periodDays * 17} khung giờ phục vụ mỗi sân).
+              Tính trên {periodDays} ngày vận hành ({periodDays * 17} giờ mở cửa mỗi sân, khung 06:00–23:00).
             </small>
           </div>
         </Panel>

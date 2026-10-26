@@ -192,6 +192,7 @@ public class TransferService {
   public Map<String, Object> declared(Account a, String id) {
     docs.mutationLock();
     var x = docs.get("transfer:" + id);
+    require(!x.isEmpty(), "Giao dịch không tồn tại");
     own(a, x.get("accountId"));
     if ("PENDING".equals(view(x).get("status"))) {
       x.put("status", "CHECKING");
@@ -215,6 +216,10 @@ public class TransferService {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mô phỏng chỉ dành cho môi trường thử nghiệm");
     docs.mutationLock();
     var x = docs.get("transfer:" + id);
+    require(!x.isEmpty(), "Giao dịch không tồn tại");
+    if (!"ADMIN".equals(a.getRole()) && !"STAFF".equals(a.getRole())) {
+      own(a, x.get("accountId"));
+    }
     String scenario = oneOf((String) b.get("scenario"), "SUCCESS", "PARTIAL", "DUPLICATE", "LATE");
     String event = "sandbox:" + id + ":" + scenario;
     if (!docs.get("bank-event:" + event).isEmpty()) return docs.get("transfer:" + id);

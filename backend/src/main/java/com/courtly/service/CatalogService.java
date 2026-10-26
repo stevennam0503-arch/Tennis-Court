@@ -54,12 +54,15 @@ public class CatalogService {
     c.setName(text(r.name(), "Tên sân"));
     c.setType(oneOf(r.type(), "HARD", "CLAY", "GRASS"));
     String status = oneOf(r.status(), "ACTIVE", "MAINTENANCE", "INACTIVE");
-    if (!"ACTIVE".equals(status) && id != null)
+    if (!"ACTIVE".equals(status) && id != null) {
+      java.time.LocalDate today = java.time.LocalDate.now(ZONE);
       require(
           courtSchedules.findAll().stream()
-              .noneMatch(
-                  x -> x.getCourt().getId().equals(id) && !"AVAILABLE".equals(x.getStatus())),
-          "Sân đang có lịch. Hủy hoặc đổi lịch trước");
+              .filter(x -> x.getCourt().getId().equals(id))
+              .filter(x -> !x.getScheduleDate().isBefore(today))
+              .noneMatch(x -> !"AVAILABLE".equals(x.getStatus())),
+          "Sân đang có lịch đặt sắp tới. Hủy hoặc đổi lịch trước khi chuyển trạng thái.");
+    }
     c.setStatus(status);
     c.setBasePrice(positive(r.price()));
     c.setDescription(r.description());
@@ -69,8 +72,9 @@ public class CatalogService {
       var url = java.net.URI.create(r.imageUrl());
       require(
           ("https".equals(url.getScheme()) && url.getHost() != null && url.getUserInfo() == null)
-              || r.imageUrl().matches("/images/[a-zA-Z0-9_-]+\\.(webp|png|jpg|jpeg)"),
-          "URL ảnh phải dùng HTTPS hoặc /images/");
+              || r.imageUrl().matches("^/images/[a-zA-Z0-9_-]+\\.(webp|png|jpg|jpeg)$")
+              || r.imageUrl().matches("^/guest/[a-zA-Z0-9_-]+\\.(webp|png|jpg|jpeg)$"),
+          "URL ảnh phải dùng HTTPS hoặc /images/, /guest/");
     }
     c.setImageUrl(r.imageUrl());
     c.setImageIsIllustration(r.imageIsIllustration() == null || r.imageIsIllustration());

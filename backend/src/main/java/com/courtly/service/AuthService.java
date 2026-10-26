@@ -34,8 +34,16 @@ public class AuthService {
   @Value("${courtly.admin-email:admin@gmail.com}")
   private String adminEmail;
 
+  @Value("${courtly.demo-mode:true}")
+  private boolean demoMode;
+
   private final java.util.concurrent.ConcurrentHashMap<String, long[]> failures =
       new java.util.concurrent.ConcurrentHashMap<>();
+
+  private void pruneFailures() {
+    long now = System.currentTimeMillis();
+    failures.entrySet().removeIf(e -> now - e.getValue()[0] > 900000);
+  }
 
   public Account current(HttpServletRequest req) {
     var session = req.getSession(false);
@@ -143,6 +151,8 @@ public class AuthService {
       return map("authenticated", false);
     }
     if (action.equals("login")) {
+      pruneFailures();
+      org.slf4j.LoggerFactory.getLogger(AuthService.class).info("Auth login attempt from IP: {}", req.getRemoteAddr());
       String e = email(b.get("email")), key = req.getRemoteAddr() + ":" + e;
       long t = System.currentTimeMillis();
       long[] tries =
@@ -154,22 +164,24 @@ public class AuthService {
       if (found.isPresent() && "PENDING_ACTIVATION".equals(found.get().getStatus())) {
         if (found.get().getPasswordHash() != null && encoder.matches(supplied, found.get().getPasswordHash())) {
           String code = String.format("%06d", new java.security.SecureRandom().nextInt(1_000_000));
-          String activationKey = "activation:" + hash(code);
+          String otpKey = "otp:activation:" + found.get().getEmail().toLowerCase(Locale.ROOT);
           documents.put(
-              activationKey,
+              otpKey,
               map(
-                  "documentKey", activationKey,
+                  "documentKey", otpKey,
                   "accountId", found.get().getId().toString(),
                   "email", found.get().getEmail(),
-                  "code", code,
+                  "codeHash", hash(code),
+                  "attempts", 0,
                   "used", false,
                   "expiresAt", Instant.now().plusSeconds(900).toString()));
           emails.sendActivationEmail(found.get().getEmail(), found.get().getFullName(), code);
-          return map(
-              "requiresActivation", true,
-              "email", found.get().getEmail(),
-              "devCode", code,
-              "message", "Tài khoản của bạn chưa được kích hoạt. Mã OTP 6 số mới đã được gửi tới email.");
+          var resp = new LinkedHashMap<String, Object>();
+          resp.put("requiresActivation", true);
+          resp.put("email", found.get().getEmail());
+          if (demoMode) resp.put("devCode", code);
+          resp.put("message", "Tài khoản của bạn chưa được kích hoạt. Mã OTP 6 số mới đã được gửi tới email.");
+          return resp;
         }
       }
       if (found.isEmpty()
@@ -209,24 +221,26 @@ public class AuthService {
         accounts.saveAndFlush(a);
 
         String code = String.format("%06d", new java.security.SecureRandom().nextInt(1_000_000));
-        String activationKey = "activation:" + hash(code);
+        String otpKey = "otp:activation:" + a.getEmail().toLowerCase(Locale.ROOT);
         documents.put(
-            activationKey,
+            otpKey,
             map(
-                "documentKey", activationKey,
+                "documentKey", otpKey,
                 "accountId", a.getId().toString(),
                 "email", a.getEmail(),
-                "code", code,
+                "codeHash", hash(code),
+                "attempts", 0,
                 "used", false,
                 "expiresAt", Instant.now().plusSeconds(900).toString()));
 
         emails.sendActivationEmail(a.getEmail(), a.getFullName(), code);
 
-        return map(
-            "requiresActivation", true,
-            "email", a.getEmail(),
-            "devCode", code,
-            "message", "Mã kích hoạt OTP 6 số đã được gửi tới email " + a.getEmail() + ". Vui lòng nhập để hoàn tất đăng ký.");
+        var resp = new LinkedHashMap<String, Object>();
+        resp.put("requiresActivation", true);
+        resp.put("email", a.getEmail());
+        if (demoMode) resp.put("devCode", code);
+        resp.put("message", "Mã kích hoạt OTP 6 số đã được gửi tới email " + a.getEmail() + ". Vui lòng nhập để hoàn tất đăng ký.");
+        return resp;
       } else {
         a.setStatus("ACTIVE");
         accounts.saveAndFlush(a);
@@ -242,87 +256,92 @@ public class AuthService {
       Account a = found.get();
       require("PENDING_ACTIVATION".equals(a.getStatus()), "Tài khoản đã được kích hoạt hoặc không ở trạng thái chờ kích hoạt.");
 
-      for (var old : documents.list("activation:")) {
-        if (a.getId().toString().equals(old.get("accountId")) && !Boolean.TRUE.equals(old.get("used"))) {
-          old.put("used", true);
-          if (old.get("documentKey") instanceof String k) documents.put(k, old);
-        }
-      }
-
+      String otpKey = "otp:activation:" + a.getEmail().toLowerCase(Locale.ROOT);
       String code = String.format("%06d", new java.security.SecureRandom().nextInt(1_000_000));
-      String activationKey = "activation:" + hash(code);
       documents.put(
-          activationKey,
+          otpKey,
           map(
-              "documentKey", activationKey,
+              "documentKey", otpKey,
               "accountId", a.getId().toString(),
               "email", a.getEmail(),
-              "code", code,
+              "codeHash", hash(code),
+              "attempts", 0,
               "used", false,
               "expiresAt", Instant.now().plusSeconds(900).toString()));
 
       emails.sendActivationEmail(a.getEmail(), a.getFullName(), code);
 
-      return map(
-          "success", true,
-          "email", a.getEmail(),
-          "devCode", code,
-          "message", "Mã kích hoạt OTP 6 số mới đã được gửi tới email " + a.getEmail());
+      var resp = new LinkedHashMap<String, Object>();
+      resp.put("success", true);
+      resp.put("email", a.getEmail());
+      if (demoMode) resp.put("devCode", code);
+      resp.put("message", "Mã kích hoạt OTP 6 số mới đã được gửi tới email " + a.getEmail());
+      return resp;
     }
     if (action.equals("forgot-password")) {
-      String e = email(b.get("email"));
+      String e = email(b.get("email")).toLowerCase(Locale.ROOT);
       var found = accounts.findByEmailIgnoreCase(e);
-      if (found.isEmpty()) {
-        throw new BusinessException("Không tìm thấy tài khoản với email " + e + ". Vui lòng kiểm tra lại hoặc liên hệ quầy.");
+      String code = null;
+      if (found.isPresent() && "ACTIVE".equals(found.get().getStatus())) {
+        Account a = found.get();
+        code = String.format("%06d", new java.security.SecureRandom().nextInt(1_000_000));
+        String key = "otp:reset:" + a.getEmail().toLowerCase(Locale.ROOT);
+        documents.put(
+            key,
+            map(
+                "documentKey", key,
+                "accountId", a.getId().toString(),
+                "email", a.getEmail(),
+                "codeHash", hash(code),
+                "attempts", 0,
+                "used", false,
+                "expiresAt", Instant.now().plusSeconds(900).toString()));
+        emails.sendPasswordResetEmail(a.getEmail(), a.getFullName(), code);
       }
-      Account a = found.get();
-      if (!"ACTIVE".equals(a.getStatus())) {
-        throw new BusinessException("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản lý để được hỗ trợ.");
+      var resp = new LinkedHashMap<String, Object>();
+      resp.put("success", true);
+      resp.put("message", "Nếu email của bạn đã đăng ký trên hệ thống, mã xác nhận OTP đã được gửi về hòm thư. Mã có hiệu lực trong 15 phút.");
+      resp.put("email", e);
+      if (demoMode && code != null) {
+        resp.put("code", code);
+        resp.put("devCode", code);
       }
-      for (var old : documents.list("reset:")) {
-        if (a.getId().toString().equals(old.get("accountId")) && !Boolean.TRUE.equals(old.get("used"))) {
-          old.put("used", true);
-          if (old.get("documentKey") instanceof String k) documents.put(k, old);
-        }
-      }
-      String code = String.format("%06d", new java.security.SecureRandom().nextInt(1_000_000));
-      String key = "reset:" + hash(code);
-      documents.put(
-          key,
-          map(
-              "documentKey", key,
-              "accountId", a.getId().toString(),
-              "email", a.getEmail(),
-              "code", code,
-              "used", false,
-              "expiresAt", Instant.now().plusSeconds(900).toString()));
-      String activationKey = "activation:" + hash(code);
-      documents.put(
-          activationKey,
-          map(
-              "documentKey", activationKey,
-              "accountId", a.getId().toString(),
-              "used", false,
-              "expiresAt", Instant.now().plusSeconds(900).toString()));
-
-      emails.sendPasswordResetEmail(a.getEmail(), a.getFullName(), code);
-
-      return map(
-          "success", true,
-          "message", "Mã xác nhận 6 số đã được gửi đến email " + a.getEmail() + ". Mã có hiệu lực trong 15 phút.",
-          "email", a.getEmail(),
-          "code", code);
+      return resp;
     }
     if (action.equals("reset-password")) {
-      String code = text((String) b.getOrDefault("code", b.get("token")), "Mã xác nhận");
-      String key = "reset:" + hash(code.trim());
-      var row = documents.lock(key);
-      var info = documents.read(row);
-      if (!info.containsKey("accountId")) {
-        key = "activation:" + hash(code.trim());
+      String code = text((String) b.getOrDefault("code", b.get("token")), "Mã xác nhận").trim();
+      String email = b.get("email") != null ? String.valueOf(b.get("email")).trim().toLowerCase(Locale.ROOT) : "";
+      Map<String, Object> info = null;
+      com.courtly.entity.AppDocument row = null;
+
+      if (!email.isBlank()) {
+        String key = "otp:reset:" + email;
         row = documents.lock(key);
         info = documents.read(row);
+        if (info.containsKey("accountId")) {
+          int attempts = ((Number) info.getOrDefault("attempts", 0)).intValue();
+          if (attempts >= 5 || !Instant.parse((String) info.get("expiresAt")).isAfter(Instant.now())) {
+            throw new BusinessException("Mã xác nhận đã hết hạn hoặc thử sai quá 5 lần. Vui lòng yêu cầu mã mới.");
+          }
+          if (!hash(code).equals(info.get("codeHash"))) {
+            info.put("attempts", attempts + 1);
+            documents.save(row, info);
+            throw new BusinessException("Mã xác nhận không đúng (còn " + (4 - attempts) + " lần thử).");
+          }
+        }
       }
+
+      if (info == null || !info.containsKey("accountId")) {
+        String key = "reset:" + hash(code);
+        row = documents.lock(key);
+        info = documents.read(row);
+        if (!info.containsKey("accountId")) {
+          key = "activation:" + hash(code);
+          row = documents.lock(key);
+          info = documents.read(row);
+        }
+      }
+
       require(
           info.containsKey("accountId")
               && !Boolean.TRUE.equals(info.get("used"))
@@ -339,9 +358,33 @@ public class AuthService {
     }
     if (action.equals("activate")) {
       String token = text((String) b.getOrDefault("code", b.get("token")), "Mã kích hoạt").trim();
-      String key = "activation:" + hash(token);
-      var row = documents.lock(key);
-      var info = documents.read(row);
+      String email = b.get("email") != null ? String.valueOf(b.get("email")).trim().toLowerCase(Locale.ROOT) : "";
+      Map<String, Object> info = null;
+      com.courtly.entity.AppDocument row = null;
+
+      if (!email.isBlank()) {
+        String key = "otp:activation:" + email;
+        row = documents.lock(key);
+        info = documents.read(row);
+        if (info.containsKey("accountId")) {
+          int attempts = ((Number) info.getOrDefault("attempts", 0)).intValue();
+          if (attempts >= 5 || !Instant.parse((String) info.get("expiresAt")).isAfter(Instant.now())) {
+            throw new BusinessException("Mã kích hoạt đã hết hạn hoặc thử sai quá 5 lần. Vui lòng yêu cầu mã mới.");
+          }
+          if (!hash(token).equals(info.get("codeHash"))) {
+            info.put("attempts", attempts + 1);
+            documents.save(row, info);
+            throw new BusinessException("Mã kích hoạt không đúng (còn " + (4 - attempts) + " lần thử).");
+          }
+        }
+      }
+
+      if (info == null || !info.containsKey("accountId")) {
+        String key = "activation:" + hash(token);
+        row = documents.lock(key);
+        info = documents.read(row);
+      }
+
       require(
           info.containsKey("accountId")
               && !Boolean.TRUE.equals(info.get("used"))

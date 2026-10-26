@@ -58,6 +58,7 @@ export default function GuestAuth({ onSuccess }) {
         });
         if (res.requiresActivation) {
           setMode('activate-otp');
+          if (res.email) set('email', res.email);
           setSuccess(res.message || t('Mã kích hoạt OTP 6 số đã được gửi tới email.'));
           if (res.devCode) {
             setDevCode(res.devCode);
@@ -70,7 +71,10 @@ export default function GuestAuth({ onSuccess }) {
       }
 
       if (mode === 'activate-otp') {
-        const session = await api('/auth/activate', 'POST', { code: values.code.trim() });
+        const session = await api('/auth/activate', 'POST', {
+          code: values.code.trim(),
+          email: values.email?.trim()
+        });
         await onSuccess(session);
         return;
       }
@@ -78,6 +82,7 @@ export default function GuestAuth({ onSuccess }) {
       const res = await api('/auth/' + mode, 'POST', values);
       if (res.requiresActivation) {
         setMode('activate-otp');
+        if (res.email) set('email', res.email);
         setSuccess(res.message || t('Tài khoản chưa kích hoạt. Vui lòng nhập mã OTP.'));
         if (res.devCode) {
           setDevCode(res.devCode);

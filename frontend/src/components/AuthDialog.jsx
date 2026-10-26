@@ -153,7 +153,10 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
       }
 
       if (mode === 'activate-otp') {
-        const session = await api('/auth/activate', 'POST', { code: values.code.trim() });
+        const session = await api('/auth/activate', 'POST', {
+          code: values.code.trim(),
+          email: values.email?.trim()
+        });
         await onSuccess(session);
         return;
       }
@@ -162,11 +165,16 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
       let payload = values;
       if (mode === 'reset') {
         endpoint = '/auth/reset-password';
-        payload = { code: values.code.trim() || values.token.trim(), password: values.password };
+        payload = {
+          code: (values.code || values.token || '').trim(),
+          password: values.password,
+          email: values.email?.trim()
+        };
       }
       const res = await api(endpoint, 'POST', payload);
       if (res.requiresActivation) {
         setMode('activate-otp');
+        if (res.email) set('email', res.email);
         setSuccess(res.message || 'Tài khoản chưa được kích hoạt. Vui lòng nhập mã OTP.');
         if (res.devCode) {
           setDevCode(res.devCode);

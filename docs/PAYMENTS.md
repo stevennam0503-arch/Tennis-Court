@@ -15,7 +15,7 @@ Sandbox là bộ mô phỏng của ứng dụng, không phải tài khoản ngâ
 
 ## Khi kết nối ngân hàng thật
 
-Đề xuất **VietQR/NAPAS** cho mã chuyển khoản và **SePay webhook** để nhận thông báo giao dịch. Backend tạo payload EMV kèm CRC16; frontend dùng thư viện `qrcode` để vẽ tại chỗ. Không gửi dữ liệu khách tới dịch vụ tạo ảnh QR.
+Đề xuất **VietQR/NAPAS** cho mã chuyển khoản và **SePay webhook** để nhận thông báo giao dịch. Backend tạo payload EMV kèm CRC16 (`qrPayload`) và sinh URL ảnh VietQR (`qrImageUrl` trỏ tới `img.vietqr.io` với template compact2, gồm số tài khoản, số tiền và nội dung chuyển khoản). Frontend hiển thị trực tiếp ảnh mã VietQR hoặc render từ payload để khách quét thanh toán thuận tiện qua mọi ứng dụng ngân hàng. Form thu ngân tại quầy (`OrderDialogs.jsx`) chỉ ghi nhận tiền mặt (`CASH`); khách chuyển khoản thực hiện trực tiếp trên đơn đặt sân hoặc hồ sơ cá nhân.
 
 ```dotenv
 PAYMENT_MODE=LIVE

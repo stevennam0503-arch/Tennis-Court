@@ -2,8 +2,10 @@ package com.courtly.config;
 
 import com.courtly.repository.CustomerOrderRepository;
 import com.courtly.service.AuthService;
-import jakarta.servlet.http.*;
-import java.util.*;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.util.Set;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -38,9 +40,15 @@ public class ApiAccessInterceptor implements HandlerInterceptor {
         || p.startsWith("/api/content")) auth.admin(a);
     if (!staffOrAdmin && p.matches("/api/orders/[^/]+.*")) {
       String[] parts = p.split("/");
+      UUID orderId;
+      try {
+        orderId = UUID.fromString(parts[3]);
+      } catch (IllegalArgumentException e) {
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Đơn không tồn tại");
+      }
       var o =
           orders
-              .findById(UUID.fromString(parts[3]))
+              .findById(orderId)
               .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
       if (o.getCustomerAccount() == null || !o.getCustomerAccount().getId().equals(a.getId()))
         throw new ResponseStatusException(
