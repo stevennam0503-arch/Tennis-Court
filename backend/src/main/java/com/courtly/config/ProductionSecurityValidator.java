@@ -108,6 +108,13 @@ public class ProductionSecurityValidator implements ApplicationRunner {
               + "Please configure a real PAYMENT_ACCOUNT_NUMBER via environment variables.");
     }
 
+    String smtpHost = environment.getProperty("courtly.mail.host", "");
+    if (smtpHost.isBlank()) {
+      throw new IllegalStateException(
+          "FATAL: courtly.mail.host (SMTP_HOST) cannot be blank in production profile! "
+              + "Real users will not be able to receive OTP or activation emails. Please configure SMTP_HOST.");
+    }
+
     log.info("All production security invariants validated successfully.");
   }
 }

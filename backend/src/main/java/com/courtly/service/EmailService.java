@@ -1,14 +1,19 @@
 package com.courtly.service;
 
-import java.io.*;
-import java.net.Socket;
+import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeMessage;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import javax.net.ssl.*;
+import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -16,6 +21,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class EmailService {
   private final DocumentService documents;
+  private final JavaMailSender mailSender;
 
   @Value("${courtly.mail.host:}")
   private String host;
@@ -26,16 +32,18 @@ public class EmailService {
   @Value("${courtly.mail.username:}")
   private String username;
 
-  @Value("${courtly.mail.password:}")
-  private String password;
-
   @Value("${courtly.mail.from:no-reply@courtly.vn}")
   private String fromAddress;
 
   @Value("${courtly.mail.from-name:Courtly Tennis Club}")
   private String fromName;
 
-  public boolean sendPasswordResetEmail(String toEmail, String fullName, String code) {
+  public boolean isConfigured() {
+    return host != null && !host.isBlank();
+  }
+
+  @Async
+  public CompletableFuture<Boolean> sendPasswordResetEmail(String toEmail, String fullName, String code) {
     String subject = "[Courtly Tennis Club] Mã xác nhận đặt lại mật khẩu của bạn";
     String plain = String.format("""
         Xin chào %s,
@@ -88,10 +96,12 @@ public class EmailService {
         </html>
         """, fullName != null && !fullName.isBlank() ? fullName : "Quý khách", toEmail, code);
 
-    return send(toEmail, subject, plain, html);
+    boolean sent = send(toEmail, subject, plain, html);
+    return CompletableFuture.completedFuture(sent);
   }
 
-  public boolean sendActivationEmail(String toEmail, String fullName, String code) {
+  @Async
+  public CompletableFuture<Boolean> sendActivationEmail(String toEmail, String fullName, String code) {
     String subject = "[Courtly Tennis Club] Mã kích hoạt tài khoản của bạn";
     String plain = String.format("""
         Xin chào %s,
@@ -143,143 +153,79 @@ public class EmailService {
         </html>
         """, fullName != null && !fullName.isBlank() ? fullName : "Quý khách", toEmail, code);
 
-    return send(toEmail, subject, plain, html);
+    boolean sent = send(toEmail, subject, plain, html);
+    return CompletableFuture.completedFuture(sent);
   }
 
   public boolean send(String to, String subject, String textBody, String htmlBody) {
-    try {
-      documents.put("email:log:" + UUID.randomUUID(), Map.of(
-          "to", to,
-          "subject", subject,
-          "body", textBody,
-          "sentAt", Instant.now().toString(),
-          "hasSmtp", host != null && !host.isBlank()
-      ));
-    } catch (Exception e) {
-      log.warn("Failed to store email log: {}", e.getMessage());
-    }
-
-    if (host == null || host.isBlank()) {
+    if (!isConfigured()) {
       log.info("\n======================================================\n" +
                "[COURTLY EMAIL - DEMO MODE (No SMTP server configured)]\n" +
                "To: {}\nSubject: {}\n" +
                "------------------------------------------------------\n" +
                "{}\n" +
                "======================================================", to, subject, textBody);
+      logEmailMetadata(to, subject, "DEMO_LOGGED");
       return true;
     }
 
     try {
-      sendSmtp(to, subject, textBody, htmlBody);
+      MimeMessage mimeMessage = mailSender.createMimeMessage();
+      MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, StandardCharsets.UTF_8.name());
+
+      String effectiveFrom = (fromAddress != null && !fromAddress.isBlank())
+          ? fromAddress
+          : (username != null && !username.isBlank() ? username : "no-reply@courtly.vn");
+      String effectiveName = (fromName != null && !fromName.isBlank()) ? fromName : "Courtly Tennis Club";
+
+      helper.setFrom(new InternetAddress(effectiveFrom, effectiveName, StandardCharsets.UTF_8.name()));
+      helper.setTo(to);
+      helper.setSubject(subject);
+      helper.setText(textBody, htmlBody != null && !htmlBody.isBlank() ? htmlBody : textBody);
+
+      mailSender.send(mimeMessage);
       log.info("Email successfully sent via SMTP ({}:{}) to {}", host, port, to);
+      logEmailMetadata(to, subject, "SENT");
       return true;
     } catch (Exception e) {
       log.error("Failed to send email via SMTP ({}:{}): {}", host, port, e.getMessage(), e);
+      logEmailMetadata(to, subject, "FAILED");
       return false;
     }
   }
 
-  private void sendSmtp(String to, String subject, String textBody, String htmlBody) throws Exception {
-    boolean isSsl = port == 465;
-    Socket rawSocket = isSsl ? SSLSocketFactory.getDefault().createSocket(host, port) : new Socket(host, port);
-    rawSocket.setSoTimeout(15000);
+  private void logEmailMetadata(String to, String subject, String status) {
+    try {
+      documents.put("email:log:" + UUID.randomUUID(), Map.of(
+          "to", to,
+          "subject", subject,
+          "status", status,
+          "sentAt", Instant.now().toString(),
+          "hasSmtp", isConfigured()
+      ));
+    } catch (Exception e) {
+      log.warn("Failed to store email log metadata: {}", e.getMessage());
+    }
+  }
 
-    try (var in = new BufferedReader(new InputStreamReader(rawSocket.getInputStream(), StandardCharsets.UTF_8));
-         var out = new BufferedWriter(new OutputStreamWriter(rawSocket.getOutputStream(), StandardCharsets.UTF_8))) {
-
-      expect(in, "220");
-      sendLine(out, "EHLO courtly.vn");
-      readResponse(in);
-
-      Socket socket = rawSocket;
-      BufferedReader reader = in;
-      BufferedWriter writer = out;
-
-      if (!isSsl && (port == 587 || port == 25)) {
-        sendLine(writer, "STARTTLS");
-        String resp = in.readLine();
-        if (resp != null && resp.startsWith("220")) {
-          SSLSocket sslSocket = (SSLSocket) ((SSLSocketFactory) SSLSocketFactory.getDefault())
-              .createSocket(rawSocket, host, port, true);
-          sslSocket.startHandshake();
-          socket = sslSocket;
-          reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-          writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
-          sendLine(writer, "EHLO courtly.vn");
-          readResponse(reader);
+  @Scheduled(cron = "0 0 3 * * *")
+  public void cleanupOldEmailLogs() {
+    try {
+      var entities = documents.listEntities("email:log:");
+      Instant cutoff = Instant.now().minus(Duration.ofDays(7));
+      for (var doc : entities) {
+        var data = documents.read(doc);
+        String sentAtStr = (String) data.get("sentAt");
+        if (sentAtStr != null) {
+          try {
+            if (Instant.parse(sentAtStr).isBefore(cutoff)) {
+              documents.delete(doc.getKey());
+            }
+          } catch (Exception ignored) {}
         }
       }
-
-      if (username != null && !username.isBlank() && password != null && !password.isBlank()) {
-        sendLine(writer, "AUTH LOGIN");
-        expect(reader, "334");
-        sendLine(writer, Base64.getEncoder().encodeToString(username.trim().getBytes(StandardCharsets.UTF_8)));
-        expect(reader, "334");
-        String cleanPassword = (host != null && host.contains("gmail")) ? password.trim().replace(" ", "") : password.trim();
-        sendLine(writer, Base64.getEncoder().encodeToString(cleanPassword.getBytes(StandardCharsets.UTF_8)));
-        expect(reader, "235");
-      }
-
-      sendLine(writer, "MAIL FROM:<" + fromAddress + ">");
-      expect(reader, "250");
-      sendLine(writer, "RCPT TO:<" + to + ">");
-      expect(reader, "250");
-      sendLine(writer, "DATA");
-      expect(reader, "354");
-
-      String boundary = "----=_Part_" + System.currentTimeMillis();
-      String rawSubject = "=?UTF-8?B?" + Base64.getEncoder().encodeToString(subject.getBytes(StandardCharsets.UTF_8)) + "?=";
-      String fromHeader = fromName != null && !fromName.isBlank()
-          ? "=?UTF-8?B?" + Base64.getEncoder().encodeToString(fromName.getBytes(StandardCharsets.UTF_8)) + "?= <" + fromAddress + ">"
-          : fromAddress;
-
-      writer.write("From: " + fromHeader + "\r\n");
-      writer.write("To: <" + to + ">\r\n");
-      writer.write("Subject: " + rawSubject + "\r\n");
-      writer.write("MIME-Version: 1.0\r\n");
-      writer.write("Content-Type: multipart/alternative; boundary=\"" + boundary + "\"\r\n");
-      writer.write("\r\n");
-
-      writer.write("--" + boundary + "\r\n");
-      writer.write("Content-Type: text/plain; charset=UTF-8\r\n");
-      writer.write("Content-Transfer-Encoding: base64\r\n\r\n");
-      writer.write(Base64.getEncoder().encodeToString(textBody.getBytes(StandardCharsets.UTF_8)) + "\r\n\r\n");
-
-      if (htmlBody != null && !htmlBody.isBlank()) {
-        writer.write("--" + boundary + "\r\n");
-        writer.write("Content-Type: text/html; charset=UTF-8\r\n");
-        writer.write("Content-Transfer-Encoding: base64\r\n\r\n");
-        writer.write(Base64.getEncoder().encodeToString(htmlBody.getBytes(StandardCharsets.UTF_8)) + "\r\n\r\n");
-      }
-
-      writer.write("--" + boundary + "--\r\n");
-      writer.write(".\r\n");
-      writer.flush();
-      expect(reader, "250");
-
-      sendLine(writer, "QUIT");
-    }
-  }
-
-  private void sendLine(BufferedWriter writer, String line) throws IOException {
-    writer.write(line + "\r\n");
-    writer.flush();
-  }
-
-  private String readResponse(BufferedReader reader) throws IOException {
-    StringBuilder sb = new StringBuilder();
-    String line;
-    while ((line = reader.readLine()) != null) {
-      sb.append(line).append("\n");
-      if (line.length() >= 4 && line.charAt(3) == ' ') break;
-    }
-    return sb.toString();
-  }
-
-  private void expect(BufferedReader reader, String prefix) throws IOException {
-    String resp = readResponse(reader);
-    if (!resp.startsWith(prefix)) {
-      throw new IOException("Unexpected SMTP response: " + resp);
+    } catch (Exception e) {
+      log.warn("Failed to clean up old email logs: {}", e.getMessage());
     }
   }
 }

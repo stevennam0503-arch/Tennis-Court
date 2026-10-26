@@ -62,7 +62,15 @@ public class DocumentService {
     save(lock(key), data);
   }
 
+  public void delete(String key) {
+    repository.deleteById(key);
+  }
+
   public List<Map<String, Object>> list(String prefix) {
     return repository.findByKeyStartingWith(prefix).stream().map(this::read).toList();
+  }
+
+  public List<AppDocument> listEntities(String prefix) {
+    return repository.findByKeyStartingWith(prefix);
   }
 }

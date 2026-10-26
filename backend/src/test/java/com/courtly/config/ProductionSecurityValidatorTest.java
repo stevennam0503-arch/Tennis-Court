@@ -30,6 +30,7 @@ class ProductionSecurityValidatorTest {
     when(environment.getProperty("courtly.payment.webhook-key", "")).thenReturn("LiveSepayWebhookSecret12345");
     when(environment.getProperty("courtly.allowed-origin", "")).thenReturn("https://tennis.courtly.vn");
     when(environment.getProperty("courtly.payment.account-number", "")).thenReturn("987654321098");
+    when(environment.getProperty("courtly.mail.host", "")).thenReturn("smtp.gmail.com");
   }
 
   @Test
@@ -129,6 +130,17 @@ class ProductionSecurityValidatorTest {
     IllegalStateException ex =
         assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments()));
     assertTrue(ex.getMessage().contains("Default sample bank account number"));
+  }
+
+  @Test
+  void prodProfileRejectsBlankSmtpHost() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
+    mockSecureDefaults();
+    when(environment.getProperty("courtly.mail.host", "")).thenReturn("");
+
+    IllegalStateException ex =
+        assertThrows(IllegalStateException.class, () -> validator.run(new DefaultApplicationArguments()));
+    assertTrue(ex.getMessage().contains("SMTP_HOST"));
   }
 
   @Test

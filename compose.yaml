@@ -37,7 +37,7 @@ services:
       SMTP_USERNAME: ${SMTP_USERNAME:-kietdlv@gmail.com}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-kietdlv@gmail.com}
-      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Courtly Tennis Club}
+      SMTP_FROM_NAME: "${SMTP_FROM_NAME:-Courtly Tennis Club}"
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8081}:8080"
     depends_on:

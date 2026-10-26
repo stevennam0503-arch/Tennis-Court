@@ -13,6 +13,7 @@ import java.util.*;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -257,12 +259,20 @@ public class AuthService {
                 "used", false,
                 "expiresAt", Instant.now().plusSeconds(900).toString()));
 
-        emails.sendActivationEmail(a.getEmail(), a.getFullName(), code);
+        emails.sendActivationEmail(a.getEmail(), a.getFullName(), code)
+            .whenComplete((sent, err) -> {
+              if (err != null || Boolean.FALSE.equals(sent)) {
+                log.error("Không thể gửi email kích hoạt tới {}. Lỗi: {}", a.getEmail(), err != null ? err.getMessage() : "SMTP dispatch failed");
+              }
+            });
 
         var resp = new LinkedHashMap<String, Object>();
         resp.put("requiresActivation", true);
         resp.put("email", a.getEmail());
         if (demoMode) resp.put("devCode", code);
+        if (!emails.isConfigured() && !demoMode) {
+          resp.put("emailWarning", "Máy chủ chưa cấu hình gửi email SMTP. Vui lòng liên hệ quản trị viên.");
+        }
         resp.put("message", "Mã kích hoạt OTP 6 số đã được gửi tới email " + a.getEmail() + ". Vui lòng nhập để hoàn tất đăng ký.");
         return resp;
       } else {
@@ -293,12 +303,20 @@ public class AuthService {
               "used", false,
               "expiresAt", Instant.now().plusSeconds(900).toString()));
 
-      emails.sendActivationEmail(a.getEmail(), a.getFullName(), code);
+      emails.sendActivationEmail(a.getEmail(), a.getFullName(), code)
+          .whenComplete((sent, err) -> {
+            if (err != null || Boolean.FALSE.equals(sent)) {
+              log.error("Không thể gửi lại email kích hoạt tới {}. Lỗi: {}", a.getEmail(), err != null ? err.getMessage() : "SMTP dispatch failed");
+            }
+          });
 
       var resp = new LinkedHashMap<String, Object>();
       resp.put("success", true);
       resp.put("email", a.getEmail());
       if (demoMode) resp.put("devCode", code);
+      if (!emails.isConfigured() && !demoMode) {
+        resp.put("emailWarning", "Máy chủ chưa cấu hình gửi email SMTP. Vui lòng liên hệ quản trị viên.");
+      }
       resp.put("message", "Mã kích hoạt OTP 6 số mới đã được gửi tới email " + a.getEmail());
       return resp;
     }
@@ -320,7 +338,12 @@ public class AuthService {
                 "attempts", 0,
                 "used", false,
                 "expiresAt", Instant.now().plusSeconds(900).toString()));
-        emails.sendPasswordResetEmail(a.getEmail(), a.getFullName(), code);
+        emails.sendPasswordResetEmail(a.getEmail(), a.getFullName(), code)
+            .whenComplete((sent, err) -> {
+              if (err != null || Boolean.FALSE.equals(sent)) {
+                log.error("Không thể gửi email đặt lại mật khẩu tới {}. Lỗi: {}", a.getEmail(), err != null ? err.getMessage() : "SMTP dispatch failed");
+              }
+            });
       }
       var resp = new LinkedHashMap<String, Object>();
       resp.put("success", true);
