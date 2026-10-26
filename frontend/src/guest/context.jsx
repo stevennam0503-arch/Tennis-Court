@@ -3,7 +3,13 @@ import translations from './translations.json';
 export const GuestContext=createContext(null);
 export const useGuest=()=>useContext(GuestContext);
 const states={ALL:['Tất cả','All'],HOLDING:['Đang giữ chỗ','On hold'],CONFIRMED:['Đã xác nhận','Confirmed'],CHECKED_IN:['Đang chơi','Checked in'],COMPLETED:['Hoàn tất','Completed'],CANCELLED:['Đã hủy','Cancelled'],EXPIRED:['Hết hạn','Expired'],PENDING:['Chờ xử lý','Pending'],CHECKING:['Chờ đối soát','Checking'],REVIEW:['Cần đối soát','Under review'],ACTIVE:['Hoạt động','Active'],BOOKED:['Đã đặt','Booked'],LOCKED:['Đang giữ chỗ','On hold'],BLOCKED:['Bảo trì','Maintenance'],IN_MATCH:['Thi đấu','Match'],SINGLES:['Đơn','Singles'],DOUBLES:['Đôi','Doubles'],TEAM:['Đồng đội','Team'],CASH:['Tiền mặt','Cash'],BANK_TRANSFER:['Chuyển khoản','Bank transfer'],ORDER:['Đơn sân','Court booking'],TOURNAMENT:['Giải đấu','Tournament'],MEMBERSHIP:['Hội viên','Membership'],COURT:['Chất lượng sân','Court quality'],SERVICE:['Dịch vụ','Service'],WEBSITE:['Website','Website'],OTHER:['Khác','Other'],NEWS:['Tin tức','News'],NOTICE:['Thông báo','Notice']};
-export const translate=(lang,text)=>states[text]?.[lang==='en'?1:0]||(lang==='en'?(translations[text]||text):text);
+export const translate=(lang,text)=>{
+  if(text==null||text==='')return '';
+  if(states[text])return states[text][lang==='en'?1:0];
+  if(lang!=='en')return text;
+  const str=typeof text==='string'?text:String(text);
+  return translations[str]||translations[str.trim()]||str;
+};
 export const dateToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 export const time=s=>String(s||'').slice(0,5);
 export const minutes=s=>{const [h,m]=time(s).split(':').map(Number);return h*60+m;};
