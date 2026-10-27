@@ -11,4 +11,7 @@ public interface CustomerOrderRepository extends LockingRepository<CustomerOrder
   java.util.List<CustomerOrder> findAllWithCustomerAccount();
 
   long countByCustomerAccountIdAndStatusNotIn(java.util.UUID customerAccountId, java.util.Collection<String> statuses);
+
+  long countByCustomerAccountIdAndIdNotAndStatusNotIn(
+      java.util.UUID customerAccountId, java.util.UUID id, java.util.Collection<String> statuses);
 }

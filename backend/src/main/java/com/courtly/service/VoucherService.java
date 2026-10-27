@@ -135,7 +135,7 @@ public class VoucherService {
                 () ->
                     new BusinessException("Mã voucher '" + rawCode + "' không tồn tại hoặc đã hết hạn"));
 
-    validateVoucherRules(v, totalAmount, accountId);
+    validateVoucherRules(v, totalAmount, accountId, null);
     BigDecimal discount = computeDiscount(v, totalAmount);
 
     return map(
@@ -159,7 +159,8 @@ public class VoucherService {
                 () ->
                     new BusinessException("Mã voucher '" + rawCode + "' không tồn tại hoặc đã hết hạn"));
 
-    validateVoucherRules(v, totalAmount, accountId);
+    UUID currentOrderId = order != null ? order.getId() : null;
+    validateVoucherRules(v, totalAmount, accountId, currentOrderId);
     BigDecimal discount = computeDiscount(v, totalAmount);
 
     v.setUsedCount(v.getUsedCount() + 1);
@@ -197,6 +198,10 @@ public class VoucherService {
   }
 
   private void validateVoucherRules(Voucher v, BigDecimal totalAmount, UUID accountId) {
+    validateVoucherRules(v, totalAmount, accountId, null);
+  }
+
+  private void validateVoucherRules(Voucher v, BigDecimal totalAmount, UUID accountId, UUID excludeOrderId) {
     if (!Boolean.TRUE.equals(v.getEnabled())) {
       throw new BusinessException("Mã voucher '" + v.getCode() + "' hiện đang tạm khóa");
     }
@@ -228,7 +233,9 @@ public class VoucherService {
 
     if (accountId != null) {
       if (Boolean.TRUE.equals(v.getNewUserOnly())) {
-        long pastOrders = orders.countByCustomerAccountIdAndStatusNotIn(accountId, Set.of("CANCELLED", "EXPIRED"));
+        long pastOrders = excludeOrderId != null
+            ? orders.countByCustomerAccountIdAndIdNotAndStatusNotIn(accountId, excludeOrderId, Set.of("CANCELLED", "EXPIRED"))
+            : orders.countByCustomerAccountIdAndStatusNotIn(accountId, Set.of("CANCELLED", "EXPIRED"));
         if (pastOrders > 0) {
           throw new BusinessException("Voucher " + v.getCode() + " chỉ áp dụng cho khách hàng mới đặt sân lần đầu");
         }
