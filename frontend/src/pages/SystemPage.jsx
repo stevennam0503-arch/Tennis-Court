@@ -9,13 +9,13 @@ import modules from '../modules.json';
 const pending = [], partial = [6, 18, 39, 40, 42, 44, 47, 49, 50];
 
 const SHOWCASE_ORDERS = [
-  { code: 'CT-NOW0001', court: 'Sân A01', time: '14:00 – 16:00 Hôm nay', customer: 'Kiet Nguyen [Hội viên Plus]', status: 'CHECKED_IN', desc: 'Đang thi đấu trên sân. Dùng để demo Gia hạn giờ chơi hoặc Check-out.' },
-  { code: 'CT-CONF002', court: 'Sân B01', time: '19:00 – 21:00 Hôm nay', customer: 'Kiet Nguyen [Hội viên Plus]', status: 'CONFIRMED', desc: 'Đã cọc 50%, sẵn sàng vào sân. Dùng để demo Vé điện tử, QR Check-in & thu 50% còn lại.' },
-  { code: 'CT-HOLD003', court: 'Sân V01', time: '08:00 – 10:00 Ngày mai', customer: 'Trần Hoàng Nam', status: 'HOLDING', desc: 'Đang giữ chỗ 5 phút. Dùng để demo Đồng hồ đếm ngược và Quét VietQR cọc tự động.' },
-  { code: 'CT-RECUR04', court: 'Sân B02', time: '16:00 – 18:00 (4 tuần)', customer: 'Kiet Nguyen [Hội viên Plus]', status: 'CONFIRMED', desc: 'Đặt lịch định kỳ dài hạn 4 tuần liên tiếp với 8 slot được khóa tự động.' },
-  { code: 'CT-DONE005', court: 'Sân A02', time: '17:00 – 19:00 Hôm qua', customer: 'Trần Hoàng Nam', status: 'COMPLETED', desc: 'Đã hoàn tất 100%. Dùng để demo Xem và In hóa đơn thanh toán VAT (INV-20261026-001).' },
-  { code: 'CT-CANC006', court: 'Sân A03', time: '18:00 – 20:00 2 ngày trước', customer: 'Trần Hoàng Nam', status: 'CANCELLED', desc: 'Đã hủy hợp lệ trước 24 giờ. Dùng để demo Chính sách tự động hoàn 70% tiền cọc (140k).' },
-  { code: 'CT-REF0007', court: 'Sân V02', time: '17:00 – 19:00 Hôm nay', customer: 'Trần Hoàng Nam', status: 'CONFIRMED', desc: 'Đơn có thuê Trọng tài TT Phạm Quốc Huy (250k/h). Dùng để demo Phân bổ nhân sự.' }
+  { code: 'CT-NOW0001', court: 'Sân A01', time: '14:00 – 16:00 Hôm nay', customer: 'Trần Hoàng Nam [Hội viên Plus]', status: 'CHECKED_IN', desc: 'Đang thi đấu trên sân. Dùng để demo Gia hạn giờ chơi hoặc Check-out.' },
+  { code: 'CT-CONF002', court: 'Sân B01', time: '19:00 – 21:00 Hôm nay', customer: 'Trần Hoàng Nam [Hội viên Plus]', status: 'CONFIRMED', desc: 'Đã cọc 50%, sẵn sàng vào sân. Dùng để demo Vé điện tử, QR Check-in & thu 50% còn lại.' },
+  { code: 'CT-HOLD003', court: 'Sân V01', time: '08:00 – 10:00 Ngày mai', customer: 'Trần Hoàng Nam [Hội viên Plus]', status: 'HOLDING', desc: 'Đang giữ chỗ 5 phút. Dùng để demo Đồng hồ đếm ngược và Quét VietQR cọc tự động.' },
+  { code: 'CT-RECUR04', court: 'Sân B02', time: '16:00 – 18:00 (4 tuần)', customer: 'Trần Hoàng Nam [Hội viên Plus]', status: 'CONFIRMED', desc: 'Đặt lịch định kỳ dài hạn 4 tuần liên tiếp với 8 slot được khóa tự động.' },
+  { code: 'CT-DONE005', court: 'Sân A02', time: '17:00 – 19:00 Hôm qua', customer: 'Trần Hoàng Nam [Hội viên Plus]', status: 'COMPLETED', desc: 'Đã hoàn tất 100%. Dùng để demo Xem và In hóa đơn thanh toán VAT (INV-20261026-001).' },
+  { code: 'CT-CANC006', court: 'Sân A03', time: '18:00 – 20:00 2 ngày trước', customer: 'Trần Hoàng Nam [Hội viên Plus]', status: 'CANCELLED', desc: 'Đã hủy hợp lệ trước 24 giờ. Dùng để demo Chính sách tự động hoàn 70% tiền cọc (140k).' },
+  { code: 'CT-REF0007', court: 'Sân V02', time: '17:00 – 19:00 Hôm nay', customer: 'Lê Thu Hà', status: 'CONFIRMED', desc: 'Đơn có thuê Trọng tài TT Phạm Quốc Huy (250k/h). Dùng để demo Phân bổ nhân sự.' }
 ];
 
 export default function SystemPage() {
@@ -147,10 +147,19 @@ export default function SystemPage() {
 
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>
-                <UserCheck size={18} style={{ color: '#16a34a' }} /> Hội viên VIP Plus (Kiet Nguyen)
+                <UserCheck size={18} style={{ color: '#16a34a' }} /> Hội viên VIP Plus (Trần Hoàng Nam)
               </div>
               <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
                 Gói Plus có hiệu lực 60 ngày, giảm tự động 15% tiền sân khi đặt lịch (đã ghi nhận doanh thu membership 499.000₫).
+              </p>
+            </div>
+
+            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>
+                <Sparkles size={18} style={{ color: '#8b5cf6' }} /> Khách hàng Live Demo (Kiệt Nguyễn)
+              </div>
+              <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
+                Tài khoản <code>kietdlv@gmail.com</code> luôn được dọn sạch 100% (0 đơn hàng) để bạn tự do thao tác tạo đơn mới hoặc đăng ký hội viên trực tiếp.
               </p>
             </div>
           </div>

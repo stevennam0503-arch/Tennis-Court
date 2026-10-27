@@ -28,9 +28,9 @@ Bất cứ khi nào nhóm tập dượt xong (làm bẩn hoặc lệch dữ li�
 | :--- | :--- | :--- | :--- |
 | **Quản trị viên (Admin)** | `admin@gmail.com` | `12345` | Quản lý toàn bộ hệ thống: Sân, Nhân sự, Báo cáo tài chính, Giải đấu, Cấu hình. |
 | **Lễ tân / Thu ngân (Staff)** | `staff@gmail.com` | `12345` | Thao tác tại quầy: Quét QR Check-in, Check-out, Thu tiền mặt, Gia hạn sân. |
-| **Khách hàng VIP (Hội viên Plus)** | `kietdlv@gmail.com` | `1234567890123` | Sở hữu gói **Plus**: Giảm giá 15% tiền sân, có sẵn các đơn mẫu để demo. |
-| **Khách hàng thân thiết** | `hoangnam@gmail.com` | `1234567890123` | Khách quen đã có các đơn Completed, Cancelled trong lịch sử. |
-| **Khách hàng mới (Live Demo)** | `khachmoi@gmail.com` | `1234567890123` | Dùng để demo luồng khách vãng lai đặt sân mới từ A đến Z. |
+| **Khách hàng của bạn (Live Demo)** | `kietdlv@gmail.com` | `1234567890123` | **Tài khoản cá nhân của bạn**: Hoàn toàn **sạch sẽ (0 đơn)** để bạn tự do tạo đơn đặt sân hoặc đăng ký hội viên trực tiếp trước mặt Hội đồng! |
+| **Khách hàng VIP (Hội viên Plus)** | `hoangnam@gmail.com` | `1234567890123` | Khách mẫu sở hữu gói **Plus**: Giảm giá 15% tiền sân, chứa các đơn mẫu Checked-in, Confirmed, Định kỳ, Hoàn tất, Hủy. |
+| **Khách hàng mới** | `khachmoi@gmail.com` | `1234567890123` | Khách sở hữu đơn #CT-REF0007 (thuê trọng tài). |
 
 ---
 
@@ -38,13 +38,13 @@ Bất cứ khi nào nhóm tập dượt xong (làm bẩn hoặc lệch dữ li�
 
 | Mã đơn | Trạng thái | Sân & Khung giờ | Khách hàng | Kịch bản demo cho Hội đồng |
 | :--- | :--- | :--- | :--- | :--- |
-| **#CT-NOW0001** | `CHECKED_IN` *(Đang chơi)* | **Sân A01**<br>Hôm nay (14:00 - 16:00) | Kiet Nguyen *(Hội viên Plus)* | **Demo Gia hạn sân & Thu tiền tại quầy:**<br>1. Vào giao diện Lễ tân $\rightarrow$ Thấy sân A01 đang có khách chơi.<br>2. Bấm **Gia hạn sân (+30 phút)** $\rightarrow$ Sân nối thêm giờ.<br>3. Hoặc bấm **Check-out** $\rightarrow$ Hệ thống tính số tiền còn lại phải thu (170.000đ) $\rightarrow$ Thu tiền mặt. |
-| **#CT-CONF002** | `CONFIRMED` *(Đã cọc 50%)* | **Sân B01** *(Trong nhà)*<br>Hôm nay (19:00 - 21:00) | Kiet Nguyen *(Hội viên Plus)* | **Demo Vé điện tử & QR Code Check-in:**<br>1. Đăng nhập tài khoản khách $\rightarrow$ Mở mục "Đơn của tôi".<br>2. Bấm **"Vé điện tử & Mã QR Check-in"** $\rightarrow$ Show mã QR sắc nét.<br>3. Đổi sang tab Lễ tân $\rightarrow$ Giả lập quét QR để check-in cho khách vào sân. |
-| **#CT-HOLD003** | `HOLDING` *(Giữ chỗ 5 phút)* | **Sân V01** *(VIP Lounge)*<br>Ngày mai (08:00 - 10:00) | Trần Hoàng Nam | **Demo Đồng hồ giữ chỗ & Thanh toán VietQR:**<br>1. Mở đơn $\rightarrow$ Thấy đồng hồ đếm ngược **5:00 phút** theo đúng chính sách CLB.<br>2. Quét mã QR chuyển khoản cọc $\rightarrow$ Đơn lập tức tự động chuyển sang `CONFIRMED`. |
-| **#CT-RECUR04** | `CONFIRMED` *(Định kỳ)* | **Sân B02**<br>Chủ nhật hàng tuần (x 4 tuần) | Kiet Nguyen *(Hội viên Plus)* | **Demo Đặt lịch dài hạn định kỳ 4 tuần:**<br>1. Mở chi tiết đơn $\rightarrow$ Thấy huy hiệu `🔄 Định kỳ 4 tuần`.<br>2. Khung giờ được giữ cố định trên 4 tuần liên tiếp, tiền cọc 50% tính chính xác trên toàn chuỗi tuần. |
-| **#CT-DONE005** | `COMPLETED` *(Đã hoàn tất)* | **Sân A02**<br>Hôm qua (17:00 - 19:00) | Trần Hoàng Nam | **Demo Phiếu thu & Hóa đơn điện tử:**<br>1. Mở đơn đã hoàn tất $\rightarrow$ Bấm **"Xem phiếu thu / Hóa đơn"**.<br>2. Xuất hiện hóa đơn điện tử Courtly với đầy đủ mã đơn, thông tin thanh toán, dấu mộc CLB và chữ ký. |
-| **#CT-CANC006** | `CANCELLED` *(Đã hủy)* | **Sân A03**<br>2 ngày trước | Trần Hoàng Nam | **Demo Chính sách Hoàn tiền & Minh bạch tài chính:**<br>1. Khách hủy lịch trước 24h $\rightarrow$ Hệ thống tự động hoàn 70% cọc (140.000đ) và giữ lại 30% phí (60.000đ).<br>2. Mở tab **Lịch sử thanh toán** $\rightarrow$ Thấy dòng hoàn tiền màu đỏ `−140.000đ` kèm badge `✓ Đã hoàn tiền` và lý do rõ ràng. |
-| **#CT-REF0007** | `CONFIRMED` *(Có trọng tài)* | **Sân V02**<br>Hôm nay (17:00 - 19:00) | Trần Hoàng Nam | **Demo Dịch vụ Trọng tài chuyên nghiệp:**<br>1. Phân công Trọng tài TT Phạm Quốc Huy (250.000đ/giờ).<br>2. Hệ thống khóa ca làm việc của trọng tài, tính tổng tiền gồm tiền sân + phí trọng tài. |
+| **#CT-NOW0001** | `CHECKED_IN` *(Đang chơi)* | **Sân A01**<br>Hôm nay (14:00 - 16:00) | Trần Hoàng Nam *(Hội viên Plus)* | **Demo Gia hạn sân & Thu tiền tại quầy:**<br>1. Vào giao diện Lễ tân $\rightarrow$ Thấy sân A01 đang có khách chơi.<br>2. Bấm **Gia hạn sân (+30 phút)** $\rightarrow$ Sân nối thêm giờ.<br>3. Hoặc bấm **Check-out** $\rightarrow$ Hệ thống tính số tiền còn lại phải thu (170.000đ) $\rightarrow$ Thu tiền mặt. |
+| **#CT-CONF002** | `CONFIRMED` *(Đã cọc 50%)* | **Sân B01** *(Trong nhà)*<br>Hôm nay (19:00 - 21:00) | Trần Hoàng Nam *(Hội viên Plus)* | **Demo Vé điện tử & QR Code Check-in:**<br>1. Đăng nhập tài khoản khách $\rightarrow$ Mở mục "Đơn của tôi".<br>2. Bấm **"Vé điện tử & Mã QR Check-in"** $\rightarrow$ Show mã QR sắc nét.<br>3. Đổi sang tab Lễ tân $\rightarrow$ Giả lập quét QR để check-in cho khách vào sân. |
+| **#CT-HOLD003** | `HOLDING` *(Giữ chỗ 5 phút)* | **Sân V01** *(VIP Lounge)*<br>Ngày mai (08:00 - 10:00) | Trần Hoàng Nam *(Hội viên Plus)* | **Demo Đồng hồ giữ chỗ & Thanh toán VietQR:**<br>1. Mở đơn $\rightarrow$ Thấy đồng hồ đếm ngược **5:00 phút** theo đúng chính sách CLB.<br>2. Quét mã QR chuyển khoản cọc $\rightarrow$ Đơn lập tức tự động chuyển sang `CONFIRMED`. |
+| **#CT-RECUR04** | `CONFIRMED` *(Định kỳ)* | **Sân B02**<br>Chủ nhật hàng tuần (x 4 tuần) | Trần Hoàng Nam *(Hội viên Plus)* | **Demo Đặt lịch dài hạn định kỳ 4 tuần:**<br>1. Mở chi tiết đơn $\rightarrow$ Thấy huy hiệu `🔄 Định kỳ 4 tuần`.<br>2. Khung giờ được giữ cố định trên 4 tuần liên tiếp, tiền cọc 50% tính chính xác trên toàn chuỗi tuần. |
+| **#CT-DONE005** | `COMPLETED` *(Đã hoàn tất)* | **Sân A02**<br>Hôm qua (17:00 - 19:00) | Trần Hoàng Nam *(Hội viên Plus)* | **Demo Phiếu thu & Hóa đơn điện tử:**<br>1. Mở đơn đã hoàn tất $\rightarrow$ Bấm **"Xem phiếu thu / Hóa đơn"**.<br>2. Xuất hiện hóa đơn điện tử Courtly với đầy đủ mã đơn, thông tin thanh toán, dấu mộc CLB và chữ ký. |
+| **#CT-CANC006** | `CANCELLED` *(Đã hủy)* | **Sân A03**<br>2 ngày trước | Trần Hoàng Nam *(Hội viên Plus)* | **Demo Chính sách Hoàn tiền & Minh bạch tài chính:**<br>1. Khách hủy lịch trước 24h $\rightarrow$ Hệ thống tự động hoàn 70% cọc (140.000đ) và giữ lại 30% phí (60.000đ).<br>2. Mở tab **Lịch sử thanh toán** $\rightarrow$ Thấy dòng hoàn tiền màu đỏ `−140.000đ` kèm badge `✓ Đã hoàn tiền` và lý do rõ ràng. |
+| **#CT-REF0007** | `CONFIRMED` *(Có trọng tài)* | **Sân V02**<br>Hôm nay (17:00 - 19:00) | Lê Thu Hà | **Demo Dịch vụ Trọng tài chuyên nghiệp:**<br>1. Phân công Trọng tài TT Phạm Quốc Huy (250.000đ/giờ).<br>2. Hệ thống khóa ca làm việc của trọng tài, tính tổng tiền gồm tiền sân + phí trọng tài. |
 
 ---
 

@@ -72,8 +72,8 @@ public class DemoResetService {
         VALUES 
           ('%s', 'admin@gmail.com', 'Quản trị Courtly', '0909999999', 'ADMIN', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'staff@gmail.com', 'Lễ tân Courtly (Staff)', '0908888888', 'STAFF', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'kietdlv@gmail.com', 'Kiet Nguyen [Hội viên Plus]', '0901234567', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'hoangnam@gmail.com', 'Trần Hoàng Nam', '0912345678', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'kietdlv@gmail.com', 'Kiệt Nguyễn', '0901234567', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'hoangnam@gmail.com', 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'khachmoi@gmail.com', 'Lê Thu Hà', '0987654321', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0)
         ON CONFLICT (id) DO UPDATE SET 
           full_name = EXCLUDED.full_name,
@@ -138,15 +138,15 @@ public class DemoResetService {
     // Lấy giải đấu
     UUID tournId = getOpenTournamentId();
 
-    // 1. ĐƠN 1: CHECKED_IN - Sân A01 hôm nay 14:00 - 16:00 (Kiet Nguyen VIP Plus)
+    // 1. ĐƠN 1: CHECKED_IN - Sân A01 hôm nay 14:00 - 16:00 (Trần Hoàng Nam VIP Plus)
     String ord1Id = "11111111-1111-1111-1111-111111111111";
     String bkg1Id = "11111111-1111-1111-1111-222222222222";
     String pay1Id = "11111111-1111-1111-1111-333333333333";
     String meta1 = "{\"customerFlow\": true, \"membershipBenefit\": {\"gross\": 400000, \"discount\": 60000, \"net\": 340000, \"planName\": \"Plus\", \"discountPercent\": 15}}";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Kiet Nguyen [Hội viên Plus]', '0901234567', 'CHECKED_IN', 340000.00, 170000.00, 170000.00, 'PARTIAL', NOW() - interval '2 hours', 0, ?)",
-        ord1Id, KIET_ID, KIET_ID, meta1
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CHECKED_IN', 340000.00, 170000.00, 170000.00, 'PARTIAL', NOW() - interval '2 hours', 0, ?)",
+        ord1Id, NAM_ID, NAM_ID, meta1
     );
     jdbc.update(
         "INSERT INTO bookings (id, order_id, status, check_in_at, created_at) VALUES (?::uuid, ?::uuid, 'CHECKED_IN', NOW() - interval '45 minutes', NOW() - interval '2 hours')",
@@ -158,15 +158,15 @@ public class DemoResetService {
     );
     bookCourtSlots(courtA01, todayStr, "14:00:00", "16:00:00", bkg1Id);
 
-    // 2. ĐƠN 2: CONFIRMED - Sân B01 hôm nay 19:00 - 21:00 (Kiet Nguyen VIP Plus)
+    // 2. ĐƠN 2: CONFIRMED - Sân B01 hôm nay 19:00 - 21:00 (Trần Hoàng Nam VIP Plus)
     String ord2Id = "22222222-2222-2222-2222-111111111111";
     String bkg2Id = "22222222-2222-2222-2222-222222222222";
     String pay2Id = "22222222-2222-2222-2222-333333333333";
     String meta2 = "{\"customerFlow\": true, \"membershipBenefit\": {\"gross\": 600000, \"discount\": 90000, \"net\": 510000, \"planName\": \"Plus\", \"discountPercent\": 15}}";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Kiet Nguyen [Hội viên Plus]', '0901234567', 'CONFIRMED', 510000.00, 255000.00, 255000.00, 'PARTIAL', NOW() - interval '4 hours', 0, ?)",
-        ord2Id, KIET_ID, KIET_ID, meta2
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CONFIRMED', 510000.00, 255000.00, 255000.00, 'PARTIAL', NOW() - interval '4 hours', 0, ?)",
+        ord2Id, NAM_ID, NAM_ID, meta2
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'CONFIRMED', NOW() - interval '4 hours')", bkg2Id, ord2Id);
     jdbc.update("INSERT INTO payments (id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at) VALUES (?::uuid, ?::uuid, ?::uuid, 'DEPOSIT', 'BANK_TRANSFER', 255000.00, 'PAY-CONF-002', 'PAID', NOW() - interval '4 hours')", pay2Id, ord2Id, STAFF_ID);
@@ -177,13 +177,13 @@ public class DemoResetService {
     String bkg3Id = "33333333-3333-3333-3333-222222222222";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, hold_expires_at, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam', '0912345678', 'HOLDING', NOW() + interval '5 minutes', 1000000.00, 500000.00, 0.00, 'UNPAID', NOW(), 0, '{\"customerFlow\": true}')",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'HOLDING', NOW() + interval '5 minutes', 1000000.00, 500000.00, 0.00, 'UNPAID', NOW(), 0, '{\"customerFlow\": true}')",
         ord3Id, NAM_ID, NAM_ID
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'HOLDING', NOW())", bkg3Id, ord3Id);
     lockCourtSlots(courtV01, tomorrowStr, "08:00:00", "10:00:00", bkg3Id);
 
-    // 4. ĐƠN 4: RECURRING (Định kỳ 4 tuần) - Sân B02 16:00 - 18:00 (Kiet Nguyen VIP Plus)
+    // 4. ĐƠN 4: RECURRING (Định kỳ 4 tuần) - Sân B02 16:00 - 18:00 (Trần Hoàng Nam VIP Plus)
     String ord4Id = "44444444-4444-4444-4444-111111111111";
     String bkg4Id = "44444444-4444-4444-4444-222222222222";
     String pay4Id = "44444444-4444-4444-4444-333333333333";
@@ -193,8 +193,8 @@ public class DemoResetService {
     );
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Kiet Nguyen [Hội viên Plus]', '0901234567', 'CONFIRMED', 2040000.00, 1020000.00, 1020000.00, 'PARTIAL', NOW() - interval '1 day', 0, ?)",
-        ord4Id, KIET_ID, KIET_ID, meta4
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CONFIRMED', 2040000.00, 1020000.00, 1020000.00, 'PARTIAL', NOW() - interval '1 day', 0, ?)",
+        ord4Id, NAM_ID, NAM_ID, meta4
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'CONFIRMED', NOW() - interval '1 day')", bkg4Id, ord4Id);
     jdbc.update("INSERT INTO payments (id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at) VALUES (?::uuid, ?::uuid, ?::uuid, 'DEPOSIT', 'BANK_TRANSFER', 1020000.00, 'PAY-RECUR-004', 'PAID', NOW() - interval '1 day')", pay4Id, ord4Id, STAFF_ID);
@@ -255,7 +255,7 @@ public class DemoResetService {
     jdbc.update("INSERT INTO payments (id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at) VALUES (?::uuid, ?::uuid, ?::uuid, 'DEPOSIT', 'BANK_TRANSFER', 500000.00, 'PAY-REF-007', 'PAID', NOW() - interval '6 hours')", pay7Id, ord7Id, STAFF_ID);
     bookCourtWithReferee(courtV02, todayStr, "17:00:00", "19:00:00", bkg7Id, refereeId, refereeRate);
 
-    // 8. Membership VIP Plus cho Kiet Nguyen
+    // 8. Membership VIP Plus cho Trần Hoàng Nam
     String memId = UUID.randomUUID().toString();
     String memPayId = UUID.randomUUID().toString();
     String memStart = today.getYear() + "-" + String.format("%02d", today.getMonthValue()) + "-01T00:00:00Z";
@@ -264,23 +264,23 @@ public class DemoResetService {
 
     String memDocJson = String.format(
         "{\"id\": \"%s\", \"accountId\": \"%s\", \"planId\": \"plus\", \"planName\": \"Plus\", \"startsAt\": \"%s\", \"endsAt\": \"%s\", \"status\": \"ACTIVE\", \"discountPercent\": 15, \"vipDiscountPercent\": 10, \"price\": 499000, \"rescheduleUsage\": 0}",
-        memId, KIET_ID, memStart, memEnd
+        memId, NAM_ID, memStart, memEnd
     );
     String memPayDocJson = String.format(
         "{\"id\": \"%s\", \"membershipId\": \"%s\", \"accountId\": \"%s\", \"planId\": \"plus\", \"planName\": \"Plus\", \"amount\": 499000, \"createdAt\": \"%sT08:00:00Z\", \"status\": \"PAID\", \"method\": \"BANK_TRANSFER\", \"transactionCode\": \"MEM-PLUS-001\"}",
-        memPayId, memId, KIET_ID, todayStr
+        memPayId, memId, NAM_ID, todayStr
     );
 
-    jdbc.execute("DELETE FROM app_documents WHERE document_key LIKE 'membership:%' OR document_key LIKE 'membership-payment:%'");
-    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "membership:" + KIET_ID, memDocJson);
+    jdbc.execute("DELETE FROM app_documents WHERE document_key LIKE 'membership:%' OR document_key LIKE 'membership-payment:%' OR document_key LIKE 'request:%' OR document_key LIKE 'otp:%'");
+    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "membership:" + NAM_ID, memDocJson);
     jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "membership-payment:" + memPayId, memPayDocJson);
 
     // 9. Giải đấu Courtly Winter Doubles với 4 cặp đấu
     if (tournId != null) {
       String[][] teams = {
-          {"Kiet Nguyen & Hoàng Nam", KIET_ID, "350000"},
-          {"Minh Anh & Quốc Huy", NAM_ID, "350000"},
-          {"Đức Long & Thanh Bình", HA_ID, "350000"},
+          {"Hoàng Nam & Minh Anh", NAM_ID, "350000"},
+          {"Lê Thu Hà & Quốc Huy", HA_ID, "350000"},
+          {"Đức Long & Thanh Bình", null, "350000"},
           {"Hải Đăng & Tấn Phát", null, "350000"}
       };
       for (int i = 0; i < teams.length; i++) {

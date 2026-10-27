@@ -81,8 +81,8 @@ def main():
     VALUES 
       ('{ADMIN_ID}', 'admin@gmail.com', 'Quản trị Courtly', '0909999999', 'ADMIN', 'ACTIVE', '{BCRYPT_12345}', NOW(), 0),
       ('{STAFF_ID}', 'staff@gmail.com', 'Lễ tân Courtly (Staff)', '0908888888', 'STAFF', 'ACTIVE', '{BCRYPT_12345}', NOW(), 0),
-      ('{KIET_ID}', 'kietdlv@gmail.com', 'Kiet Nguyen [Hội viên Plus]', '0901234567', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0),
-      ('{NAM_ID}', 'hoangnam@gmail.com', 'Trần Hoàng Nam', '0912345678', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0),
+      ('{KIET_ID}', 'kietdlv@gmail.com', 'Kiệt Nguyễn', '0901234567', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0),
+      ('{NAM_ID}', 'hoangnam@gmail.com', 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0),
       ('{HA_ID}', 'khachmoi@gmail.com', 'Lê Thu Hà', '0987654321', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0)
     ON CONFLICT (id) DO UPDATE SET 
       full_name = EXCLUDED.full_name,
@@ -179,7 +179,7 @@ def main():
     print("🎾 Đang khởi tạo 7 đơn hàng mẫu chuẩn (Showcase Golden Orders)...")
 
     # 1. ĐƠN 1: ĐANG THI ĐẤU (CHECKED_IN) - Sân A01 hôm nay lúc 14:00 - 16:00
-    # Khách VIP: Kiet Nguyen. Giá sân: 200k/h x 2h = 400k. Giảm Plus 15% (-60k) = 340k. Cọc 50% = 170k. Còn lại 170k.
+    # Khách VIP: Trần Hoàng Nam. Giá sân: 200k/h x 2h = 400k. Giảm Plus 15% (-60k) = 340k. Cọc 50% = 170k. Còn lại 170k.
     ord1_id = "11111111-1111-1111-1111-111111111111"
     bkg1_id = "11111111-1111-1111-1111-222222222222"
     pay1_id = "11111111-1111-1111-1111-333333333333"
@@ -192,7 +192,7 @@ def main():
 
     sql_ord1 = f"""
     INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata)
-    VALUES ('{ord1_id}', '{KIET_ID}', '{KIET_ID}', 'Kiet Nguyen [Hội viên Plus]', '0901234567', 'CHECKED_IN', 340000.00, 170000.00, 170000.00, 'PARTIAL', NOW() - interval '2 hours', 0, '{meta1}');
+    VALUES ('{ord1_id}', '{NAM_ID}', '{NAM_ID}', 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CHECKED_IN', 340000.00, 170000.00, 170000.00, 'PARTIAL', NOW() - interval '2 hours', 0, '{meta1}');
 
     INSERT INTO bookings (id, order_id, status, check_in_at, created_at)
     VALUES ('{bkg1_id}', '{ord1_id}', 'CHECKED_IN', NOW() - interval '45 minutes', NOW() - interval '2 hours');
@@ -209,7 +209,7 @@ def main():
     run_psql(sql_ord1)
 
     # 2. ĐƠN 2: ĐÃ XÁC NHẬN SẴN SÀNG CHECK-IN (CONFIRMED) - Sân B01 hôm nay 19:00 - 21:00
-    # Khách VIP: Kiet Nguyen. Giá sân: 300k/h x 2h = 600k. Giảm Plus 15% (-90k) = 510k. Cọc 50% = 255k. Còn lại 255k.
+    # Khách VIP: Trần Hoàng Nam. Giá sân: 300k/h x 2h = 600k. Giảm Plus 15% (-90k) = 510k. Cọc 50% = 255k. Còn lại 255k.
     ord2_id = "22222222-2222-2222-2222-111111111111"
     bkg2_id = "22222222-2222-2222-2222-222222222222"
     pay2_id = "22222222-2222-2222-2222-333333333333"
@@ -221,7 +221,7 @@ def main():
 
     sql_ord2 = f"""
     INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata)
-    VALUES ('{ord2_id}', '{KIET_ID}', '{KIET_ID}', 'Kiet Nguyen [Hội viên Plus]', '0901234567', 'CONFIRMED', 510000.00, 255000.00, 255000.00, 'PARTIAL', NOW() - interval '4 hours', 0, '{meta2}');
+    VALUES ('{ord2_id}', '{NAM_ID}', '{NAM_ID}', 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CONFIRMED', 510000.00, 255000.00, 255000.00, 'PARTIAL', NOW() - interval '4 hours', 0, '{meta2}');
 
     INSERT INTO bookings (id, order_id, status, created_at)
     VALUES ('{bkg2_id}', '{ord2_id}', 'CONFIRMED', NOW() - interval '4 hours');
@@ -261,7 +261,7 @@ def main():
     run_psql(sql_ord3)
 
     # 4. ĐƠN 4: ĐỊNH KỲ 4 TUẦN (RECURRING) - Sân B02, 4 tuần liên tiếp lúc 16:00 - 18:00
-    # Khách VIP: Kiet Nguyen. 300k/h x 2h x 4 tuần = 2.400.000đ. Giảm Plus 15% (-360k) = 2.040.000đ. Cọc 50% = 1.020.000đ.
+    # Khách VIP: Trần Hoàng Nam. 300k/h x 2h x 4 tuần = 2.400.000đ. Giảm Plus 15% (-360k) = 2.040.000đ. Cọc 50% = 1.020.000đ.
     ord4_id = "44444444-4444-4444-4444-111111111111"
     bkg4_id = "44444444-4444-4444-4444-222222222222"
     pay4_id = "44444444-4444-4444-4444-333333333333"
@@ -275,7 +275,7 @@ def main():
     court_b02 = court_map["Sân B02"]["id"]
     sql_ord4 = f"""
     INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata)
-    VALUES ('{ord4_id}', '{KIET_ID}', '{KIET_ID}', 'Kiet Nguyen [Hội viên Plus]', '0901234567', 'CONFIRMED', 2040000.00, 1020000.00, 1020000.00, 'PARTIAL', NOW() - interval '1 day', 0, '{meta4}');
+    VALUES ('{ord4_id}', '{NAM_ID}', '{NAM_ID}', 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CONFIRMED', 2040000.00, 1020000.00, 1020000.00, 'PARTIAL', NOW() - interval '1 day', 0, '{meta4}');
 
     INSERT INTO bookings (id, order_id, status, created_at)
     VALUES ('{bkg4_id}', '{ord4_id}', 'CONFIRMED', NOW() - interval '1 day');
@@ -412,16 +412,16 @@ def main():
     run_psql(sql_ord7)
 
     # ----------------------------------------------------
-    # KHỞI TẠO HỘI VIÊN PLUS CHO KIET NGUYEN (APP_DOCUMENTS)
+    # KHỞI TẠO HỘI VIÊN PLUS CHO TRẦN HOÀNG NAM (APP_DOCUMENTS)
     # ----------------------------------------------------
-    print("💳 Đang kích hoạt gói Hội viên Plus (Membership) cho Kiet Nguyen...")
+    print("💳 Đang kích hoạt gói Hội viên Plus (Membership) cho Trần Hoàng Nam...")
     mem_id = str(uuid.uuid4())
     mem_start = f"{today.year}-{today.month:02d}-01T00:00:00Z"
     mem_end = f"{(today + datetime.timedelta(days=60)).year}-{(today + datetime.timedelta(days=60)).month:02d}-28T23:59:59Z"
     
     mem_doc = {
         "id": mem_id,
-        "accountId": KIET_ID,
+        "accountId": NAM_ID,
         "planId": "plus",
         "planName": "Plus",
         "startsAt": mem_start,
@@ -435,7 +435,7 @@ def main():
     mem_pay_doc = {
         "id": str(uuid.uuid4()),
         "membershipId": mem_id,
-        "accountId": KIET_ID,
+        "accountId": NAM_ID,
         "planId": "plus",
         "planName": "Plus",
         "amount": 499000,
@@ -447,9 +447,9 @@ def main():
 
     # Xóa membership cũ trong app_documents và chèn mới
     del_mem_sql = f"""
-    DELETE FROM app_documents WHERE document_key LIKE 'membership:%' OR document_key LIKE 'membership-payment:%';
+    DELETE FROM app_documents WHERE document_key LIKE 'membership:%' OR document_key LIKE 'membership-payment:%' OR document_key LIKE 'request:%' OR document_key LIKE 'otp:%';
     INSERT INTO app_documents (document_key, data, version) VALUES 
-      ('membership:{KIET_ID}', '{json.dumps(mem_doc)}', 1),
+      ('membership:{NAM_ID}', '{json.dumps(mem_doc)}', 1),
       ('membership-payment:{mem_pay_doc["id"]}', '{json.dumps(mem_pay_doc)}', 1);
     """
     run_psql(del_mem_sql)
@@ -460,9 +460,9 @@ def main():
     if tourn_id:
         print("🏆 Đang khởi tạo 4 đội thi đấu giải Courtly Winter Doubles...")
         teams = [
-            ("Kiet Nguyen & Hoàng Nam", KIET_ID, "350000"),
-            ("Minh Anh & Quốc Huy", NAM_ID, "350000"),
-            ("Đức Long & Thanh Bình", HA_ID, "350000"),
+            ("Hoàng Nam & Minh Anh", NAM_ID, "350000"),
+            ("Lê Thu Hà & Quốc Huy", HA_ID, "350000"),
+            ("Đức Long & Thanh Bình", None, "350000"),
             ("Hải Đăng & Tấn Phát", None, "350000")
         ]
         tourn_sql = ""
