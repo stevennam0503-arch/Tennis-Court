@@ -88,7 +88,7 @@ export default function CourtsPage() {
                 <CourtPhoto court={c} />
                 <div className="card-body">
                   <div className="card-top">
-                    <h2>{c.name}</h2>
+                    <h2>{c.name}</h2>{c.zoneNeedsReview&&<p className="notice">Cần xác nhận khu sân sau nâng cấp dữ liệu.</p>}
                     <Chip status={c.status} />
                   </div>
                   <div className="metric">

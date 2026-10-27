@@ -231,6 +231,17 @@ public class BookingSupportService {
               hours(slot.getStartTime(), slot.getEndTime())));
     }
     var old = views.order(o);
+    boolean restoring = Set.of("EXPIRED", "CANCELLED").contains(o.getStatus());
+    var sourceDate = restoring ? null : service.visitDate(o, null);
+    var retained = ((List<Map<String,Object>>) old.get("slots")).stream()
+        .filter(slot -> restoring ? Boolean.TRUE.equals(slot.get("completed")) : !sourceDate.toString().equals(slot.get("date").toString())).toList();
+    require(rows.stream().noneMatch(row -> retained.stream().anyMatch(slot -> row.getId().toString().equals(slot.get("id").toString()))), "Lịch mới trùng một buổi khác của đơn");
+    var allRows = new ArrayList<>(rows);
+    retained.forEach(slot -> allRows.add(schedules.findById(UUID.fromString(slot.get("id").toString())).orElseThrow()));
+    var retainedStaff = ((List<Map<String,Object>>) old.get("staff")).stream()
+        .filter(line -> restoring ? Boolean.TRUE.equals(line.get("completed")) : !sourceDate.toString().equals(line.get("date").toString())).toList();
+    for (var line : retainedStaff) staffCost = staffCost.add(PresentationService.decimal(line.get("rate")).multiply(PresentationService.decimal(line.get("hours"))));
+    staffView.addAll(retainedStaff);
     var products = (List<Map<String, Object>>) old.get("products");
     BigDecimal extras =
         products.stream()
@@ -238,10 +249,13 @@ public class BookingSupportService {
             .reduce(BigDecimal.ZERO, BigDecimal::add);
     var benefit =
         membership.quote(
-            o.getCustomerAccount() == null ? null : o.getCustomerAccount().getId(), rows);
+            o.getCustomerAccount() == null ? null : o.getCustomerAccount().getId(), allRows);
     BigDecimal total = PresentationService.decimal(benefit.get("net")).add(staffCost).add(extras);
     var next = new LinkedHashMap<>(old);
-    next.put("slots", opt.get("slots"));
+    var nextSlots = new ArrayList<Map<String,Object>>((List<Map<String,Object>>) opt.get("slots"));
+    nextSlots.forEach(slot -> slot.put("date", rows.get(0).getScheduleDate()));
+    nextSlots.addAll(retained);
+    next.put("slots", nextSlots);
     next.put("date", opt.get("date"));
     next.put("staff", staffView);
     next.put("total", total);

@@ -20,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class DemoResetService {
   private final JdbcTemplate jdbc;
   private final AuditService audit;
+  private final DemoAccessPolicy demo;
+  private final DocumentService documents;
 
   private static final String ADMIN_ID = "b27fe32c-e9b7-44bf-8149-81bc00b5bbba";
   private static final String STAFF_ID = "f21bd5fa-cf66-4ee4-a009-3a337eebc6fa";
@@ -35,6 +37,8 @@ public class DemoResetService {
 
   @Transactional
   public void resetShowcaseData() {
+    demo.requireEnabled();
+    documents.mutationLock();
     log.info("Bắt đầu đặt lại dữ liệu chuẩn Hội đồng (Golden Showcase)...");
 
     LocalDate today = LocalDate.now(ZONE);

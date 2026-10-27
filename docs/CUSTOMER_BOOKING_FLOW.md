@@ -38,7 +38,7 @@ Khách chọn **Tiền mặt tại quầy** hoặc **Chuyển khoản VietQR**.
 - Đã bỏ tự đếm ngược duyệt tiền và nút duyệt ngay. `/transfers/{id}/confirm` và đường xác nhận online thủ công cũ trả 403. API thu tại quầy chỉ nhận `CASH`.
 - Khi chạy LIVE, webhook SePay phải có khóa xác thực và đúng tài khoản nhận. Kiểm tra nội dung tham chiếu, số tiền, thời hạn và trạng thái đơn trước khi áp dụng. Cùng mã sự kiện chỉ được ghi nhận một lần, kể cả gửi đồng thời.
 - Tiền đến muộn, thu vượt hoặc đơn không còn hợp lệ chuyển sang `REVIEW`, không tự giành lại sân hoặc làm tăng tiền đã xác minh của đơn.
-- Tạo yêu cầu chuyển khoản mô phỏng và chạy sandbox chỉ cho ADMIN khi môi trường có `PAYMENT_MODE=SANDBOX`. Khách không được gọi mô phỏng; LIVE không chấp nhận mô phỏng, kể cả ADMIN.
+- Tạo yêu cầu chuyển khoản mô phỏng và chạy sandbox cho khách trên đơn của chính họ và cho ADMIN/STAFF khi môi trường demo riêng có `DEMO_MODE=true`, `PAYMENT_MODE=SANDBOX` và không bật profile prod/production. Ngoài môi trường demo, endpoint mô phỏng bị chặn; LIVE không chấp nhận mô phỏng, kể cả ADMIN.
 
 LIVE cần `PAYMENT_MODE=LIVE`, `PAYMENT_BANK_BIN`, `PAYMENT_ACCOUNT_NUMBER`, `PAYMENT_ACCOUNT_NAME`, `SEPAY_WEBHOOK_KEY` và webhook HTTPS của hệ thống được đăng ký với SePay. Nhập khóa qua cấu hình bảo mật của nơi triển khai; không đưa vào source hoặc chat. Chưa có thông tin ngân hàng hoặc chưa bật LIVE và xác minh webhook thì khách không được chọn chuyển khoản; không sinh QR dùng số tài khoản giả. Compose cũng dùng MANUAL và để trống thông tin ngân hàng mặc định.
 

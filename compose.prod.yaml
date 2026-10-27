@@ -25,7 +25,7 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD must be configured (min 10 chars)}
       DEMO_MODE: "false"
       SEED_DEMO: "false"
-      PAYMENT_MODE: ${PAYMENT_MODE:?PAYMENT_MODE must be SEPAY or live gateway}
+      PAYMENT_MODE: ${PAYMENT_MODE:?PAYMENT_MODE must be LIVE, SEPAY or MANUAL}
       PAYMENT_BANK_BIN: ${PAYMENT_BANK_BIN}
       PAYMENT_ACCOUNT_NUMBER: ${PAYMENT_ACCOUNT_NUMBER:?Real bank account number required}
       PAYMENT_ACCOUNT_NAME: ${PAYMENT_ACCOUNT_NAME}

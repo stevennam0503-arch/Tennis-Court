@@ -155,6 +155,29 @@ public class OrderService {
         .toList();
   }
 
+  private List<CourtSchedule> pricedSlots(Booking b) {
+    return slots.findByBookingId(b.getId()).stream()
+        .filter(x -> x.getReleasedAt() == null || x.getCompletedAt() != null)
+        .map(BookingSlot::getSchedule).toList();
+  }
+
+  public BigDecimal unusedPaid(CustomerOrder order) {
+    var b = booking(order);
+    BigDecimal gross = BigDecimal.ZERO, completed = BigDecimal.ZERO;
+    for (var link : slots.findByBookingId(b.getId())) {
+      if (link.getReleasedAt() == null || link.getCompletedAt() != null) gross = gross.add(link.getUnitPrice());
+      if (link.getCompletedAt() != null) completed = completed.add(link.getUnitPrice());
+    }
+    var meta = documents.decode(order.getMetadata());
+    BigDecimal discounts = BigDecimal.ZERO;
+    for (var key : List.of("membershipBenefit", "voucherBenefit"))
+      if (meta.get(key) instanceof Map<?, ?> benefit) discounts = discounts.add(PresentationService.decimal(benefit.get("discount")));
+    if (gross.signum() > 0) completed = completed.subtract(discounts.multiply(completed).divide(gross, 2, RoundingMode.HALF_UP)).max(BigDecimal.ZERO);
+    for (var link : bookingStaff.findByBookingId(b.getId()))
+      if (link.getCompletedAt() != null) completed = completed.add(link.getUnitPrice().multiply(hours(link.getStaffSchedule().getStartTime(), link.getStaffSchedule().getEndTime())));
+    return order.getPaidAmount().subtract(completed).max(BigDecimal.ZERO);
+  }
+
   private void live(CustomerOrder order) {
     require(active(order.getStatus()), "Đơn đã kết thúc");
     require(
@@ -174,12 +197,17 @@ public class OrderService {
   }
 
   private void release(Booking booking) {
+    releaseVisit(booking, null, false);
+  }
+
+  private void releaseVisit(Booking booking, LocalDate date, boolean completed) {
     Instant releasedAt = Instant.now();
     for (BookingSlot link :
         slots.findByBookingId(booking.getId()).stream()
             .sorted(Comparator.comparing(x -> x.getSchedule().getId()))
             .toList()) {
-      if (link.getReleasedAt() != null) continue;
+      if (link.getReleasedAt() != null || date != null && !date.equals(link.getSchedule().getScheduleDate())) continue;
+      if (completed) link.setCompletedAt(releasedAt);
       CourtSchedule slot = schedules.findForUpdate(link.getSchedule().getId()).orElseThrow();
       slot.setStatus("AVAILABLE");
       link.setReleasedAt(releasedAt);
@@ -188,7 +216,8 @@ public class OrderService {
         bookingStaff.findByBookingId(booking.getId()).stream()
             .sorted(Comparator.comparing(x -> x.getStaffSchedule().getId()))
             .toList()) {
-      if (link.getReleasedAt() != null) continue;
+      if (link.getReleasedAt() != null || date != null && !date.equals(link.getStaffSchedule().getWorkDate())) continue;
+      if (completed) link.setCompletedAt(releasedAt);
       staffSchedules
           .findForUpdate(link.getStaffSchedule().getId())
           .orElseThrow()
@@ -209,28 +238,56 @@ public class OrderService {
     audit.log("HỦY ĐƠN", id.toString());
   }
 
+  public LocalDate visitDate(CustomerOrder order, LocalDate requested) {
+    var dates = allocated(booking(order)).stream().map(CourtSchedule::getScheduleDate)
+        .distinct().sorted().toList();
+    require(!dates.isEmpty(), "Đơn không còn buổi chơi chưa hoàn tất");
+    var activeDate = documents.decode(order.getMetadata()).get("activeVisitDate");
+    if ("CHECKED_IN".equals(order.getStatus()) && activeDate != null)
+      return LocalDate.parse(activeDate.toString());
+    var date = requested != null ? requested : dates.get(0);
+    require(dates.contains(date), "Ngày không thuộc buổi chơi còn lại của đơn");
+    return date;
+  }
+
   @Transactional
-  public void checkIn(UUID id) {
+  public void checkIn(UUID id) { checkIn(id, null); }
+
+  @Transactional
+  public void checkIn(UUID id, LocalDate requestedDate) {
     CustomerOrder order = lock(id);
     require("CONFIRMED".equals(order.getStatus()), "Đơn chưa được xác nhận");
+    var date = visitDate(order, requestedDate);
     order.setStatus("CHECKED_IN");
     Booking b = booking(order);
     b.setStatus("CHECKED_IN");
     b.setCheckInAt(Instant.now());
-    audit.log("CHECK-IN", id.toString());
+    b.setCheckOutAt(null);
+    var meta = documents.decode(order.getMetadata());
+    meta.put("activeVisitDate", date.toString());
+    var history = (Map<String, Object>) meta.computeIfAbsent("visitHistory", k -> new LinkedHashMap<>());
+    history.put(date.toString(), map("checkInAt", b.getCheckInAt().toString()));
+    order.setMetadata(documents.encode(meta));
+    audit.log("CHECK-IN", id + ": " + date);
   }
 
   @Transactional
   public void checkOut(UUID id) {
     CustomerOrder order = lock(id);
     require("CHECKED_IN".equals(order.getStatus()), "Khách chưa check-in");
-    // Preserve the current explicit cash-desk workflow; balances remain in finance.
-    order.setStatus("COMPLETED");
+    var date = visitDate(order, null);
     Booking b = booking(order);
-    b.setStatus("COMPLETED");
+    releaseVisit(b, date, true);
     b.setCheckOutAt(Instant.now());
-    release(b);
-    audit.log("CHECK-OUT", id.toString());
+    boolean remaining = !allocated(b).isEmpty();
+    order.setStatus(remaining ? "CONFIRMED" : "COMPLETED");
+    b.setStatus(order.getStatus());
+    var meta = documents.decode(order.getMetadata());
+    meta.remove("activeVisitDate");
+    var history = (Map<String, Object>) meta.computeIfAbsent("visitHistory", k -> new LinkedHashMap<>());
+    history.put(date.toString(), map("checkInAt", b.getCheckInAt(), "checkOutAt", b.getCheckOutAt()));
+    order.setMetadata(documents.encode(meta));
+    audit.log("CHECK-OUT", id + ": " + date);
   }
 
   @Transactional
@@ -238,7 +295,8 @@ public class OrderService {
     CustomerOrder order = lock(id);
     require(Set.of("CHECKED_IN", "CONFIRMED").contains(order.getStatus()), "Chỉ gia hạn cho đơn đang chơi hoặc đã xác nhận");
     Booking b = booking(order);
-    List<CourtSchedule> currentSlots = allocated(b);
+    LocalDate currentDate = visitDate(order, null);
+    List<CourtSchedule> currentSlots = allocated(b).stream().filter(x -> x.getScheduleDate().equals(currentDate)).toList();
     require(!currentSlots.isEmpty(), "Đơn chưa có lịch sân");
     var latestCurrentSlot = currentSlots.stream()
         .max(Comparator.comparing(CourtSchedule::getScheduleDate).thenComparing(CourtSchedule::getEndTime))
@@ -264,8 +322,7 @@ public class OrderService {
 
     allocate(b, newSlots, "BOOKED");
 
-    List<CourtSchedule> allSlots = new ArrayList<>(currentSlots);
-    allSlots.addAll(newSlots);
+    List<CourtSchedule> allSlots = pricedSlots(b);
     quote(order, allSlots);
     totals.recalculate(order);
 
@@ -282,14 +339,14 @@ public class OrderService {
     List<UUID> all = new ArrayList<>(request.scheduleIds());
     allocated(b).forEach(x -> all.add(x.getId()));
     all.stream().distinct().sorted().forEach(x -> schedules.findForUpdate(x).orElseThrow());
-    release(b);
+    if (!allocated(b).isEmpty()) releaseVisit(b, visitDate(order, null), false);
     slots.flush();
     List<CourtSchedule> selected = scheduling.lockSlots(request.scheduleIds());
     scheduling.requireAvailable(selected);
     allocate(b, selected, "HOLDING".equals(order.getStatus()) ? "LOCKED" : "BOOKED");
     future(selected);
     assignExact(b, selected, request.assignments());
-    quote(order, selected);
+    quote(order, pricedSlots(b));
     totals.recalculate(order);
     order.setDepositRequired(
         depositBase(order)
@@ -470,6 +527,13 @@ public class OrderService {
       o.setStatus("CONFIRMED");
       allocated(booking(o)).forEach(s -> s.setStatus("BOOKED"));
     }
+    booking(o).setStatus(o.getStatus());
+    var meta = documents.decode(o.getMetadata());
+    meta.remove("cancellationSettlement");
+    var excess = o.getPaidAmount().subtract(o.getTotalAmount()).max(BigDecimal.ZERO);
+    meta.put("refundPending", excess);
+    meta.put("financialReview", excess.signum() > 0 ? "REFUND_PENDING" : null);
+    o.setMetadata(documents.encode(meta));
   }
 
   private void quote(CustomerOrder o, List<CourtSchedule> selected) {

@@ -31,6 +31,7 @@ class ProductionSecurityValidatorTest {
     when(environment.getProperty("courtly.allowed-origin", "")).thenReturn("https://tennis.courtly.vn");
     when(environment.getProperty("courtly.payment.account-number", "")).thenReturn("987654321098");
     when(environment.getProperty("courtly.mail.host", "")).thenReturn("smtp.gmail.com");
+    when(environment.getProperty("courtly.mail.password", "")).thenReturn("test-mail-password");
   }
 
   @Test
@@ -149,5 +150,23 @@ class ProductionSecurityValidatorTest {
     mockSecureDefaults();
 
     assertDoesNotThrow(() -> validator.run(new DefaultApplicationArguments()));
+  }
+  @Test
+  void prodRejectsSandboxAndUnknownPaymentModes() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
+    mockSecureDefaults();
+    for (var mode : new String[]{"SANDBOX", "sandbox", "INVALID", ""}) {
+      when(environment.getProperty("courtly.payment.mode", "")).thenReturn(mode);
+      assertTrue(assertThrows(IllegalStateException.class,
+          () -> validator.run(new DefaultApplicationArguments())).getMessage().contains("PAYMENT_MODE"));
+    }
+  }
+  @Test
+  void prodRejectsMissingMailCredentials() {
+    when(environment.acceptsProfiles(Profiles.of("prod", "production"))).thenReturn(true);
+    mockSecureDefaults();
+    when(environment.getProperty("courtly.mail.password", "")).thenReturn("");
+    assertTrue(assertThrows(IllegalStateException.class,
+        () -> validator.run(new DefaultApplicationArguments())).getMessage().contains("SMTP_PASSWORD"));
   }
 }

@@ -1148,5 +1148,6 @@
   "Mã kích hoạt OTP 6 số": "6-digit OTP activation code",
   "Quên mật khẩu / Có mã?": "Forgot password / Have a code?",
   "Quay lại Đăng nhập": "Back to Sign In",
-  "Liên hệ quầy lễ tân để xác minh và nhận mã đặt lại mật khẩu trực tiếp.": "Please contact the front desk to verify and receive a password reset token."
+  "Liên hệ quầy lễ tân để xác minh và nhận mã đặt lại mật khẩu trực tiếp.": "Please contact the front desk to verify and receive a password reset token.",
+  "Các buổi trong đơn": "Sessions in this booking"
 }

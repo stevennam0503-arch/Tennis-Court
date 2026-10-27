@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class PresentationService {
   private final OverviewService overview;
+  private final DemoAccessPolicy demo;
   private final ScheduleService schedules;
   private final OrderService orders;
   private final DocumentService docs;
@@ -183,6 +184,7 @@ public class PresentationService {
     v.put("refereeRates", refereeRates());
     v.put("club", content.club());
     v.put("sample", sample);
+    v.put("demoResetEnabled", "ADMIN".equals(viewer.getRole()) && demo.enabled());
 
     v.putAll(membership.view(viewer));
     v.put("viewer", auth.user(viewer));

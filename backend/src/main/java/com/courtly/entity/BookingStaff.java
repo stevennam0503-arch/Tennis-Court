@@ -27,6 +27,9 @@ public class BookingStaff extends BaseEntity {
   @Column(name = "released_at", nullable = true)
   private Instant releasedAt;
 
+  @Column(name = "completed_at")
+  private Instant completedAt;
+
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "court_schedule_id")
   private CourtSchedule courtSchedule;

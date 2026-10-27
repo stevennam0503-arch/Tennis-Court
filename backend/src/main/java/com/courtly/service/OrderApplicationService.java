@@ -146,7 +146,7 @@ public class OrderApplicationService {
     }
 
     var refund =
-        o.getPaidAmount()
+        service.unusedPaid(o)
             .multiply(java.math.BigDecimal.valueOf(percent))
             .divide(java.math.BigDecimal.valueOf(100), 0, java.math.RoundingMode.HALF_UP);
     var retained = o.getPaidAmount().subtract(refund);
@@ -201,7 +201,7 @@ public class OrderApplicationService {
             require(PresentationService.decimal(((Map<?, ?>) preview.get("next")).get("total"))
                 .compareTo(PresentationService.decimal(b.get("expectedTotal"))) == 0,
                 "Giá đã thay đổi; vui lòng xem trước lịch mới lại");
-          if (!Set.of("ADMIN", "STAFF").contains(a.getRole()) && "CONFIRMED".equals(o.getStatus())) memberships.consumeChange(a.getId(), service.allocated(service.booking(o)), support.selected(r.scheduleIds()));
+          if (!Set.of("ADMIN", "STAFF").contains(a.getRole()) && "CONFIRMED".equals(o.getStatus())) memberships.consumeChange(a.getId(), service.allocated(service.booking(o)).stream().filter(slot -> slot.getScheduleDate().equals(service.visitDate(o, null))).toList(), support.selected(r.scheduleIds()));
           service.move(id, r);
           if (!Set.of("ADMIN", "STAFF").contains(a.getRole())) customerDeposit(o);
           var extra = docs.decode(o.getMetadata());
@@ -241,7 +241,9 @@ public class OrderApplicationService {
             }
             case "check-in" -> {
               var early = docs.decode(settings.get().getPolicies()).get("checkInEarlyMinutes");
-              var slots = service.allocated(service.booking(o));
+              var visitDate = service.visitDate(o, b.get("visitDate") == null ? null : LocalDate.parse(b.get("visitDate").toString()));
+              var slots = service.allocated(service.booking(o)).stream()
+                  .filter(slot -> slot.getScheduleDate().equals(visitDate)).toList();
               var start =
                   slots.stream()
                       .map(s -> at(s.getScheduleDate(), s.getStartTime()))
@@ -257,7 +259,7 @@ public class OrderApplicationService {
                   || !Instant.now().isBefore(end)
                   || o.getPaidAmount().compareTo(o.getDepositRequired()) < 0)
                 text((String) b.get("reason"), "Lý do check-in ngoại lệ");
-              service.checkIn(id);
+              service.checkIn(id, visitDate);
             }
             case "check-out" -> service.checkOut(id);
             case "legacy-staff" ->
@@ -319,7 +321,8 @@ public class OrderApplicationService {
     support.owns(actor, id);
     var o = service.lock(id);
     var b = service.booking(o);
-    var currentSlots = service.allocated(b);
+    var visitDate = service.visitDate(o, null);
+    var currentSlots = service.allocated(b).stream().filter(slot -> slot.getScheduleDate().equals(visitDate)).toList();
     if (currentSlots.isEmpty()) {
       return map("canExtend", false, "reason", "Đơn chưa có lịch sân");
     }

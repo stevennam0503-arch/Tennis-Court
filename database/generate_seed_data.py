@@ -198,6 +198,7 @@ BEGIN
 
     lines.append("\n  -- 6. COURTS & PRICING")
     for cid, name, ctype, desc, img, price in courts_data:
+        ctype = "VIP" if "Sân V" in name else "INDOOR" if "Sân B" in name else "OUTDOOR"
         lines.append(f"""  INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
   VALUES (pg_temp.seed_uuid('{cid}'), {escape_sql(name)}, '{ctype}', {escape_sql(desc)}, '{img}', 'ACTIVE', {price},
           'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
@@ -702,6 +703,12 @@ ON CONFLICT(document_key) DO UPDATE SET data = EXCLUDED.data;
 INSERT INTO app_documents(document_key, data, version) VALUES
 ('article:plan-your-session', '{"id": "plan-your-session", "title": "Bí quyết chọn khung giờ và đặt sân nhanh chóng", "excerpt": "Hướng dẫn đặt sân theo bước 30 phút, linh hoạt kết hợp dịch vụ trọng tài.", "body": "Hệ thống Courtly cho phép bạn lựa chọn giờ chơi theo bước 30 phút rất linh hoạt. Bạn có thể đặt 1 tiếng, 1 tiếng 30 phút hoặc 2 tiếng liên tiếp.\\n\\nĐặc biệt, hội viên Club và Plus được ưu tiên đặt trước đến 21 ngày và giảm trực tiếp từ 10% đến 15% tiền sân.", "category": "NEWS", "status": "PUBLISHED", "source": "EDITORIAL", "imageUrl": "/guest/zone-a-outdoor.webp", "publishedAt": "2026-10-18T09:30:00Z"}', 0)
 ON CONFLICT(document_key) DO UPDATE SET data = EXCLUDED.data;
+
+-- Seed completed-visit accounting after inserting historical bookings.
+UPDATE booking_slots bs SET completed_at=bs.released_at
+FROM bookings b WHERE b.id=bs.booking_id AND b.status='COMPLETED';
+UPDATE booking_staff bs SET completed_at=bs.released_at
+FROM bookings b WHERE b.id=bs.booking_id AND b.status='COMPLETED';
 
 COMMIT;
 """)

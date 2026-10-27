@@ -186,6 +186,7 @@ public class CatalogService {
                 .orElseThrow(() -> new BusinessException("Sân không tồn tại"));
     c.setName(text(r.name(), "Tên sân"));
     c.setType(oneOf(r.type(), "VIP", "INDOOR", "OUTDOOR"));
+    c.setZoneNeedsReview(false);
     String status = oneOf(r.status(), "ACTIVE", "MAINTENANCE", "INACTIVE");
     if (!"ACTIVE".equals(status) && id != null) {
       java.time.LocalDate today = java.time.LocalDate.now(ZONE);

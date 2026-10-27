@@ -34,10 +34,10 @@ public class OrderTotalsService {
     BigDecimal sum = BigDecimal.ZERO;
     for (Booking booking : bookings.findByOrderId(order.getId())) {
       for (var s : slots.findByBookingId(booking.getId())) {
-        if (s.getReleasedAt() == null) sum = sum.add(s.getUnitPrice());
+        if (s.getReleasedAt() == null || s.getCompletedAt() != null) sum = sum.add(s.getUnitPrice());
       }
       for (var s : staff.findByBookingId(booking.getId())) {
-        if (s.getReleasedAt() == null)
+        if (s.getReleasedAt() == null || s.getCompletedAt() != null)
           sum =
               sum.add(
                   s.getUnitPrice()

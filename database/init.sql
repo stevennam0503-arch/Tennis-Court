@@ -1,4 +1,4 @@
--- Courtly PostgreSQL 16 initialization, schema V1–V6. EMPTY DATABASE ONLY.
+-- Courtly PostgreSQL 16 initialization, schema V1–V12. EMPTY DATABASE ONLY.
 -- Existing databases: let the application run Flyway; do not import this file.
 -- Includes the requested local admin account; no customer fixtures.
 BEGIN;
@@ -465,6 +465,90 @@ CREATE TRIGGER reject_new_order_products
 BEFORE INSERT ON order_products
 FOR EACH ROW EXECUTE FUNCTION reject_retired_product_service();
 
+CREATE TABLE vouchers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code VARCHAR(50) NOT NULL UNIQUE,
+    type VARCHAR(20) NOT NULL,
+    value NUMERIC(12, 2) NOT NULL,
+    min_order NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    max_discount NUMERIC(12, 2),
+    starts_at TIMESTAMP WITH TIME ZONE,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    usage_limit INT,
+    used_count INT NOT NULL DEFAULT 0,
+    per_user_limit INT DEFAULT 1,
+    member_only BOOLEAN NOT NULL DEFAULT FALSE,
+    new_user_only BOOLEAN NOT NULL DEFAULT FALSE,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    description VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE voucher_redemptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    voucher_id UUID NOT NULL REFERENCES vouchers(id) ON DELETE RESTRICT,
+    order_id UUID NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+    account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
+    discount_amount NUMERIC(12, 2) NOT NULL,
+    redeemed_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_vouchers_code ON vouchers(code);
+CREATE INDEX idx_voucher_redemptions_account ON voucher_redemptions(account_id);
+CREATE INDEX idx_voucher_redemptions_voucher ON voucher_redemptions(voucher_id);
+
+INSERT INTO vouchers (code, type, value, min_order, max_discount, usage_limit, per_user_limit, new_user_only, member_only, description)
+VALUES
+  ('WELCOME', 'FIXED', 50000, 100000, 50000, 500, 1, TRUE, FALSE, 'Giảm 50.000 đ cho khách hàng đặt sân lần đầu'),
+  ('HE2026', 'FIXED', 50000, 150000, 50000, 1000, 2, FALSE, FALSE, 'Giảm 50.000 đ mùa hè sôi động 2026'),
+  ('COURTLY50K', 'FIXED', 50000, 100000, 50000, 300, 1, FALSE, FALSE, 'Voucher tri ân 50.000 đ'),
+  ('VIP10', 'PERCENT', 10, 200000, 100000, 1000, 5, FALSE, TRUE, 'Giảm 10% (tối đa 100k) dành riêng cho hội viên'),
+  ('FLASH25', 'PERCENT', 25, 100000, 150000, 200, 1, FALSE, FALSE, 'Ưu đãi Giờ Vàng giảm 25%');
+
+ALTER TABLE tournament_registrations ALTER COLUMN account_id DROP NOT NULL;
+
+-- Replace unconditional unique constraint with partial unique index for non-null accounts
+ALTER TABLE tournament_registrations DROP CONSTRAINT IF EXISTS uq_tournament_account;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tournament_account_not_null ON tournament_registrations(tournament_id, account_id) WHERE account_id IS NOT NULL;
+
+-- Preserve the original surface separately; zones are not court surfaces.
+ALTER TABLE courts ADD COLUMN surface_type varchar(255);
+ALTER TABLE courts ADD COLUMN zone_needs_review boolean NOT NULL DEFAULT false;
+UPDATE courts SET zone_needs_review = true
+WHERE type NOT IN ('VIP','INDOOR','OUTDOOR')
+ AND upper(regexp_replace(trim(name), '^(Sân|San)\s+', '', 'i')) !~ '^[ABV][0-9]';
+UPDATE courts SET surface_type = type WHERE type IN ('HARD','CLAY','GRASS');
+UPDATE courts SET type = CASE
+ WHEN upper(regexp_replace(trim(name), '^(Sân|San)\s+', '', 'i')) ~ '^V[0-9]' THEN 'VIP'
+ WHEN upper(regexp_replace(trim(name), '^(Sân|San)\s+', '', 'i')) ~ '^B[0-9]' THEN 'INDOOR'
+ ELSE 'OUTDOOR' END
+WHERE type NOT IN ('VIP','INDOOR','OUTDOOR');
+
+ALTER TABLE booking_slots ADD COLUMN completed_at timestamptz;
+ALTER TABLE booking_staff ADD COLUMN completed_at timestamptz;
+-- Recover only the actually completed latest allocation, never future visits.
+UPDATE booking_slots bs SET completed_at = bs.released_at
+FROM bookings b, court_schedules cs
+WHERE bs.booking_id = b.id AND bs.schedule_id = cs.id AND b.status = 'COMPLETED'
+  AND bs.released_at IS NOT NULL AND b.check_out_at IS NOT NULL
+  AND cs.schedule_date <= (b.check_out_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+  AND bs.released_at = (SELECT max(x.released_at) FROM booking_slots x WHERE x.booking_id=b.id);
+UPDATE booking_staff st SET completed_at = st.released_at
+WHERE EXISTS (SELECT 1 FROM booking_slots bs WHERE bs.booking_id=st.booking_id
+ AND bs.schedule_id=st.court_schedule_id AND bs.completed_at=st.released_at);
+-- Previously released future bookings must be reviewed, not re-reserved blindly.
+UPDATE orders o SET metadata = (metadata::jsonb || '{"financialReview":"RECURRING_VISITS_REVIEW"}'::jsonb)::text
+WHERE o.status='COMPLETED' AND EXISTS (
+ SELECT 1 FROM bookings b JOIN booking_slots bs ON bs.booking_id=b.id
+ JOIN court_schedules cs ON cs.id=bs.schedule_id
+ WHERE b.order_id=o.id AND b.check_out_at IS NOT NULL
+ AND cs.schedule_date > (b.check_out_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date);
+-- Keep a deterministic active visit when upgrading a booking currently in play.
+UPDATE orders o SET metadata = (metadata::jsonb || jsonb_build_object('activeVisitDate', (
+ SELECT min(cs.schedule_date)::text FROM bookings b JOIN booking_slots bs ON bs.booking_id=b.id
+ JOIN court_schedules cs ON cs.id=bs.schedule_id WHERE b.order_id=o.id AND bs.released_at IS NULL
+)))::text WHERE o.status='CHECKED_IN' AND NOT (metadata::jsonb ? 'activeVisitDate');
+
 CREATE TABLE public.flyway_schema_history (
     installed_rank integer NOT NULL,
     version character varying(50),
@@ -487,4 +571,8 @@ INSERT INTO public.flyway_schema_history VALUES (5, '5', 'customer booking suppo
 INSERT INTO public.flyway_schema_history VALUES (6, '6', 'complete indoor and vip courts', 'SQL', 'V6__complete_indoor_and_vip_courts.sql', -1950231639, current_user, now(), 0, true);
 INSERT INTO public.flyway_schema_history VALUES (7, '7', 'customer booking policy', 'SQL', 'V7__customer_booking_policy.sql', -1721384287, current_user, now(), 0, true);
 INSERT INTO public.flyway_schema_history VALUES (8, '8', 'retire product services', 'SQL', 'V8__retire_product_services.sql', 1243830135, current_user, now(), 0, true);
+INSERT INTO public.flyway_schema_history VALUES (9, '9', 'vouchers and redemptions', 'SQL', 'V9__vouchers_and_redemptions.sql', -315136781, current_user, now(), 0, true);
+INSERT INTO public.flyway_schema_history VALUES (10, '10', 'allow account deletion and disassociation', 'SQL', 'V10__allow_account_deletion_and_disassociation.sql', -251355387, current_user, now(), 0, true);
+INSERT INTO public.flyway_schema_history VALUES (11, '11', 'court zones', 'SQL', 'V11__court_zones.sql', 1513889461, current_user, now(), 0, true);
+INSERT INTO public.flyway_schema_history VALUES (12, '12', 'completed booking visits', 'SQL', 'V12__completed_booking_visits.sql', 1419600946, current_user, now(), 0, true);
 COMMIT;

@@ -2,7 +2,7 @@
 
 ## Thử ngay, không cần tài khoản ngân hàng
 
-Đặt `PAYMENT_MODE=SANDBOX` rồi khởi động lại backend. Đăng nhập khách demo, chọn sân và tạo đơn. Hộp thanh toán có QR mô phỏng và các nút **Chuyển đủ**, **Chuyển thiếu**, **Gửi giao dịch lặp**, **Tiền đến sau hết hạn**. QR này không dùng để chuyển tiền qua ứng dụng ngân hàng.
+Trên database demo riêng, đặt `DEMO_MODE=true` và `PAYMENT_MODE=SANDBOX` rồi khởi động lại backend. Đăng nhập khách demo, chọn sân và tạo đơn; trong môi trường demo này khách có thể mô phỏng tiền cho chính đơn của mình. Hộp thanh toán có QR mô phỏng và các nút **Chuyển đủ**, **Chuyển thiếu**, **Gửi giao dịch lặp**, **Tiền đến sau hết hạn**. QR này không dùng để chuyển tiền qua ứng dụng ngân hàng.
 
 - Nút “Tôi đã chuyển khoản” chỉ đổi sang chờ đối soát, không tăng tiền đã thu.
 - Đủ cọc thì xác nhận đơn. Cọc khách hàng bằng 50% tiền sân sau ưu đãi, không gồm trọng tài; phần còn lại thanh toán riêng.

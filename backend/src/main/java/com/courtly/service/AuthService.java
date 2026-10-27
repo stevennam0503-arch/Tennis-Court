@@ -34,18 +34,23 @@ public class AuthService {
   private final HttpSessionSecurityContextRepository contexts;
   private final DocumentService documents;
   private final EmailService emails;
+  private final DemoAccessPolicy demo;
 
   @Value("${courtly.admin-email:admin@gmail.com}")
   private String adminEmail;
 
-  @Value("${courtly.demo-mode:false}")
-  private boolean demoMode;
 
   @Value("${courtly.security.otp-secret:CourtlySecureHmacSecretKey2026!}")
   private String otpSecret;
 
   private final java.util.concurrent.ConcurrentHashMap<String, long[]> failures =
       new java.util.concurrent.ConcurrentHashMap<>();
+
+  private void requireEmailDelivery() {
+    if (!demo.enabled() && !emails.isConfigured())
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+          "Dịch vụ email chưa được cấu hình. Vui lòng liên hệ câu lạc bộ.");
+  }
 
   private void pruneFailures() {
     long now = System.currentTimeMillis();
@@ -189,6 +194,7 @@ public class AuthService {
       String supplied = String.valueOf(b.getOrDefault("password", ""));
       if (found.isPresent() && "PENDING_ACTIVATION".equals(found.get().getStatus())) {
         if (found.get().getPasswordHash() != null && encoder.matches(supplied, found.get().getPasswordHash())) {
+          requireEmailDelivery();
           String code = String.format("%06d", new java.security.SecureRandom().nextInt(1_000_000));
           String otpKey = "otp:activation:" + found.get().getEmail().toLowerCase(Locale.ROOT);
           documents.put(
@@ -205,10 +211,7 @@ public class AuthService {
           var resp = new LinkedHashMap<String, Object>();
           resp.put("requiresActivation", true);
           resp.put("email", found.get().getEmail());
-          if (demoMode || !emails.isConfigured()) resp.put("devCode", code);
-          if (!emails.isConfigured() && !demoMode) {
-            resp.put("emailWarning", "Hệ thống đang chạy chế độ phát triển (chưa có SMTP Password). Mã kích hoạt OTP hiển thị trực tiếp để bạn kích hoạt ngay.");
-          }
+          if (demo.enabled()) resp.put("devCode", code);
           resp.put("message", "Tài khoản của bạn chưa được kích hoạt. Mã OTP 6 số mới đã được tạo.");
           return resp;
         }
@@ -226,6 +229,7 @@ public class AuthService {
       return signIn(found.get(), req, res);
     }
     if (action.equals("register")) {
+      requireEmailDelivery();
       String e = email(b.get("email")), p = password(b.get("password"));
       require(
           accounts.findByEmailIgnoreCase(e).isEmpty(),
@@ -272,10 +276,7 @@ public class AuthService {
         var resp = new LinkedHashMap<String, Object>();
         resp.put("requiresActivation", true);
         resp.put("email", a.getEmail());
-        if (demoMode || !emails.isConfigured()) resp.put("devCode", code);
-        if (!emails.isConfigured() && !demoMode) {
-          resp.put("emailWarning", "Hệ thống đang chạy chế độ phát triển (chưa có SMTP Password). Mã kích hoạt OTP hiển thị trực tiếp để bạn kích hoạt ngay.");
-        }
+        if (demo.enabled()) resp.put("devCode", code);
         resp.put("message", emails.isConfigured() 
             ? "Mã kích hoạt OTP 6 số đã được gửi tới email " + a.getEmail() + ". Vui lòng nhập để hoàn tất đăng ký."
             : "Tài khoản đã tạo. Vui lòng điền mã OTP kích hoạt bên dưới để hoàn tất đăng ký.");
@@ -287,6 +288,7 @@ public class AuthService {
       }
     }
     if (action.equals("resend-activation")) {
+      requireEmailDelivery();
       String e = email(b.get("email"));
       var found = accounts.findByEmailIgnoreCase(e);
       if (found.isEmpty()) {
@@ -318,16 +320,14 @@ public class AuthService {
       var resp = new LinkedHashMap<String, Object>();
       resp.put("success", true);
       resp.put("email", a.getEmail());
-      if (demoMode || !emails.isConfigured()) resp.put("devCode", code);
-      if (!emails.isConfigured() && !demoMode) {
-        resp.put("emailWarning", "Hệ thống đang chạy chế độ phát triển (chưa có SMTP Password). Mã kích hoạt OTP hiển thị trực tiếp để bạn kích hoạt ngay.");
-      }
+      if (demo.enabled()) resp.put("devCode", code);
       resp.put("message", emails.isConfigured()
           ? "Mã kích hoạt OTP 6 số mới đã được gửi tới email " + a.getEmail()
           : "Mã kích hoạt OTP 6 số mới đã được tạo cho " + a.getEmail());
       return resp;
     }
     if (action.equals("forgot-password")) {
+      requireEmailDelivery();
       String e = email(b.get("email")).toLowerCase(Locale.ROOT);
       var found = accounts.findByEmailIgnoreCase(e);
       String code = null;
@@ -356,7 +356,7 @@ public class AuthService {
       resp.put("success", true);
       resp.put("message", "Nếu email của bạn đã đăng ký trên hệ thống, mã xác nhận OTP đã được gửi về hòm thư. Mã có hiệu lực trong 15 phút.");
       resp.put("email", e);
-      if ((demoMode || !emails.isConfigured()) && code != null) {
+      if ((demo.enabled()) && code != null) {
         resp.put("code", code);
         resp.put("devCode", code);
       }

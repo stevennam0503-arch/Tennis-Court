@@ -1,6 +1,6 @@
 # Database và demo Courtly
 
-PostgreSQL 16. Bộ SQL khớp với ứng dụng trên nhánh `nam-dev`, dùng UUID và Flyway V1–V8.
+PostgreSQL 16. Bộ SQL khớp với ứng dụng trên nhánh `nam-dev`, dùng UUID và Flyway V1–V12.
 
 | File | Mục đích |
 | --- | --- |
@@ -18,6 +18,7 @@ Chạy trong thư mục repository. Sao chép `.env.example` thành `.env` nếu
 ```dotenv
 POSTGRES_DB=courtly_demo
 SEED_DEMO=false
+DEMO_MODE=true
 PAYMENT_MODE=SANDBOX
 ADMIN_EMAIL=admin@gmail.com
 ADMIN_PASSWORD=
@@ -110,3 +111,7 @@ docker compose up -d --build --force-recreate backend frontend
 ```
 
 Không xóa volume PostgreSQL. Chỉ build frontend sẽ chưa bổ sung sân.
+
+## Đơn định kỳ sau V12
+
+Check-out kết thúc từng ngày chơi. Các buổi còn lại vẫn giữ sân và chi phí các buổi đã chơi được giữ trong đơn. Migration đánh dấu đơn cũ nghi bị nhả lịch tương lai bằng `RECURRING_VISITS_REVIEW`, không tự đặt lại sân. Xem [bản sửa vận hành](../docs/ADMIN_FIXES_2026-10-28.md) và các truy vấn cuối `query.sql` để đối chiếu.

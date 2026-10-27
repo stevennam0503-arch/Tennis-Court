@@ -13,11 +13,13 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class Court extends BaseEntity {
+  @Column(name = "zone_needs_review", nullable = false)
+  private boolean zoneNeedsReview;
   @Column(name = "name", nullable = false)
   private String name;
 
   @Column(name = "type", nullable = false)
-  private String type = "HARD";
+  private String type = "OUTDOOR";
 
   @Column(name = "description", nullable = true, columnDefinition = "text")
   private String description;

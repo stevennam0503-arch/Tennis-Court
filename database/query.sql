@@ -15,7 +15,7 @@ SELECT o.id,o.customer_name,o.status,o.created_at,o.hold_expires_at,o.total_amou
  o.metadata::jsonb->>'financialReview' AS review
 FROM orders o JOIN accounts a ON a.id=o.customer_account_id WHERE lower(a.email)='minh.anh@example.com' ORDER BY o.created_at DESC;
 -- 4. Court allocations including release history.
-SELECT o.id,o.status,c.name,s.schedule_date,s.start_time,s.end_time,bs.unit_price,bs.released_at
+SELECT o.id,o.status,c.name,s.schedule_date,s.start_time,s.end_time,bs.unit_price,bs.released_at,bs.completed_at
 FROM orders o JOIN bookings b ON b.order_id=o.id JOIN booking_slots bs ON bs.booking_id=b.id
 JOIN court_schedules s ON s.id=bs.schedule_id JOIN courts c ON c.id=s.court_id ORDER BY s.schedule_date DESC,s.start_time;
 -- 5. Available referee profiles and half-hour shifts in the coming week.
@@ -60,7 +60,7 @@ WHERE o.paid_amount<>coalesce(p.gross,0)-coalesce(r.total,0);
 
 -- 13. Required indoor/VIP courts; missing codes need migration or initial seeding.
 WITH required(code) AS (VALUES ('B01'),('B02'),('B03'),('B04'),('V01'),('V02'))
-SELECT r.code,c.id,c.name,c.status,c.base_price,
+SELECT r.code,c.id,c.name,c.type,c.zone_needs_review,c.status,c.base_price,
  CASE WHEN c.id IS NULL THEN 'MISSING' ELSE 'PRESENT' END AS catalog_check
 FROM required r LEFT JOIN courts c
  ON upper(regexp_replace(trim(c.name), '^(Sân|San)\s+', '', 'i'))=r.code
@@ -79,3 +79,19 @@ SELECT st.full_name, count(*) AS assigned_slots,
 FROM booking_staff bs JOIN staff_schedules ss ON ss.id=bs.staff_schedule_id
 JOIN staff st ON st.id=ss.staff_id
 GROUP BY st.id, st.full_name ORDER BY st.full_name;
+
+-- 14. Recurring visits: completed allocations remain billable; moved/cancelled ones do not.
+SELECT o.id,cs.schedule_date,
+ count(*) FILTER(WHERE bs.completed_at IS NOT NULL) AS completed_slots,
+ count(*) FILTER(WHERE bs.released_at IS NULL) AS reserved_slots,
+ sum(bs.unit_price) FILTER(WHERE bs.completed_at IS NOT NULL OR bs.released_at IS NULL) AS court_gross
+FROM orders o JOIN bookings b ON b.order_id=o.id
+JOIN booking_slots bs ON bs.booking_id=b.id JOIN court_schedules cs ON cs.id=bs.schedule_id
+GROUP BY o.id,cs.schedule_date ORDER BY cs.schedule_date DESC,o.id;
+-- Investigate these legacy rows manually; never automatically re-reserve a released court.
+SELECT id,customer_name,metadata::jsonb->>'financialReview' AS review
+FROM orders WHERE metadata::jsonb->>'financialReview'='RECURRING_VISITS_REVIEW';
+SELECT id,name,type,surface_type FROM courts WHERE zone_needs_review;
+-- Completion markers must always have a release timestamp (zero rows expected).
+SELECT id FROM booking_slots WHERE completed_at IS NOT NULL AND released_at IS NULL;
+SELECT id FROM booking_staff WHERE completed_at IS NOT NULL AND released_at IS NULL;

@@ -95,7 +95,8 @@ export function OrderDetail({id,onClose}) {
     </div>
 
     <h3 style={{marginTop:20}}>Khung giờ sân</h3>
-    {o.slots.map(s=><div className="order-line" key={s.id}><span>{data.courts.find(c=>c.id===s.court)?.name} • {slotLabel(s)}</span><b>{money(s.price)}</b></div>)}
+    {o.visits?.length>1&&<section className="notice"><b>Các buổi trong đơn</b>{o.visits.map(v=><div key={v.date}>{v.date} · {v.status==='COMPLETED'?'Đã chơi':v.status==='CHECKED_IN'?'Đang chơi':v.status==='CANCELLED'?'Đã hủy':'Chưa chơi'}</div>)}</section>}
+    {o.slots.map(s=><div className="order-line" key={s.id}><span>{data.courts.find(c=>c.id===s.court)?.name} • {s.date} • {slotLabel(s)}</span><b>{money(s.price)}</b></div>)}
     {o.products.length>0&&<details><summary>Khoản thu lịch sử trước khi ngừng dịch vụ</summary>{o.products.map(p=><div className="order-line" key={p.id}><span>{p.name} × {p.quantity}</span><b>{money(p.lineTotal)}</b></div>)}</details>}
     <h3 style={{marginTop:20}}>Trọng tài</h3><StaffLines order={o}/><FinancialSummary order={o}/>
     <div style={{marginTop:20}}><div className="summary-line total"><span>Tổng tiền</span><b>{money(o.total)}</b></div><div className="summary-line"><span>Đã thu (trừ hoàn)</span><b>{money(o.paid)}</b></div><div className="summary-line"><span>{['CANCELLED','EXPIRED'].includes(o.status)?'Không thu thêm':'Còn phải thu'}</span><b>{money(['CANCELLED','EXPIRED'].includes(o.status)?0:Math.max(0,o.total-o.paid))}</b></div></div>
@@ -110,7 +111,7 @@ export function OrderActionDialog({type,id,onClose}) {
   const requestId=useRef(crypto.randomUUID());
   const order=data.orders.find(o=>o.id===id);
   const done=()=>{notify('Đã cập nhật đơn');show({type:'order',id});};
-  if(type==='cancel') return <FormDialog title="Hủy đơn đặt sân" fields={isAdmin?[{name:'reason',label:'Lý do hủy',full:true}]:[]} onClose={onClose} submitText="Xác nhận hủy" onSubmit={async v=>{await mutate(`/orders/${id}/cancel`,{...v,requestId:requestId.current});done();}}><PolicyNotice/><p>Hủy đơn của <b>{order.name}</b> và nhả {order.slots.length} khung giờ?</p><div className="notice" style={{marginTop:16}}>Đã thu {money(order.paid)}. Hủy sẽ nhả sân và lịch trọng tài. Đơn và giao dịch vẫn được lưu trong lịch sử; tiền không tự hoàn về ngân hàng, cần quầy xử lý riêng.</div></FormDialog>;
+  if(type==='cancel') return <FormDialog title="Hủy đơn đặt sân" fields={isAdmin?[{name:'reason',label:'Lý do hủy',full:true}]:[]} onClose={onClose} submitText="Xác nhận hủy" onSubmit={async v=>{await mutate(`/orders/${id}/cancel`,{...v,requestId:requestId.current});done();}}><PolicyNotice/><p>Hủy đơn của <b>{order.name}</b> và nhả {order.slots.filter(s=>!s.completed).length} khung giờ còn lại?</p><div className="notice" style={{marginTop:16}}>Đã thu {money(order.paid)}. Hủy sẽ nhả sân và lịch trọng tài. Đơn và giao dịch vẫn được lưu trong lịch sử; tiền không tự hoàn về ngân hàng, cần quầy xử lý riêng.</div></FormDialog>;
   if(type==='assign-staff')return <MoveDialog id={id} mode="assign" onClose={onClose}/>;
   if(type==='move')return <MoveDialog id={id} onClose={onClose}/>;
   return null;

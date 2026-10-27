@@ -33,7 +33,7 @@ export function TicketDialog({order, onClose}) {
   const {t, data, show} = useGuest();
   const [qrUrl, setQrUrl] = useState('');
   const court = data?.courts?.find(c => c.id === order.slots?.[0]?.court);
-  const slots = [...order.slots].sort((a,b) => a.start.localeCompare(b.start));
+  const slots = order.slots.filter(s=>(s.date||order.date)===order.date).sort((a,b) => a.start.localeCompare(b.start));
   const startTime = time(slots[0]?.start) || `${slots[0]?.hour}:00`;
   const endTime = time(slots.at(-1)?.end) || `${(slots.at(-1)?.hour || 0) + 1}:00`;
   const refStaff = order.staff?.[0];
@@ -160,7 +160,7 @@ export function TicketDialog({order, onClose}) {
 export function ZaloZnsDialog({order, onClose}) {
   const {t, data, show} = useGuest();
   const court = data?.courts?.find(c => c.id === order.slots?.[0]?.court);
-  const slots = [...(order.slots || [])].sort((a,b) => a.start.localeCompare(b.start));
+  const slots = (order.slots || []).filter(s=>(s.date||order.date)===order.date).sort((a,b) => a.start.localeCompare(b.start));
   const startTime = time(slots[0]?.start) || `${slots[0]?.hour}:00`;
   const endTime = time(slots.at(-1)?.end) || `${(slots.at(-1)?.hour || 0) + 1}:00`;
   const refStaff = order.staff?.[0];
@@ -612,6 +612,7 @@ export function Orders({history=false}){
                 )}
               </div>
 
+              {o.visits?.length>1&&<details style={{marginBottom:14}}><summary>{t('Các buổi trong đơn')} ({o.visits.length})</summary>{o.visits.map(v=><div key={v.date}>{v.date} · {t(v.status)}</div>)}</details>}
               {/* Financial Summary: 3 Crystal Clear Lines */}
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(130px, 1fr))',gap:10,background:'#ffffff',border:'1px solid #edf2e8',borderRadius:8,padding:'12px 14px',marginBottom:14}}>
                 <div>

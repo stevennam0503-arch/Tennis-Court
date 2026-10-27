@@ -203,61 +203,61 @@ BEGIN
 
   -- 6. COURTS & PRICING
   INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
-  VALUES (pg_temp.seed_uuid('court:1'), 'Sân A01', 'HARD', 'Sân cứng ngoài trời US Open tiêu chuẩn, đèn LED cao áp 1000 lux', '/guest/zone-a-outdoor.webp', 'ACTIVE', 200000,
+  VALUES (pg_temp.seed_uuid('court:1'), 'Sân A01', 'OUTDOOR', 'Sân cứng ngoài trời US Open tiêu chuẩn, đèn LED cao áp 1000 lux', '/guest/zone-a-outdoor.webp', 'ACTIVE', 200000,
           'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
   INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
   (pg_temp.seed_uuid('price:court:1:weekday'), pg_temp.seed_uuid('court:1'), 'WEEKDAY', '06:00', '23:00', 200000),
   (pg_temp.seed_uuid('price:court:1:weekend'), pg_temp.seed_uuid('court:1'), 'WEEKEND', '06:00', '23:00', 200000);
   INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
-  VALUES (pg_temp.seed_uuid('court:2'), 'Sân A02', 'HARD', 'Sân ngoài trời thoáng mát, khán đài mini 30 chỗ, mặt sân nảy êm', '/guest/zone-a-outdoor.webp', 'ACTIVE', 200000,
+  VALUES (pg_temp.seed_uuid('court:2'), 'Sân A02', 'OUTDOOR', 'Sân ngoài trời thoáng mát, khán đài mini 30 chỗ, mặt sân nảy êm', '/guest/zone-a-outdoor.webp', 'ACTIVE', 200000,
           'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
   INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
   (pg_temp.seed_uuid('price:court:2:weekday'), pg_temp.seed_uuid('court:2'), 'WEEKDAY', '06:00', '23:00', 200000),
   (pg_temp.seed_uuid('price:court:2:weekend'), pg_temp.seed_uuid('court:2'), 'WEEKEND', '06:00', '23:00', 200000);
   INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
-  VALUES (pg_temp.seed_uuid('court:3'), 'Sân A03', 'HARD', 'Sân cứng ngoài trời, thích hợp đánh đơn và đôi phong trào', '/guest/zone-a-outdoor.webp', 'ACTIVE', 200000,
+  VALUES (pg_temp.seed_uuid('court:3'), 'Sân A03', 'OUTDOOR', 'Sân cứng ngoài trời, thích hợp đánh đơn và đôi phong trào', '/guest/zone-a-outdoor.webp', 'ACTIVE', 200000,
           'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
   INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
   (pg_temp.seed_uuid('price:court:3:weekday'), pg_temp.seed_uuid('court:3'), 'WEEKDAY', '06:00', '23:00', 200000),
   (pg_temp.seed_uuid('price:court:3:weekend'), pg_temp.seed_uuid('court:3'), 'WEEKEND', '06:00', '23:00', 200000);
   INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
-  VALUES (pg_temp.seed_uuid('court:4'), 'Sân A04', 'HARD', 'Sân ngoài trời gần quầy dịch vụ, view bao quát toàn khu', '/guest/zone-a-outdoor.webp', 'ACTIVE', 200000,
+  VALUES (pg_temp.seed_uuid('court:4'), 'Sân A04', 'OUTDOOR', 'Sân ngoài trời gần quầy dịch vụ, view bao quát toàn khu', '/guest/zone-a-outdoor.webp', 'ACTIVE', 200000,
           'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
   INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
   (pg_temp.seed_uuid('price:court:4:weekday'), pg_temp.seed_uuid('court:4'), 'WEEKDAY', '06:00', '23:00', 200000),
   (pg_temp.seed_uuid('price:court:4:weekend'), pg_temp.seed_uuid('court:4'), 'WEEKEND', '06:00', '23:00', 200000);
   INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
-  VALUES (pg_temp.seed_uuid('court:5'), 'Sân B01', 'HARD', 'Sân có mái che vòm cao 12m, không ngại mưa nắng, thông gió đối lưu', '/guest/zone-b-indoor.webp', 'ACTIVE', 300000,
+  VALUES (pg_temp.seed_uuid('court:5'), 'Sân B01', 'INDOOR', 'Sân có mái che vòm cao 12m, không ngại mưa nắng, thông gió đối lưu', '/guest/zone-b-indoor.webp', 'ACTIVE', 300000,
           'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
   INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
   (pg_temp.seed_uuid('price:court:5:weekday'), pg_temp.seed_uuid('court:5'), 'WEEKDAY', '06:00', '23:00', 300000),
   (pg_temp.seed_uuid('price:court:5:weekend'), pg_temp.seed_uuid('court:5'), 'WEEKEND', '06:00', '23:00', 300000);
   INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
-  VALUES (pg_temp.seed_uuid('court:6'), 'Sân B02', 'HARD', 'Sân trong nhà chất lượng cao, sơn phủ Decoturf cao cấp', '/guest/zone-b-indoor.webp', 'ACTIVE', 300000,
+  VALUES (pg_temp.seed_uuid('court:6'), 'Sân B02', 'INDOOR', 'Sân trong nhà chất lượng cao, sơn phủ Decoturf cao cấp', '/guest/zone-b-indoor.webp', 'ACTIVE', 300000,
           'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
   INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
   (pg_temp.seed_uuid('price:court:6:weekday'), pg_temp.seed_uuid('court:6'), 'WEEKDAY', '06:00', '23:00', 300000),
   (pg_temp.seed_uuid('price:court:6:weekend'), pg_temp.seed_uuid('court:6'), 'WEEKEND', '06:00', '23:00', 300000);
   INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
-  VALUES (pg_temp.seed_uuid('court:7'), 'Sân B03', 'HARD', 'Sân mái che trung tâm, thường tổ chức các trận bán kết và chung kết', '/guest/zone-b-indoor.webp', 'ACTIVE', 300000,
+  VALUES (pg_temp.seed_uuid('court:7'), 'Sân B03', 'INDOOR', 'Sân mái che trung tâm, thường tổ chức các trận bán kết và chung kết', '/guest/zone-b-indoor.webp', 'ACTIVE', 300000,
           'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
   INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
   (pg_temp.seed_uuid('price:court:7:weekday'), pg_temp.seed_uuid('court:7'), 'WEEKDAY', '06:00', '23:00', 300000),
   (pg_temp.seed_uuid('price:court:7:weekend'), pg_temp.seed_uuid('court:7'), 'WEEKEND', '06:00', '23:00', 300000);
   INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
-  VALUES (pg_temp.seed_uuid('court:8'), 'Sân B04', 'HARD', 'Sân trong nhà yên tĩnh, hệ thống đèn chiếu chuẩn giải đấu', '/guest/zone-b-indoor.webp', 'ACTIVE', 300000,
+  VALUES (pg_temp.seed_uuid('court:8'), 'Sân B04', 'INDOOR', 'Sân trong nhà yên tĩnh, hệ thống đèn chiếu chuẩn giải đấu', '/guest/zone-b-indoor.webp', 'ACTIVE', 300000,
           'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
   INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
   (pg_temp.seed_uuid('price:court:8:weekday'), pg_temp.seed_uuid('court:8'), 'WEEKDAY', '06:00', '23:00', 300000),
   (pg_temp.seed_uuid('price:court:8:weekend'), pg_temp.seed_uuid('court:8'), 'WEEKEND', '06:00', '23:00', 300000);
   INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
-  VALUES (pg_temp.seed_uuid('court:9'), 'Sân V01', 'HARD', 'Sân VIP Lounge riêng biệt, ghế sofa bọc da, máy lạnh phòng chờ', '/guest/zone-v-lounge.webp', 'ACTIVE', 500000,
+  VALUES (pg_temp.seed_uuid('court:9'), 'Sân V01', 'VIP', 'Sân VIP Lounge riêng biệt, ghế sofa bọc da, máy lạnh phòng chờ', '/guest/zone-v-lounge.webp', 'ACTIVE', 500000,
           'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
   INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
   (pg_temp.seed_uuid('price:court:9:weekday'), pg_temp.seed_uuid('court:9'), 'WEEKDAY', '06:00', '23:00', 500000),
   (pg_temp.seed_uuid('price:court:9:weekend'), pg_temp.seed_uuid('court:9'), 'WEEKEND', '06:00', '23:00', 500000);
   INSERT INTO courts(id, name, type, description, image_url, status, base_price, address, amenities, image_is_illustration)
-  VALUES (pg_temp.seed_uuid('court:10'), 'Sân V02', 'HARD', 'Sân VIP đặc quyền doanh nhân, có phòng thay đồ và tắm riêng', '/guest/zone-v-lounge.webp', 'ACTIVE', 500000,
+  VALUES (pg_temp.seed_uuid('court:10'), 'Sân V02', 'VIP', 'Sân VIP đặc quyền doanh nhân, có phòng thay đồ và tắm riêng', '/guest/zone-v-lounge.webp', 'ACTIVE', 500000,
           'Courtly Sport Complex · 128 Đường Tennis, TP.HCM', 'Đèn LED cao áp, Bãi đỗ xe ô tô, Phòng tắm nóng lạnh, Wi-Fi 6 tốc độ cao', true);
   INSERT INTO court_prices(id, court_id, day_type, start_time, end_time, price_per_hour) VALUES
   (pg_temp.seed_uuid('price:court:10:weekday'), pg_temp.seed_uuid('court:10'), 'WEEKDAY', '06:00', '23:00', 500000),
@@ -759,5 +759,11 @@ ON CONFLICT(document_key) DO UPDATE SET data = EXCLUDED.data;
 INSERT INTO app_documents(document_key, data, version) VALUES
 ('article:plan-your-session', '{"id": "plan-your-session", "title": "Bí quyết chọn khung giờ và đặt sân nhanh chóng", "excerpt": "Hướng dẫn đặt sân theo bước 30 phút, linh hoạt kết hợp dịch vụ trọng tài.", "body": "Hệ thống Courtly cho phép bạn lựa chọn giờ chơi theo bước 30 phút rất linh hoạt. Bạn có thể đặt 1 tiếng, 1 tiếng 30 phút hoặc 2 tiếng liên tiếp.\n\nĐặc biệt, hội viên Club và Plus được ưu tiên đặt trước đến 21 ngày và giảm trực tiếp từ 10% đến 15% tiền sân.", "category": "NEWS", "status": "PUBLISHED", "source": "EDITORIAL", "imageUrl": "/guest/zone-a-outdoor.webp", "publishedAt": "2026-10-18T09:30:00Z"}', 0)
 ON CONFLICT(document_key) DO UPDATE SET data = EXCLUDED.data;
+
+-- Seed completed-visit accounting after inserting historical bookings.
+UPDATE booking_slots bs SET completed_at=bs.released_at
+FROM bookings b WHERE b.id=bs.booking_id AND b.status='COMPLETED';
+UPDATE booking_staff bs SET completed_at=bs.released_at
+FROM bookings b WHERE b.id=bs.booking_id AND b.status='COMPLETED';
 
 COMMIT;

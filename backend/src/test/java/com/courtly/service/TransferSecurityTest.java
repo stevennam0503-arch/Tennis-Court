@@ -9,7 +9,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 class TransferSecurityTest {
   private TransferService service() {
-    return new TransferService(null, null, null, null, null, null, null);
+    return new TransferService(null, null, null, null, null, null, null, null);
   }
 
   @Test
@@ -38,5 +38,13 @@ class TransferSecurityTest {
     }
     assertEquals(403, assertThrows(ResponseStatusException.class,
         () -> service.adminConfirm("any-intent")).getStatusCode().value());
+  }
+  @Test
+  void documentedSepayAliasUsesLiveProcessing() {
+    var service = service();
+    ReflectionTestUtils.setField(service, "mode", "SEPAY");
+    assertEquals("LIVE", service.getMode());
+    ReflectionTestUtils.setField(service, "mode", "sandbox");
+    assertEquals("SANDBOX", service.getMode());
   }
 }

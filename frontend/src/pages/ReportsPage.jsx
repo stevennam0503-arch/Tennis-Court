@@ -1,3 +1,4 @@
+import {orderInPeriod, consumedOrder} from '../utils/report-period.mjs';
 import React, { useState, useMemo } from 'react';
 import { Wallet, Trophy, Check, Clock, Calendar, TrendingUp, Download } from 'lucide-react';
 import { useCourtly } from '../context';
@@ -74,11 +75,11 @@ export default function ReportsPage() {
 
   // Filter orders in period
   const ordersInPeriod = useMemo(() => {
-    return data.orders.filter(o => o.date >= startDate && o.date <= endDate);
+    return data.orders.map(o => orderInPeriod(o, startDate, endDate)).filter(Boolean);
   }, [data.orders, startDate, endDate]);
 
   const validOrders = useMemo(() => {
-    return ordersInPeriod.filter(o => !['CANCELLED', 'EXPIRED'].includes(o.status));
+    return ordersInPeriod.map(consumedOrder).filter(o => o.slots.length > 0);
   }, [ordersInPeriod]);
 
   // Filter payments & refunds in period
@@ -196,20 +197,20 @@ export default function ReportsPage() {
 
     for (let m = startM; m <= endM; m++) {
       const mStr = `${yr}-${String(m).padStart(2, '0')}`;
-      const mOrders = data.orders.filter(o => o.date.startsWith(mStr));
-      const mValid = mOrders.filter(o => !['CANCELLED', 'EXPIRED'].includes(o.status));
-      const mRevenue = data.payments.filter(p => localDate(p.createdAt || p.paidAt).startsWith(mStr)).reduce((a, p) => a + p.amount, 0)
+      const mOrders = data.orders.map(o => orderInPeriod(o, mStr + "-01", mStr + "-31")).filter(Boolean);
+      const mValid = mOrders.map(consumedOrder).filter(o => o.slots.length > 0);
+      const mRevenue = [...data.payments, ...(data.membershipPayments || [])].filter(p => localDate(p.createdAt || p.paidAt).startsWith(mStr)).reduce((a, p) => a + p.amount, 0)
         - data.refunds.filter(r => localDate(r.createdAt).startsWith(mStr)).reduce((a, r) => a + r.amount, 0);
       months.push({
         label: `Tháng ${m}/${yr}`,
         ordersCount: mOrders.length,
         completedCount: mOrders.filter(o => o.status === 'COMPLETED').length,
         revenue: mRevenue,
-        orderValue: mValid.reduce((a, o) => a + o.total, 0)
+        orderValue: mValid.reduce((a, o) => a + o.periodValue, 0)
       });
     }
     return months;
-  }, [periodType, selectedQuarter, selectedQuarterYear, selectedYear, data.orders, data.payments, data.refunds]);
+  }, [periodType, selectedQuarter, selectedQuarterYear, selectedYear, data.orders, data.payments, data.refunds, data.membershipPayments]);
 
   // Export CSV
   const exportCsv = () => {
@@ -242,12 +243,12 @@ export default function ReportsPage() {
       ...courtOccupancy.map(c => [c.name, c.used, c.totalPossible, c.percent + '%']),
       [''],
       ['V. CHI TIẾT ĐƠN HÀNG TRONG KỲ'],
-      ['Mã đơn', 'Khách hàng', 'Số điện thoại', 'Ngày', 'Trạng thái', 'Tổng tiền', 'Đã thanh toán'],
+      ['Mã đơn', 'Khách hàng', 'Số điện thoại', 'Ngày chơi trong kỳ', 'Trạng thái đơn', 'Tổng cả đơn', 'Đã thu cả đơn'],
       ...ordersInPeriod.map(o => [
         o.id,
         o.name,
         o.phone || '',
-        o.date,
+        [...new Set(o.slots.map(s => s.date || o.date))].sort().join("; "),
         labels[o.status] || o.status,
         o.total,
         o.paid
@@ -532,7 +533,7 @@ export default function ReportsPage() {
 
       {/* Orders summary table in period */}
       <Panel title={`Danh sách đơn hàng trong kỳ (${ordersInPeriod.length} đơn)`} style={{ marginTop: 24 }}>
-        <Table headings={['Mã đơn', 'Khách hàng', 'Ngày đặt', 'Trạng thái', 'Tổng tiền', 'Đã thu']} empty={!ordersInPeriod.length}>
+        <Table headings={['Mã đơn', 'Khách hàng', 'Ngày chơi trong kỳ', 'Trạng thái đơn', 'Tổng cả đơn', 'Đã thu cả đơn']} empty={!ordersInPeriod.length}>
           {ordersInPeriod.slice(0, 15).map(o => (
             <tr key={o.id}>
               <td>
@@ -540,7 +541,7 @@ export default function ReportsPage() {
                 <small>{o.phone}</small>
               </td>
               <td className="name">{o.name}</td>
-              <td>{o.date}</td>
+              <td>{[...new Set(o.slots.map(s=>s.date||o.date))].sort().join(", ")}</td>
               <td><Chip status={o.status} /></td>
               <td>{money(o.total)}</td>
               <td className="name">{money(o.paid)}</td>

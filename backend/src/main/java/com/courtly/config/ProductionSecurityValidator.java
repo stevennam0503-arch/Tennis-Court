@@ -79,14 +79,14 @@ public class ProductionSecurityValidator implements ApplicationRunner {
     }
 
     String paymentMode = environment.getProperty("courtly.payment.mode", "");
-    if ("DEMO".equalsIgnoreCase(paymentMode)) {
+    if (!java.util.Set.of("LIVE", "SEPAY", "MANUAL").contains(paymentMode.toUpperCase(java.util.Locale.ROOT))) {
       throw new IllegalStateException(
-          "FATAL: PAYMENT_MODE must not be 'DEMO' in production profile! "
+          "FATAL: PAYMENT_MODE must not be 'DEMO' or SANDBOX in production; use LIVE, SEPAY or MANUAL. "
               + "Please set PAYMENT_MODE=SEPAY or configure a live payment provider.");
     }
 
     String webhookKey = environment.getProperty("courtly.payment.webhook-key", "");
-    if (webhookKey.isBlank()) {
+    if (!"MANUAL".equalsIgnoreCase(paymentMode) && webhookKey.isBlank()) {
       throw new IllegalStateException(
           "FATAL: SEPAY_WEBHOOK_KEY is required and cannot be blank in production profile! "
               + "Please configure a valid SEPAY_WEBHOOK_KEY.");
@@ -114,6 +114,9 @@ public class ProductionSecurityValidator implements ApplicationRunner {
           "FATAL: courtly.mail.host (SMTP_HOST) cannot be blank in production profile! "
               + "Real users will not be able to receive OTP or activation emails. Please configure SMTP_HOST.");
     }
+
+    if (environment.getProperty("courtly.mail.password", "").isBlank())
+      throw new IllegalStateException("FATAL: SMTP_PASSWORD is required in production");
 
     log.info("All production security invariants validated successfully.");
   }

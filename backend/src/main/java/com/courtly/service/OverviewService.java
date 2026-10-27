@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class OverviewService {
   private final AccountRepository accounts;
+  private final DocumentService documents;
   private final CourtRepository courts;
   private final CourtPriceRepository prices;
   private final CourtScheduleRepository schedules;
@@ -56,6 +57,7 @@ public class OverviewService {
                             c.getName(),
                             "type",
                             c.getType(),
+                            "zoneNeedsReview", c.isZoneNeedsReview(),
                             "status",
                             c.getStatus(),
                             "price",
@@ -220,6 +222,7 @@ public class OverviewService {
                             c.getName(),
                             "type",
                             c.getType(),
+                            "zoneNeedsReview", c.isZoneNeedsReview(),
                             "status",
                             c.getStatus(),
                             "price",
@@ -504,9 +507,16 @@ public class OverviewService {
     return list.stream().filter(x -> Objects.equals(released.apply(x), latest)).toList();
   }
 
+  private List<BookingSlot> orderSlots(List<BookingSlot> list) {
+    var current = currentLinks(list, BookingSlot::getReleasedAt);
+    return list.stream().filter(x -> current.contains(x) || x.getCompletedAt() != null)
+        .sorted(Comparator.comparing((BookingSlot x) -> x.getSchedule().getScheduleDate())
+            .thenComparing(x -> x.getSchedule().getStartTime())).toList();
+  }
+
   public Map<String, Object> order(CustomerOrder o) {
     Booking b = bookings.findByOrderId(o.getId()).stream().findFirst().orElseThrow();
-    var slots = currentLinks(bookingSlots.findByBookingId(b.getId()), BookingSlot::getReleasedAt);
+    var slots = orderSlots(bookingSlots.findByBookingId(b.getId()));
     return buildOrderMap(
         o,
         b,
@@ -526,7 +536,7 @@ public class OverviewService {
       return order(o);
     }
     Booking b = bList.get(0);
-    var slots = currentLinks(slotsByBooking.getOrDefault(b.getId(), List.of()), BookingSlot::getReleasedAt);
+    var slots = orderSlots(slotsByBooking.getOrDefault(b.getId(), List.of()));
     return buildOrderMap(
         o,
         b,
@@ -541,7 +551,24 @@ public class OverviewService {
       List<BookingSlot> slots,
       List<OrderProduct> orderProducts,
       List<BookingStaff> staffList) {
+    var meta = documents.decode(o.getMetadata());
+    var visitHistory = meta.get("visitHistory") instanceof Map<?, ?> h ? h : Map.of();
+    var visits = slots.stream().map(x -> x.getSchedule().getScheduleDate()).distinct().sorted()
+        .map(date -> {
+          var day = slots.stream().filter(x -> date.equals(x.getSchedule().getScheduleDate())).toList();
+          boolean done = day.stream().allMatch(x -> x.getCompletedAt() != null);
+          String state = done ? "COMPLETED" : "CHECKED_IN".equals(o.getStatus())
+              && (date.toString().equals(meta.get("activeVisitDate")) || meta.get("activeVisitDate") == null && date.equals(slots.get(0).getSchedule().getScheduleDate()))
+              ? "CHECKED_IN" : "CHECKED_IN".equals(o.getStatus()) ? "CONFIRMED" : o.getStatus();
+          var row = map("date", date, "status", state);
+          if (visitHistory.get(date.toString()) instanceof Map<?, ?> h) h.forEach((k,v) -> row.put(k.toString(), v));
+          return row;
+        }).toList();
+    var nextDate = visits.stream().filter(v -> "CHECKED_IN".equals(v.get("status"))).findFirst()
+        .or(() -> visits.stream().filter(v -> !"COMPLETED".equals(v.get("status"))).findFirst())
+        .orElse(visits.isEmpty() ? Map.of() : visits.get(0)).get("date");
     return map(
+        "visits", visits,
         "id",
         o.getId(),
         "bookingId",
@@ -553,7 +580,7 @@ public class OverviewService {
         "accountId",
         o.getCustomerAccount() == null ? null : o.getCustomerAccount().getId(),
         "date",
-        slots.isEmpty() ? null : slots.get(0).getSchedule().getScheduleDate(),
+        nextDate,
         "status",
         o.getStatus(),
         "total",
@@ -577,7 +604,7 @@ public class OverviewService {
         "metadataRaw",
         o.getMetadata(),
         "slots",
-        slots.stream().map(x -> slot(x.getSchedule(), x.getUnitPrice())).toList(),
+        slots.stream().map(x -> { var row = slot(x.getSchedule(), x.getUnitPrice()); row.put("completed", x.getCompletedAt() != null); return row; }).toList(),
         "products",
         orderProducts.stream()
             .map(
@@ -612,7 +639,7 @@ public class OverviewService {
         staffList.stream()
             .filter(
                 x ->
-                    x.getReleasedAt() == null
+                    x.getReleasedAt() == null || x.getCompletedAt() != null
                         || !active(o.getStatus())
                             && slots.stream()
                                 .anyMatch(
@@ -633,6 +660,7 @@ public class OverviewService {
                         "hours",
                         hours(
                             x.getStaffSchedule().getStartTime(), x.getStaffSchedule().getEndTime()),
+                        "completed", x.getCompletedAt() != null,
                         "legacyNeedsReview",
                         x.getCourtSchedule() == null,
                         "scheduleId",

@@ -20,6 +20,7 @@ const SHOWCASE_ORDERS = [
 
 export default function SystemPage() {
   const { data, show, notify, refresh } = useCourtly();
+  const demoEnabled = data.demoResetEnabled === true;
   const [tab, setTab] = useState('modules');
   const [resetModal, setResetModal] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -43,7 +44,7 @@ export default function SystemPage() {
     <>
       <Title
         subtitle="Đối chiếu phạm vi 50 module, quản trị hệ thống và kiểm soát dữ liệu trình diễn Hội đồng."
-        action={
+        action={demoEnabled &&
           <Button
             className="primary"
             onClick={() => setResetModal(true)}
@@ -59,7 +60,7 @@ export default function SystemPage() {
       <Tabs
         options={[
           ['modules', '50 module'],
-          ['demo', 'Dữ liệu mẫu Hội đồng'],
+          ...(demoEnabled ? [['demo', 'Dữ liệu mẫu Hội đồng']] : []),
           ['audit', 'Nhật ký'],
           ['settings', 'Chính sách']
         ]}
@@ -95,7 +96,7 @@ export default function SystemPage() {
         </>
       )}
 
-      {tab === 'demo' && (
+      {demoEnabled && tab === 'demo' && (
         <>
           <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 10, padding: '20px', marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
@@ -217,7 +218,7 @@ export default function SystemPage() {
       )}
 
       {/* Confirmation Modal */}
-      {resetModal && (
+      {demoEnabled && resetModal && (
         <Modal
           title="Xác nhận đặt lại dữ liệu chuẩn Hội đồng"
           onClose={() => !resetting && setResetModal(false)}

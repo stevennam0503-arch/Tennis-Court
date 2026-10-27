@@ -28,7 +28,7 @@ Tất cả kiểm tra ghi dữ liệu chạy trên database riêng, không trên
 
 ## Chạy lại
 
-Dựng database theo `database/README.md`, khởi động backend ở cổng 8083, `PAYMENT_MODE=SANDBOX`, `SEED_DEMO=false`, `FRONTEND_ORIGIN=http://127.0.0.1:5175`. Frontend dev dùng `API_PROXY_TARGET=http://127.0.0.1:8083`, cổng 5175. Cài dependencies bằng `npm ci` trong frontend, cài Chromium hoặc đặt `CHROMIUM_PATH` tới trình duyệt tương thích.
+Dựng database theo `database/README.md`, khởi động backend ở cổng 8083, `DEMO_MODE=true`, `PAYMENT_MODE=SANDBOX`, `SEED_DEMO=false`, `FRONTEND_ORIGIN=http://127.0.0.1:5175`. Frontend dev dùng `API_PROXY_TARGET=http://127.0.0.1:8083`, cổng 5175. Cài dependencies bằng `npm ci` trong frontend, cài Chromium hoặc đặt `CHROMIUM_PATH` tới trình duyệt tương thích.
 
 ```sh
 COURTLY_TEST_WRITE=1 node tests/handoff-api.mjs
