@@ -3,7 +3,7 @@ import {useCourtly} from '../context';
 import {Title,Panel,Table,Button,Tabs} from '../components/UI';
 import {PolicyNotice} from '../components/OrderSummary';
 import modules from '../modules.json';
-const pending=[34],partial=[1,3,6,7,13,15,18,20,23,24,31,35,36,39,40,42,44,47,48,49,50];
+const pending=[],partial=[6,18,39,40,42,44,47,49,50];
 export default function SystemPage(){
  const {data,show}=useCourtly();const [tab,setTab]=useState('modules');
  return <><Title subtitle="Đối chiếu phạm vi với tài liệu 50 module.">Hệ thống & module</Title><Tabs options={[["modules","50 module"],["audit","Nhật ký"],["settings","Chính sách"]]} value={tab} onChange={setTab}/>
