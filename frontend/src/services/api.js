@@ -1,11 +1,33 @@
 const base = import.meta.env.VITE_API_URL || '/api';
 let csrf = null;
 
-async function csrfToken(force = false) {
+async function csrfToken(force = false, retries = 2) {
   if (!csrf || force) {
-    const r = await fetch(`${base}/csrf`, { credentials: 'same-origin' });
-    if (!r.ok) throw new Error('Không thể khởi tạo phiên xác thực');
-    csrf = await r.json();
+    let lastErr = null;
+    for (let i = 0; i <= retries; i++) {
+      try {
+        const r = await fetch(`${base}/csrf`, { credentials: 'same-origin' });
+        if (r.ok) {
+          csrf = await r.json();
+          return csrf;
+        }
+        if (i < retries && [502, 503, 504].includes(r.status)) {
+          await new Promise(res => setTimeout(res, 800 * (i + 1)));
+          continue;
+        }
+        lastErr = new Error(
+          r.status >= 500
+            ? 'Máy chủ đang khởi động hoặc chưa sẵn sàng. Vui lòng thử lại sau vài giây.'
+            : 'Không thể khởi tạo phiên xác thực bảo mật.'
+        );
+      } catch (err) {
+        lastErr = err;
+        if (i < retries) {
+          await new Promise(res => setTimeout(res, 800 * (i + 1)));
+        }
+      }
+    }
+    throw lastErr || new Error('Máy chủ đang khởi động hoặc mất kết nối. Vui lòng thử lại.');
   }
   return csrf;
 }
