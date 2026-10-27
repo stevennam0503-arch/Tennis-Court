@@ -28,7 +28,7 @@ Bất cứ khi nào nhóm tập dượt xong (làm bẩn hoặc lệch dữ li�
 | :--- | :--- | :--- | :--- |
 | **Quản trị viên (Admin)** | `admin@gmail.com` | `12345` | Quản lý toàn bộ hệ thống: Sân, Nhân sự, Báo cáo tài chính, Giải đấu, Cấu hình. |
 | **Lễ tân / Thu ngân (Staff)** | `staff@gmail.com` | `12345` | Thao tác tại quầy: Quét QR Check-in, Check-out, Thu tiền mặt, Gia hạn sân. |
-| **Khách hàng của bạn (Live Demo)** | `kietdlv@gmail.com` | `1234567890123` | **Tài khoản cá nhân của bạn**: Hoàn toàn **sạch sẽ (0 đơn)** để bạn tự do tạo đơn đặt sân hoặc đăng ký hội viên trực tiếp trước mặt Hội đồng! |
+| **Tài khoản tự tạo (Live Demo)** | Email bất kỳ (VD: `kietdlv@gmail.com`) | Bạn tự đặt khi tạo | **Tài khoản bạn tự tạo**: Sẽ được **tự động xóa sạch và giải phóng email hoàn toàn** mỗi khi bấm Reset, để bạn tự do biểu diễn quy trình đăng ký tài khoản mới từ đầu trước mặt Hội đồng! |
 | **Khách hàng VIP (Hội viên Plus)** | `hoangnam@gmail.com` | `1234567890123` | Khách mẫu sở hữu gói **Plus**: Giảm giá 15% tiền sân, chứa các đơn mẫu Checked-in, Confirmed, Định kỳ, Hoàn tất, Hủy. |
 | **Khách hàng mới** | `khachmoi@gmail.com` | `1234567890123` | Khách sở hữu đơn #CT-REF0007 (thuê trọng tài). |
 

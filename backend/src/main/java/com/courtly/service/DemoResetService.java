@@ -23,7 +23,6 @@ public class DemoResetService {
 
   private static final String ADMIN_ID = "b27fe32c-e9b7-44bf-8149-81bc00b5bbba";
   private static final String STAFF_ID = "f21bd5fa-cf66-4ee4-a009-3a337eebc6fa";
-  private static final String KIET_ID = "33f6820e-0420-41f6-b044-431698f2b6b6";
   private static final String NAM_ID = "44444444-4444-4444-4444-444444444444";
   private static final String HA_ID = "55555555-5555-5555-5555-555555555555";
 
@@ -59,20 +58,19 @@ public class DemoResetService {
     jdbc.execute("DELETE FROM orders");
     jdbc.execute("DELETE FROM tournament_registrations");
 
-    // Xóa các tài khoản phụ/rác ngoài bộ 5 tài khoản cốt lõi
-    jdbc.execute("DELETE FROM accounts WHERE email NOT IN ('admin@gmail.com', 'staff@gmail.com', 'kietdlv@gmail.com', 'hoangnam@gmail.com', 'khachmoi@gmail.com')");
+    // Xóa toàn bộ các tài khoản tự tạo / kiểm thử (chỉ giữ lại đúng 4 tài khoản hệ thống chuẩn)
+    jdbc.execute("DELETE FROM accounts WHERE email NOT IN ('admin@gmail.com', 'staff@gmail.com', 'hoangnam@gmail.com', 'khachmoi@gmail.com')");
 
     // Đưa toàn bộ slot về AVAILABLE
     jdbc.execute("UPDATE court_schedules SET status = 'AVAILABLE'");
 
-    // Đảm bảo 5 tài khoản chuẩn tồn tại
+    // Đảm bảo 4 tài khoản hệ thống chuẩn luôn tồn tại
     String upsertAccountsSql = String.format(
         """
         INSERT INTO accounts (id, email, full_name, phone, role, status, password_hash, created_at, auth_version)
         VALUES 
           ('%s', 'admin@gmail.com', 'Quản trị Courtly', '0909999999', 'ADMIN', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'staff@gmail.com', 'Lễ tân Courtly (Staff)', '0908888888', 'STAFF', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'kietdlv@gmail.com', 'Kiệt Nguyễn', '0901234567', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'hoangnam@gmail.com', 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'khachmoi@gmail.com', 'Lê Thu Hà', '0987654321', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0)
         ON CONFLICT (id) DO UPDATE SET 
@@ -84,7 +82,6 @@ public class DemoResetService {
         """,
         ADMIN_ID, BCRYPT_12345,
         STAFF_ID, BCRYPT_12345,
-        KIET_ID, BCRYPT_1234567890123,
         NAM_ID, BCRYPT_1234567890123,
         HA_ID, BCRYPT_1234567890123
     );

@@ -70,18 +70,17 @@ def main():
     DELETE FROM orders;
     DELETE FROM tournament_registrations;
 
-    -- 2. Xóa các tài khoản phụ/rác (chỉ giữ lại admin, staff, kietdlv và tạo mới tài khoản mẫu)
-    DELETE FROM accounts WHERE email NOT IN ('admin@gmail.com', 'staff@gmail.com', 'kietdlv@gmail.com');
+    -- 2. Xóa các tài khoản tự tạo / kiểm thử (chỉ giữ lại 4 tài khoản hệ thống chuẩn)
+    DELETE FROM accounts WHERE email NOT IN ('admin@gmail.com', 'staff@gmail.com', 'hoangnam@gmail.com', 'khachmoi@gmail.com');
 
     -- 3. Đưa toàn bộ khung giờ sân về AVAILABLE
     UPDATE court_schedules SET status = 'AVAILABLE';
 
-    -- 4. Đảm bảo toàn bộ 5 tài khoản mẫu cốt lõi luôn tồn tại chuẩn
+    -- 4. Đảm bảo toàn bộ 4 tài khoản mẫu cốt lõi luôn tồn tại chuẩn
     INSERT INTO accounts (id, email, full_name, phone, role, status, password_hash, created_at, auth_version)
     VALUES 
       ('{ADMIN_ID}', 'admin@gmail.com', 'Quản trị Courtly', '0909999999', 'ADMIN', 'ACTIVE', '{BCRYPT_12345}', NOW(), 0),
       ('{STAFF_ID}', 'staff@gmail.com', 'Lễ tân Courtly (Staff)', '0908888888', 'STAFF', 'ACTIVE', '{BCRYPT_12345}', NOW(), 0),
-      ('{KIET_ID}', 'kietdlv@gmail.com', 'Kiệt Nguyễn', '0901234567', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0),
       ('{NAM_ID}', 'hoangnam@gmail.com', 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0),
       ('{HA_ID}', 'khachmoi@gmail.com', 'Lê Thu Hà', '0987654321', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0)
     ON CONFLICT (id) DO UPDATE SET 

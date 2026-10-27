@@ -156,10 +156,10 @@ export default function SystemPage() {
 
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>
-                <Sparkles size={18} style={{ color: '#8b5cf6' }} /> Khách hàng Live Demo (Kiệt Nguyễn)
+                <Sparkles size={18} style={{ color: '#8b5cf6' }} /> Tự do kiểm thử đăng ký tài khoản
               </div>
               <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
-                Tài khoản <code>kietdlv@gmail.com</code> luôn được dọn sạch 100% (0 đơn hàng) để bạn tự do thao tác tạo đơn mới hoặc đăng ký hội viên trực tiếp.
+                Toàn bộ tài khoản bạn tự tạo trong lúc thử nghiệm sẽ được <b>tự động xóa sạch và giải phóng email</b> mỗi khi bấm đặt lại dữ liệu.
               </p>
             </div>
           </div>
@@ -243,7 +243,7 @@ export default function SystemPage() {
               <div style={{ fontSize: 13, color: '#991b1b', lineHeight: 1.5 }}>
                 <b>Lưu ý quan trọng cho buổi bảo vệ Hội đồng:</b>
                 <div style={{ marginTop: 4 }}>
-                  Toàn bộ các đơn hàng và giao dịch phát sinh tạm thời trong lúc bạn demo sẽ được dọn sạch. Hệ thống sẽ tái tạo lại chính xác <b>7 đơn hàng mẫu chuẩn</b>, <b>1 giải đấu 4 đội</b> và <b>1 khách hàng VIP Plus</b> để bảng biểu doanh thu và kịch bản thuyết trình luôn đạt độ hoàn hảo cao nhất.
+                  Toàn bộ các đơn hàng phát sinh và <b>toàn bộ tài khoản bạn tự tạo trong lúc thử nghiệm</b> sẽ được xóa sạch hoàn toàn để giải phóng email. Hệ thống sẽ tái tạo lại chính xác <b>7 đơn hàng mẫu chuẩn</b>, <b>1 giải đấu 4 đội</b> và <b>1 khách hàng VIP Plus</b> để bảng biểu doanh thu và kịch bản thuyết trình luôn đạt độ hoàn hảo cao nhất.
                 </div>
               </div>
             </div>
@@ -252,7 +252,8 @@ export default function SystemPage() {
               <div style={{ fontWeight: 600, marginBottom: 8 }}>Sau khi đặt lại, hệ thống sẽ chứa:</div>
               <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <li><b>7 đơn hàng mẫu chuẩn:</b> Check-in, Confirmed, Giữ chỗ 5p, Định kỳ 4 tuần, Hoàn tất có hóa đơn, Hủy hoàn 70%, Thuê trọng tài.</li>
-                <li><b>5 tài khoản cốt lõi:</b> <code>admin@gmail.com</code> (12345), <code>staff@gmail.com</code> (12345), <code>kietdlv@gmail.com</code>, <code>hoangnam@gmail.com</code>, <code>khachmoi@gmail.com</code>.</li>
+                <li><b>4 tài khoản hệ thống chuẩn:</b> <code>admin@gmail.com</code> (12345), <code>staff@gmail.com</code> (12345), <code>hoangnam@gmail.com</code> (1234567890123), <code>khachmoi@gmail.com</code> (1234567890123).</li>
+                <li><b>Tài khoản tự tạo:</b> Đã được xóa hoàn toàn và giải phóng email để bạn sẵn sàng đăng ký lại từ đầu!</li>
                 <li><b>Báo cáo tài chính:</b> 3 trụ cột (Tiền sân, Trọng tài, Giải đấu & Membership) khớp từng đồng.</li>
               </ul>
             </div>
