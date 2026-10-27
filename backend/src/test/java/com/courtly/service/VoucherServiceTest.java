@@ -164,4 +164,48 @@ class VoucherServiceTest {
     verify(vouchers).save(v);
     verify(redemptions).delete(redemption);
   }
+
+  @Test
+  void evaluateAllDistinguishesApplicableFromConditionalVouchers() {
+    Voucher welcome = createVoucher("WELCOME", "FIXED", new BigDecimal("50000"), new BigDecimal("100000"), new BigDecimal("50000"));
+    welcome.setNewUserOnly(true);
+
+    Voucher vip10 = createVoucher("VIP10", "PERCENT", new BigDecimal("10"), new BigDecimal("200000"), new BigDecimal("100000"));
+    vip10.setMemberOnly(true);
+
+    Voucher he2026 = createVoucher("HE2026", "FIXED", new BigDecimal("50000"), new BigDecimal("150000"), new BigDecimal("50000"));
+
+    when(vouchers.findByEnabledTrue()).thenReturn(List.of(welcome, vip10, he2026));
+
+    UUID accountId = UUID.randomUUID();
+    // User has past orders, but is a VIP member
+    when(orders.countByCustomerAccountIdAndStatusNotIn(eq(accountId), any())).thenReturn(1L);
+    when(memberships.hasActiveMembership(accountId)).thenReturn(true);
+
+    // Amount is 200,000 đ
+    var list = service.evaluateAll(new BigDecimal("200000"), accountId);
+    assertEquals(3, list.size());
+
+    // WELCOME should be conditional / not applicable because of past orders
+    var evalWelcome = list.stream().filter(m -> "WELCOME".equals(m.get("code"))).findFirst().orElseThrow();
+    assertEquals(false, evalWelcome.get("applicable"));
+    assertTrue(evalWelcome.get("reason").toString().contains("đơn đầu tiên"));
+
+    // VIP10 should be applicable (member + amount >= 200k)
+    var evalVip = list.stream().filter(m -> "VIP10".equals(m.get("code"))).findFirst().orElseThrow();
+    assertEquals(true, evalVip.get("applicable"));
+    assertNull(evalVip.get("reason"));
+    assertEquals(new BigDecimal("20000.00"), evalVip.get("discount"));
+
+    // HE2026 should be applicable (amount >= 150k)
+    var evalHe = list.stream().filter(m -> "HE2026".equals(m.get("code"))).findFirst().orElseThrow();
+    assertEquals(true, evalHe.get("applicable"));
+    assertNull(evalHe.get("reason"));
+
+    // If amount is only 100,000 đ, HE2026 and VIP10 become conditional due to minOrder
+    var list100k = service.evaluateAll(new BigDecimal("100000"), accountId);
+    var evalHe100 = list100k.stream().filter(m -> "HE2026".equals(m.get("code"))).findFirst().orElseThrow();
+    assertEquals(false, evalHe100.get("applicable"));
+    assertTrue(evalHe100.get("reason").toString().contains("Cần đơn từ"));
+  }
 }

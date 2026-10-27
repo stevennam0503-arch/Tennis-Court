@@ -32,15 +32,45 @@ public class OrderController {
   }
 
   @GetMapping("/public/vouchers")
-  public List<Map<String, Object>> vouchers() {
-    return vouchers.listAvailable();
+  public List<Map<String, Object>> vouchers(
+      @RequestParam(required = false) java.math.BigDecimal amount,
+      @RequestParam(required = false) UUID accountId,
+      HttpServletRequest r) {
+    if (accountId == null) {
+      accountId = auth.optCurrent(r).map(com.courtly.entity.Account::getId).orElse(null);
+    }
+    return vouchers.evaluateAll(amount, accountId);
+  }
+
+  @PostMapping("/public/vouchers/evaluate")
+  public List<Map<String, Object>> evaluateVouchers(
+      @RequestBody(required = false) Map<String, Object> body, HttpServletRequest r) {
+    java.math.BigDecimal amount = body != null ? PresentationService.decimal(body.get("amount")) : null;
+    UUID accountId = null;
+    if (body != null && body.get("accountId") != null && !body.get("accountId").toString().isBlank()) {
+      try {
+        accountId = UUID.fromString(body.get("accountId").toString());
+      } catch (Exception ignored) {}
+    }
+    if (accountId == null) {
+      accountId = auth.optCurrent(r).map(com.courtly.entity.Account::getId).orElse(null);
+    }
+    return vouchers.evaluateAll(amount, accountId);
   }
 
   @PostMapping("/public/vouchers/validate")
   public Map<String, Object> validateVoucher(@RequestBody Map<String, Object> body, HttpServletRequest r) {
     String code = (String) body.get("code");
     java.math.BigDecimal amount = PresentationService.decimal(body.get("amount"));
-    UUID accountId = auth.optCurrent(r).map(com.courtly.entity.Account::getId).orElse(null);
+    UUID accountId = null;
+    if (body.get("accountId") != null && !body.get("accountId").toString().isBlank()) {
+      try {
+        accountId = UUID.fromString(body.get("accountId").toString());
+      } catch (Exception ignored) {}
+    }
+    if (accountId == null) {
+      accountId = auth.optCurrent(r).map(com.courtly.entity.Account::getId).orElse(null);
+    }
     return vouchers.calculate(code, amount, accountId);
   }
 

@@ -23,8 +23,8 @@ export default function Booking() {
   const req = useRef(requestId());
 
   useEffect(() => {
-    api('/public/vouchers').then(setPublicVouchers).catch(() => {});
-  }, []);
+    api('/public/vouchers' + (gross > 0 ? `?amount=${gross}` : '')).then(setPublicVouchers).catch(() => {});
+  }, [gross, user?.id]);
 
   const allCourts = data?.courts || [];
   const courts = preferredZone === 'ALL' ? allCourts : allCourts.filter(c => zone(c) === preferredZone);
@@ -184,7 +184,7 @@ export default function Booking() {
     setVoucherBusy(true);
     setVoucherError('');
     try {
-      const res = await api('/public/vouchers/validate', 'POST', { code, amount: gross });
+      const res = await api('/public/vouchers/validate', 'POST', { code, amount: gross, accountId: user?.id || null });
       setAppliedVoucher(res);
       setVoucherInput(code);
     } catch (e) {
@@ -199,6 +199,16 @@ export default function Booking() {
     setVoucherInput('');
     setVoucherError('');
   };
+
+  useEffect(() => {
+    if (!appliedVoucher) return;
+    const currentList = options?.availableVouchers || publicVouchers;
+    const current = currentList.find(v => v.code === appliedVoucher.code);
+    if (current && !current.applicable) {
+      setAppliedVoucher(null);
+      setVoucherError(t(`Voucher ${appliedVoucher.code} đã tự động gỡ: ${current.reason || 'Không còn đủ điều kiện áp dụng.'}`));
+    }
+  }, [gross, options?.availableVouchers]);
 
   const selectedCourtEntries = Object.entries(courtRanges)
     .filter(([_, v]) => v.valid && v.slots?.length > 0)
@@ -659,26 +669,33 @@ export default function Booking() {
             border: '1px solid #e2e8f0',
             borderRadius: 10
           }}>
-            <div style={{display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8}}>
-              <Tag size={15} color="#173c32"/>
-              <span style={{fontSize: 12, fontWeight: 700, color: '#173c32', textTransform: 'uppercase', letterSpacing: '0.04em'}}>
-                {t('Mã ưu đãi / Voucher')}
-              </span>
+            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
+                <Tag size={15} color="#173c32"/>
+                <span style={{fontSize: 12, fontWeight: 700, color: '#173c32', textTransform: 'uppercase', letterSpacing: '0.04em'}}>
+                  {t('Mã ưu đãi / Voucher')}
+                </span>
+              </div>
+              {appliedVoucher && (
+                <span style={{fontSize: 11, fontWeight: 700, color: '#16a34a', background: '#dcfce7', padding: '2px 8px', borderRadius: 10}}>
+                  {t('Đang áp dụng 1 mã')}
+                </span>
+              )}
             </div>
 
             {!appliedVoucher ? (
               <>
-                <div style={{display: 'flex', gap: 6}}>
+                <div style={{display: 'flex', gap: 6, marginBottom: 10}}>
                   <input
                     type="text"
                     aria-label={t('Mã voucher')}
-                    placeholder={t('VD: WELCOME, HE2026...')}
+                    placeholder={t('Nhập mã voucher (VD: WELCOME, HE2026, VIP10...)')}
                     value={voucherInput}
                     onChange={e => { setVoucherInput(e.target.value.toUpperCase()); setVoucherError(''); }}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyVoucher(); } }}
                     style={{
                       flex: 1,
-                      padding: '6px 10px',
+                      padding: '7px 10px',
                       borderRadius: 6,
                       border: '1px solid #cbd5e1',
                       fontSize: 12,
@@ -694,7 +711,7 @@ export default function Booking() {
                       background: '#173c32',
                       color: '#def46a',
                       border: 'none',
-                      padding: '0 12px',
+                      padding: '0 14px',
                       borderRadius: 6,
                       fontSize: 12,
                       fontWeight: 700,
@@ -706,47 +723,177 @@ export default function Booking() {
                   </button>
                 </div>
 
-                {/* Dynamic Quick chips from API */}
-                {((options?.availableVouchers?.length ? options.availableVouchers : publicVouchers) || []).length > 0 && (
-                  <div style={{display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8}}>
-                    {((options?.availableVouchers?.length ? options.availableVouchers : publicVouchers) || []).map(vc => (
-                      <button
-                        key={vc.code}
-                        type="button"
-                        onClick={() => applyVoucher(vc.code)}
-                        title={vc.description}
-                        style={{
-                          background: '#edf2e8',
-                          border: '1px solid #cbd2c2',
-                          borderRadius: 12,
-                          padding: '2px 8px',
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: '#173c32',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        +{vc.code}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                {/* Danh sách voucher: Khả dụng (sáng rõ) và Có điều kiện (làm mờ đi) */}
+                {(() => {
+                  const rawList = options?.availableVouchers?.length ? options.availableVouchers : publicVouchers;
+                  if (!rawList || rawList.length === 0) return null;
+                  
+                  const applicableList = rawList.filter(v => v.applicable);
+                  const conditionalList = rawList.filter(v => !v.applicable);
+
+                  return (
+                    <div style={{display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10}}>
+                      {/* VOUCHER KHẢ DỤNG - HIỆN RÕ */}
+                      {applicableList.length > 0 && (
+                        <div>
+                          <div style={{fontSize: 11, fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4}}>
+                            <span>●</span> {t('Voucher khả dụng (có thể dùng ngay)')}
+                          </div>
+                          <div style={{display: 'flex', flexDirection: 'column', gap: 6}}>
+                            {applicableList.map(vc => (
+                              <div
+                                key={vc.code}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  background: '#ffffff',
+                                  border: '1.5px solid #22c55e',
+                                  borderRadius: 8,
+                                  padding: '8px 10px',
+                                  boxShadow: '0 1px 3px rgba(34,197,94,0.1)'
+                                }}
+                              >
+                                <div style={{flex: 1, marginRight: 8}}>
+                                  <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
+                                    <span style={{
+                                      background: '#173c32',
+                                      color: '#def46a',
+                                      fontSize: 11,
+                                      fontWeight: 800,
+                                      padding: '2px 7px',
+                                      borderRadius: 4,
+                                      letterSpacing: '0.04em'
+                                    }}>
+                                      {vc.code}
+                                    </span>
+                                    <span style={{fontSize: 12, fontWeight: 700, color: '#16a34a'}}>
+                                      {vc.type === 'PERCENT' ? `Giảm ${vc.value}%` : `Giảm ${money(vc.value)}`}
+                                    </span>
+                                  </div>
+                                  <div style={{fontSize: 11.5, color: '#334155', marginTop: 3, fontWeight: 500}}>
+                                    {vc.description}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => applyVoucher(vc.code)}
+                                  disabled={voucherBusy}
+                                  style={{
+                                    background: '#16a34a',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    padding: '5px 12px',
+                                    borderRadius: 6,
+                                    fontSize: 11.5,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    flexShrink: 0
+                                  }}
+                                >
+                                  {t('Áp dụng')}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* VOUCHER CÓ ĐIỀU KIỆN - LÀM MỜ ĐI */}
+                      {conditionalList.length > 0 && (
+                        <div style={{marginTop: applicableList.length > 0 ? 4 : 0}}>
+                          <div style={{fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4}}>
+                            <span>○</span> {t('Voucher có điều kiện (chưa đủ điều kiện)')}
+                          </div>
+                          <div style={{display: 'flex', flexDirection: 'column', gap: 6}}>
+                            {conditionalList.map(vc => (
+                              <div
+                                key={vc.code}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  background: '#f8fafc',
+                                  border: '1px dashed #cbd5e1',
+                                  borderRadius: 8,
+                                  padding: '8px 10px',
+                                  opacity: 0.55
+                                }}
+                              >
+                                <div style={{flex: 1, marginRight: 8}}>
+                                  <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
+                                    <span style={{
+                                      background: '#94a3b8',
+                                      color: '#ffffff',
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      padding: '2px 7px',
+                                      borderRadius: 4
+                                    }}>
+                                      {vc.code}
+                                    </span>
+                                    <span style={{fontSize: 11.5, fontWeight: 600, color: '#64748b'}}>
+                                      {vc.description}
+                                    </span>
+                                  </div>
+                                  <div style={{
+                                    fontSize: 11,
+                                    color: '#b45309',
+                                    marginTop: 3,
+                                    fontWeight: 600,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4
+                                  }}>
+                                    <span>⚠️</span> {t(vc.reason || 'Chưa thỏa điều kiện áp dụng')}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled
+                                  style={{
+                                    background: '#e2e8f0',
+                                    color: '#94a3b8',
+                                    border: 'none',
+                                    padding: '5px 10px',
+                                    borderRadius: 6,
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    cursor: 'not-allowed',
+                                    flexShrink: 0
+                                  }}
+                                >
+                                  {t('Chưa đủ điều kiện')}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </>
             ) : (
+              /* VOUCHER ĐÃ ÁP DỤNG */
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 background: '#f0fdf4',
-                border: '1px solid #bbf7d0',
+                border: '1.5px solid #86efac',
                 borderRadius: 8,
-                padding: '8px 10px'
+                padding: '10px 12px'
               }}>
                 <div>
-                  <div style={{fontWeight: 700, fontSize: 13, color: '#16a34a'}}>
-                    ✓ {appliedVoucher.code} (−{money(appliedVoucher.discount)})
+                  <div style={{fontWeight: 800, fontSize: 13, color: '#15803d', display: 'flex', alignItems: 'center', gap: 6}}>
+                    <span>✓</span>
+                    <span>{appliedVoucher.code}</span>
+                    <span style={{background: '#22c55e', color: '#fff', fontSize: 11, padding: '1px 6px', borderRadius: 4}}>
+                      −{money(appliedVoucher.discount)}
+                    </span>
                   </div>
-                  <div style={{fontSize: 11, color: '#15803d'}}>
+                  <div style={{fontSize: 11.5, color: '#166534', marginTop: 2}}>
                     {appliedVoucher.description}
                   </div>
                 </div>
@@ -754,22 +901,23 @@ export default function Booking() {
                   type="button"
                   onClick={removeVoucher}
                   style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#dc2626',
+                    background: '#fee2e2',
+                    border: '1px solid #fca5a5',
+                    color: '#b91c1c',
                     fontSize: 12,
                     fontWeight: 700,
                     cursor: 'pointer',
-                    padding: '4px'
+                    padding: '5px 10px',
+                    borderRadius: 6
                   }}
                 >
-                  ✕ {t('Gỡ')}
+                  ✕ {t('Gỡ voucher')}
                 </button>
               </div>
             )}
 
             {voucherError && (
-              <div style={{color: '#dc2626', fontSize: 11, fontWeight: 600, marginTop: 6}}>
+              <div style={{color: '#dc2626', fontSize: 11.5, fontWeight: 600, marginTop: 8, background: '#fef2f2', border: '1px solid #fecaca', padding: '6px 10px', borderRadius: 6}}>
                 ⚠️ {voucherError}
               </div>
             )}

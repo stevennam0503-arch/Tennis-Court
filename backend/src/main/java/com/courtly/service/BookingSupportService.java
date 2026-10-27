@@ -150,6 +150,9 @@ public class BookingSupportService {
       staffRows.add(map("scheduleId", s.getId(), "staff", people));
     }
     BigDecimal courtTotal = rows.stream().map(CourtSchedule::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+    if (recurringWeeks != null && recurringWeeks > 1) {
+      courtTotal = courtTotal.multiply(BigDecimal.valueOf(recurringWeeks));
+    }
     Map<String, Object> voucherBenefit = null;
     if (voucherCode != null && !voucherCode.isBlank()) {
       voucherBenefit = vouchers.calculate(voucherCode, courtTotal, account);
@@ -170,7 +173,7 @@ public class BookingSupportService {
         "voucherBenefit",
         voucherBenefit,
         "availableVouchers",
-        vouchers.listAvailable());
+        vouchers.evaluateAll(courtTotal, account));
   }
 
   public Map<String, Object> preview(UUID id, MoveBookingRequest r, Account a) {

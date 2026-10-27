@@ -28,23 +28,93 @@ public class VoucherService {
 
   @Transactional(readOnly = true)
   public List<Map<String, Object>> listAvailable() {
+    return evaluateAll(null, null);
+  }
+
+  @Transactional(readOnly = true)
+  public List<Map<String, Object>> evaluateAll(BigDecimal totalAmount, UUID accountId) {
     Instant now = Instant.now();
-    return vouchers.findByEnabledTrue().stream()
-        .filter(v -> v.getStartsAt() == null || !v.getStartsAt().isAfter(now))
-        .filter(v -> v.getExpiresAt() == null || !v.getExpiresAt().isBefore(now))
-        .filter(v -> v.getUsageLimit() == null || v.getUsedCount() < v.getUsageLimit())
-        .map(
-            v ->
-                map(
-                    "code", v.getCode(),
-                    "type", v.getType(),
-                    "value", v.getValue(),
-                    "minOrder", v.getMinOrder(),
-                    "maxDiscount", v.getMaxDiscount(),
-                    "memberOnly", v.getMemberOnly(),
-                    "newUserOnly", v.getNewUserOnly(),
-                    "description", v.getDescription()))
-        .toList();
+    BigDecimal total = totalAmount != null ? totalAmount : BigDecimal.ZERO;
+
+    long pastOrders = 0;
+    boolean isMember = false;
+    if (accountId != null) {
+      pastOrders = orders.countByCustomerAccountIdAndStatusNotIn(accountId, Set.of("CANCELLED", "EXPIRED"));
+      isMember = memberships.hasActiveMembership(accountId);
+    }
+
+    List<Map<String, Object>> result = new ArrayList<>();
+    for (Voucher v : vouchers.findByEnabledTrue()) {
+      if (v.getStartsAt() != null && v.getStartsAt().isAfter(now)) {
+        continue;
+      }
+      if (v.getExpiresAt() != null && v.getExpiresAt().isBefore(now)) {
+        continue;
+      }
+
+      boolean applicable = true;
+      String reason = null;
+
+      if (v.getUsageLimit() != null && v.getUsedCount() >= v.getUsageLimit()) {
+        applicable = false;
+        reason = "Đã hết lượt sử dụng trên toàn hệ thống";
+      }
+
+      if (applicable && v.getMinOrder() != null && total.compareTo(v.getMinOrder()) < 0) {
+        applicable = false;
+        long minVal = v.getMinOrder().longValue();
+        long diff = v.getMinOrder().subtract(total).longValue();
+        if (total.compareTo(BigDecimal.ZERO) == 0) {
+          reason = String.format("Cần đơn từ %,d₫", minVal).replace(',', '.');
+        } else {
+          reason = String.format("Cần đơn từ %,d₫ (thiếu %,d₫)", minVal, diff).replace(',', '.');
+        }
+      }
+
+      if (applicable && Boolean.TRUE.equals(v.getNewUserOnly())) {
+        if (accountId != null && pastOrders > 0) {
+          applicable = false;
+          reason = "Chỉ áp dụng cho khách hàng mới (đơn đầu tiên)";
+        }
+      }
+
+      if (applicable && Boolean.TRUE.equals(v.getMemberOnly())) {
+        if (accountId == null) {
+          applicable = false;
+          reason = "Dành riêng cho Hội viên CLB (cần đăng nhập)";
+        } else if (!isMember) {
+          applicable = false;
+          reason = "Chỉ áp dụng cho Hội viên CLB có gói active";
+        }
+      }
+
+      if (applicable && accountId != null && v.getPerUserLimit() != null) {
+        long userUsed = redemptions.countByVoucherIdAndAccountId(v.getId(), accountId);
+        if (userUsed >= v.getPerUserLimit()) {
+          applicable = false;
+          reason = "Bạn đã dùng hết số lượt của voucher này";
+        }
+      }
+
+      BigDecimal discount = applicable
+          ? computeDiscount(v, total)
+          : computeDiscount(v, v.getMinOrder() != null && v.getMinOrder().compareTo(BigDecimal.ZERO) > 0 ? v.getMinOrder() : total);
+
+      Map<String, Object> item = new LinkedHashMap<>();
+      item.put("code", v.getCode());
+      item.put("type", v.getType());
+      item.put("value", v.getValue());
+      item.put("minOrder", v.getMinOrder());
+      item.put("maxDiscount", v.getMaxDiscount());
+      item.put("memberOnly", v.getMemberOnly());
+      item.put("newUserOnly", v.getNewUserOnly());
+      item.put("description", v.getDescription());
+      item.put("applicable", applicable);
+      item.put("discount", discount);
+      item.put("reason", reason);
+      result.add(item);
+    }
+    return result;
   }
 
   @Transactional(readOnly = true)
@@ -145,10 +215,14 @@ public class VoucherService {
 
     BigDecimal total = totalAmount != null ? totalAmount : BigDecimal.ZERO;
     if (v.getMinOrder() != null && total.compareTo(v.getMinOrder()) < 0) {
+      long minVal = v.getMinOrder().longValue();
+      long diff = v.getMinOrder().subtract(total).longValue();
       throw new BusinessException(
           "Đơn đặt sân tối thiểu "
               + v.getMinOrder().setScale(0, RoundingMode.HALF_UP)
-              + " đ để áp dụng voucher "
+              + " đ (còn thiếu "
+              + diff
+              + " đ) để áp dụng voucher "
               + v.getCode());
     }
 
@@ -177,6 +251,10 @@ public class VoucherService {
                   + v.getPerUserLimit()
                   + " lần/tài khoản)");
         }
+      }
+    } else {
+      if (Boolean.TRUE.equals(v.getMemberOnly())) {
+        throw new BusinessException("Voucher " + v.getCode() + " chỉ áp dụng cho Hội viên CLB (vui lòng đăng nhập tài khoản)");
       }
     }
   }
