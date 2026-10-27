@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "demo:reset": "python ../scripts/seed_showcase.py"
   },
   "dependencies": {
     "lucide-react": "^0.577.0",
