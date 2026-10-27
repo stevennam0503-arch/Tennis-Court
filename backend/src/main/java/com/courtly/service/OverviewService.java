@@ -357,6 +357,8 @@ public class OverviewService {
                             p.getMethod(),
                             "type",
                             p.getType(),
+                            "status",
+                            p.getStatus() != null ? p.getStatus() : "PAID",
                             "createdAt",
                             p.getPaidAt(),
                             "transactionCode",
@@ -390,6 +392,8 @@ public class OverviewService {
                             p.getAmount(),
                             "reason",
                             p.getReason(),
+                            "status",
+                            p.getStatus() != null ? p.getStatus() : "DONE",
                             "createdAt",
                             p.getRefundedAt()))
                 .toList(),

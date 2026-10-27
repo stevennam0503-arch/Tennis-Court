@@ -132,15 +132,19 @@ export default function ReportsPage() {
     return totalOrderAndTournPaid + netMembershipCash - totalRefund;
   }, [paymentsInPeriod, netMembershipCash, refundsInPeriod]);
 
-  // Value by categories on valid orders
+  // Value by categories on valid orders and club services
   const courtValue = validOrders.flatMap(o => o.slots).reduce((a, s) => a + (s.price || 0), 0);
   const legacyValue = validOrders.flatMap(o => o.products).reduce((a,p) => a + (p.lineTotal || 0), 0);
   const staffValue = validOrders.flatMap(o => o.staff).reduce((a, s) => a + (s.hours || 1) * (s.rate || 0), 0);
-  const totalValue = courtValue + legacyValue + staffValue;
+  const tournamentValue = Math.max(0, netTournamentCash);
+  const membershipValue = Math.max(0, netMembershipCash);
+  const totalValue = courtValue + legacyValue + staffValue + tournamentValue + membershipValue;
 
   const categories = [
     ['Tiền thuê sân', courtValue],
-    ['Trọng tài', staffValue],
+    ['Dịch vụ trọng tài', staffValue],
+    ['Phí tham gia giải đấu', tournamentValue],
+    ['Gói hội viên (Membership)', membershipValue],
     ...(legacyValue ? [['Khoản dịch vụ cũ (lịch sử)', legacyValue]] : [])
   ];
   const maxCategory = Math.max(1, ...categories.map(x => x[1]));
@@ -479,7 +483,7 @@ export default function ReportsPage() {
               <b style={{ color: 'var(--green)', fontSize: 16 }}>{money(totalValue)}</b>
             </div>
             <small style={{ marginTop: 8, display: 'block' }}>
-              Giá trị dịch vụ tính trên các đơn đặt sân hợp lệ (loại trừ đơn hủy/hết hạn).
+              Cơ cấu doanh thu bao gồm tiền thuê sân, dịch vụ trọng tài, phí giải đấu và gói hội viên trong kỳ.
             </small>
           </div>
         </Panel>

@@ -244,7 +244,11 @@ export function MyPayments() {
     ];
 
     return combined.filter(p => {
-      if (kindFilter !== 'ALL' && p.kind !== kindFilter) return false;
+      if (kindFilter === 'PAYMENT' && p.kind !== 'PAYMENT') return false;
+      if (kindFilter === 'REFUND' && p.kind !== 'REFUND') return false;
+      if (kindFilter === 'DEPOSIT' && (p.kind !== 'PAYMENT' || p.type !== 'DEPOSIT')) return false;
+      if (kindFilter === 'BALANCE' && (p.kind !== 'PAYMENT' || (p.type !== 'BALANCE' && p.type !== 'ORDER' && p.type !== undefined))) return false;
+      if (kindFilter === 'OTHER' && (p.kind !== 'PAYMENT' || !['TOURNAMENT_FEE', 'MEMBERSHIP_FEE'].includes(p.type))) return false;
       if (methodFilter !== 'ALL' && p.method !== methodFilter) return false;
       if (from && localDate(p.createdAt) < from) return false;
       if (to && localDate(p.createdAt) > to) return false;
@@ -297,11 +301,13 @@ export function MyPayments() {
         marginBottom: 16
       }}>
         {/* Kind tabs */}
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {[
             { id: 'ALL', label: `Tất cả (${rows.length})` },
-            { id: 'PAYMENT', label: 'Khoản thu' },
-            { id: 'REFUND', label: 'Hoàn tiền' }
+            { id: 'DEPOSIT', label: 'Tiền cọc' },
+            { id: 'BALANCE', label: 'Thanh toán đơn' },
+            { id: 'REFUND', label: 'Hoàn tiền' },
+            { id: 'OTHER', label: 'Giải & Hội viên' }
           ].map(k => (
             <button
               key={k.id}
@@ -395,7 +401,7 @@ export function MyPayments() {
           </span>
         }
       >
-        <Table headings={['Thời điểm', 'Nội dung', 'Phương thức', 'Số tiền', 'Đơn liên quan']} empty={!paginatedRows.length}>
+        <Table headings={['Thời điểm', 'Phân loại', 'Số tiền', 'Phương thức', 'Trạng thái', 'Đơn / Đối tượng']} empty={!paginatedRows.length}>
           {paginatedRows.map(p => (
             <tr key={p.kind + p.id}>
               <td>
@@ -405,29 +411,125 @@ export function MyPayments() {
                 </small>
               </td>
               <td>
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: p.kind === 'REFUND' ? '#b91c1c' : '#1e293b'
-                }}>
-                  {p.kind === 'REFUND' ? <ArrowDownLeft size={13} color="#b91c1c" /> : <ArrowUpRight size={13} color="#15803d" />}
-                  {p.kind === 'REFUND'
-                    ? 'Hoàn tiền'
-                    : p.type === 'MEMBERSHIP_FEE'
-                    ? 'Phí membership'
-                    : p.type === 'TOURNAMENT_FEE'
-                    ? 'Phí giải đấu'
-                    : p.type === 'DEPOSIT'
-                    ? 'Tiền cọc'
-                    : 'Thanh toán đơn'}
-                </span>
+                {p.kind === 'REFUND' ? (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: 6,
+                    background: '#fee2e2',
+                    color: '#b91c1c'
+                  }}>
+                    <ArrowDownLeft size={13} /> Hoàn tiền
+                  </span>
+                ) : p.type === 'DEPOSIT' ? (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: 6,
+                    background: '#fef3c7',
+                    color: '#b45309'
+                  }}>
+                    <ArrowUpRight size={13} /> Tiền cọc (50%)
+                  </span>
+                ) : p.type === 'MEMBERSHIP_FEE' ? (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: 6,
+                    background: '#dcfce7',
+                    color: '#15803d'
+                  }}>
+                    <ArrowUpRight size={13} /> Phí hội viên
+                  </span>
+                ) : p.type === 'TOURNAMENT_FEE' ? (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: 6,
+                    background: '#f3e8ff',
+                    color: '#7e22ce'
+                  }}>
+                    <ArrowUpRight size={13} /> Phí giải đấu
+                  </span>
+                ) : (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: 6,
+                    background: '#e0f2fe',
+                    color: '#0369a1'
+                  }}>
+                    <ArrowUpRight size={13} /> Thanh toán đơn
+                  </span>
+                )}
+              </td>
+              <td style={{ fontWeight: 700, color: p.kind === 'REFUND' ? '#b91c1c' : '#15803d' }}>
+                {p.kind === 'REFUND' ? '−' : '+'}{money(p.amount)}
               </td>
               <td>{labels[p.method] || p.method || '—'}</td>
-              <td className={p.kind === 'REFUND' ? 'refund-amount' : ''} style={{ fontWeight: 700 }}>
-                {p.kind === 'REFUND' ? '−' : ''}{money(p.amount)}
+              <td>
+                {p.kind === 'REFUND' ? (
+                  <div>
+                    <span style={{
+                      display: 'inline-block',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 6,
+                      background: '#fee2e2',
+                      color: '#991b1b'
+                    }}>
+                      {p.status === 'DONE' || !p.status ? '✓ Đã hoàn tiền' : 'Chờ quầy xử lý'}
+                    </span>
+                    {p.reason && (
+                      <small style={{ display: 'block', color: '#64748b', marginTop: 2 }}>
+                        {p.reason}
+                      </small>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <span style={{
+                      display: 'inline-block',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 6,
+                      background: '#dcfce7',
+                      color: '#166534'
+                    }}>
+                      ✓ Đã thu tiền
+                    </span>
+                    {p.orderId && (() => {
+                      const ord = data.orders.find(o => o.id === p.orderId);
+                      return ord ? (
+                        <small style={{ display: 'block', color: '#64748b', marginTop: 2 }}>
+                          Đơn: <b>{labels[ord.status] || ord.status}</b>
+                        </small>
+                      ) : null;
+                    })()}
+                  </div>
+                )}
               </td>
               <td>
                 {isAdmin && p.orderId && (
