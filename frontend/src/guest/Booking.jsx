@@ -23,8 +23,8 @@ export default function Booking() {
   const req = useRef(requestId());
 
   useEffect(() => {
-    api('/public/vouchers' + (gross > 0 ? `?amount=${gross}` : '')).then(setPublicVouchers).catch(() => {});
-  }, [gross, user?.id]);
+    api('/public/vouchers').then(setPublicVouchers).catch(() => {});
+  }, [user?.id]);
 
   const allCourts = data?.courts || [];
   const courts = preferredZone === 'ALL' ? allCourts : allCourts.filter(c => zone(c) === preferredZone);
