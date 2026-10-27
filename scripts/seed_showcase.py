@@ -47,9 +47,12 @@ def main():
     # Fixed core IDs
     ADMIN_ID = "b27fe32c-e9b7-44bf-8149-81bc00b5bbba"
     STAFF_ID = "f21bd5fa-cf66-4ee4-a009-3a337eebc6fa"
-    KIET_ID = "33f6820e-0420-41f6-b044-431698f2b6b6" # VIP Member (Plus)
-    NAM_ID = "44444444-4444-4444-4444-444444444444"  # Regular customer
-    HA_ID = "55555555-5555-5555-5555-555555555555"   # New customer (for live booking demo)
+    NAM_ID = "44444444-4444-4444-4444-444444444444"    # VIP Member (Plus)
+    HA_ID = "55555555-5555-5555-5555-555555555555"     # New customer (for live voucher WELCOME demo)
+    THAO_ID = "66666666-4444-4444-4444-444444444444"   # Online booking customer
+    DUC_ID = "77777777-4444-4444-4444-444444444444"    # Completed order customer
+    PHUONG_ID = "88888888-4444-4444-4444-444444444444" # Cancelled & refund customer
+    LONG_ID = "99999999-4444-4444-4444-444444444444"   # Referee booking customer
 
     BCRYPT_1234567890123 = "$2a$12$qVv9jATLLv2wNu5AWmn7xu2ehI5x5LUTIFhay53uOHfaSUILX5gWq"
     BCRYPT_12345 = "$2a$12$Vz8h4kTHkJihfSdtuexqI.kAACu2Pd5TZ/g/tSBOvoqAH9zZqdRpW"
@@ -70,19 +73,26 @@ def main():
     DELETE FROM orders;
     DELETE FROM tournament_registrations;
 
-    -- 2. Xóa các tài khoản tự tạo / kiểm thử (chỉ giữ lại 4 tài khoản hệ thống chuẩn)
-    DELETE FROM accounts WHERE email NOT IN ('admin@gmail.com', 'staff@gmail.com', 'hoangnam@gmail.com', 'khachmoi@gmail.com');
+    -- 2. Xóa các tài khoản tự tạo / kiểm thử (chỉ giữ lại danh sách tài khoản chuẩn Hội đồng)
+    DELETE FROM accounts WHERE email NOT IN (
+      'admin@gmail.com', 'staff@gmail.com', 'hoangnam@gmail.com', 'khachmoi@gmail.com',
+      'thao.le@gmail.com', 'minhduc@gmail.com', 'phuong.vu@gmail.com', 'hoanglong@gmail.com'
+    );
 
     -- 3. Đưa toàn bộ khung giờ sân về AVAILABLE
     UPDATE court_schedules SET status = 'AVAILABLE';
 
-    -- 4. Đảm bảo toàn bộ 4 tài khoản mẫu cốt lõi luôn tồn tại chuẩn
+    -- 4. Đảm bảo toàn bộ tài khoản mẫu cốt lõi luôn tồn tại chuẩn
     INSERT INTO accounts (id, email, full_name, phone, role, status, password_hash, created_at, auth_version)
     VALUES 
       ('{ADMIN_ID}', 'admin@gmail.com', 'Quản trị Courtly', '0909999999', 'ADMIN', 'ACTIVE', '{BCRYPT_12345}', NOW(), 0),
       ('{STAFF_ID}', 'staff@gmail.com', 'Lễ tân Courtly (Staff)', '0908888888', 'STAFF', 'ACTIVE', '{BCRYPT_12345}', NOW(), 0),
       ('{NAM_ID}', 'hoangnam@gmail.com', 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0),
-      ('{HA_ID}', 'khachmoi@gmail.com', 'Lê Thu Hà', '0987654321', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0)
+      ('{HA_ID}', 'khachmoi@gmail.com', 'Lê Thu Hà (Khách mới)', '0987654321', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0),
+      ('{THAO_ID}', 'thao.le@gmail.com', 'Lê Thị Thảo', '0913555777', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0),
+      ('{DUC_ID}', 'minhduc@gmail.com', 'Phạm Minh Đức', '0988666555', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0),
+      ('{PHUONG_ID}', 'phuong.vu@gmail.com', 'Vũ Mai Phương', '0903111222', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0),
+      ('{LONG_ID}', 'hoanglong@gmail.com', 'Đặng Hoàng Long', '0938444333', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0)
     ON CONFLICT (id) DO UPDATE SET 
       full_name = EXCLUDED.full_name,
       phone = EXCLUDED.phone,
@@ -208,11 +218,11 @@ def main():
     run_psql(sql_ord1)
 
     # 2. ĐƠN 2: ĐÃ XÁC NHẬN SẴN SÀNG CHECK-IN (CONFIRMED) - Sân B01 hôm nay 19:00 - 21:00
-    # Khách VIP: Trần Hoàng Nam. Giá sân: 300k/h x 2h = 600k. Giảm Plus 15% (-90k) = 510k. Cọc 50% = 255k. Còn lại 255k.
+    # Khách đặt online: Lê Thị Thảo. Giá sân: 300k/h x 2h = 600k. Cọc 50% = 300k. Còn lại 300k.
     ord2_id = "22222222-2222-2222-2222-111111111111"
     bkg2_id = "22222222-2222-2222-2222-222222222222"
     pay2_id = "22222222-2222-2222-2222-333333333333"
-    meta2 = json.dumps({"customerFlow": True, "membershipBenefit": {"gross": 600000, "discount": 90000, "net": 510000, "planName": "Plus", "discountPercent": 15}})
+    meta2 = json.dumps({"customerFlow": True})
 
     court_b01 = court_map["Sân B01"]["id"]
     slots_ord2 = run_psql(f"SELECT id, price FROM court_schedules WHERE court_id = '{court_b01}' AND schedule_date = '{today_str}' AND start_time >= '19:00:00' AND start_time < '21:00:00' ORDER BY start_time;")
@@ -220,13 +230,13 @@ def main():
 
     sql_ord2 = f"""
     INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata)
-    VALUES ('{ord2_id}', '{NAM_ID}', '{NAM_ID}', 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CONFIRMED', 510000.00, 255000.00, 255000.00, 'PARTIAL', NOW() - interval '4 hours', 0, '{meta2}');
+    VALUES ('{ord2_id}', '{THAO_ID}', '{THAO_ID}', 'Lê Thị Thảo', '0913555777', 'CONFIRMED', 600000.00, 300000.00, 300000.00, 'PARTIAL', NOW() - interval '4 hours', 0, '{meta2}');
 
     INSERT INTO bookings (id, order_id, status, created_at)
     VALUES ('{bkg2_id}', '{ord2_id}', 'CONFIRMED', NOW() - interval '4 hours');
 
     INSERT INTO payments (id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at)
-    VALUES ('{pay2_id}', '{ord2_id}', '{STAFF_ID}', 'DEPOSIT', 'BANK_TRANSFER', 255000.00, 'PAY-CONF-002', 'PAID', NOW() - interval '4 hours');
+    VALUES ('{pay2_id}', '{ord2_id}', '{STAFF_ID}', 'DEPOSIT', 'BANK_TRANSFER', 300000.00, 'PAY-CONF-002', 'PAID', NOW() - interval '4 hours');
     """
     for sr in slot2_rows:
         sid, spr = sr[0].strip(), sr[1].strip()
@@ -237,7 +247,7 @@ def main():
     run_psql(sql_ord2)
 
     # 3. ĐƠN 3: ĐANG GIỮ CHỖ (HOLDING - đếm ngược 5 phút) - Sân V01 ngày mai 08:00 - 10:00
-    # Khách: Trần Hoàng Nam. Giá sân: 500k/h x 2h = 1.000.000đ. Cọc 500k. Chưa trả.
+    # Khách lẻ tại quầy: Nguyễn Văn Tuấn. Giá sân: 500k/h x 2h = 1.000.000đ. Cọc 500k. Chưa trả.
     ord3_id = "33333333-3333-3333-3333-111111111111"
     bkg3_id = "33333333-3333-3333-3333-222222222222"
     court_v01 = court_map["Sân V01"]["id"]
@@ -246,7 +256,7 @@ def main():
 
     sql_ord3 = f"""
     INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, hold_expires_at, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata)
-    VALUES ('{ord3_id}', '{NAM_ID}', '{NAM_ID}', 'Trần Hoàng Nam', '0912345678', 'HOLDING', NOW() + interval '5 minutes', 1000000.00, 500000.00, 0.00, 'UNPAID', NOW(), 0, '{{"customerFlow": true}}');
+    VALUES ('{ord3_id}', NULL, '{STAFF_ID}', 'Nguyễn Văn Tuấn (Khách lẻ tại quầy)', '0977222333', 'HOLDING', NOW() + interval '5 minutes', 1000000.00, 500000.00, 0.00, 'UNPAID', NOW(), 0, '{{"customerFlow": false, "source": "COUNTER"}}');
 
     INSERT INTO bookings (id, order_id, status, created_at)
     VALUES ('{bkg3_id}', '{ord3_id}', 'HOLDING', NOW());
@@ -294,7 +304,7 @@ def main():
     run_psql(sql_ord4)
 
     # 5. ĐƠN 5: ĐÃ HOÀN TẤT & XUẤT HÓA ĐƠN (COMPLETED) - Sân A02 hôm qua 17:00 - 19:00
-    # Khách: Trần Hoàng Nam. 200k/h x 2h = 400k. Đã thanh toán 100% (200k cọc + 200k tiền mặt tại quầy). Có số hóa đơn INV-...
+    # Khách: Phạm Minh Đức. 200k/h x 2h = 400k. Đã thanh toán 100% (200k cọc + 200k tiền mặt tại quầy). Có số hóa đơn INV-...
     ord5_id = "55555555-5555-5555-5555-111111111111"
     bkg5_id = "55555555-5555-5555-5555-222222222222"
     pay5_1 = "55555555-5555-5555-5555-333333333331"
@@ -305,7 +315,7 @@ def main():
 
     sql_ord5 = f"""
     INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, invoice_number, issued_at, created_at, version, metadata)
-    VALUES ('{ord5_id}', '{NAM_ID}', '{NAM_ID}', 'Trần Hoàng Nam', '0912345678', 'COMPLETED', 400000.00, 200000.00, 400000.00, 'PAID', 'INV-20261026-001', '{yesterday_str} 19:05:00+07', '{yesterday_str} 10:00:00+07', 0, '{{"customerFlow": true}}');
+    VALUES ('{ord5_id}', '{DUC_ID}', '{DUC_ID}', 'Phạm Minh Đức', '0988666555', 'COMPLETED', 400000.00, 200000.00, 400000.00, 'PAID', 'INV-20261026-001', '{yesterday_str} 19:05:00+07', '{yesterday_str} 10:00:00+07', 0, '{{"customerFlow": true}}');
 
     INSERT INTO bookings (id, order_id, status, check_in_at, check_out_at, created_at)
     VALUES ('{bkg5_id}', '{ord5_id}', 'COMPLETED', '{yesterday_str} 16:55:00+07', '{yesterday_str} 19:02:00+07', '{yesterday_str} 10:00:00+07');
@@ -323,7 +333,7 @@ def main():
     run_psql(sql_ord5)
 
     # 6. ĐƠN 6: ĐÃ HỦY VÀ HOÀN TIỀN 70% (CANCELLED & REFUNDED) - Sân A03 2 ngày trước
-    # Khách: Trần Hoàng Nam. Cọc 200k. Hủy trước 24h -> Hoàn 70% = 140k. CLB giữ lại 60k.
+    # Khách: Vũ Mai Phương. Cọc 200k. Hủy trước 24h -> Hoàn 70% = 140k. CLB giữ lại 60k.
     ord6_id = "66666666-6666-6666-6666-111111111111"
     bkg6_id = "66666666-6666-6666-6666-222222222222"
     pay6_id = "66666666-6666-6666-6666-333333333333"
@@ -334,7 +344,7 @@ def main():
 
     sql_ord6 = f"""
     INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata)
-    VALUES ('{ord6_id}', '{NAM_ID}', '{NAM_ID}', 'Trần Hoàng Nam', '0912345678', 'CANCELLED', 400000.00, 200000.00, 60000.00, 'PARTIAL', '{two_days_ago_str} 09:00:00+07', 0, '{{"customerFlow": true}}');
+    VALUES ('{ord6_id}', '{PHUONG_ID}', '{PHUONG_ID}', 'Vũ Mai Phương', '0903111222', 'CANCELLED', 400000.00, 200000.00, 60000.00, 'PARTIAL', '{two_days_ago_str} 09:00:00+07', 0, '{{"customerFlow": true}}');
 
     INSERT INTO bookings (id, order_id, status, created_at)
     VALUES ('{bkg6_id}', '{ord6_id}', 'CANCELLED', '{two_days_ago_str} 09:00:00+07');
@@ -353,7 +363,7 @@ def main():
     run_psql(sql_ord6)
 
     # 7. ĐƠN 7: CÓ THUÊ TRỌNG TÀI (CONFIRMED) - Sân V02 hôm nay 17:00 - 19:00
-    # Tiền sân: 500k/h x 2h = 1.000.000đ. Phí trọng tài (TT Phạm Quốc Huy): 250k/h x 2h = 500.000đ. Tổng: 1.500.000đ.
+    # Khách: Đặng Hoàng Long. Tiền sân: 500k/h x 2h = 1.000.000đ. Phí trọng tài (TT Phạm Quốc Huy): 250k/h x 2h = 500.000đ. Tổng: 1.500.000đ.
     ord7_id = "77777777-7777-7777-7777-111111111111"
     bkg7_id = "77777777-7777-7777-7777-222222222222"
     pay7_id = "77777777-7777-7777-7777-333333333333"
@@ -363,7 +373,7 @@ def main():
 
     sql_ord7 = f"""
     INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata)
-    VALUES ('{ord7_id}', '{NAM_ID}', '{NAM_ID}', 'Trần Hoàng Nam', '0912345678', 'CONFIRMED', 1500000.00, 500000.00, 500000.00, 'PARTIAL', NOW() - interval '6 hours', 0, '{{"customerFlow": true}}');
+    VALUES ('{ord7_id}', '{LONG_ID}', '{LONG_ID}', 'Đặng Hoàng Long', '0938444333', 'CONFIRMED', 1500000.00, 500000.00, 500000.00, 'PARTIAL', NOW() - interval '6 hours', 0, '{{"customerFlow": true}}');
 
     INSERT INTO bookings (id, order_id, status, created_at)
     VALUES ('{bkg7_id}', '{ord7_id}', 'CONFIRMED', NOW() - interval '6 hours');
@@ -461,8 +471,8 @@ def main():
         teams = [
             ("Hoàng Nam & Minh Anh", NAM_ID, "350000"),
             ("Lê Thu Hà & Quốc Huy", HA_ID, "350000"),
-            ("Đức Long & Thanh Bình", None, "350000"),
-            ("Hải Đăng & Tấn Phát", None, "350000")
+            ("Phạm Minh Đức & Thanh Bình", DUC_ID, "350000"),
+            ("Đặng Hoàng Long & Tấn Phát", LONG_ID, "350000")
         ]
         tourn_sql = ""
         for i, (tname, acc, fee) in enumerate(teams):
