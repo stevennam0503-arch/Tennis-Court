@@ -53,7 +53,11 @@ public class ScheduleService {
   }
 
   public List<CourtSchedule> lockSlots(List<UUID> ids) {
-    require(ids != null && !ids.isEmpty() && ids.size() <= 48, "Chọn ít nhất một khung giờ");
+    return lockSlots(ids, false);
+  }
+
+  public List<CourtSchedule> lockSlots(List<UUID> ids, boolean allowMultiDate) {
+    require(ids != null && !ids.isEmpty() && ids.size() <= 200, "Chọn ít nhất một khung giờ");
     require(new HashSet<>(ids).size() == ids.size(), "Khung giờ bị lặp");
     List<CourtSchedule> result =
         ids.stream()
@@ -64,9 +68,11 @@ public class ScheduleService {
                         .findForUpdate(id)
                         .orElseThrow(() -> new BusinessException("Không tìm thấy khung giờ")))
             .toList();
-    require(
-        result.stream().map(CourtSchedule::getScheduleDate).distinct().count() == 1,
-        "Các slot cần cùng ngày");
+    if (!allowMultiDate) {
+      require(
+          result.stream().map(CourtSchedule::getScheduleDate).distinct().count() == 1,
+          "Các slot cần cùng ngày");
+    }
     return result;
   }
 

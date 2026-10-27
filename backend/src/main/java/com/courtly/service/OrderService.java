@@ -34,9 +34,42 @@ public class OrderService {
 
   @Transactional
   public UUID create(BookingRequest request) {
+    Integer weeks = request.recurringWeeks() == null ? 1 : request.recurringWeeks();
+    require(weeks >= 1 && weeks <= 12, "Số tuần định kỳ không hợp lệ (từ 1 đến 12 tuần)");
+
     List<CourtSchedule> selected = scheduling.lockSlots(request.scheduleIds());
     scheduling.requireAvailable(selected);
     future(selected);
+
+    List<CourtSchedule> allSlots = new ArrayList<>(selected);
+    LocalDate baseDate = selected.get(0).getScheduleDate();
+
+    if (weeks > 1) {
+      for (int w = 1; w < weeks; w++) {
+        LocalDate targetDate = baseDate.plusWeeks(w);
+        scheduling.generate(targetDate);
+        for (CourtSchedule baseSlot : selected) {
+          CourtSchedule futureSlot = schedules
+              .findByCourtIdAndScheduleDate(baseSlot.getCourt().getId(), targetDate)
+              .stream()
+              .filter(s -> s.getStartTime().equals(baseSlot.getStartTime()) && s.getEndTime().equals(baseSlot.getEndTime()))
+              .findFirst()
+              .orElseThrow(() -> new BusinessException("Không tìm thấy khung giờ " + baseSlot.getStartTime() + " ngày " + targetDate));
+
+          futureSlot = schedules.findForUpdate(futureSlot.getId())
+              .orElseThrow(() -> new BusinessException("Không tìm thấy khung giờ ngày " + targetDate));
+
+          if (!"ACTIVE".equals(futureSlot.getCourt().getStatus())) {
+            throw new BusinessException("Sân " + futureSlot.getCourt().getName() + " tạm dừng hoạt động vào tuần " + (w + 1) + " (ngày " + targetDate + ")");
+          }
+          if (!"AVAILABLE".equals(futureSlot.getStatus())) {
+            throw new BusinessException("Khung giờ " + futureSlot.getStartTime() + " - " + futureSlot.getEndTime() + " sân " + futureSlot.getCourt().getName() + " vào tuần " + (w + 1) + " (ngày " + targetDate + ") đã có người đặt hoặc đang bảo trì");
+          }
+          allSlots.add(futureSlot);
+        }
+      }
+    }
+
     CustomerOrder order = new CustomerOrder();
     if (request.accountId() != null) {
       Account account =
@@ -59,16 +92,23 @@ public class OrderService {
     Booking booking = new Booking();
     booking.setOrder(order);
     bookings.save(booking);
-    allocate(booking, selected, "LOCKED");
+    allocate(booking, allSlots, "LOCKED");
     assignExact(booking, selected, request.assignments());
-    quote(order, selected);
-    applyVoucher(order, request.voucherCode(), selected);
+    quote(order, allSlots);
+    applyVoucher(order, request.voucherCode(), allSlots);
     totals.recalculate(order);
     order.setDepositRequired(
         depositBase(order)
             .multiply(BigDecimal.valueOf(depositPercent(order)))
             .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
-    audit.log("TẠO ĐƠN", order.getId().toString());
+    if (weeks > 1) {
+      var meta = documents.decode(order.getMetadata());
+      meta.put("recurringWeeks", weeks);
+      meta.put("recurringType", "WEEKLY");
+      meta.put("recurringSummary", "Định kỳ " + weeks + " tuần (" + baseDate + " đến " + baseDate.plusWeeks(weeks - 1) + ")");
+      order.setMetadata(documents.encode(meta));
+    }
+    audit.log("TẠO ĐƠN", order.getId().toString() + (weeks > 1 ? " [ĐỊNH KỲ " + weeks + " TUẦN]" : ""));
     return order.getId();
   }
 

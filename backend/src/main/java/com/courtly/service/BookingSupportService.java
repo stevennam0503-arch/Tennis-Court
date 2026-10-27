@@ -23,6 +23,7 @@ public class BookingSupportService {
   private final CustomerOrderRepository orders;
   private final BookingStaffRepository bookingStaff;
   private final OrderService service;
+  private final ScheduleService scheduling;
   private final OverviewService views;
   private final SettingsService settings;
   private final MembershipService membership;
@@ -54,6 +55,10 @@ public class BookingSupportService {
   }
 
   public Map<String, Object> options(List<UUID> ids, UUID exclude, Account a, UUID account, String voucherCode) {
+    return options(ids, exclude, a, account, voucherCode, 1);
+  }
+
+  public Map<String, Object> options(List<UUID> ids, UUID exclude, Account a, UUID account, String voucherCode, Integer recurringWeeks) {
     if (exclude != null) owns(a, exclude);
     var rows = selected(ids);
     service.future(rows);
@@ -73,6 +78,25 @@ public class BookingSupportService {
           || !"AVAILABLE".equals(s.getStatus()) && !own.contains(s.getId()))
         conflict.add(
             map("scheduleId", s.getId(), "message", "Slot vừa được đặt hoặc đang bị khóa"));
+
+    if (recurringWeeks != null && recurringWeeks > 1) {
+      java.time.LocalDate baseDate = rows.get(0).getScheduleDate();
+      for (int w = 1; w < recurringWeeks; w++) {
+        java.time.LocalDate targetDate = baseDate.plusWeeks(w);
+        scheduling.generate(targetDate);
+        for (var s : rows) {
+          var matched = schedules.findByCourtIdAndScheduleDate(s.getCourt().getId(), targetDate).stream()
+              .filter(x -> x.getStartTime().equals(s.getStartTime()) && x.getEndTime().equals(s.getEndTime()))
+              .findFirst();
+          if (matched.isEmpty() || !"ACTIVE".equals(matched.get().getCourt().getStatus()) || !"AVAILABLE".equals(matched.get().getStatus())) {
+            conflict.add(map(
+                "scheduleId", s.getId(),
+                "message", "Tuần " + (w + 1) + " (" + targetDate.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM")) + ") khung giờ " + s.getStartTime() + " đã có người đặt hoặc đang bảo trì"
+            ));
+          }
+        }
+      }
+    }
     var slotViews =
         rows.stream()
             .map(
@@ -133,6 +157,8 @@ public class BookingSupportService {
     return map(
         "courtQuote",
         membership.quote(account, rows),
+        "recurringWeeks",
+        recurringWeeks == null ? 1 : recurringWeeks,
         "date",
         rows.get(0).getScheduleDate(),
         "slots",

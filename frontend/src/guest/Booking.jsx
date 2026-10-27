@@ -90,13 +90,14 @@ export default function Booking() {
       api('/booking/options', 'POST', {
         scheduleIds: allChosen.map(s => s.id),
         voucherCode: appliedVoucher ? appliedVoucher.code : undefined,
+        recurringWeeks: recurringWeeks > 1 ? recurringWeeks : undefined,
         ...(moveOrder ? {excludeId: moveOrder.id} : {})
       })
         .then(x => { if (live) { setOptions(x); setError(''); } })
         .catch(e => { if (live) setError(e.message); });
     }
     return () => { live = false; };
-  }, [signature, allChosen.length, user?.id, moveOrder?.id, appliedVoucher?.code]);
+  }, [signature, allChosen.length, user?.id, moveOrder?.id, appliedVoucher?.code, recurringWeeks]);
 
   const checkMultiCourtGap = (minuteStart, minuteEnd) => {
     const otherCourts = Object.entries(courtRanges).filter(([cid, val]) => cid !== court?.id && val.valid);
@@ -164,9 +165,9 @@ export default function Booking() {
   const referee = wantReferee ? people.find(p => p.id === refId) : null;
   const refFee = referee ? (toMinutes(refEnd) - toMinutes(refStart)) * referee.rate / 60 : 0;
 
-  const gross = allChosen.reduce((sum, s) => sum + s.price, 0);
-  const discount = options?.courtQuote?.discount ?? 0;
-  const baseCourtNet = options?.courtQuote?.net ?? Math.max(0, gross - discount);
+  const gross = allChosen.reduce((sum, s) => sum + s.price, 0) * recurringWeeks;
+  const discount = (options?.courtQuote?.discount ?? 0) * recurringWeeks;
+  const baseCourtNet = Math.max(0, gross - discount);
   const voucherDiscount = appliedVoucher ? appliedVoucher.discount : 0;
   const net = Math.max(0, baseCourtNet - voucherDiscount);
   const totalAmount = net + refFee;
@@ -774,14 +775,71 @@ export default function Booking() {
             )}
           </div>
 
+          {/* CHỌN HÌNH THỨC ĐẶT SÂN: ĐẶT 1 BUỔI HOẶC ĐỊNH KỲ */}
+          {!moveOrder && (
+            <div className="gx-recurring-box" style={{
+              margin: '14px 0',
+              padding: '12px',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: 10
+            }}>
+              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8}}>
+                <span style={{fontSize: 12, fontWeight: 700, color: '#173c32', textTransform: 'uppercase', letterSpacing: '0.04em'}}>
+                  {t('Hình thức đặt')}
+                </span>
+                {recurringWeeks > 1 && (
+                  <span style={{fontSize: 11, color: '#0f766e', fontWeight: 700, background: '#ccfbf1', padding: '2px 8px', borderRadius: 12}}>
+                    {t('Định kỳ')} {recurringWeeks} {t('tuần')}
+                  </span>
+                )}
+              </div>
+              <div style={{display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6}}>
+                {[
+                  {weeks: 1, label: t('1 buổi lẻ')},
+                  {weeks: 4, label: t('4 tuần')},
+                  {weeks: 8, label: t('8 tuần')},
+                  {weeks: 12, label: t('12 tuần')}
+                ].map(opt => (
+                  <button
+                    key={opt.weeks}
+                    type="button"
+                    onClick={() => setRecurringWeeks(opt.weeks)}
+                    style={{
+                      padding: '8px 4px',
+                      fontSize: 11,
+                      fontWeight: recurringWeeks === opt.weeks ? 700 : 600,
+                      borderRadius: 6,
+                      border: recurringWeeks === opt.weeks ? '2px solid #173c32' : '1px solid #cbd5e1',
+                      background: recurringWeeks === opt.weeks ? '#173c32' : '#ffffff',
+                      color: recurringWeeks === opt.weeks ? '#def46a' : '#334155',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {recurringWeeks > 1 && (
+                <div style={{fontSize: 11, color: '#0f766e', marginTop: 8, lineHeight: 1.4}}>
+                  🔄 {t('Hệ thống tự động giữ khung giờ này cho')} <strong>{recurringWeeks} {t('tuần liên tiếp')}</strong> ({date} → {new Date(new Date(date).getTime() + (recurringWeeks - 1) * 7 * 86400000).toISOString().slice(0, 10)}).
+                </div>
+              )}
+            </div>
+          )}
+
           <dl>
             <div>
-              <dt>{t('Tiền sân')} ({allChosen.length * 30} {t('phút')})</dt>
+              <dt>
+                {t('Tiền sân')} ({allChosen.length * 30} {t('phút')}{recurringWeeks > 1 ? ` × ${recurringWeeks} ${t('tuần')}` : ''})
+              </dt>
               <dd>{money(gross)}</dd>
             </div>
             {discount > 0 && (
               <div>
-                <dt>{t('Ưu đãi hội viên')}</dt>
+                <dt>{t('Ưu đãi hội viên')}{recurringWeeks > 1 ? ` (× ${recurringWeeks} ${t('tuần')})` : ''}</dt>
                 <dd>−{money(discount)}</dd>
               </div>
             )}
@@ -803,7 +861,7 @@ export default function Booking() {
 
           <div className="gx-deposit">
             <div>
-              <span>{t('Cọc 50% tiền sân')}</span>
+              <span>{t('Cọc 50% tiền sân')} {recurringWeeks > 1 ? `(${recurringWeeks} ${t('tuần')})` : ''}</span>
               <strong>{money(depositAmount)}</strong>
             </div>
             <p>{t('Phí trọng tài nằm trong phần thanh toán còn lại.')}</p>

@@ -563,6 +563,7 @@ export function Orders({history=false}){
           const refStaff=o.staff?.[0];
           const oDate=o.date||sortedSlots[0]?.scheduleDate||'';
           const isPastConfirmed=o.status==='CONFIRMED'&&oDate<todayStr;
+          const meta=(()=>{try{return typeof o.metadataRaw==='string'?JSON.parse(o.metadataRaw):(o.metadataRaw||{})}catch(e){return {}}})();
 
           return (
             <article key={o.id} style={{background:'#ffffff',borderRadius:12,border:'1.5px solid #dce4d6',padding:20,boxShadow:'0 2px 10px rgba(0,0,0,0.03)'}}>
@@ -590,9 +591,16 @@ export function Orders({history=false}){
                     🎾
                   </div>
                   <div>
-                    <h3 style={{margin:0,fontSize:17,color:'#173c32',fontWeight:700}}>{courtName}</h3>
+                    <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                      <h3 style={{margin:0,fontSize:17,color:'#173c32',fontWeight:700}}>{courtName}</h3>
+                      {meta.recurringWeeks > 1 && (
+                        <span style={{background:'#ccfbf1',color:'#0f766e',fontSize:11.5,fontWeight:700,padding:'2px 8px',borderRadius:6}}>
+                          🔄 {meta.recurringSummary || `Định kỳ ${meta.recurringWeeks} tuần`}
+                        </span>
+                      )}
+                    </div>
                     <span style={{fontSize:13,color:'#52655a'}}>
-                      ⏰ <b>{startTime} – {endTime}</b> · Ngày {o.date}
+                      ⏰ <b>{startTime} – {endTime}</b> · {meta.recurringWeeks > 1 ? t('Bắt đầu từ') : t('Ngày')} {o.date}
                     </span>
                   </div>
                 </div>

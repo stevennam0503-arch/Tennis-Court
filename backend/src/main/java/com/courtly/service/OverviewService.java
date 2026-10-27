@@ -651,6 +651,8 @@ public class OverviewService {
         s.getId(),
         "court",
         s.getCourt().getId(),
+        "date",
+        s.getScheduleDate(),
         "start", s.getStartTime(), "end", s.getEndTime(),
         "hour",
         s.getStartTime().getHour() + s.getStartTime().getMinute() / 60.0,

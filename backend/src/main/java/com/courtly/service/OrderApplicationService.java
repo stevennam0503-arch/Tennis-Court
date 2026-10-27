@@ -81,7 +81,8 @@ public class OrderApplicationService {
         Set.of("ADMIN", "STAFF").contains(actor.getRole())
             ? (b.get("accountId") == null ? null : UUID.fromString(b.get("accountId").toString()))
             : actor.getId(),
-        (String) b.get("voucherCode"));
+        (String) b.get("voucherCode"),
+        b.get("recurringWeeks") == null ? 1 : ((Number) b.get("recurringWeeks")).intValue());
   }
 
   private List<UUID> ids(Object value) {
