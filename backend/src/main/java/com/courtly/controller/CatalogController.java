@@ -20,6 +20,7 @@ public class CatalogController {
   private final com.courtly.service.RequestService requests;
   private final com.courtly.service.ScheduleService schedules;
   private final com.courtly.service.AuditService audit;
+  private final com.courtly.service.DemoResetService demoReset;
 
   @PostMapping("/{collection}")
   @PreAuthorize("hasRole('ADMIN')")
@@ -71,6 +72,15 @@ public class CatalogController {
     var actor = auth.current(req);
     service.delete(collection, id, actor);
     return map("success", true, "id", id);
+  }
+
+  @PostMapping("/demo-reset")
+  @PreAuthorize("hasRole('ADMIN')")
+  public Map<String, Object> demoReset(jakarta.servlet.http.HttpServletRequest req) {
+    auth.admin(auth.current(req));
+    demoReset.resetShowcaseData();
+    audit.log("ĐẶT LẠI DỮ LIỆU MẪU", "Khôi phục thành công 7 đơn hàng chuẩn & giải đấu trình diễn Hội đồng");
+    return map("success", true, "message", "Đã đặt lại dữ liệu chuẩn Hội đồng thành công!");
   }
 
   @PostMapping("/schedules/maintenance")

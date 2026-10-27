@@ -4,17 +4,21 @@ Tài liệu này được biên soạn để hỗ trợ nhóm trình diễn hệ
 
 ---
 
-## ⚡ 1. CÔNG CỤ RESET DỮ LIỆU CHUẨN TRƯỚC GIỜ BẢO VỆ (1-CLICK RESET)
-Bất cứ khi nào nhóm tập dượt xong (làm bẩn hoặc lệch dữ liệu), chỉ cần chạy **1 lệnh duy nhất** trước khi lên phòng bảo vệ để đưa toàn bộ hệ thống về trạng thái chuẩn chỉ từng con số:
+## ⚡ 1. CÔNG CỤ RESET DỮ LIỆU CHUẨN TRƯỚC VÀ TRONG GIỜ BẢO VỆ (1-CLICK RESET)
+Bất cứ khi nào nhóm tập dượt xong (làm bẩn hoặc lệch dữ liệu), hoặc khi đang bảo vệ mà thầy cô Hội đồng yêu cầu: *"Em thử tạo đơn / hủy đơn / đặt lịch xem"*, bạn có thể đưa toàn bộ hệ thống về trạng thái chuẩn chỉ từng con số bằng các cách:
 
-- **Cách 1 (Nhanh nhất trên Windows):** Vào thư mục `scripts/`, nhấp đúp chuột vào file **`reset-showcase.bat`**.
-- **Cách 2 (Qua Terminal):**
+- **Cách 1 (Tuyệt vời nhất - Trực tiếp trên giao diện Admin):** 
+  - Đăng nhập tài khoản Admin (`admin@gmail.com` / `12345`).
+  - Vào menu **Hệ thống & module** $\rightarrow$ Bấm nút **[ 🔄 Đặt lại dữ liệu mẫu Hội đồng ]** ở góc phải tiêu đề hoặc tại tab **"Dữ liệu mẫu Hội đồng"**.
+  - Bấm **"Xác nhận đặt lại dữ liệu"** $\rightarrow$ Hệ thống tự động xóa sạch các đơn phát sinh và nạp lại chuẩn 100% trong 1 giây, không cần mở cmd/terminal.
+- **Cách 2 (Trên Windows qua file .bat):** Vào thư mục `scripts/`, nhấp đúp chuột vào file **`reset-showcase.bat`**.
+- **Cách 3 (Qua Terminal):**
   ```bash
   npm --prefix frontend run demo:reset
   # hoặc
   python scripts/seed_showcase.py
   ```
-> ⏱️ Thời gian reset chỉ mất **3 giây**. 1.100+ đơn rác bị xóa sạch, thay bằng **7 đơn hàng mẫu chuẩn** tương thích với thời gian thực của ngày hôm nay.
+> ⏱️ Thời gian reset chỉ mất **1 - 2 giây**. Toàn bộ đơn hàng rác bị xóa sạch, thay bằng **7 đơn hàng mẫu chuẩn** tương thích với thời gian thực của ngày hôm nay.
 
 ---
 

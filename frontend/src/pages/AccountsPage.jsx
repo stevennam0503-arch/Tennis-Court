@@ -38,7 +38,11 @@ export default function AccountsPage() {
       await mutate(`/catalog/accounts/${a.id}`, {}, 'DELETE');
       notify(`Đã xóa vĩnh viễn tài khoản "${a.name}" và giải phóng email.`);
     } catch (e) {
-      notify(e.message);
+      if (e.status === 403 || e.status === 401) {
+        notify('Phiên đăng nhập đã thay đổi hoặc cần quyền Admin. Vui lòng làm mới trang hoặc đăng nhập tài khoản admin@gmail.com.');
+      } else {
+        notify(e.message || 'Không thể xóa tài khoản. Vui lòng thử lại.');
+      }
     } finally {
       setDeletingId(null);
     }
@@ -100,6 +104,12 @@ export default function AccountsPage() {
         <Stat title="Khách hàng" value={counts.CUSTOMER} note="Khách đặt sân & hội viên" icon={UserCheck} />
         <Stat title="Nhân sự / Staff" value={counts.STAFF} note="Thu ngân & điều hành sân" icon={Shield} />
         <Stat title="Quản trị viên" value={counts.ADMIN} note="Chủ sân & Admin quản trị" icon={Lock} />
+      </div>
+
+      <div className="notice" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+        <span>
+          💡 <b>Mẹo trình diễn Hội đồng:</b> Nút <b>Xóa</b> giúp giải phóng vĩnh viễn email để bạn có thể kiểm tra trực tiếp quy trình đăng ký mới. Sau khi thử nghiệm xong, bạn có thể vào menu <b>Hệ thống & module</b> để nhấn <b>"Đặt lại dữ liệu mẫu Hội đồng"</b> khôi phục bộ dữ liệu chuẩn chỉ trong 1 giây.
+        </span>
       </div>
 
       {/* Role Navigation Tabs */}

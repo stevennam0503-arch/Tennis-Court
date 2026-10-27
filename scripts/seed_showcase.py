@@ -76,19 +76,20 @@ def main():
     -- 3. Đưa toàn bộ khung giờ sân về AVAILABLE
     UPDATE court_schedules SET status = 'AVAILABLE';
 
-    -- 4. Đảm bảo tài khoản mẫu tồn tại chuẩn
+    -- 4. Đảm bảo toàn bộ 5 tài khoản mẫu cốt lõi luôn tồn tại chuẩn
     INSERT INTO accounts (id, email, full_name, phone, role, status, password_hash, created_at, auth_version)
     VALUES 
+      ('{ADMIN_ID}', 'admin@gmail.com', 'Quản trị Courtly', '0909999999', 'ADMIN', 'ACTIVE', '{BCRYPT_12345}', NOW(), 0),
+      ('{STAFF_ID}', 'staff@gmail.com', 'Lễ tân Courtly (Staff)', '0908888888', 'STAFF', 'ACTIVE', '{BCRYPT_12345}', NOW(), 0),
+      ('{KIET_ID}', 'kietdlv@gmail.com', 'Kiet Nguyen [Hội viên Plus]', '0901234567', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0),
       ('{NAM_ID}', 'hoangnam@gmail.com', 'Trần Hoàng Nam', '0912345678', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0),
       ('{HA_ID}', 'khachmoi@gmail.com', 'Lê Thu Hà', '0987654321', 'CUSTOMER', 'ACTIVE', '{BCRYPT_1234567890123}', NOW(), 0)
     ON CONFLICT (id) DO UPDATE SET 
       full_name = EXCLUDED.full_name,
       phone = EXCLUDED.phone,
-      password_hash = EXCLUDED.password_hash;
-
-    UPDATE accounts SET full_name = 'Kiet Nguyen [Hội viên Plus]', phone = '0901234567' WHERE id = '{KIET_ID}';
-    UPDATE accounts SET full_name = 'Quản trị Courtly', phone = '0909999999' WHERE id = '{ADMIN_ID}';
-    UPDATE accounts SET full_name = 'Lễ tân Courtly (Staff)', phone = '0908888888' WHERE id = '{STAFF_ID}';
+      role = EXCLUDED.role,
+      status = EXCLUDED.status,
+      password_hash = COALESCE(accounts.password_hash, EXCLUDED.password_hash);
     """
     print("🧹 Đang dọn dẹp dữ liệu rác...")
     run_psql(cleanup_sql)
