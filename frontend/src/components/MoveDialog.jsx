@@ -1,3 +1,4 @@
+import {editableVisit} from '../utils/order-visits.mjs';
 import {slotLabel,slotHours,hourLabel} from '../utils/format';
 import React,{useState,useRef} from 'react';
 import {useCourtly} from '../context';
@@ -7,7 +8,7 @@ import {PolicyNotice} from './OrderSummary';
 import {RefereeSlots} from './BookingFlow';
 import {money,today} from '../utils/format';
 export default function MoveDialog({id,onClose,mode='move'}){
- const {data,isAdmin,mutate,show,notify}=useCourtly(),fullOrder=data.orders.find(x=>x.id===id),o={...fullOrder,slots:fullOrder.slots.filter(s=>(s.date||fullOrder.date)===fullOrder.date)},assign=mode==='assign',restore=mode==='restore';
+ const {data,isAdmin,mutate,show,notify}=useCourtly(),fullOrder=data.orders.find(x=>x.id===id),o=editableVisit(fullOrder),assign=mode==='assign',restore=mode==='restore';
  const [form,setForm]=useState({date:o.date,court:o.slots[0]?.court,start:o.slots[0]?.hour,hours:o.slots.reduce((n,s)=>n+slotHours(s),0),reason:''}),[options,setOptions]=useState(null),[assignments,setAssignments]=useState([]),[preview,setPreview]=useState(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);const requestId=useRef(crypto.randomUUID());
  const edit=(key,value)=>{setForm(v=>({...v,[key]:value}));setOptions(null);setPreview(null);requestId.current=crypto.randomUUID();};
  const load=async()=>{setError('');setBusy(true);try{let ids=o.slots.map(s=>s.id);if(!assign){await api('/schedules/generate','POST',{date:form.date});const snap=await api('/overview?date='+form.date);const chosen=snap.schedules.filter(s=>s.court===form.court&&s.hour>=Number(form.start)&&s.hour+slotHours(s)<=Number(form.start)+Number(form.hours)).sort((a,b)=>a.hour-b.hour);ids=chosen.map(s=>s.id);if(!chosen.length||chosen[0].hour!==Number(form.start)||chosen.reduce((n,s)=>n+slotHours(s),0)!==Number(form.hours))throw Error('Khoảng giờ không hợp lệ');}const opts=await api('/booking/options','POST',{scheduleIds:ids,excludeId:id});setOptions(opts);setAssignments(o.staff.filter(x=>x.scheduleId&&ids.includes(x.scheduleId)).map(x=>({staffId:x.staffId,scheduleId:x.scheduleId})));setPreview(null);}catch(e){setError(e.message);}finally{setBusy(false);}};

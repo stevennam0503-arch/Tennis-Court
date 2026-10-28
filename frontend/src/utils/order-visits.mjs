@@ -13,3 +13,10 @@ export function hasVisitInRange(order, start = '', end = '9999-12-31', remaining
   return (order.slots || []).some(slot => (!remainingOnly || !slot.completed)
     && slotDay(slot, order) >= start && slotDay(slot, order) <= end);
 }
+
+// Editing a visit must not select completed allocations or historical referee assignments.
+export function editableVisit(order, date = order.date) {
+  return {...order, date,
+    slots: (order.slots || []).filter(s => !s.completed && slotDay(s, order) === date),
+    staff: (order.staff || []).filter(s => !s.completed && slotDay(s, order) === date)};
+}

@@ -1,3 +1,4 @@
+import {editableVisit} from '../utils/order-visits.mjs';
 import React, {useState, useEffect, useRef} from 'react';
 import {ArrowUpRight, ArrowRight, Clock, UserRound, RotateCcw, Check, Plus, Tag} from 'lucide-react';
 import {api} from '../services/api';
@@ -36,7 +37,7 @@ export default function Booking() {
 
   const rowsFor = c => (data?.schedules || []).filter(s => s.court === c?.id && s.date === date).sort((a, b) => a.start.localeCompare(b.start));
   const rows = rowsFor(court);
-  const ownIds = new Set(moveOrder?.slots?.map(s => s.id) || []);
+  const ownIds = new Set(moveOrder ? editableVisit(moveOrder).slots.map(s => s.id) : []);
   const available = s => (s.status === 'AVAILABLE' || ownIds.has(s.id)) && Date.parse(`${date}T${s.start}+07:00`) > Date.now();
 
   const resetAll = () => {

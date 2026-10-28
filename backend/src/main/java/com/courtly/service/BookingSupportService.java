@@ -234,13 +234,16 @@ public class BookingSupportService {
     var old = views.order(o);
     boolean restoring = Set.of("EXPIRED", "CANCELLED").contains(o.getStatus());
     var sourceDate = restoring ? null : service.visitDate(o, null);
+    // Completed allocations remain billable even when the replacement visit has the same date.
     var retained = ((List<Map<String,Object>>) old.get("slots")).stream()
-        .filter(slot -> restoring ? Boolean.TRUE.equals(slot.get("completed")) : !sourceDate.toString().equals(slot.get("date").toString())).toList();
+        .filter(slot -> Boolean.TRUE.equals(slot.get("completed"))
+            || !restoring && !sourceDate.toString().equals(slot.get("date").toString())).toList();
     require(rows.stream().noneMatch(row -> retained.stream().anyMatch(slot -> row.getId().toString().equals(slot.get("id").toString()))), "Lịch mới trùng một buổi khác của đơn");
     var allRows = new ArrayList<>(rows);
     retained.forEach(slot -> allRows.add(schedules.findById(UUID.fromString(slot.get("id").toString())).orElseThrow()));
     var retainedStaff = ((List<Map<String,Object>>) old.get("staff")).stream()
-        .filter(line -> restoring ? Boolean.TRUE.equals(line.get("completed")) : !sourceDate.toString().equals(line.get("date").toString())).toList();
+        .filter(line -> Boolean.TRUE.equals(line.get("completed"))
+            || !restoring && !sourceDate.toString().equals(line.get("date").toString())).toList();
     for (var line : retainedStaff) staffCost = staffCost.add(PresentationService.decimal(line.get("rate")).multiply(PresentationService.decimal(line.get("hours"))));
     staffView.addAll(retainedStaff);
     var products = (List<Map<String, Object>>) old.get("products");
