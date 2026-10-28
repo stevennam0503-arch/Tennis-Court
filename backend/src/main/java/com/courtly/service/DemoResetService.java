@@ -64,6 +64,7 @@ public class DemoResetService {
     jdbc.execute("DELETE FROM order_products");
     jdbc.execute("DELETE FROM bookings");
     jdbc.execute("DELETE FROM orders");
+    jdbc.execute("UPDATE vouchers SET used_count = 0");
     jdbc.execute("DELETE FROM tournament_registrations");
 
     // Xóa toàn bộ các tài khoản tự tạo / kiểm thử (chỉ giữ lại danh sách tài khoản chuẩn Hội đồng)

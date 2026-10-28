@@ -208,4 +208,48 @@ class VoucherServiceTest {
     assertEquals(false, evalHe100.get("applicable"));
     assertTrue(evalHe100.get("reason").toString().contains("Cần đơn từ"));
   }
+  @Test
+  void retainedRedemptionSurvivesRestorationWithoutAnotherUse() {
+    var voucher = createVoucher("KEPT", "FIXED", new BigDecimal("50000"), BigDecimal.ZERO, null);
+    voucher.setUsedCount(1); voucher.setUsageLimit(1); voucher.setEnabled(false);
+    var order = new CustomerOrder(); order.setId(UUID.randomUUID());
+    var redemption = new VoucherRedemption(); redemption.setVoucher(voucher);
+    redemption.setDiscountAmount(new BigDecimal("50000"));
+    when(redemptions.findByOrderId(order.getId())).thenReturn(Optional.of(redemption));
+    assertEquals(new BigDecimal("50000"), service.previewRestore("KEPT", order, new BigDecimal("400000")).get("discount"));
+    assertEquals(new BigDecimal("50000"), service.restore("KEPT", order, new BigDecimal("400000")).get("discount"));
+    verify(redemptions, never()).save(any());
+    verify(vouchers, never()).findByCodeForUpdate(any());
+    assertEquals(1, voucher.getUsedCount());
+  }
+
+  @Test
+  void returnedVoucherMustAcquireAUseAgainAndPreviewDoesNotConsumeIt() {
+    var voucher = createVoucher("REUSE", "FIXED", new BigDecimal("50000"), new BigDecimal("100000"), null);
+    var order = new CustomerOrder(); order.setId(UUID.randomUUID());
+    when(redemptions.findByOrderId(order.getId())).thenReturn(Optional.empty());
+    when(vouchers.findByCodeIgnoreCase("REUSE")).thenReturn(Optional.of(voucher));
+    when(vouchers.findByCodeForUpdate("REUSE")).thenReturn(Optional.of(voucher));
+    var preview = service.previewRestore("REUSE", order, new BigDecimal("200000"));
+    assertEquals(0, voucher.getUsedCount());
+    verify(redemptions, never()).save(any());
+    assertEquals(preview, service.restore("REUSE", order, new BigDecimal("200000")));
+    assertEquals(1, voucher.getUsedCount());
+    verify(redemptions).save(any());
+  }
+
+  @Test
+  void returnedVoucherCannotBypassCurrentLimitsOrMinimum() {
+    var voucher = createVoucher("LIMIT", "FIXED", new BigDecimal("50000"), new BigDecimal("150000"), null);
+    var order = new CustomerOrder(); order.setId(UUID.randomUUID());
+    when(redemptions.findByOrderId(order.getId())).thenReturn(Optional.empty());
+    when(vouchers.findByCodeIgnoreCase("LIMIT")).thenReturn(Optional.of(voucher));
+    when(vouchers.findByCodeForUpdate("LIMIT")).thenReturn(Optional.of(voucher));
+    assertThrows(BusinessException.class, () -> service.previewRestore("LIMIT", order, new BigDecimal("100000")));
+    assertThrows(BusinessException.class, () -> service.restore("LIMIT", order, new BigDecimal("100000")));
+    voucher.setUsedCount(100);
+    assertThrows(BusinessException.class, () -> service.previewRestore("LIMIT", order, new BigDecimal("200000")));
+    assertThrows(BusinessException.class, () -> service.restore("LIMIT", order, new BigDecimal("200000")));
+    verify(redemptions, never()).save(any());
+  }
 }

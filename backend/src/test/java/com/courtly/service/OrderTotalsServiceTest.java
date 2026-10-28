@@ -29,4 +29,13 @@ class OrderTotalsServiceTest {
     p.setUnitPrice(new BigDecimal("15000"));
     assertEquals(new BigDecimal("45000.00"), service.productTotal(p));
   }
+  @Test
+  void sharedTotalIncludesBothBenefitsAndClampsAtZero() {
+    assertEquals(new BigDecimal("350000"), OrderTotalsService.discountedTotal(
+        new BigDecimal("400000"), null, java.util.Map.of("discount", 50000)));
+    assertEquals(new BigDecimal("300000"), OrderTotalsService.discountedTotal(
+        new BigDecimal("400000"), java.util.Map.of("discount", 50000), java.util.Map.of("discount", 50000)));
+    assertEquals(0, OrderTotalsService.discountedTotal(new BigDecimal("20000"), null,
+        java.util.Map.of("discount", 50000)).signum());
+  }
 }

@@ -234,7 +234,9 @@ public class OrderService {
     Booking b = booking(order);
     b.setStatus("CANCELLED");
     release(b);
-    vouchers.release(id);
+    // Played visits have consumed the benefit; cancelling later visits must not return its use.
+    if (slots.findByBookingId(b.getId()).stream().noneMatch(x -> x.getCompletedAt() != null))
+      vouchers.release(id);
     audit.log("HỦY ĐƠN", id.toString());
   }
 
@@ -520,6 +522,16 @@ public class OrderService {
     var o = lock(id);
     require(
         Set.of("EXPIRED", "CANCELLED").contains(o.getStatus()), "Chỉ khôi phục đơn đã hủy/hết hạn");
+    var metadata = documents.decode(o.getMetadata());
+    if (metadata.get("voucherBenefit") instanceof Map<?, ?> benefit && benefit.get("code") != null) {
+      BigDecimal gross = scheduling.lockSlots(r.scheduleIds()).stream()
+          .map(CourtSchedule::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+      gross = gross.add(slots.findByBookingId(booking(o).getId()).stream()
+          .filter(x -> x.getCompletedAt() != null).map(BookingSlot::getUnitPrice)
+          .reduce(BigDecimal.ZERO, BigDecimal::add));
+      metadata.put("voucherBenefit", vouchers.restore(benefit.get("code").toString(), o, gross));
+      o.setMetadata(documents.encode(metadata));
+    }
     o.setStatus("HOLDING");
     o.setHoldExpiresAt(Instant.now().plusSeconds(settings.get().getHoldMinutes() * 60L));
     move(id, r);

@@ -28,6 +28,7 @@ public class BookingSupportService {
   private final SettingsService settings;
   private final MembershipService membership;
   private final VoucherService vouchers;
+  private final DocumentService documents;
 
   public void owns(Account a, UUID id) {
     var o = orders.findById(id).orElseThrow();
@@ -250,7 +251,12 @@ public class BookingSupportService {
     var benefit =
         membership.quote(
             o.getCustomerAccount() == null ? null : o.getCustomerAccount().getId(), allRows);
-    BigDecimal total = PresentationService.decimal(benefit.get("net")).add(staffCost).add(extras);
+    BigDecimal gross = court.add(retained.stream().map(slot -> PresentationService.decimal(slot.get("price")))
+        .reduce(BigDecimal.ZERO, BigDecimal::add));
+    Object voucher = documents.decode(o.getMetadata()).get("voucherBenefit");
+    if (restoring && voucher instanceof Map<?, ?> v && v.get("code") != null)
+      voucher = vouchers.previewRestore(v.get("code").toString(), o, gross);
+    BigDecimal total = OrderTotalsService.discountedTotal(gross.add(staffCost).add(extras), benefit, voucher);
     var next = new LinkedHashMap<>(old);
     var nextSlots = new ArrayList<Map<String,Object>>((List<Map<String,Object>>) opt.get("slots"));
     nextSlots.forEach(slot -> slot.put("date", rows.get(0).getScheduleDate()));
@@ -260,11 +266,12 @@ public class BookingSupportService {
     next.put("staff", staffView);
     next.put("total", total);
     next.put("membershipBenefit", benefit);
+    next.put("voucherBenefit", voucher);
     next.put(
         "deposit",
         Set.of("ADMIN", "STAFF").contains(a.getRole())
             ? total.multiply(BigDecimal.valueOf(settings.get().getDepositPercent())).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP)
-            : PresentationService.decimal(benefit.get("net")).multiply(new BigDecimal("0.5")).setScale(0, RoundingMode.HALF_UP));
+            : OrderTotalsService.discountedTotal(gross, benefit, voucher).multiply(new BigDecimal("0.5")).setScale(0, RoundingMode.HALF_UP));
     return map(
         "next",
         next,

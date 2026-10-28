@@ -203,6 +203,9 @@ public class OrderApplicationService {
                 "Giá đã thay đổi; vui lòng xem trước lịch mới lại");
           if (!Set.of("ADMIN", "STAFF").contains(a.getRole()) && "CONFIRMED".equals(o.getStatus())) memberships.consumeChange(a.getId(), service.allocated(service.booking(o)).stream().filter(slot -> slot.getScheduleDate().equals(service.visitDate(o, null))).toList(), support.selected(r.scheduleIds()));
           service.move(id, r);
+          if (b.get("expectedTotal") != null)
+            require(o.getTotalAmount().compareTo(PresentationService.decimal(b.get("expectedTotal"))) == 0,
+                "Giá đã thay đổi; vui lòng xem trước lịch mới lại");
           if (!Set.of("ADMIN", "STAFF").contains(a.getRole())) customerDeposit(o);
           var extra = docs.decode(o.getMetadata());
           var excess = o.getPaidAmount().subtract(o.getTotalAmount()).max(java.math.BigDecimal.ZERO);
@@ -301,6 +304,9 @@ public class OrderApplicationService {
                       assignments(b),
                       (String) b.get("reason"),
                       (String) b.get("requestId")));
+              if (b.get("expectedTotal") != null)
+                require(o.getTotalAmount().compareTo(PresentationService.decimal(b.get("expectedTotal"))) == 0,
+                    "Giá đã thay đổi; vui lòng xem trước lịch mới lại");
             }
             case "extend" -> {
               var slotIds = ids(b.get("scheduleIds"));

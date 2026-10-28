@@ -95,3 +95,15 @@ SELECT id,name,type,surface_type FROM courts WHERE zone_needs_review;
 -- Completion markers must always have a release timestamp (zero rows expected).
 SELECT id FROM booking_slots WHERE completed_at IS NOT NULL AND released_at IS NULL;
 SELECT id FROM booking_staff WHERE completed_at IS NOT NULL AND released_at IS NULL;
+
+-- 15. Voucher usage must agree with the redemption ledger (zero rows expected).
+SELECT v.code,v.used_count,count(r.id) AS ledger_uses FROM vouchers v
+LEFT JOIN voucher_redemptions r ON r.voucher_id=v.id
+GROUP BY v.id,v.code,v.used_count HAVING v.used_count<>count(r.id);
+-- Existing discount with a missing redemption; V13 repairs known voucher definitions.
+SELECT o.id,o.status,o.metadata::jsonb->'voucherBenefit' AS benefit
+FROM orders o WHERE o.metadata::jsonb->'voucherBenefit'->>'code' IS NOT NULL
+ AND (o.status NOT IN ('CANCELLED','EXPIRED') OR EXISTS (
+  SELECT 1 FROM bookings b JOIN booking_slots bs ON bs.booking_id=b.id
+  WHERE b.order_id=o.id AND bs.completed_at IS NOT NULL))
+ AND NOT EXISTS (SELECT 1 FROM voucher_redemptions r WHERE r.order_id=o.id);

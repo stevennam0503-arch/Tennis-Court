@@ -710,6 +710,8 @@ FROM bookings b WHERE b.id=bs.booking_id AND b.status='COMPLETED';
 UPDATE booking_staff bs SET completed_at=bs.released_at
 FROM bookings b WHERE b.id=bs.booking_id AND b.status='COMPLETED';
 
+UPDATE vouchers v SET used_count=(SELECT count(*) FROM voucher_redemptions r WHERE r.voucher_id=v.id);
+
 COMMIT;
 """)
 

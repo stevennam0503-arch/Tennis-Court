@@ -21,7 +21,7 @@ async function resolveSlots(values) {
 export {resolveSlots};
 
 export const BookingDialog=BookingFlow;
-export function OrderDetail({id,onClose}) {
+export function OrderDetail({id,onClose,visitDate}) {
   const {data,show,mutate,notify}=useCourtly();
   const o=data.orders.find(x=>x.id===id);
   if(!o) return null;
@@ -30,7 +30,7 @@ export function OrderDetail({id,onClose}) {
 
   return <Modal title={`Chi tiết đơn đặt sân #${o.id.slice(0,8)}`} onClose={onClose} wide footer={<>
     {o.status==='HOLDING'&&<Button className="lime" onClick={()=>show({type:'payment',id})}>Thu cọc tại quầy ({money(o.deposit)})</Button>}
-    {o.status==='CONFIRMED'&&<Button className="primary" onClick={()=>show({type:'check-in',id})}>Thực hiện Check-in vào sân</Button>}
+    {o.status==='CONFIRMED'&&<Button className="primary" onClick={()=>show({type:'check-in',id,visitDate})}>Thực hiện Check-in vào sân</Button>}
     {o.status==='CHECKED_IN'&&<Button className="primary" onClick={()=>doAction('check-out')}>Check-out & Hoàn tất</Button>}
     {o.status==='CHECKED_IN'&&<Button onClick={()=>show({type:'extend-order',id})}>⚡ Gia hạn giờ chơi</Button>}
     {['HOLDING','CONFIRMED'].includes(o.status)&&<Button onClick={()=>show({type:'move',id})}>🔄 Đổi lịch sân</Button>}
@@ -57,6 +57,7 @@ export function OrderDetail({id,onClose}) {
       </div>
     </div>
 
+    {visitDate&&<p className="notice">Buổi đang xem trên lịch: <b>{visitDate}</b>. Chi tiết bên dưới gồm toàn bộ đơn.</p>}
     <div className="detail-head">
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <h2>{o.name}</h2>

@@ -1,6 +1,6 @@
 # Database và demo Courtly
 
-PostgreSQL 16. Bộ SQL khớp với ứng dụng trên nhánh `nam-dev`, dùng UUID và Flyway V1–V12.
+PostgreSQL 16. Bộ SQL khớp với ứng dụng trên nhánh `nam-dev`, dùng UUID và Flyway V1–V13.
 
 | File | Mục đích |
 | --- | --- |
@@ -115,3 +115,7 @@ Không xóa volume PostgreSQL. Chỉ build frontend sẽ chưa bổ sung sân.
 ## Đơn định kỳ sau V12
 
 Check-out kết thúc từng ngày chơi. Các buổi còn lại vẫn giữ sân và chi phí các buổi đã chơi được giữ trong đơn. Migration đánh dấu đơn cũ nghi bị nhả lịch tương lai bằng `RECURRING_VISITS_REVIEW`, không tự đặt lại sân. Xem [bản sửa vận hành](../docs/ADMIN_FIXES_2026-10-28.md) và các truy vấn cuối `query.sql` để đối chiếu.
+
+## Ledger voucher V13
+
+V13 bổ sung lượt voucher bị thiếu cho đơn đang hoạt động, đã hoàn tất hoặc đã chơi một phần, rồi đồng bộ bộ đếm với ledger. Không đổi tổng tiền hay phiếu thu cũ. Nếu không tìm được định nghĩa voucher, đơn được đánh dấu `VOUCHER_LEDGER_REVIEW` để quầy đối chiếu. Đơn hủy/hết hạn trước khi chơi vẫn được trả lượt.

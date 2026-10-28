@@ -51,17 +51,20 @@ public class OrderTotalsService {
     // Preserve excess receipts after cheaper moves for explicit reconciliation.
     if (documents != null) {
       var extra = documents.decode(order.getMetadata());
-      Object benefit = extra.get("membershipBenefit");
-      if (benefit instanceof java.util.Map<?, ?> m)
-        sum = sum.subtract(PresentationService.decimal(m.get("discount")));
-      Object voucher = extra.get("voucherBenefit");
-      if (voucher instanceof java.util.Map<?, ?> vm)
-        sum = sum.subtract(PresentationService.decimal(vm.get("discount")));
-      if (sum.compareTo(BigDecimal.ZERO) < 0) sum = BigDecimal.ZERO;
+      sum = discountedTotal(sum, extra.get("membershipBenefit"), extra.get("voucherBenefit"));
     }
     order.setSubtotal(sum);
     order.setTotalAmount(sum);
     updatePaymentStatus(order);
+  }
+
+  /** Shared by previews and persisted totals; discounts never produce a negative bill. */
+  public static BigDecimal discountedTotal(BigDecimal gross, Object membership, Object voucher) {
+    var total = gross;
+    for (var benefit : new Object[]{membership, voucher})
+      if (benefit instanceof java.util.Map<?, ?> m)
+        total = total.subtract(PresentationService.decimal(m.get("discount")));
+    return total.max(BigDecimal.ZERO);
   }
 
   public void updatePaymentStatus(CustomerOrder order) {

@@ -1,3 +1,4 @@
+import {hasVisitInRange} from '../utils/order-visits.mjs';
 import React, { useState, useMemo } from 'react';
 import { Calendar, Search, Filter, ChevronLeft, ChevronRight, Clock, Plus } from 'lucide-react';
 import { useCourtly } from '../context';
@@ -105,20 +106,19 @@ export default function OrdersPage() {
 
       // 3. Date range filter
       if (dateRange === 'today') {
-        if (o.date !== currentToday) return false;
+        if (!hasVisitInRange(o, currentToday, currentToday)) return false;
       } else if (dateRange === 'upcoming') {
-        if (o.date < currentToday || ['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(o.status)) return false;
+        if (!hasVisitInRange(o, currentToday, undefined, true) || ['COMPLETED', 'CANCELLED', 'EXPIRED'].includes(o.status)) return false;
       } else if (dateRange === 'recent7') {
         const d7 = new Date();
         d7.setDate(d7.getDate() - 7);
         const d7Str = d7.toISOString().slice(0, 10);
-        if (o.date < d7Str || o.date > currentToday) return false;
+        if (!hasVisitInRange(o, d7Str, currentToday)) return false;
       } else if (dateRange === 'month') {
         const curM = currentToday.slice(0, 7);
-        if (!o.date.startsWith(curM)) return false;
+        if (!hasVisitInRange(o, curM+'-01', curM+'-31')) return false;
       } else if (dateRange === 'custom') {
-        if (customFrom && o.date < customFrom) return false;
-        if (customTo && o.date > customTo) return false;
+        if (!hasVisitInRange(o, customFrom || '', customTo || '9999-12-31')) return false;
       }
 
       return true;

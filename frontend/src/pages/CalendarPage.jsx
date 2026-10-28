@@ -1,3 +1,4 @@
+import {orderOnDay} from '../utils/order-visits.mjs';
 import { hourLabel, slotHours } from '../utils/format';
 import React, { useEffect, useState } from 'react';
 import { Wallet, CalendarDays, Users, Grid2X2, Plus, RefreshCw, Wrench } from 'lucide-react';
@@ -14,7 +15,7 @@ export default function CalendarPage() {
 
   useEffect(() => setSelected([]), [date]);
 
-  const orders = data.orders.filter((o) => o.date === date);
+  const orders = data.orders.map(o => orderOnDay(o, date)).filter(Boolean);
   const occupied = data.schedules.filter((s) => s.status !== 'AVAILABLE' && s.status !== 'MAINTENANCE').length;
   const maintenanceCount = data.schedules.filter((s) => s.status === 'MAINTENANCE').length;
   const income =
@@ -147,7 +148,7 @@ export default function CalendarPage() {
                 <div className="time-cell">{hourLabel(hour)}</div>
                 {data.courts.map((c) => {
                   const slot = data.schedules.find((s) => s.court === c.id && s.hour === hour);
-                  const order = orders.find((o) => active(o) && o.slots.some((s) => s.id === slot?.id));
+                  const order = orders.find((o) => active(o) && o.slots.some((s) => !s.completed && s.id === slot?.id));
                   const match = data.matches.find(
                     (m) => !['FINISHED', 'CANCELLED'].includes(m.status) && m.slots.some((s) => s.id === slot?.id)
                   );
@@ -174,7 +175,7 @@ export default function CalendarPage() {
                         aria-pressed={!!slot && selected.includes(slot.id)}
                         aria-label={`${c.name} ${hour} giờ`}
                         onClick={() => {
-                          if (order) return show({ type: 'order', id: order.id });
+                          if (order) return show({ type: 'order', id: order.id, visitDate: date });
                           if (match) return show({ type: 'match', id: match.id });
                           if (slot && (slot.status === 'AVAILABLE' || slot.status === 'MAINTENANCE')) {
                             choose(slot.id);

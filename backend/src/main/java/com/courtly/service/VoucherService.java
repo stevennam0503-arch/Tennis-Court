@@ -183,6 +183,33 @@ public class VoucherService {
         "applied", true);
   }
 
+  private Map<String, Object> benefit(Voucher voucher, BigDecimal discount) {
+    return map("code", voucher.getCode(), "discount", discount,
+        "description", voucher.getDescription(), "applied", true);
+  }
+
+  /** A retained redemption represents an already agreed benefit, including played visits. */
+  @Transactional(readOnly = true)
+  public Map<String, Object> previewRestore(String code, CustomerOrder order, BigDecimal gross) {
+    var retained = redemptions.findByOrderId(order.getId());
+    if (retained.isPresent())
+      return benefit(retained.get().getVoucher(), retained.get().getDiscountAmount());
+    var voucher = vouchers.findByCodeIgnoreCase(code).orElseThrow(
+        () -> new BusinessException("Voucher cũ không còn tồn tại; không thể khôi phục ưu đãi"));
+    validateVoucherRules(voucher, gross,
+        order.getCustomerAccount() == null ? null : order.getCustomerAccount().getId(), order.getId());
+    return benefit(voucher, computeDiscount(voucher, gross));
+  }
+
+  @Transactional
+  public Map<String, Object> restore(String code, CustomerOrder order, BigDecimal gross) {
+    var retained = redemptions.findByOrderId(order.getId());
+    if (retained.isPresent())
+      return benefit(retained.get().getVoucher(), retained.get().getDiscountAmount());
+    return redeem(code, order, gross,
+        order.getCustomerAccount() == null ? null : order.getCustomerAccount().getId());
+  }
+
   @Transactional
   public void release(UUID orderId) {
     if (orderId == null) return;

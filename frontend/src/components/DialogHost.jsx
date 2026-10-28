@@ -14,7 +14,16 @@ export default function DialogHost({dialog,onClose}){
  switch(dialog.type){
   case 'legacy-staff':{const order=data.orders.find(o=>o.id===dialog.id),line=order.staff.find(x=>x.id===dialog.lineId);return <FormDialog title="Xác minh phân công cũ — giữ ID và giá" initial={{requestId:crypto.randomUUID(),reason:''}} fields={[...Array.from({length:line.hours},(_,i)=>({name:'slot'+i,label:'Slot phục vụ '+(i+1),options:[{value:'',label:'Chọn slot thực tế'},...order.slots.map(s=>({value:s.id,label:`${data.courts.find(c=>c.id===s.court)?.name} ${slotLabel(s)}`}))]})),{name:'reason',label:'Căn cứ xác minh tại quầy',full:true}]} onClose={onClose} onSubmit={async v=>{await mutate(`/orders/${dialog.id}/legacy-staff`,{lineId:line.id,scheduleIds:Array.from({length:line.hours},(_,i)=>v['slot'+i]),reason:v.reason,requestId:v.requestId});notify('Đã xác minh, giữ nguyên ID và giá lịch sử');onClose();}}><p className="notice">{line.name} · {line.hours} giờ · giá lịch sử {money(line.rate)}/giờ. Chỉ chọn khi có căn cứ thực tế; hệ thống kiểm tra lịch làm việc và trùng giờ. Nếu chưa đủ dữ liệu, đóng và giữ nhãn cần kiểm tra.</p></FormDialog>;}
   case 'restore':return <MoveDialog {...p} mode="restore"/>;
-  case 'check-in':return <FormDialog title="Kiểm tra check-in" fields={[{name:'reason',label:'Lý do ngoại lệ (nếu ngoài giờ cấu hình hoặc thiếu cọc)',required:false,full:true}]} onClose={onClose} submitText="Check-in" onSubmit={async v=>{await mutate(`/orders/${dialog.id}/check-in`,v);notify('Đã check-in');onClose();}}><p className="notice">Giờ check-in sớm: {data.settings.policies?.checkInEarlyMinutes??'chưa cấu hình'} phút. Ngoài cửa sổ giờ hoặc chưa đủ cọc cần lý do ngoại lệ.</p></FormDialog>;
+  case 'check-in':{
+    const order=data.orders.find(o=>o.id===dialog.id);
+    const visits=(order.visits||[{date:order.date,status:order.status}]).filter(v=>v.status==='CONFIRMED');
+    const selected=visits.some(v=>v.date===dialog.visitDate)?dialog.visitDate:visits[0]?.date;
+    return <FormDialog title="Kiểm tra check-in" initial={{visitDate:selected,reason:''}}
+      fields={[{name:'visitDate',label:'Ngày chơi cần check-in',options:visits.map(v=>({value:v.date,label:v.date}))},{name:'reason',label:'Lý do ngoại lệ (nếu ngoài giờ cấu hình hoặc thiếu cọc)',required:false,full:true}]}
+      onClose={onClose} submitText="Check-in" onSubmit={async v=>{await mutate(`/orders/${dialog.id}/check-in`,v);notify('Đã check-in buổi '+v.visitDate);onClose();}}>
+      <p className="notice">Giờ check-in sớm: {data.settings.policies?.checkInEarlyMinutes??'chưa cấu hình'} phút. Ngoài cửa sổ giờ hoặc chưa đủ cọc cần lý do ngoại lệ.</p>
+    </FormDialog>;
+  }
   case 'financial-review':return <FormDialog title="Đối chiếu tiền" initial={{requestId:crypto.randomUUID(),action:'review',amount:0,reason:''}} fields={[{name:'action',label:'Xử lý',options:[{value:'review',label:'Ghi nhận đã đối chiếu'},{value:'refund-request',label:'Duyệt khoản cần hoàn, chờ thực hiện'}]},{name:'amount',label:'Số tiền hoàn dự kiến (nếu duyệt hoàn)',type:'number',min:0},{name:'reason',label:'Kết quả đối chiếu / cơ sở quyết định',full:true}]} onClose={onClose} onSubmit={async v=>{await mutate(`/orders/${dialog.id}/${v.action}`,{...v,resolved:true});notify('Đã ghi kết quả đối chiếu');onClose();}}><p className="notice">Không khôi phục lịch tự động. Khoản hoàn chỉ ghi là đã hoàn sau khi thực hiện và ghi nhận tại Thu tiền & hoàn tiền.</p></FormDialog>;
   case 'entity':return <EntityDialog {...p}/>;
   case 'booking':return <BookingDialog {...p}/>;
