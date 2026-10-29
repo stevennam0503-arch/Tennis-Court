@@ -241,46 +241,6 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
           </>
         )}
 
-        {mode === 'login' && (
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 12px', fontSize: 12, marginBottom: 12 }}>
-            <div style={{ color: '#64748b', fontWeight: 600, marginBottom: 6 }}>⚡ Tài khoản demo (Mật khẩu: 123456):</div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn sm"
-                style={{ padding: '3px 8px', fontSize: 11.5, background: '#fff', border: '1px solid #cbd5e1' }}
-                onClick={() => { set('email', 'admin@gmail.com'); set('password', '123456'); }}
-              >
-                👑 Admin
-              </button>
-              <button
-                type="button"
-                className="btn sm"
-                style={{ padding: '3px 8px', fontSize: 11.5, background: '#fff', border: '1px solid #cbd5e1' }}
-                onClick={() => { set('email', 'staff@gmail.com'); set('password', '123456'); }}
-              >
-                💼 Lễ tân (Staff)
-              </button>
-              <button
-                type="button"
-                className="btn sm"
-                style={{ padding: '3px 8px', fontSize: 11.5, background: '#fff', border: '1px solid #cbd5e1' }}
-                onClick={() => { set('email', 'khachmoi@gmail.com'); set('password', '123456'); }}
-              >
-                👤 Khách mới
-              </button>
-              <button
-                type="button"
-                className="btn sm"
-                style={{ padding: '3px 8px', fontSize: 11.5, background: '#fff', border: '1px solid #cbd5e1' }}
-                onClick={() => { set('email', 'hoangnam@gmail.com'); set('password', '123456'); }}
-              >
-                ⭐ Khách VIP
-              </button>
-            </div>
-          </div>
-        )}
-
         {['login', 'register', 'forgot'].includes(mode) && (
           <div className="field">
             <label htmlFor="auth-email">Email đăng nhập</label>
