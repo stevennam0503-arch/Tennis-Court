@@ -8,6 +8,7 @@ import { labels, money } from '../utils/format';
 export default function CourtsPage() {
   const { data, show, navigate, mutate, notify } = useCourtly();
   const [deletingId, setDeletingId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [tab, setTab] = useState('courts');
   const [courtTypeFilter, setCourtTypeFilter] = useState('ALL');
   const [priceCourtFilter, setPriceCourtFilter] = useState('ALL');
@@ -15,17 +16,13 @@ export default function CourtsPage() {
 
   const edit = (collection, row) => show({ type: 'entity', collection, row });
 
-  const handleDeleteCourt = async (court) => {
+  const executeDeleteCourt = async (court) => {
     if (deletingId) return;
-    const confirmed = window.confirm(
-      `Bạn có chắc chắn muốn xóa sân "${court.name}"?\n\nSau khi xóa, sân sẽ được loại bỏ hoàn toàn khỏi toàn bộ hệ thống và giao diện web (bảng đặt sân khách, sơ đồ sân, danh sách quản lý).`
-    );
-    if (!confirmed) return;
-
     setDeletingId(court.id);
     try {
       await mutate(`/catalog/courts/${court.id}`, {}, 'DELETE');
       notify(`Đã xóa thành công sân "${court.name}" khỏi hệ thống.`);
+      setConfirmDeleteId(null);
     } catch (e) {
       notify(e.message || 'Không thể xóa sân. Vui lòng thử lại.');
     } finally {
@@ -78,7 +75,7 @@ export default function CourtsPage() {
 
       <Tabs
         options={[
-          ['courts', `Danh sách sân (${data.courts.length})`],
+          ['courts', `Danh sách sân (${activeCourts.length})`],
           ['prices', `Khung giá giờ (${data.prices.length})`],
         ]}
         value={tab}
@@ -135,29 +132,67 @@ export default function CourtsPage() {
                     <Button className="sm" onClick={() => navigate('calendar')}>
                       Xem lịch
                     </Button>
-                    <button
-                      type="button"
-                      className="btn sm"
-                      disabled={deletingId === c.id}
-                      onClick={() => handleDeleteCourt(c)}
-                      style={{
-                        background: '#fff1f2',
-                        color: '#e11d48',
-                        border: '1px solid #fecdd3',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        cursor: 'pointer',
-                        padding: '5px 10px',
-                        borderRadius: 6,
-                        fontSize: 12,
-                        fontWeight: 600
-                      }}
-                      title={`Xóa ${c.name}`}
-                    >
-                      <Trash2 size={13} />
-                      <span>{deletingId === c.id ? 'Đang xóa…' : 'Xóa sân'}</span>
-                    </button>
+                    {confirmDeleteId === c.id ? (
+                      <div style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn sm"
+                          disabled={deletingId === c.id}
+                          onClick={() => executeDeleteCourt(c)}
+                          style={{
+                            background: '#e11d48',
+                            color: '#ffffff',
+                            border: '1px solid #be123c',
+                            cursor: 'pointer',
+                            padding: '5px 9px',
+                            borderRadius: 6,
+                            fontSize: 11.5,
+                            fontWeight: 700
+                          }}
+                        >
+                          {deletingId === c.id ? 'Đang xóa…' : 'Xác nhận xóa'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn sm"
+                          onClick={() => setConfirmDeleteId(null)}
+                          style={{
+                            background: '#f1f5f9',
+                            color: '#475569',
+                            border: '1px solid #cbd5e1',
+                            cursor: 'pointer',
+                            padding: '5px 8px',
+                            borderRadius: 6,
+                            fontSize: 11.5
+                          }}
+                        >
+                          Hủy
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={() => setConfirmDeleteId(c.id)}
+                        style={{
+                          background: '#fff1f2',
+                          color: '#e11d48',
+                          border: '1px solid #fecdd3',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          cursor: 'pointer',
+                          padding: '5px 10px',
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 600
+                        }}
+                        title={`Xóa ${c.name}`}
+                      >
+                        <Trash2 size={13} />
+                        <span>Xóa sân</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </article>

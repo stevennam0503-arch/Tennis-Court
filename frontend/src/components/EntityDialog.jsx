@@ -75,6 +75,21 @@ export default function EntityDialog({ collection, row = {}, onClose }) {
   if (collection === 'staff-schedules') { fields=[s('staff','Nhân sự',choose(data.staff)),f('date','Ngày làm việc','date'),f('start','Giờ bắt đầu','number',{min:6,max:22.5,step:0.5}),f('end','Giờ kết thúc','number',{min:6.5,max:23,step:0.5})]; defaults={staff:data.staff[0]?.id,date,start:6,end:23}; }
   if (collection === 'tournaments') { fields=[f('name','Tên giải','text',{full:true}),s('format','Thể thức',options(['SINGLES','DOUBLES','TEAM'])),s('status','Trạng thái',options(['DRAFT','OPEN','CLOSED','ONGOING','FINISHED','CANCELLED'])),f('startDate','Ngày bắt đầu','date'),f('endDate','Ngày kết thúc','date'),f('deadline','Hạn đăng ký','date'),f('location','Địa điểm'),f('fee','Phí đăng ký (₫)','number',{min:0}),f('max','Số đăng ký tối đa','number',{min:2,max:1024})]; defaults={format:'DOUBLES',status:'OPEN',startDate:row.start||today(),endDate:row.end||today(),deadline:today(),location:'CLB Courtly',fee:300000,max:16}; }
 
+  const handleDelete = async () => {
+    if (!row.id) return;
+    const confirmed = window.confirm(
+      `Bạn có chắc chắn muốn xóa sân "${row.name}"?\n\nSau khi xóa, sân sẽ được loại bỏ hoàn toàn khỏi toàn bộ hệ thống và giao diện web (bảng đặt sân khách, sơ đồ sân, danh sách quản lý).`
+    );
+    if (!confirmed) return;
+    try {
+      await mutate(`/catalog/${collection}/${row.id}`, {}, 'DELETE');
+      notify(`Đã xóa thành công "${row.name}" khỏi hệ thống.`);
+      onClose();
+    } catch (e) {
+      notify(e.message || 'Không thể xóa sân. Vui lòng thử lại.');
+    }
+  };
+
   const handleFormChange = (nextValues, changedField) => {
     if (collection === 'courts' && !row.id && changedField === 'type') {
       const generated = getNextCourtName(nextValues.type, data.courts);
@@ -83,7 +98,7 @@ export default function EntityDialog({ collection, row = {}, onClose }) {
     return nextValues;
   };
 
-  return <FormDialog title={`${row.id ? 'Sửa' : 'Thêm'} ${names[collection]}`} fields={fields} initial={{...defaults,...row}} onChange={handleFormChange} onClose={onClose} onSubmit={async values => {
+  return <FormDialog title={`${row.id ? 'Sửa' : 'Thêm'} ${names[collection]}`} fields={fields} initial={{...defaults,...row}} onChange={handleFormChange} onClose={onClose} onDelete={row.id && collection === 'courts' ? handleDelete : undefined} deleteText="Xóa sân này" onSubmit={async values => {
     if (collection === 'courts') {
       const enteredName = String(values.name || '').trim();
       const cleanEntered = enteredName.replace(/^(Sân|San)\s+/i, '');

@@ -44,7 +44,7 @@ export function Modal({ title, onClose, children, footer, wide = false }) {
   }, []);
   return <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}><section ref={ref} className={`modal ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={title}><div className="modal-header"><h2>{title}</h2><button className="close" onClick={onClose} aria-label="Đóng">×</button></div><div className="modal-body">{children}</div>{footer && <div className="modal-footer">{footer}</div>}</section></div>;
 }
-export function FormDialog({ title, fields, initial = {}, onSubmit, onClose, children, submitText = 'Lưu thông tin', onChange, wide = false }) {
+export function FormDialog({ title, fields, initial = {}, onSubmit, onClose, children, submitText = 'Lưu thông tin', onChange, wide = false, onDelete, deleteText = 'Xóa' }) {
   const [values, setValues] = useState(initial);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -57,7 +57,7 @@ export function FormDialog({ title, fields, initial = {}, onSubmit, onClose, chi
     const next = { ...previous, [name]: value };
     return onChange ? onChange(next, name) : next;
   });
-  return <Modal title={title} onClose={onClose} wide={wide} footer={<><Button onClick={onClose}>Đóng</Button><button type="submit" form="dialog-form" className="btn primary" disabled={saving}>{saving ? 'Đang lưu…' : submitText}</button></>}>
+  return <Modal title={title} onClose={onClose} wide={wide} footer={<>{onDelete && <button type="button" className="btn danger" style={{ marginRight: 'auto', background: '#fff1f2', color: '#e11d48', borderColor: '#fecdd3', minHeight: 38, padding: '6px 14px', borderRadius: 8, fontWeight: 600, fontSize: 13 }} onClick={onDelete}>{deleteText}</button>}<Button onClick={onClose}>Đóng</Button><button type="submit" form="dialog-form" className="btn primary" disabled={saving}>{saving ? 'Đang lưu…' : submitText}</button></>}>
     {children}<form id="dialog-form" onSubmit={submit}><div className="form-grid">{fields.map(f => {
       const choices = typeof f.options === 'function' ? f.options(values) : f.options;
       return <div key={f.name} className={`field ${f.full ? 'full' : ''}`}><label htmlFor={`field-${f.name}`}>{f.label}</label>{choices ? <select id={`field-${f.name}`} disabled={f.disabled} required={f.required !== false} value={values[f.name] ?? ''} onChange={e => change(f.name,e.target.value)}>{choices.map(x => <option key={x.value} value={x.value}>{x.label}</option>)}</select> : f.type === 'textarea' ? <textarea id={`field-${f.name}`} value={values[f.name] ?? ''} required={f.required !== false} onChange={e => change(f.name,e.target.value)}/> : <input id={`field-${f.name}`} readOnly={f.readOnly} disabled={f.disabled} type={f.type || 'text'} value={values[f.name] ?? ''} min={f.min} max={f.max} maxLength={f.maxLength || 255} step={f.type === 'number' ? (f.step || 1) : undefined} required={f.required !== false} onChange={e => change(f.name,f.type === 'number' && e.target.value !== '' ? Number(e.target.value) : e.target.value)}/>}</div>;
