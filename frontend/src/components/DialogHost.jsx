@@ -7,11 +7,13 @@ import EntityDialog from './EntityDialog';
 import {BookingDialog,OrderDetail,OrderActionDialog,PaymentDialog,RefundDialog,InvoiceDialog,ExtendOrderDialog} from './OrderDialogs';
 import {TournamentDetail,TournamentActionDialog,MatchDetail,MatchActionDialog} from './TournamentDialogs';
 import OrderTable from './OrderTable';
+import AutoQRCheckInModal from './AutoQRCheckInModal';
 import {money,labels,localDate} from '../utils/format';
 export default function DialogHost({dialog,onClose}){
  const {data,date,mutate,notify}=useCourtly();if(!dialog)return null;
  const p={...dialog,onClose};
  switch(dialog.type){
+  case 'auto-qr-checkin': return <AutoQRCheckInModal onClose={onClose} />;
   case 'legacy-staff':{const order=data.orders.find(o=>o.id===dialog.id),line=order.staff.find(x=>x.id===dialog.lineId);return <FormDialog title="Xác minh phân công cũ — giữ ID và giá" initial={{requestId:crypto.randomUUID(),reason:''}} fields={[...Array.from({length:line.hours},(_,i)=>({name:'slot'+i,label:'Slot phục vụ '+(i+1),options:[{value:'',label:'Chọn slot thực tế'},...order.slots.map(s=>({value:s.id,label:`${data.courts.find(c=>c.id===s.court)?.name} ${slotLabel(s)}`}))]})),{name:'reason',label:'Căn cứ xác minh tại quầy',full:true}]} onClose={onClose} onSubmit={async v=>{await mutate(`/orders/${dialog.id}/legacy-staff`,{lineId:line.id,scheduleIds:Array.from({length:line.hours},(_,i)=>v['slot'+i]),reason:v.reason,requestId:v.requestId});notify('Đã xác minh, giữ nguyên ID và giá lịch sử');onClose();}}><p className="notice">{line.name} · {line.hours} giờ · giá lịch sử {money(line.rate)}/giờ. Chỉ chọn khi có căn cứ thực tế; hệ thống kiểm tra lịch làm việc và trùng giờ. Nếu chưa đủ dữ liệu, đóng và giữ nhãn cần kiểm tra.</p></FormDialog>;}
   case 'restore':return <MoveDialog {...p} mode="restore"/>;
   case 'check-in':{

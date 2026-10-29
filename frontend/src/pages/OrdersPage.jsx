@@ -156,7 +156,7 @@ export default function OrdersPage() {
           <div style={{ display: 'flex', gap: 10 }}>
             <Button
               className="secondary"
-              onClick={() => { setScannerOpen(true); setTicketInput(''); }}
+              onClick={() => show({ type: 'auto-qr-checkin' })}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -164,11 +164,11 @@ export default function OrdersPage() {
                 background: '#e8f5e9',
                 borderColor: '#a5d6a7',
                 color: '#1b5e20',
-                fontWeight: 600
+                fontWeight: 700
               }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-              Quét mã / Check-in vé
+              Quét QR Check-in tự động
             </Button>
             <Button className="primary" onClick={() => navigate('calendar')}>
               <Plus size={16} /> Đặt sân mới
@@ -310,159 +310,7 @@ export default function OrdersPage() {
         )}
       </Panel>
 
-      {scannerOpen && (
-        <Modal
-          title="Quét mã QR / Check-in vé điện tử"
-          onClose={() => { setScannerOpen(false); setTicketInput(''); }}
-        >
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#173c32' }}>
-              Mã vé QR hoặc mã đơn / Số điện thoại:
-            </label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                autoFocus
-                type="text"
-                value={ticketInput}
-                onChange={e => setTicketInput(e.target.value)}
-                placeholder="Nhập hoặc dán mã vé (CT-XXXX), ID đơn, hoặc quét QR…"
-                style={{ flex: 1, padding: '10px 14px', fontSize: 15, borderRadius: 8, border: '1px solid #173c32' }}
-              />
-              {ticketInput && (
-                <Button className="sm" onClick={() => setTicketInput('')}>
-                  Xóa
-                </Button>
-              )}
-            </div>
-            <small style={{ color: '#666', marginTop: 4, display: 'block' }}>
-              Tip: Quét mã QR từ điện thoại của khách hoặc nhập mã vé in trên E-Ticket (ví dụ: CT-ABC123).
-            </small>
-          </div>
 
-          {matchedOrder ? (
-            <div style={{
-              background: '#f8faf7',
-              border: '1.5px solid #c2dbbe',
-              borderRadius: 10,
-              padding: 16,
-              boxShadow: '0 4px 12px rgba(23,60,50,0.06)'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <div>
-                  <span style={{
-                    display: 'inline-block',
-                    background: '#173c32',
-                    color: '#fff',
-                    padding: '3px 8px',
-                    borderRadius: 4,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    letterSpacing: 0.5
-                  }}>
-                    CT-{matchedOrder.id.replace(/-/g, '').slice(0, 6).toUpperCase()}
-                  </span>
-                  <h3 style={{ margin: '6px 0 0', fontSize: 18, color: '#173c32' }}>{matchedOrder.name}</h3>
-                  <div style={{ fontSize: 13, color: '#666' }}>ĐT: <b>{matchedOrder.phone || 'Chưa cung cấp'}</b></div>
-                </div>
-                <Chip status={matchedOrder.status} />
-              </div>
-
-              <div style={{ background: '#fff', border: '1px solid #e1e7de', borderRadius: 8, padding: '12px 14px', marginBottom: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13 }}>
-                  <span style={{ color: '#666' }}>Lịch sân:</span>
-                  <b>{matchedOrder.date} • {matchedOrder.slots.map(s => `${data.courts.find(c => c.id === s.court)?.name || 'Sân'} (${s.hour}:00)`).join(', ')}</b>
-                </div>
-                {matchedOrder.staff?.length > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13 }}>
-                    <span style={{ color: '#666' }}>Trọng tài:</span>
-                    <b>{matchedOrder.staff.map(st => st.name).join(', ')}</b>
-                  </div>
-                )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderTop: '1px dashed #eee', paddingTop: 6, marginTop: 6 }}>
-                  <span style={{ color: '#666' }}>Tài chính:</span>
-                  <span>Đã thu: <b style={{ color: '#1b5e20' }}>{money(matchedOrder.paid)}</b> / Tổng: <b>{money(matchedOrder.total)}</b></span>
-                </div>
-              </div>
-
-              {matchedOrder.status === 'HOLDING' && (
-                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', padding: 10, borderRadius: 6, fontSize: 13, marginBottom: 12 }}>
-                  ⏳ Đơn đang giữ chỗ và chưa thanh toán tiền cọc. Lễ tân cần thu cọc <b>{money(matchedOrder.deposit)}</b> trước khi xác nhận check-in.
-                </div>
-              )}
-
-              {matchedOrder.status === 'CONFIRMED' && (
-                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', padding: 10, borderRadius: 6, fontSize: 13, marginBottom: 12 }}>
-                  ✓ Vé hợp lệ! Đã đặt cọc thành công. Khách đã đến sân và sẵn sàng check-in.
-                </div>
-              )}
-
-              {matchedOrder.status === 'CHECKED_IN' && (
-                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', padding: 10, borderRadius: 6, fontSize: 13, marginBottom: 12 }}>
-                  🎾 Khách đang chơi trên sân (Check-in lúc {new Date(matchedOrder.checkInAt).toLocaleTimeString('vi-VN')}). Khi kết thúc giờ chơi, bấm Check-out & Hoàn tất.
-                </div>
-              )}
-
-              {matchedOrder.status === 'COMPLETED' && (
-                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569', padding: 10, borderRadius: 6, fontSize: 13, marginBottom: 12 }}>
-                  ✓ Đơn hàng đã hoàn tất buổi chơi lúc {matchedOrder.checkOutAt ? new Date(matchedOrder.checkOutAt).toLocaleTimeString('vi-VN') : ''}.
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 14 }}>
-                {matchedOrder.status === 'CONFIRMED' && (
-                  <Button
-                    className="primary"
-                    disabled={actionLoading}
-                    onClick={() => handleQuickCheckIn(matchedOrder.id)}
-                    style={{ background: '#166534', borderColor: '#166534', fontWeight: 700 }}
-                  >
-                    {actionLoading ? 'Đang xử lý…' : '✅ Xác nhận Check-in ngay'}
-                  </Button>
-                )}
-                {matchedOrder.status === 'CHECKED_IN' && (
-                  <Button
-                    className="primary"
-                    disabled={actionLoading}
-                    onClick={() => handleQuickCheckOut(matchedOrder.id)}
-                    style={{ background: '#1e40af', borderColor: '#1e40af', fontWeight: 700 }}
-                  >
-                    {actionLoading ? 'Đang xử lý…' : '🏁 Check-out & Hoàn tất'}
-                  </Button>
-                )}
-                {matchedOrder.status === 'HOLDING' && (
-                  <Button
-                    className="lime"
-                    onClick={() => { setScannerOpen(false); show({ type: 'payment', id: matchedOrder.id }); }}
-                  >
-                    Thu cọc tại quầy ({money(matchedOrder.deposit)})
-                  </Button>
-                )}
-                <Button
-                  onClick={() => { setScannerOpen(false); show({ type: 'order', id: matchedOrder.id }); }}
-                >
-                  Xem chi tiết đơn
-                </Button>
-                <Button onClick={() => setScannerOpen(false)}>
-                  Đóng
-                </Button>
-              </div>
-            </div>
-          ) : ticketInput ? (
-            <div style={{ textAlign: 'center', padding: '24px 12px', background: '#fff5f5', border: '1px dashed #feb2b2', borderRadius: 8, color: '#c53030' }}>
-              Không tìm thấy đơn hàng nào khớp với mã: <b>"{ticketInput}"</b>.
-              <div style={{ fontSize: 12, marginTop: 6, color: '#742a2a' }}>Vui lòng kiểm tra lại mã vé trên điện thoại của khách.</div>
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center', padding: '28px 12px', background: '#f9f9f9', border: '1px dashed #d1d5db', borderRadius: 8, color: '#6b7280' }}>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 8px', color: '#9ca3af' }}>
-                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-              </svg>
-              <div>Chưa nhập mã vé hoặc chưa quét QR.</div>
-              <small>Có thể dán mã vé (ví dụ: CT-XXXX) hoặc quét mã từ camera / máy quét mã vạch.</small>
-            </div>
-          )}
-        </Modal>
-      )}
     </>
   );
 }
