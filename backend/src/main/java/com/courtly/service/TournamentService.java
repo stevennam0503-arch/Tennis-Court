@@ -95,7 +95,7 @@ public class TournamentService {
         match.setTournament(t);
         match.setRoundNumber(round);
         match.setBracketIndex(i);
-        match.setRoundName(games == 1 ? "Chung kết" : "Vòng " + round);
+        match.setRoundName(games == 1 ? "Chung kết" : games == 2 ? "Bán kết" : games == 4 ? "Tứ kết" : "Vòng " + round);
         if (round == 1) {
           match.setRegistration1(confirmed.get(i * 2));
           match.setRegistration2(confirmed.get(i * 2 + 1));
@@ -105,6 +105,24 @@ public class TournamentService {
     }
     t.setStatus("CLOSED");
     audit.log("BỐC THĂM", id.toString());
+  }
+
+  @Transactional
+  public void resetDraw(UUID id) {
+    Tournament t =
+        tournaments
+            .findForUpdate(id)
+            .orElseThrow(() -> new BusinessException("Giải không tồn tại"));
+    List<TournamentMatch> allMatches = matches.findByTournamentId(id);
+    require(!allMatches.isEmpty(), "Giải chưa có nhánh đấu");
+    for (TournamentMatch m : allMatches) {
+      release(m);
+      matchSlots.deleteAll(matchSlots.findByMatchId(m.getId()));
+      matchStaff.deleteAll(matchStaff.findByMatchId(m.getId()));
+      matches.delete(m);
+    }
+    t.setStatus("OPEN");
+    audit.log("HỦY NHÁNH ĐẤU", id.toString());
   }
 
   public void release(TournamentMatch match) {
@@ -197,22 +215,22 @@ public class TournamentService {
   @Transactional
   public void result(UUID id, MatchResultRequest request) {
     TournamentMatch match = lock(id);
-    require("SCHEDULED".equals(match.getStatus()), "Trận đã ghi kết quả hoặc hủy");
+    require(!"CANCELLED".equals(match.getStatus()), "Trận đã hủy");
     require(
         match.getRegistration1() != null && match.getRegistration2() != null,
         "Chưa đủ người thi đấu");
     require(
-        matchSlots.findByMatchId(id).stream().anyMatch(x -> x.getReleasedAt() == null),
-        "Xếp sân trước khi ghi kết quả");
-    require(
         Set.of(match.getRegistration1().getId(), match.getRegistration2().getId())
             .contains(request.winnerId()),
         "Đội thắng phải thuộc trận");
-    match.setWinnerRegistration(
+    TournamentRegistration prevWinner = match.getWinnerRegistration();
+    TournamentRegistration newWinner =
         request.winnerId().equals(match.getRegistration1().getId())
             ? match.getRegistration1()
-            : match.getRegistration2());
-    match.setScore(text(request.score(), "Tỉ số"));
+            : match.getRegistration2();
+    String score = (request.score() == null || request.score().isBlank()) ? "Thắng" : request.score().trim();
+    match.setWinnerRegistration(newWinner);
+    match.setScore(score);
     match.setStatus("FINISHED");
     release(match);
     var next =
@@ -224,9 +242,17 @@ public class TournamentService {
             .findFirst();
     if (next.isPresent()) {
       if (match.getBracketIndex() % 2 == 0)
-        next.get().setRegistration1(match.getWinnerRegistration());
-      else next.get().setRegistration2(match.getWinnerRegistration());
-    } else match.getTournament().setStatus("FINISHED");
+        next.get().setRegistration1(newWinner);
+      else next.get().setRegistration2(newWinner);
+      if (prevWinner != null && !prevWinner.getId().equals(newWinner.getId())
+          && prevWinner.equals(next.get().getWinnerRegistration())) {
+        next.get().setWinnerRegistration(null);
+        next.get().setStatus("SCHEDULED");
+        next.get().setScore(null);
+      }
+    } else {
+      match.getTournament().setStatus("FINISHED");
+    }
     audit.log("KẾT QUẢ TRẬN", id.toString());
   }
 }

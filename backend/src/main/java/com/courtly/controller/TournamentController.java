@@ -33,6 +33,12 @@ public class TournamentController {
     service.draw(id);
   }
 
+  @DeleteMapping("/tournaments/{id}/draw")
+  @PreAuthorize("hasRole('ADMIN')")
+  public void resetDraw(@PathVariable UUID id) {
+    service.resetDraw(id);
+  }
+
   @PutMapping("/matches/{id}/schedule")
   @PreAuthorize("hasRole('ADMIN')")
   public void schedule(@PathVariable UUID id, @Valid @RequestBody MatchScheduleRequest request) {

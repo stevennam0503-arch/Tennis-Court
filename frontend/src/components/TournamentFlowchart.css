@@ -1,0 +1,349 @@
+/* Tournament Flowchart Bracket Styles */
+.tf-container {
+  background: #f8faf9;
+  border: 1px solid #e2e8e5;
+  border-radius: 14px;
+  padding: 24px;
+  margin: 18px 0;
+  overflow-x: auto;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.tf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5ebe7;
+}
+
+.tf-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tf-header-title h3 {
+  font-size: 18px;
+  font-weight: 750;
+  color: #173c32;
+  margin: 0;
+}
+
+.tf-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tf-bracket-tree {
+  display: flex;
+  align-items: stretch;
+  gap: 32px;
+  min-width: max-content;
+  padding: 10px 4px 24px;
+}
+
+.tf-round-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 280px;
+  max-width: 300px;
+}
+
+.tf-round-header {
+  text-align: center;
+  margin-bottom: 20px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #dbe4df;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.tf-round-title {
+  font-size: 13.5px;
+  font-weight: 750;
+  color: #173c32;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.tf-round-subtitle {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.tf-matches-list {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  flex: 1;
+  gap: 28px;
+}
+
+/* Match Card Node */
+.tf-match-node {
+  background: #ffffff;
+  border: 1.5px solid #d1ded6;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(23, 60, 50, 0.06);
+  overflow: hidden;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.tf-match-node:hover {
+  border-color: #173c32;
+  box-shadow: 0 6px 18px rgba(23, 60, 50, 0.12);
+}
+
+.tf-match-node.finished {
+  border-color: #86efac;
+}
+
+.tf-match-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  background: #f1f5f3;
+  border-bottom: 1px solid #e2e8e5;
+  font-size: 11px;
+  font-weight: 600;
+  color: #52655a;
+}
+
+.tf-match-topbar .tf-badge {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.tf-badge.scheduled {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.tf-badge.ready {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.tf-badge.completed {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+/* Team Rows */
+.tf-team-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  min-height: 48px;
+  gap: 10px;
+  transition: all 0.15s ease;
+}
+
+.tf-team-row.team-top {
+  border-bottom: 1px dashed #e2e8e5;
+}
+
+.tf-team-row.winner {
+  background: #ecfdf5;
+  color: #065f46;
+  font-weight: 700;
+}
+
+.tf-team-row.loser {
+  opacity: 0.55;
+  background: #f8fafc;
+}
+
+.tf-team-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.tf-team-seed {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.tf-team-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tf-team-row.winner .tf-team-name {
+  color: #047857;
+  font-weight: 750;
+}
+
+.tf-team-row.empty .tf-team-name {
+  color: #94a3b8;
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Action button to pick winner */
+.tf-btn-win {
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  border: 1px solid #10b981;
+  background: #10b981;
+  color: #ffffff;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.25);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.tf-btn-win:hover {
+  background: #059669;
+  border-color: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+}
+
+.tf-winner-pill {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #047857;
+  background: #a7f3d0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.tf-match-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #fafbf9;
+  border-top: 1px solid #edf2ef;
+  font-size: 11px;
+  color: #64748b;
+  gap: 8px;
+}
+
+.tf-match-footer button {
+  background: none;
+  border: none;
+  color: #173c32;
+  font-weight: 600;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.tf-match-footer button:hover {
+  background: #e2ebe5;
+  text-decoration: underline;
+}
+
+/* Connector Column */
+.tf-connector-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 44px;
+  flex-shrink: 0;
+}
+
+.tf-connector-pair {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  position: relative;
+}
+
+.tf-connector-svg {
+  width: 44px;
+  height: 100%;
+}
+
+/* Champion Podium */
+.tf-champion-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 240px;
+  padding: 16px;
+}
+
+.tf-champion-card {
+  width: 100%;
+  text-align: center;
+  padding: 24px 18px;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 2px solid #f59e0b;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.tf-trophy-icon {
+  font-size: 38px;
+  filter: drop-shadow(0 4px 8px rgba(245, 158, 11, 0.4));
+  animation: tf-bounce 1.5s ease-in-out infinite;
+}
+
+@keyframes tf-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.tf-champion-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #92400e;
+  text-transform: uppercase;
+}
+
+.tf-champion-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: #78350f;
+  margin: 0;
+  line-height: 1.3;
+}

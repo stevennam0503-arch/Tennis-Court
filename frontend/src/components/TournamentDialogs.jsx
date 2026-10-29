@@ -3,10 +3,54 @@ import {useCourtly} from '../context';
 import {Modal,FormDialog,Button,Chip,Table} from './UI';
 import {money,labels,slotLabel,slotHours} from '../utils/format';
 import {resolveSlots} from './OrderDialogs';
+import TournamentFlowchart from './TournamentFlowchart';
 export function TournamentDetail({id,onClose}){
- const {data,show}=useCourtly();const t=data.tournaments.find(t=>t.id===id),regs=data.registrations.filter(r=>r.tournamentId===id),matches=data.matches.filter(m=>m.tournamentId===id);
- const name=id=>regs.find(r=>r.id===id)?.name||'Chờ vòng trước';
- return <Modal title={t.name} onClose={onClose} wide footer={<Button onClick={onClose}>Đóng</Button>}><div className="detail-head"><Chip status={t.status}/> {labels[t.format]} · {money(t.fee)}/đăng ký</div><div className="step-row"><Button className="primary sm" disabled={t.status!=='OPEN'} onClick={()=>show({type:'registration',id})}>Thêm đăng ký</Button>{!matches.length&&<Button className="sm" onClick={()=>show({type:'draw',id})}>Bốc thăm nhánh đấu</Button>}</div><h3 style={{margin:'22px 0 12px'}}>Đăng ký ({regs.length}/{t.max})</h3><Table headings={['Đội / cá nhân','Thành viên','Trạng thái','Đã thu','']} empty={!regs.length}>{regs.map(r=><tr key={r.id}><td className="name">{r.name}</td><td>{r.members.map((name,i)=><div key={i}>{name}</div>)}</td><td><Chip status={r.status}/></td><td>{money(r.paid)}</td><td>{r.paid<t.fee&&<Button className="sm" onClick={()=>show({type:'payment',registrationId:r.id})}>Thu phí</Button>}</td></tr>)}</Table><h3 style={{marginTop:22}}>Nhánh đấu</h3>{matches.length?<div className="bracket">{[...new Set(matches.map(m=>m.round))].sort().map(round=><div className="round" key={round}><h3>Vòng {round}</h3>{matches.filter(m=>m.round===round).map(m=><div className="match-card" key={m.id}><p className={m.winner===m.reg1?'winner':''}>{name(m.reg1)}</p><p className={m.winner===m.reg2?'winner':''}>{name(m.reg2)}</p><small>{m.score||'Chưa có kết quả'}{m.date?' · '+m.date:''}</small><div style={{marginTop:10}}><Button className="sm" onClick={()=>show({type:'match',id:m.id})}>Chi tiết trận</Button></div></div>)}</div>)}</div>:<p className="subtitle">Bốc thăm sau khi có 2, 4, 8, 16… đăng ký đã xác nhận.</p>}</Modal>;
+ const {data,show}=useCourtly();
+ const t=data.tournaments.find(t=>t.id===id),
+       regs=data.registrations.filter(r=>r.tournamentId===id),
+       matches=data.matches.filter(m=>m.tournamentId===id);
+
+ return (
+   <Modal title={`Quản lý giải đấu: ${t.name}`} onClose={onClose} wide="ultra-wide" footer={<Button onClick={onClose}>Đóng</Button>}>
+     <div className="detail-head" style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12}}>
+       <div>
+         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:6}}>
+           <Chip status={t.status}/>
+           <strong style={{fontSize:15}}>{labels[t.format]} · {t.location}</strong>
+         </div>
+         <span style={{fontSize:13,color:'#637269'}}>{t.start} → {t.end} · Hạn đăng ký: {t.deadline} · Phí: {money(t.fee)}/đăng ký</span>
+       </div>
+       <div className="step-row" style={{margin:0}}>
+         <Button className="primary sm" disabled={t.status!=='OPEN'} onClick={()=>show({type:'registration',id})}>+ Thêm đăng ký</Button>
+         {!matches.length && (
+           <Button className="sm" onClick={()=>show({type:'draw',id})}>🎯 Bốc thăm nhánh đấu</Button>
+         )}
+       </div>
+     </div>
+
+     {/* Interactive Flowchart Bracket */}
+     <TournamentFlowchart
+       tournament={t}
+       registrations={regs}
+       matches={matches}
+       courts={data.courts}
+       staff={data.staff}
+       onSchedule={m => show({type:'match-schedule', id: m.id})}
+     />
+
+     {/* Registrations List Accordion/Section */}
+     <details style={{marginTop:24,border:'1px solid #dce3df',borderRadius:10,padding:'12px 18px',background:'#ffffff'}} open={!matches.length}>
+       <summary style={{cursor:'pointer',fontWeight:700,fontSize:14,color:'#173c32'}}>
+         📋 Danh sách đăng ký thi đấu ({regs.length}/{t.max} suất · {regs.filter(r=>r.status==='CONFIRMED').length} đã xác nhận)
+       </summary>
+       <div style={{marginTop:14}}>
+         <Table headings={['Đội / cá nhân','Thành viên','Trạng thái','Đã thu','']} empty={!regs.length}>
+           {regs.map(r=><tr key={r.id}><td className="name">{r.name}</td><td>{r.members.map((name,i)=><div key={i}>{name}</div>)}</td><td><Chip status={r.status}/></td><td>{money(r.paid)}</td><td>{r.paid<t.fee&&<Button className="sm" onClick={()=>show({type:'payment',registrationId:r.id})}>Thu phí</Button>}</td></tr>)}
+         </Table>
+       </div>
+     </details>
+   </Modal>
+ );
 }
 export function TournamentActionDialog({type,id,onClose}){
  const {data,mutate,notify,show}=useCourtly();const t=data.tournaments.find(t=>t.id===id);
