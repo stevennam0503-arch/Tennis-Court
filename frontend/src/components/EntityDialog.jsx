@@ -3,27 +3,31 @@ import { FormDialog } from './UI';
 import { useCourtly } from '../context';
 import { options, today } from '../utils/format';
 
-export function getNextCourtName(type, courts = []) {
+export function getNextCourtName(type, courts = [], excludeCourtId = null) {
   const prefix = type === 'VIP' ? 'V' : type === 'INDOOR' ? 'B' : 'A';
   const regex = new RegExp(`^(?:Sân\\s+|San\\s+)?${prefix}(\\d+)$`, 'i');
-  let max = 0;
+  const usedNumbers = new Set();
   for (const c of courts) {
+    if (c.status === 'DELETED') continue;
+    if (excludeCourtId && c.id === excludeCourtId) continue;
     if (c.name) {
       const m = String(c.name).trim().match(regex);
       if (m) {
         const num = parseInt(m[1], 10);
-        if (num > max) max = num;
+        if (!isNaN(num)) usedNumbers.add(num);
       }
     }
   }
-  let next = max + 1;
+  let next = 1;
   const isTaken = candidate => courts.some(c => {
+    if (c.status === 'DELETED') return false;
+    if (excludeCourtId && c.id === excludeCourtId) return false;
     const cleanExisting = String(c.name || '').trim().replace(/^(Sân|San)\s+/i, '');
     const cleanCand = candidate.trim().replace(/^(Sân|San)\s+/i, '');
     return cleanExisting.toLowerCase() === cleanCand.toLowerCase();
   });
   let candidate = `Sân ${prefix}${String(next).padStart(2, '0')}`;
-  while (isTaken(candidate)) {
+  while (usedNumbers.has(next) || isTaken(candidate)) {
     next++;
     candidate = `Sân ${prefix}${String(next).padStart(2, '0')}`;
   }
@@ -91,8 +95,8 @@ export default function EntityDialog({ collection, row = {}, onClose }) {
   };
 
   const handleFormChange = (nextValues, changedField) => {
-    if (collection === 'courts' && !row.id && changedField === 'type') {
-      const generated = getNextCourtName(nextValues.type, data.courts);
+    if (collection === 'courts' && changedField === 'type') {
+      const generated = getNextCourtName(nextValues.type, data.courts, row.id);
       return { ...nextValues, name: generated };
     }
     return nextValues;

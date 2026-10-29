@@ -119,6 +119,13 @@ export default function Portal({session,onSession,onLogout}){
   useEffect(()=>{
     setLoading(true);
     refresh().catch(()=>{});
+    const interval = setInterval(() => refresh().catch(()=>{}), 30000);
+    const onFocus = () => refresh().catch(()=>{});
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
   },[refresh]);
 
   useEffect(()=>()=>clearTimeout(timer.current),[]);

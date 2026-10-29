@@ -24,37 +24,139 @@ public class MembershipService {
   public List<Map<String, Object>> plans() {
     var saved = docs.list("membership-plan:");
     if (!saved.isEmpty()) return saved;
+    return defaultPlans();
+  }
+
+  public List<Map<String, Object>> defaultPlans() {
     return List.of(
         map(
-            "id",
-            "club",
-            "name",
-            "Club",
-            "price",
-            249000,
-            "days",
-            30,
-            "discountPercent",
-            10, "vipDiscountPercent", 5, "advanceDays", 14, "freeChanges", 1,
-            "enabled",
-            true,
-            "description",
-            "Cho nhịp chơi đều đặn · Miễn phí gửi xe."),
+            "id", "club",
+            "name", "Club",
+            "price", 249000L,
+            "days", 30,
+            "discountPercent", 10,
+            "vipDiscountPercent", 5,
+            "advanceDays", 14,
+            "freeChanges", 1,
+            "enabled", true,
+            "description", "Cho nhịp chơi đều đặn · Miễn phí gửi xe."),
         map(
-            "id",
-            "plus",
-            "name",
-            "Plus",
-            "price",
-            499000,
-            "days",
-            30,
-            "discountPercent",
-            15, "vipDiscountPercent", 10, "advanceDays", 21, "freeChanges", 2,
-            "enabled",
-            true,
-            "description",
-            "Dành cho người mê tennis · Miễn phí gửi xe & VIP Lounge."));
+            "id", "plus",
+            "name", "Plus",
+            "price", 499000L,
+            "days", 30,
+            "discountPercent", 15,
+            "vipDiscountPercent", 10,
+            "advanceDays", 21,
+            "freeChanges", 2,
+            "enabled", true,
+            "description", "Dành cho người mê tennis · Miễn phí gửi xe & VIP Lounge."));
+  }
+
+  public void ensureDefaultPlansPersisted() {
+    var saved = docs.list("membership-plan:");
+    if (saved.isEmpty()) {
+      for (var def : defaultPlans()) {
+        docs.put("membership-plan:" + def.get("id"), new LinkedHashMap<>(def));
+      }
+    }
+  }
+
+  public Map<String, Object> createPlan(Account a, Map<String, Object> b) {
+    auth.admin(a);
+    ensureDefaultPlansPersisted();
+    String name = text((String) b.get("name"), "Tên gói");
+    String rawId = (String) b.get("id");
+    String calculatedId = (rawId != null && !rawId.isBlank())
+        ? rawId.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_-]", "")
+        : name.toLowerCase(Locale.ROOT).replaceAll("\s+", "-").replaceAll("[^a-z0-9_-]", "");
+    if (calculatedId.isBlank() || calculatedId.length() < 2) {
+      calculatedId = "plan_" + UUID.randomUUID().toString().substring(0, 8);
+    }
+    final String id = calculatedId;
+    require(plans().stream().noneMatch(p -> p.get("id").equals(id)), "Mã gói hoặc tên gói tương tự đã tồn tại");
+
+    var price = PresentationService.decimal(b.get("price"));
+    var days = PresentationService.decimal(b.get("days"));
+    var discountPercent = PresentationService.decimal(b.get("discountPercent"));
+    require(price.signum() > 0, "Giá gói cần lớn hơn 0");
+    require(days.signum() > 0 && days.intValue() <= 366, "Số ngày hiệu lực từ 1 đến 366");
+    require(discountPercent.signum() >= 0 && discountPercent.intValue() <= 50, "Giảm giá từ 0% đến 50%");
+
+    int vipDisc = b.get("vipDiscountPercent") != null ? PresentationService.decimal(b.get("vipDiscountPercent")).intValue() : (discountPercent.intValue() / 2);
+    int advDays = b.get("advanceDays") != null ? PresentationService.decimal(b.get("advanceDays")).intValue() : 14;
+    int freeChg = b.get("freeChanges") != null ? PresentationService.decimal(b.get("freeChanges")).intValue() : 1;
+
+    boolean enabled = b.get("enabled") == null || Boolean.TRUE.equals(b.get("enabled")) || "true".equals(String.valueOf(b.get("enabled")));
+    String desc = b.get("description") != null ? text((String) b.get("description"), "Mô tả") : "Quyền lợi hội viên CLB Courtly.";
+
+    Map<String, Object> plan = new LinkedHashMap<>();
+    plan.put("id", id);
+    plan.put("name", name);
+    plan.put("price", price.longValue());
+    plan.put("days", days.intValue());
+    plan.put("discountPercent", discountPercent.intValue());
+    plan.put("vipDiscountPercent", Math.max(0, Math.min(50, vipDisc)));
+    plan.put("advanceDays", Math.max(1, Math.min(90, advDays)));
+    plan.put("freeChanges", Math.max(0, Math.min(20, freeChg)));
+    plan.put("description", desc);
+    plan.put("enabled", enabled);
+
+    docs.put("membership-plan:" + id, plan);
+    return map("id", id, "name", name, "success", true);
+  }
+
+  public Map<String, Object> updatePlan(Account a, Map<String, Object> b) {
+    auth.admin(a);
+    ensureDefaultPlansPersisted();
+    String id = (String) b.get("id");
+    require(id != null && !id.isBlank(), "Mã gói không hợp lệ");
+    var existing = plans().stream().filter(p -> p.get("id").equals(id)).findFirst()
+        .orElseThrow(() -> new com.courtly.exception.BusinessException("Gói hội viên không tồn tại"));
+
+    var price = PresentationService.decimal(b.get("price"));
+    var days = PresentationService.decimal(b.get("days"));
+    var discountPercent = PresentationService.decimal(b.get("discountPercent"));
+    require(price.signum() > 0, "Giá gói cần lớn hơn 0");
+    require(days.signum() > 0 && days.intValue() <= 366, "Số ngày hiệu lực từ 1 đến 366");
+    require(discountPercent.signum() >= 0 && discountPercent.intValue() <= 50, "Giảm giá từ 0% đến 50%");
+
+    int vipDisc = b.get("vipDiscountPercent") != null ? PresentationService.decimal(b.get("vipDiscountPercent")).intValue() : ((Number) existing.getOrDefault("vipDiscountPercent", 5)).intValue();
+    int advDays = b.get("advanceDays") != null ? PresentationService.decimal(b.get("advanceDays")).intValue() : ((Number) existing.getOrDefault("advanceDays", 14)).intValue();
+    int freeChg = b.get("freeChanges") != null ? PresentationService.decimal(b.get("freeChanges")).intValue() : ((Number) existing.getOrDefault("freeChanges", 1)).intValue();
+
+    boolean enabled = b.get("enabled") == null ? true : (Boolean.TRUE.equals(b.get("enabled")) || "true".equals(String.valueOf(b.get("enabled"))));
+    String desc = b.get("description") != null ? text((String) b.get("description"), "Mô tả") : (String) existing.getOrDefault("description", "");
+
+    Map<String, Object> plan = new LinkedHashMap<>(existing);
+    plan.put("id", id);
+    plan.put("name", text((String) b.get("name"), "Tên gói"));
+    plan.put("price", price.longValue());
+    plan.put("days", days.intValue());
+    plan.put("discountPercent", discountPercent.intValue());
+    plan.put("vipDiscountPercent", Math.max(0, Math.min(50, vipDisc)));
+    plan.put("advanceDays", Math.max(1, Math.min(90, advDays)));
+    plan.put("freeChanges", Math.max(0, Math.min(20, freeChg)));
+    plan.put("description", desc);
+    plan.put("enabled", enabled);
+
+    docs.put("membership-plan:" + id, plan);
+    return map("id", id, "name", plan.get("name"), "success", true);
+  }
+
+  public Map<String, Object> deletePlan(Account a, String id) {
+    auth.admin(a);
+    ensureDefaultPlansPersisted();
+    require(id != null && !id.isBlank(), "Mã gói không hợp lệ");
+    var plan = plans().stream().filter(p -> p.get("id").equals(id)).findFirst()
+        .orElseThrow(() -> new com.courtly.exception.BusinessException("Gói hội viên không tồn tại"));
+
+    boolean inUse = docs.list("membership:").stream()
+        .anyMatch(m -> id.equals(m.get("planId")) && "ACTIVE".equals(status(m)));
+    require(!inUse, "Không thể xóa gói hội viên đang có hội viên sử dụng. Vui lòng tạm dừng đăng ký (chuyển sang Inactive).");
+
+    docs.delete("membership-plan:" + id);
+    return map("id", id, "deleted", true);
   }
 
   public String status(Map<String, Object> m) {

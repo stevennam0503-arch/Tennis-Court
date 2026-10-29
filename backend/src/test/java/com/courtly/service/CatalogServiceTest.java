@@ -157,11 +157,15 @@ class CatalogServiceTest {
   @Test
   @DisplayName("Tạo sân tự động sinh tên tiếp theo với STT tăng dần khi để trống tên")
   void saveCourt_autoGeneratesNextName_whenBlank() {
-    com.courtly.entity.Court existingCourt = new com.courtly.entity.Court();
-    existingCourt.setId(UUID.randomUUID());
-    existingCourt.setName("Sân A04");
-    existingCourt.setType("OUTDOOR");
-    when(courts.findAll()).thenReturn(List.of(existingCourt));
+    com.courtly.entity.Court c1 = new com.courtly.entity.Court();
+    c1.setId(UUID.randomUUID()); c1.setName("Sân A01"); c1.setType("OUTDOOR");
+    com.courtly.entity.Court c2 = new com.courtly.entity.Court();
+    c2.setId(UUID.randomUUID()); c2.setName("Sân A02"); c2.setType("OUTDOOR");
+    com.courtly.entity.Court c3 = new com.courtly.entity.Court();
+    c3.setId(UUID.randomUUID()); c3.setName("Sân A03"); c3.setType("OUTDOOR");
+    com.courtly.entity.Court c4 = new com.courtly.entity.Court();
+    c4.setId(UUID.randomUUID()); c4.setName("Sân A04"); c4.setType("OUTDOOR");
+    when(courts.findAll()).thenReturn(List.of(c1, c2, c3, c4));
     when(courts.save(any(com.courtly.entity.Court.class))).thenAnswer(inv -> {
       com.courtly.entity.Court c = inv.getArgument(0);
       c.setId(UUID.randomUUID());
@@ -176,6 +180,32 @@ class CatalogServiceTest {
     UUID newId = catalogService.save("courts", null, req);
     assertNotNull(newId);
     verify(courts).save(argThat(c -> "Sân A05".equals(c.getName()) && "OUTDOOR".equals(c.getType())));
+  }
+
+  @Test
+  @DisplayName("Tự động lấp chỗ trống khi sân ở giữa bị xóa (gap-filling B03)")
+  void saveCourt_fillsGapInSequence_whenMiddleCourtDeleted() {
+    com.courtly.entity.Court c1 = new com.courtly.entity.Court();
+    c1.setId(UUID.randomUUID()); c1.setName("Sân B01"); c1.setType("INDOOR");
+    com.courtly.entity.Court c2 = new com.courtly.entity.Court();
+    c2.setId(UUID.randomUUID()); c2.setName("Sân B02"); c2.setType("INDOOR");
+    com.courtly.entity.Court c4 = new com.courtly.entity.Court();
+    c4.setId(UUID.randomUUID()); c4.setName("Sân B04"); c4.setType("INDOOR");
+    when(courts.findAll()).thenReturn(List.of(c1, c2, c4));
+    when(courts.save(any(com.courtly.entity.Court.class))).thenAnswer(inv -> {
+      com.courtly.entity.Court c = inv.getArgument(0);
+      c.setId(UUID.randomUUID());
+      return c;
+    });
+
+    com.courtly.dto.request.CatalogRequest req = new com.courtly.dto.request.CatalogRequest(
+        "", "INDOOR", "ACTIVE", java.math.BigDecimal.valueOf(250000), null, null, null, null, null,
+        null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
+    );
+
+    UUID newId = catalogService.save("courts", null, req);
+    assertNotNull(newId);
+    verify(courts).save(argThat(c -> "Sân B03".equals(c.getName()) && "INDOOR".equals(c.getType())));
   }
 
   @Test

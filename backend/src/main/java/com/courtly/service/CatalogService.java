@@ -430,26 +430,23 @@ public class CatalogService {
   public String generateNextCourtName(String type) {
     String zoneLetter = "VIP".equalsIgnoreCase(type) ? "V" : "INDOOR".equalsIgnoreCase(type) ? "B" : "A";
     java.util.regex.Pattern p = java.util.regex.Pattern.compile("^(?:Sân\\s+|San\\s+)?" + zoneLetter + "(\\d+)$", java.util.regex.Pattern.CASE_INSENSITIVE);
-    int max = 0;
+    java.util.Set<Integer> usedNumbers = new java.util.HashSet<>();
     for (Court item : courts.findAll()) {
       if ("DELETED".equalsIgnoreCase(item.getStatus())) continue;
       if (item.getName() != null) {
         var m = p.matcher(item.getName().trim());
         if (m.matches()) {
           try {
-            int num = Integer.parseInt(m.group(1));
-            if (num > max) max = num;
+            usedNumbers.add(Integer.parseInt(m.group(1)));
           } catch (NumberFormatException ignored) {}
         }
       }
     }
-    int next = max + 1;
-    String candidate = String.format("Sân %s%02d", zoneLetter, next);
-    while (isCourtNameDuplicate(null, candidate)) {
+    int next = 1;
+    while (usedNumbers.contains(next) || isCourtNameDuplicate(null, String.format("Sân %s%02d", zoneLetter, next))) {
       next++;
-      candidate = String.format("Sân %s%02d", zoneLetter, next);
     }
-    return candidate;
+    return String.format("Sân %s%02d", zoneLetter, next);
   }
 
   private boolean isCourtNameDuplicate(UUID currentCourtId, String rawName) {

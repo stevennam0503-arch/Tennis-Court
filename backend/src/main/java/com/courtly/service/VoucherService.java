@@ -142,6 +142,9 @@ public class VoucherService {
         "code", v.getCode(),
         "discount", discount,
         "description", v.getDescription(),
+        "minOrder", v.getMinOrder(),
+        "type", v.getType(),
+        "value", v.getValue(),
         "applied", true);
   }
 

@@ -18,8 +18,27 @@ export default function Pricing() {
   const policies = settings.policies || {};
 
   // Find courts in the selected zone
-  const courtsInZone = (data?.courts || []).filter(c => zone(c) === selectedZone);
+  const courtsInZone = (data?.courts || []).filter(c => zone(c) === selectedZone && c.status !== 'DELETED');
   const activeCourt = courtsInZone.find(c => c.status === 'ACTIVE') || courtsInZone[0];
+
+  // Dynamic minimum price for each zone based on current court prices & pricing rules
+  const getTabMinPrice = (tabId, defaultFallback) => {
+    const courtsInThisZone = (data?.courts || []).filter(c => zone(c) === tabId && c.status !== 'DELETED');
+    if (!courtsInThisZone.length) return defaultFallback;
+    const repCourt = courtsInThisZone.find(c => c.status === 'ACTIVE') || courtsInThisZone[0];
+    const m = getCourtMatrix(repCourt, data?.prices || []);
+    if (m && m.length > 0) {
+      let minVal = Infinity;
+      for (const block of m) {
+        for (const dayKey of Object.keys(block.days || {})) {
+          const p = block.days[dayKey]?.price;
+          if (p && p < minVal) minVal = p;
+        }
+      }
+      if (minVal !== Infinity) return minVal;
+    }
+    return Math.round(Number(repCourt.price || defaultFallback) * 0.75);
+  };
 
   // Calculate pricing matrix for active court
   const matrix = activeCourt ? getCourtMatrix(activeCourt, data?.prices || []) : [];
@@ -116,7 +135,7 @@ export default function Pricing() {
                     border: isActive ? 'none' : '1px solid #cbd2c2'
                   }}
                 >
-                  {t('Từ')} {money(tab.defaultMin)}
+                  {t('Từ')} {money(getTabMinPrice(tab.id, tab.defaultMin))}
                 </span>
               </button>
             );

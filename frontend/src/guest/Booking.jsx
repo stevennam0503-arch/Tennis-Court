@@ -203,15 +203,24 @@ export default function Booking() {
     setVoucherError('');
   };
 
+  // Re-evaluate available public vouchers whenever total gross changes
+  useEffect(() => {
+    if (gross > 0) {
+      api('/public/vouchers/evaluate', 'POST', { amount: gross, accountId: user?.id || null })
+        .then(res => {
+          if (Array.isArray(res)) setPublicVouchers(res);
+        })
+        .catch(() => {});
+    }
+  }, [gross, user?.id]);
+
   useEffect(() => {
     if (!appliedVoucher) return;
-    const currentList = options?.availableVouchers || publicVouchers;
-    const current = currentList.find(v => v.code === appliedVoucher.code);
-    if (current && !current.applicable) {
+    if (appliedVoucher.minOrder && gross > 0 && gross < appliedVoucher.minOrder) {
       setAppliedVoucher(null);
-      setVoucherError(t(`Voucher ${appliedVoucher.code} đã tự động gỡ: ${current.reason || 'Không còn đủ điều kiện áp dụng.'}`));
+      setVoucherError(t(`Voucher ${appliedVoucher.code} đã tự động gỡ: Cần đơn tối thiểu ${money(appliedVoucher.minOrder)}.`));
     }
-  }, [gross, options?.availableVouchers]);
+  }, [gross]);
 
   useEffect(() => {
     if (activeVoucherCode) {
