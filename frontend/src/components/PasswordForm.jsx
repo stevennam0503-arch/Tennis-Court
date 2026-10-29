@@ -45,7 +45,7 @@ export default function PasswordForm() {
     <div style={{ marginTop: 24 }}>
       <Panel title="Đổi mật khẩu">
         <div className="notice" style={{ marginTop: 24 }}>
-          Đổi mật khẩu sẽ thu hồi tất cả các phiên đăng nhập cũ trên các thiết bị khác. Mật khẩu mới cần từ 8 ký tự để đảm bảo an toàn.
+          Đổi mật khẩu sẽ thu hồi tất cả các phiên đăng nhập cũ trên các thiết bị khác. Mật khẩu mới cần từ 6 ký tự để đảm bảo an toàn.
         </div>
         <form
           className="panel-body auth-fields"
@@ -80,22 +80,22 @@ export default function PasswordForm() {
           <PasswordField
             id="password-password"
             label="Mật khẩu mới"
-            minLength={8}
+            minLength={6}
             autoComplete="new-password"
-            placeholder="Tối thiểu 8 ký tự"
+            placeholder="Tối thiểu 6 ký tự"
             value={values.password}
             onChange={e => setValues(v => ({ ...v, password: e.target.value }))}
           />
           <PasswordField
             id="password-confirm"
             label="Nhập lại mật khẩu mới"
-            minLength={8}
+            minLength={6}
             autoComplete="new-password"
             placeholder="Nhập lại chính xác mật khẩu mới"
             value={values.confirm}
             onChange={e => setValues(v => ({ ...v, confirm: e.target.value }))}
           />
-          <small>Mật khẩu mới từ 8 ký tự, tối đa 72 byte UTF-8.</small>
+          <small>Mật khẩu mới từ 6 ký tự, tối đa 72 byte UTF-8.</small>
           {error && <div className="error" role="alert">{error}</div>}
           {success && <div className="notice" role="status" style={{ background: '#e8f5e9', borderColor: '#a5d6a7', color: '#1b5e20' }}>{success}</div>}
           <button className="btn primary" disabled={busy}>

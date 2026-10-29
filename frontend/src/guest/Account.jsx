@@ -102,28 +102,6 @@ export function TicketDialog({order, onClose}) {
         </div>
 
         <div style={{display: 'grid', gap: 9}}>
-          <button
-            type="button"
-            onClick={() => { onClose(); show({kind: 'zalo', order}); }}
-            style={{
-              width: '100%',
-              padding: '10px 14px',
-              borderRadius: 8,
-              border: '1px solid #93c5fd',
-              background: '#eff6ff',
-              color: '#1d4ed8',
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6
-            }}
-          >
-            <span>💬</span>
-            <span>{t('Xem thông báo Zalo ZNS')}</span>
-          </button>
 
           {order.status === 'CHECKED_IN' && (
             <button
@@ -689,9 +667,6 @@ export function Orders({history=false}){
                     <Action secondary onClick={()=>show({kind:'ticket',order:o})}>
                       🎫 {t('Xem lại vé')}
                     </Action>
-                    <Action secondary onClick={()=>show({kind:'zalo',order:o})}>
-                      💬 {t('Xem tin Zalo ZNS')}
-                    </Action>
                   </>
                 )}
 
@@ -699,9 +674,6 @@ export function Orders({history=false}){
                   <>
                     <Action onClick={()=>show({kind:'ticket',order:o})} style={{background:'#173c32',color:'#ffffff'}}>
                       🎫 {t('Xem Vé Điện Tử & Mã QR Check-in')}
-                    </Action>
-                    <Action secondary onClick={()=>show({kind:'zalo',order:o})}>
-                      💬 {t('Tin nhắn Zalo ZNS')}
                     </Action>
                     <Action secondary onClick={()=>{setDate(o.date);setMoveOrder(o);navigate('booking')}}>{t('Đổi lịch sân')}</Action>
                     <Action secondary onClick={()=>show({kind:'cancel',order:o})}>{t('Hủy đơn')}</Action>
@@ -716,9 +688,6 @@ export function Orders({history=false}){
                     <Action onClick={()=>show({kind:'extend',order:o})} style={{background:'#173c32',color:'#def46a',fontWeight:700}}>
                       ⚡ {t('Gia hạn giờ chơi')}
                     </Action>
-                    <Action secondary onClick={()=>show({kind:'zalo',order:o})}>
-                      💬 {t('Zalo ZNS')}
-                    </Action>
                     {o.paid < o.total && (
                       <Action onClick={()=>pay('ORDER',o.id,'BALANCE')}>{t('Thanh toán còn lại')} ({money(o.total - o.paid)})</Action>
                     )}
@@ -728,7 +697,6 @@ export function Orders({history=false}){
                 {o.status==='COMPLETED' && (
                   <>
                     <Action secondary onClick={()=>show({kind:'ticket',order:o})}>🎫 {t('Xem lại vé')}</Action>
-                    <Action secondary onClick={()=>show({kind:'zalo',order:o})}>💬 {t('Xem tin Zalo ZNS')}</Action>
                   </>
                 )}
               </div>
@@ -779,5 +747,5 @@ export function Profile(){
   const row=data?.accounts?.[0];
   const [name,setName]=useState(user.name),[phone,setPhone]=useState(row?.phone||''),[old,setOld]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false);
   const submit=async(e,kind)=>{e.preventDefault();setBusy(true);try{if(kind==='profile')await api('/profile','PATCH',{name,phone});else{await api('/auth/password','POST',{currentPassword:old,newPassword:password});setOld('');setPassword('')}await refresh();notify(t('Đã lưu thông tin'))}catch(e){notify(e.message)}finally{setBusy(false)}};
-  return <section className="ct-pad"><div className="gx-heading"><h1>{t('Hồ sơ của tôi')}</h1><p>{user.email}</p></div><div className="gx-split"><form className="gx-form" onSubmit={e=>submit(e,'profile')}><label>{t('Họ và tên')}<input required maxLength={100} value={name} onChange={e=>setName(e.target.value)}/></label><label>{t('Điện thoại')}<input type="tel" maxLength={30} value={phone} onChange={e=>setPhone(e.target.value)}/></label><Action type="submit" disabled={busy}>{t('Lưu hồ sơ')}</Action></form><form className="gx-form" onSubmit={e=>submit(e,'password')}><h3>{t('Đổi mật khẩu')}</h3><label>{t('Mật khẩu hiện tại')}<input type="password" required value={old} onChange={e=>setOld(e.target.value)} autoComplete="current-password"/></label><label>{t('Mật khẩu mới')}<input type="password" required minLength={8} maxLength={72} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="new-password"/></label><p>{t('Từ 8 ký tự, tối đa 72 byte UTF-8.')}</p><Action type="submit" disabled={busy}>{t('Đổi mật khẩu')}</Action></form></div></section>;
+  return <section className="ct-pad"><div className="gx-heading"><h1>{t('Hồ sơ của tôi')}</h1><p>{user.email}</p></div><div className="gx-split"><form className="gx-form" onSubmit={e=>submit(e,'profile')}><label>{t('Họ và tên')}<input required maxLength={100} value={name} onChange={e=>setName(e.target.value)}/></label><label>{t('Điện thoại')}<input type="tel" maxLength={30} value={phone} onChange={e=>setPhone(e.target.value)}/></label><Action type="submit" disabled={busy}>{t('Lưu hồ sơ')}</Action></form><form className="gx-form" onSubmit={e=>submit(e,'password')}><h3>{t('Đổi mật khẩu')}</h3><label>{t('Mật khẩu hiện tại')}<input type="password" required value={old} onChange={e=>setOld(e.target.value)} autoComplete="current-password"/></label><label>{t('Mật khẩu mới')}<input type="password" required minLength={6} maxLength={72} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="new-password"/></label><p>{t('Từ 6 ký tự, tối đa 72 byte UTF-8.')}</p><Action type="submit" disabled={busy}>{t('Đổi mật khẩu')}</Action></form></div></section>;
 }

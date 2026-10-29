@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, User, Lock, Mail, Phone, KeyRound } from 'lucide-react';
 import { api } from '../services/api';
 import { useGuest } from './context';
 
-export default function GuestAuth({ onSuccess }) {
+export default function GuestAuth({ onSuccess, initialMode = 'login', context = null }) {
   const { t } = useGuest();
-  const [mode, setMode] = useState('login');
+  const [mode, setMode] = useState(initialMode || 'login');
+
+  useEffect(() => {
+    if (initialMode) setMode(initialMode);
+  }, [initialMode]);
   const [values, setValues] = useState({
     email: '',
     password: '',
@@ -109,24 +113,99 @@ export default function GuestAuth({ onSuccess }) {
     }
   };
 
+  const isBookingFlow = context?.from === 'booking';
+
   const titles = {
-    login: t('Đăng nhập Courtly'),
-    register: t('Tạo tài khoản mới'),
+    login: isBookingFlow ? t('Đăng nhập để đặt sân') : t('Đăng nhập Courtly'),
+    register: isBookingFlow ? t('Tạo tài khoản & Nhận quà') : t('Tạo tài khoản mới'),
     'activate-otp': t('Kích hoạt tài khoản'),
     activate: t('Đặt lại mật khẩu')
   };
 
   const subtitles = {
-    login: t('Chào mừng trở lại! Đăng nhập để đặt sân và quản lý lịch thi đấu.'),
-    register: t('Đăng ký nhanh chóng để giữ chỗ sân trực tuyến và tích lũy ưu đãi.'),
+    login: isBookingFlow
+      ? t('Đăng nhập để giữ chỗ sân theo thời gian thực và tự động áp dụng ưu đãi.')
+      : t('Chào mừng trở lại! Đăng nhập để đặt sân và quản lý lịch thi đấu.'),
+    register: isBookingFlow
+      ? t('Đăng ký nhận ngay Voucher WELCOME 50.000₫ và giữ chỗ sân tức thì.')
+      : t('Đăng ký nhanh chóng để giữ chỗ sân trực tuyến và nhận quà chào mừng 50k.'),
     'activate-otp': t(`Mã OTP 6 số đã gửi tới ${values.email || 'email của bạn'}.`),
     activate: t('Nhập mã kích hoạt một lần do quản trị viên cấp để thiết lập mật khẩu.')
   };
 
   return (
     <div className="gx-auth-card" style={{ maxWidth: 440, margin: '0 auto', width: '100%' }}>
+      {/* Tab switch between Login & Register */}
+      {['login', 'register'].includes(mode) && (
+        <div
+          style={{
+            display: 'flex',
+            background: '#f1f5f9',
+            borderRadius: 10,
+            padding: 4,
+            marginBottom: 20
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => { setMode('login'); setError(''); setSuccess(''); }}
+            style={{
+              flex: 1,
+              padding: '9px 12px',
+              border: 'none',
+              borderRadius: 7,
+              background: mode === 'login' ? '#ffffff' : 'transparent',
+              color: mode === 'login' ? '#173c32' : '#64748b',
+              fontWeight: mode === 'login' ? 700 : 500,
+              boxShadow: mode === 'login' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              cursor: 'pointer',
+              fontSize: 13.5,
+              transition: 'all 0.15s ease'
+            }}
+          >
+            {t('Đăng nhập')}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode('register'); setError(''); setSuccess(''); }}
+            style={{
+              flex: 1,
+              padding: '9px 12px',
+              border: 'none',
+              borderRadius: 7,
+              background: mode === 'register' ? '#ffffff' : 'transparent',
+              color: mode === 'register' ? '#173c32' : '#64748b',
+              fontWeight: mode === 'register' ? 700 : 500,
+              boxShadow: mode === 'register' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              cursor: 'pointer',
+              fontSize: 13.5,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <span>{t('Đăng ký')}</span>
+            <span
+              style={{
+                background: '#def46a',
+                color: '#173c32',
+                fontSize: 10,
+                fontWeight: 800,
+                padding: '2px 6px',
+                borderRadius: 10,
+                letterSpacing: 0.5
+              }}
+            >
+              -50K
+            </span>
+          </button>
+        </div>
+      )}
+
       {/* Header section with icon & centered title */}
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+      <div style={{ textAlign: 'center', marginBottom: 20 }}>
         <div
           style={{
             display: 'inline-flex',
@@ -137,7 +216,7 @@ export default function GuestAuth({ onSuccess }) {
             borderRadius: '50%',
             background: 'rgba(23, 60, 50, 0.08)',
             color: '#173c32',
-            marginBottom: 12
+            marginBottom: 10
           }}
         >
           {mode === 'login' ? (
@@ -150,7 +229,7 @@ export default function GuestAuth({ onSuccess }) {
             <KeyRound size={22} />
           )}
         </div>
-        <h2 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 6px', color: '#173c32', letterSpacing: '-0.5px' }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 6px', color: '#173c32', letterSpacing: '-0.5px' }}>
           {titles[mode] || t('Tài khoản')}
         </h2>
         <p style={{ margin: 0, fontSize: 13, color: '#52655a', lineHeight: 1.5 }}>
@@ -158,7 +237,28 @@ export default function GuestAuth({ onSuccess }) {
         </p>
       </div>
 
-      <form onSubmit={submit} className="gx-form" style={{ display: 'grid', gap: 16 }}>
+      <form onSubmit={submit} className="gx-form" style={{ display: 'grid', gap: 14 }}>
+        {mode === 'register' && (
+          <div
+            style={{
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              borderRadius: 8,
+              padding: '10px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              fontSize: 12.5,
+              color: '#166534',
+              lineHeight: 1.4
+            }}
+          >
+            <span style={{ fontSize: 18 }}>🎁</span>
+            <span>
+              <strong>{t('Quà chào mừng:')}</strong> {t('Đăng ký ngay để nhận Voucher')} <b style={{ background: '#def46a', padding: '1px 5px', borderRadius: 4, color: '#173c32' }}>WELCOME</b> {t('giảm 50.000₫ cho lần đặt sân đầu tiên!')}
+            </span>
+          </div>
+        )}
         {success && (
           <div
             className="gx-notice"
@@ -203,6 +303,88 @@ export default function GuestAuth({ onSuccess }) {
               />
             </label>
           </>
+        )}
+
+        {mode === 'login' && (
+          <div
+            style={{
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: 8,
+              padding: '10px 12px',
+              fontSize: 12
+            }}
+          >
+            <div style={{ color: '#64748b', fontWeight: 600, marginBottom: 6 }}>
+              {t('⚡ Điền nhanh tài khoản demo (Mật khẩu: 123456):')}
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => { set('email', 'admin@gmail.com'); set('password', '123456'); }}
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 6,
+                  padding: '4px 8px',
+                  fontSize: 11.5,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  color: '#0f172a'
+                }}
+              >
+                👑 Admin
+              </button>
+              <button
+                type="button"
+                onClick={() => { set('email', 'staff@gmail.com'); set('password', '123456'); }}
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 6,
+                  padding: '4px 8px',
+                  fontSize: 11.5,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  color: '#0f172a'
+                }}
+              >
+                💼 Lễ tân (Staff)
+              </button>
+              <button
+                type="button"
+                onClick={() => { set('email', 'khachmoi@gmail.com'); set('password', '123456'); }}
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 6,
+                  padding: '4px 8px',
+                  fontSize: 11.5,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  color: '#0f172a'
+                }}
+              >
+                👤 Khách mới
+              </button>
+              <button
+                type="button"
+                onClick={() => { set('email', 'hoangnam@gmail.com'); set('password', '123456'); }}
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 6,
+                  padding: '4px 8px',
+                  fontSize: 11.5,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  color: '#0f172a'
+                }}
+              >
+                ⭐ Khách VIP
+              </button>
+            </div>
+          </div>
         )}
 
         {mode === 'activate-otp' ? (
@@ -334,7 +516,7 @@ export default function GuestAuth({ onSuccess }) {
                 type={showPassword ? 'text' : 'password'}
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 required
-                minLength={mode === 'login' ? undefined : 8}
+                minLength={mode === 'login' ? undefined : 6}
                 maxLength={128}
                 placeholder="Nhập mật khẩu của bạn"
                 value={values.password}

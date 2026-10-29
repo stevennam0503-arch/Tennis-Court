@@ -32,8 +32,8 @@ public class DemoResetService {
   private static final String PHUONG_ID = "88888888-4444-4444-4444-444444444444";
   private static final String LONG_ID = "99999999-4444-4444-4444-444444444444";
 
-  private static final String BCRYPT_12345 = "$2a$12$Vz8h4kTHkJihfSdtuexqI.kAACu2Pd5TZ/g/tSBOvoqAH9zZqdRpW";
-  private static final String BCRYPT_1234567890123 = "$2a$12$qVv9jATLLv2wNu5AWmn7xu2ehI5x5LUTIFhay53uOHfaSUILX5gWq";
+  private static final String BCRYPT_12345 = "$2a$12$UUtz0fA3mVVqyAxke7itjuFI22Q62Kl0DN2ythRJEJc6xub.js6le";
+  private static final String BCRYPT_1234567890123 = "$2a$12$UUtz0fA3mVVqyAxke7itjuFI22Q62Kl0DN2ythRJEJc6xub.js6le";
 
   @Transactional
   public void resetShowcaseData() {
@@ -117,7 +117,7 @@ public class DemoResetService {
             pr NUMERIC;
         BEGIN
             FOR d IN SELECT unnest(ARRAY['%s'::DATE, '%s'::DATE, '%s'::DATE, '%s'::DATE, '%s'::DATE, '%s'::DATE, '%s'::DATE]) LOOP
-                FOR c IN SELECT id, base_price FROM courts LOOP
+                FOR c IN SELECT id, base_price FROM courts WHERE status != 'DELETED' LOOP
                     FOR m IN 360..1320 BY 30 LOOP
                         st := (make_interval(mins => m))::TIME;
                         et := (make_interval(mins => m + 30))::TIME;

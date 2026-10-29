@@ -7,7 +7,7 @@ import {toMinutes, clock, rangeSlots, canEndAt, timePoints} from './bookingTime.
 import CourtMap from './CourtMap';
 
 export default function Booking() {
-  const {t, lang, data, date, setDate, user, login, preferredZone, setPreferredZone, refresh, navigate, pay, moveOrder, setMoveOrder, notify} = useGuest();
+  const {t, lang, data, date, setDate, user, login, preferredZone, setPreferredZone, refresh, navigate, pay, moveOrder, setMoveOrder, notify, activeVoucherCode, setActiveVoucherCode} = useGuest();
   const [courtId, setCourtId] = useState('');
   const [courtRanges, setCourtRanges] = useState({});
   const [hover, setHover] = useState(null);
@@ -22,6 +22,7 @@ export default function Booking() {
   const [publicVouchers, setPublicVouchers] = useState([]);
   const [showVoucherList, setShowVoucherList] = useState(false);
   const [recurringWeeks, setRecurringWeeks] = useState(1);
+  const [pendingVoucherCode, setPendingVoucherCode] = useState(null);
   const req = useRef(requestId());
 
   useEffect(() => {
@@ -212,6 +213,23 @@ export default function Booking() {
     }
   }, [gross, options?.availableVouchers]);
 
+  useEffect(() => {
+    if (activeVoucherCode) {
+      setVoucherInput(activeVoucherCode);
+      setPendingVoucherCode(activeVoucherCode);
+      if (gross > 0) {
+        applyVoucher(activeVoucherCode);
+      }
+    }
+  }, [activeVoucherCode]);
+
+  useEffect(() => {
+    if (gross > 0 && pendingVoucherCode && !appliedVoucher && !voucherBusy) {
+      applyVoucher(pendingVoucherCode);
+      setPendingVoucherCode(null);
+    }
+  }, [gross, pendingVoucherCode, appliedVoucher, voucherBusy]);
+
   const selectedCourtEntries = Object.entries(courtRanges)
     .filter(([_, v]) => v.valid && v.slots?.length > 0)
     .map(([cid, v]) => ({
@@ -228,7 +246,7 @@ export default function Booking() {
     : t('Nhấn một mốc giờ để bắt đầu.');
 
   const submit = async () => {
-    if (!user) { login(); return; }
+    if (!user) { login('login', { from: 'booking' }); return; }
     if (!ready) return;
     setSaving(true);
     setError('');

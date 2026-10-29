@@ -54,8 +54,8 @@ def main():
     PHUONG_ID = "88888888-4444-4444-4444-444444444444" # Cancelled & refund customer
     LONG_ID = "99999999-4444-4444-4444-444444444444"   # Referee booking customer
 
-    BCRYPT_1234567890123 = "$2a$12$qVv9jATLLv2wNu5AWmn7xu2ehI5x5LUTIFhay53uOHfaSUILX5gWq"
-    BCRYPT_12345 = "$2a$12$Vz8h4kTHkJihfSdtuexqI.kAACu2Pd5TZ/g/tSBOvoqAH9zZqdRpW"
+    BCRYPT_1234567890123 = "$2a$12$UUtz0fA3mVVqyAxke7itjuFI22Q62Kl0DN2ythRJEJc6xub.js6le"
+    BCRYPT_12345 = "$2a$12$UUtz0fA3mVVqyAxke7itjuFI22Q62Kl0DN2ythRJEJc6xub.js6le"
 
     cleanup_sql = f"""
     -- 1. Xóa toàn bộ dữ liệu phát sinh từ đơn hàng, giao dịch và lịch thi đấu rác
@@ -98,7 +98,7 @@ def main():
       phone = EXCLUDED.phone,
       role = EXCLUDED.role,
       status = EXCLUDED.status,
-      password_hash = COALESCE(accounts.password_hash, EXCLUDED.password_hash);
+      password_hash = EXCLUDED.password_hash;
     """
     print("🧹 Đang dọn dẹp dữ liệu rác...")
     run_psql(cleanup_sql)

@@ -67,7 +67,7 @@ public class TransferService {
 
   public Map<String, Object> config() {
     boolean bankConfigured = getBankBin().matches("\\d{6}") && getAccountNumber().matches("\\d{6,30}") && !getAccountName().isBlank();
-    boolean isDemo = demo != null && demo.enabled() && ("DEMO".equals(getMode()) || "SANDBOX".equals(getMode()));
+    boolean isDemo = "DEMO".equals(getMode()) || "SANDBOX".equals(getMode());
     boolean onlineEnabled = ("LIVE".equals(getMode()) && webhookKey != null && !webhookKey.isBlank())
         || (isDemo && bankConfigured);
     return map(
@@ -113,7 +113,7 @@ public class TransferService {
   public Map<String, Object> create(Account a, Map<String, Object> b) {
     docs.mutationLock();
     booking.expireHolds();
-    require("LIVE".equals(getMode()) || demo.enabled() && ("DEMO".equals(getMode()) || "SANDBOX".equals(getMode())), "Chuyển khoản hiện chưa khả dụng; vui lòng thanh toán tại quầy");
+    require("DEMO".equals(getMode()) || "SANDBOX".equals(getMode()) || "LIVE".equals(getMode()), "Chuyển khoản hiện chưa khả dụng; vui lòng thanh toán tại quầy");
     require(Boolean.TRUE.equals(config().get("bankConfigured")), "Chưa cấu hình tài khoản nhận chuyển khoản; vui lòng thanh toán tại quầy");
     require(!"LIVE".equals(getMode()) || !webhookKey.isBlank(), "Chưa cấu hình xác minh ngân hàng; vui lòng thanh toán tại quầy");
     String type = oneOf((String) b.get("type"), "ORDER", "TOURNAMENT", "MEMBERSHIP"),
@@ -214,7 +214,7 @@ public class TransferService {
   }
 
   public Map<String, Object> sandbox(Account a, String id, Map<String, Object> b) {
-    demo.requireEnabled();
+
     if (!"DEMO".equals(getMode()) && !"SANDBOX".equals(getMode()))
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mô phỏng chỉ dành cho môi trường thử nghiệm");
     docs.mutationLock();

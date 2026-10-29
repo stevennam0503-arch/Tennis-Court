@@ -24,7 +24,10 @@ public class ScheduleService {
     require(date != null, "Chọn ngày");
     String dayType = date.getDayOfWeek().getValue() >= 6 ? "WEEKEND" : "WEEKDAY";
     for (Court item :
-        courts.findAll().stream().sorted(Comparator.comparing(Court::getId)).toList()) {
+        courts.findAll().stream()
+            .filter(c -> !"DELETED".equalsIgnoreCase(c.getStatus()))
+            .sorted(Comparator.comparing(Court::getId))
+            .toList()) {
       var existing = schedules.findByCourtIdAndScheduleDate(item.getId(), date);
       if (existing.size() >= 34) continue;
       Court court = courts.findForUpdate(item.getId()).orElseThrow();

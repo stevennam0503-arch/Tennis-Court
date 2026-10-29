@@ -148,8 +148,8 @@ public class AuthService {
     require(v instanceof String, "Mật khẩu không hợp lệ");
     String p = (String) v;
     require(
-        p.length() >= 8 && p.length() <= 128 && p.getBytes(StandardCharsets.UTF_8).length <= 72,
-        "Mật khẩu từ 8 ký tự, tối đa 72 byte UTF-8");
+        p.length() >= 6 && p.length() <= 128 && p.getBytes(StandardCharsets.UTF_8).length <= 72,
+        "Mật khẩu từ 6 ký tự, tối đa 72 byte UTF-8");
     return p;
   }
 

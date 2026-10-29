@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Filter, Grid2X2 } from 'lucide-react';
+import { Plus, Filter, Grid2X2, Trash2 } from 'lucide-react';
 import { CourtPhoto, courtDescription } from '../components/CourtGallery';
 import { useCourtly } from '../context';
 import { Title, Panel, Table, Chip, Button, Tabs } from '../components/UI';
 import { labels, money } from '../utils/format';
 
 export default function CourtsPage() {
-  const { data, show, navigate } = useCourtly();
+  const { data, show, navigate, mutate, notify } = useCourtly();
+  const [deletingId, setDeletingId] = useState(null);
   const [tab, setTab] = useState('courts');
   const [courtTypeFilter, setCourtTypeFilter] = useState('ALL');
   const [priceCourtFilter, setPriceCourtFilter] = useState('ALL');
@@ -14,22 +15,44 @@ export default function CourtsPage() {
 
   const edit = (collection, row) => show({ type: 'entity', collection, row });
 
-  // Court counts by the 3 valid types
-  const courtCounts = useMemo(() => {
-    const c = { all: data.courts.length, VIP: 0, INDOOR: 0, OUTDOOR: 0 };
-    for (const court of data.courts) {
-      if (c[court.type] !== undefined) c[court.type]++;
-      else c.OUTDOOR++; // default fallback to outdoor
+  const handleDeleteCourt = async (court) => {
+    if (deletingId) return;
+    const confirmed = window.confirm(
+      `Bạn có chắc chắn muốn xóa sân "${court.name}"?\n\nSau khi xóa, sân sẽ được loại bỏ hoàn toàn khỏi toàn bộ hệ thống và giao diện web (bảng đặt sân khách, sơ đồ sân, danh sách quản lý).`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(court.id);
+    try {
+      await mutate(`/catalog/courts/${court.id}`, {}, 'DELETE');
+      notify(`Đã xóa thành công sân "${court.name}" khỏi hệ thống.`);
+    } catch (e) {
+      notify(e.message || 'Không thể xóa sân. Vui lòng thử lại.');
+    } finally {
+      setDeletingId(null);
     }
-    return c;
+  };
+
+  const activeCourts = useMemo(() => {
+    return (data.courts || []).filter(c => c.status !== 'DELETED');
   }, [data.courts]);
 
+  // Court counts by the 3 valid types
+  const courtCounts = useMemo(() => {
+    const c = { all: activeCourts.length, VIP: 0, INDOOR: 0, OUTDOOR: 0 };
+    for (const court of activeCourts) {
+      if (c[court.type] !== undefined) c[court.type]++;
+      else c.OUTDOOR++;
+    }
+    return c;
+  }, [activeCourts]);
+
   const filteredCourts = useMemo(() => {
-    return data.courts.filter(c => {
+    return activeCourts.filter(c => {
       if (courtTypeFilter !== 'ALL' && c.type !== courtTypeFilter) return false;
       return true;
     });
-  }, [data.courts, courtTypeFilter]);
+  }, [activeCourts, courtTypeFilter]);
 
   // Filtered price rules
   const filteredPrices = useMemo(() => {
@@ -112,6 +135,29 @@ export default function CourtsPage() {
                     <Button className="sm" onClick={() => navigate('calendar')}>
                       Xem lịch
                     </Button>
+                    <button
+                      type="button"
+                      className="btn sm"
+                      disabled={deletingId === c.id}
+                      onClick={() => handleDeleteCourt(c)}
+                      style={{
+                        background: '#fff1f2',
+                        color: '#e11d48',
+                        border: '1px solid #fecdd3',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        cursor: 'pointer',
+                        padding: '5px 10px',
+                        borderRadius: 6,
+                        fontSize: 12,
+                        fontWeight: 600
+                      }}
+                      title={`Xóa ${c.name}`}
+                    >
+                      <Trash2 size={13} />
+                      <span>{deletingId === c.id ? 'Đang xóa…' : 'Xóa sân'}</span>
+                    </button>
                   </div>
                 </div>
               </article>

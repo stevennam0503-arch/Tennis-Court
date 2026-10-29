@@ -35,6 +35,7 @@ class CatalogServiceTest {
   @Mock private DocumentService docs;
   @Mock private AuthService auth;
   @Mock private AuditService audit;
+  @Mock private org.springframework.jdbc.core.JdbcTemplate jdbc;
 
   private CatalogService catalogService;
   private Account actor;
@@ -63,7 +64,8 @@ class CatalogServiceTest {
             voucherRedemptions,
             docs,
             auth,
-            audit);
+            audit,
+            jdbc);
 
     actorId = UUID.randomUUID();
     actor = new Account();
@@ -150,5 +152,87 @@ class CatalogServiceTest {
 
     verify(accounts).delete(target);
     verify(audit).log(eq("XÓA TÀI KHOẢN"), contains("customer@courtly.vn"));
+  }
+
+  @Test
+  @DisplayName("Tạo sân tự động sinh tên tiếp theo với STT tăng dần khi để trống tên")
+  void saveCourt_autoGeneratesNextName_whenBlank() {
+    com.courtly.entity.Court existingCourt = new com.courtly.entity.Court();
+    existingCourt.setId(UUID.randomUUID());
+    existingCourt.setName("Sân A04");
+    existingCourt.setType("OUTDOOR");
+    when(courts.findAll()).thenReturn(List.of(existingCourt));
+    when(courts.save(any(com.courtly.entity.Court.class))).thenAnswer(inv -> {
+      com.courtly.entity.Court c = inv.getArgument(0);
+      c.setId(UUID.randomUUID());
+      return c;
+    });
+
+    com.courtly.dto.request.CatalogRequest req = new com.courtly.dto.request.CatalogRequest(
+        "", "OUTDOOR", "ACTIVE", java.math.BigDecimal.valueOf(200000), null, null, null, null, null,
+        null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
+    );
+
+    UUID newId = catalogService.save("courts", null, req);
+    assertNotNull(newId);
+    verify(courts).save(argThat(c -> "Sân A05".equals(c.getName()) && "OUTDOOR".equals(c.getType())));
+  }
+
+  @Test
+  @DisplayName("Từ chối tạo hoặc sửa sân khi tên sân bị trùng lặp")
+  void saveCourt_rejectsDuplicateName() {
+    com.courtly.entity.Court existingCourt = new com.courtly.entity.Court();
+    existingCourt.setId(UUID.randomUUID());
+    existingCourt.setName("Sân A01");
+    existingCourt.setType("OUTDOOR");
+    when(courts.findAll()).thenReturn(List.of(existingCourt));
+
+    com.courtly.dto.request.CatalogRequest req = new com.courtly.dto.request.CatalogRequest(
+        "sân a01", "OUTDOOR", "ACTIVE", java.math.BigDecimal.valueOf(200000), null, null, null, null, null,
+        null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
+    );
+
+    BusinessException ex = assertThrows(BusinessException.class, () -> catalogService.save("courts", null, req));
+    assertTrue(ex.getMessage().contains("đã tồn tại"));
+  }
+
+  @Test
+  @DisplayName("Xóa sân: Khi sân chưa có đơn đặt, xóa sạch khỏi hệ thống")
+  void deleteCourt_hardDeletesWhenNoBookings() {
+    UUID courtId = UUID.randomUUID();
+    com.courtly.entity.Court court = new com.courtly.entity.Court();
+    court.setId(courtId);
+    court.setName("Sân A05");
+    court.setType("OUTDOOR");
+    court.setStatus("ACTIVE");
+
+    when(courts.findForUpdate(courtId)).thenReturn(Optional.of(court));
+    when(jdbc.queryForObject(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(Integer.class), org.mockito.ArgumentMatchers.eq(courtId)))
+        .thenReturn(0);
+
+    catalogService.delete("courts", courtId, actor);
+
+    verify(courts).delete(court);
+    verify(audit).log(org.mockito.ArgumentMatchers.eq("XÓA SÂN"), org.mockito.ArgumentMatchers.contains("Sân A05"));
+  }
+
+  @Test
+  @DisplayName("Xóa sân: Khi sân đã có đơn đặt, soft delete và đổi trạng thái sang DELETED")
+  void deleteCourt_softDeletesWhenHasBookings() {
+    UUID courtId = UUID.randomUUID();
+    com.courtly.entity.Court court = new com.courtly.entity.Court();
+    court.setId(courtId);
+    court.setName("Sân A01");
+    court.setType("OUTDOOR");
+    court.setStatus("ACTIVE");
+
+    when(courts.findForUpdate(courtId)).thenReturn(Optional.of(court));
+    when(jdbc.queryForObject(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(Integer.class), org.mockito.ArgumentMatchers.eq(courtId)))
+        .thenReturn(3);
+
+    catalogService.delete("courts", courtId, actor);
+
+    verify(courts).save(argThat(c -> "DELETED".equals(c.getStatus())));
+    verify(audit).log(org.mockito.ArgumentMatchers.eq("XÓA SÂN"), org.mockito.ArgumentMatchers.contains("Sân A01"));
   }
 }

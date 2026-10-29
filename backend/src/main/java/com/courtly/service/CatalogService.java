@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +35,7 @@ public class CatalogService {
   private final DocumentService docs;
   private final AuthService auth;
   private final AuditService audit;
+  private final JdbcTemplate jdbc;
 
   @Transactional
   public UUID save(String collection, UUID id, CatalogRequest r) {
@@ -55,8 +57,58 @@ public class CatalogService {
   public void delete(String collection, UUID id, Account actor) {
     switch (collection) {
       case "accounts" -> deleteAccount(id, actor);
+      case "courts" -> deleteCourt(id, actor);
       default -> throw new BusinessException("Danh mục không hỗ trợ xóa");
     }
+  }
+
+  private void deleteCourt(UUID id, Account actor) {
+    auth.admin(actor);
+    Court target =
+        courts
+            .findForUpdate(id)
+            .orElseThrow(() -> new BusinessException("Sân không tồn tại"));
+
+    Integer bookedCount = 0;
+    if (jdbc != null) {
+      bookedCount =
+          jdbc.queryForObject(
+              """
+              SELECT COUNT(*) FROM court_schedules cs
+              WHERE cs.court_id = ?
+                AND (
+                  EXISTS (SELECT 1 FROM booking_slots bs WHERE bs.schedule_id = cs.id)
+                  OR EXISTS (SELECT 1 FROM match_slots ms WHERE ms.schedule_id = cs.id)
+                  OR EXISTS (SELECT 1 FROM booking_staff bst WHERE bst.court_schedule_id = cs.id)
+                )
+              """,
+              Integer.class,
+              id);
+    }
+
+    if (bookedCount != null && bookedCount > 0) {
+      target.setStatus("DELETED");
+      courts.save(target);
+      if (jdbc != null) {
+        jdbc.update(
+            """
+            DELETE FROM court_schedules cs
+            WHERE cs.court_id = ?
+              AND NOT EXISTS (SELECT 1 FROM booking_slots bs WHERE bs.schedule_id = cs.id)
+              AND NOT EXISTS (SELECT 1 FROM match_slots ms WHERE ms.schedule_id = cs.id)
+              AND NOT EXISTS (SELECT 1 FROM booking_staff bst WHERE bst.court_schedule_id = cs.id)
+            """,
+            id);
+        jdbc.update("DELETE FROM court_prices WHERE court_id = ?", id);
+      }
+    } else {
+      if (jdbc != null) {
+        jdbc.update("DELETE FROM court_schedules WHERE court_id = ?", id);
+        jdbc.update("DELETE FROM court_prices WHERE court_id = ?", id);
+      }
+      courts.delete(target);
+    }
+    audit.log("XÓA SÂN", target.getName() + " (" + target.getType() + ")");
   }
 
   private void deleteAccount(UUID id, Account actor) {
@@ -184,8 +236,14 @@ public class CatalogService {
             : courts
                 .findForUpdate(id)
                 .orElseThrow(() -> new BusinessException("Sân không tồn tại"));
-    c.setName(text(r.name(), "Tên sân"));
-    c.setType(oneOf(r.type(), "VIP", "INDOOR", "OUTDOOR"));
+    String courtType = oneOf(r.type(), "VIP", "INDOOR", "OUTDOOR");
+    String courtName = r.name() != null ? r.name().trim() : "";
+    if (courtName.isEmpty()) {
+      courtName = generateNextCourtName(courtType);
+    }
+    require(!isCourtNameDuplicate(id, courtName), "Tên sân '" + courtName + "' đã tồn tại. Vui lòng chọn tên khác.");
+    c.setName(courtName);
+    c.setType(courtType);
     c.setZoneNeedsReview(false);
     String status = oneOf(r.status(), "ACTIVE", "MAINTENANCE", "INACTIVE");
     if (!"ACTIVE".equals(status) && id != null) {
@@ -367,5 +425,45 @@ public class CatalogService {
     t.setLocation(text(r.location(), "Địa điểm"));
     t.setMaxParticipants(r.max());
     return tournaments.save(t).getId();
+  }
+
+  public String generateNextCourtName(String type) {
+    String zoneLetter = "VIP".equalsIgnoreCase(type) ? "V" : "INDOOR".equalsIgnoreCase(type) ? "B" : "A";
+    java.util.regex.Pattern p = java.util.regex.Pattern.compile("^(?:Sân\\s+|San\\s+)?" + zoneLetter + "(\\d+)$", java.util.regex.Pattern.CASE_INSENSITIVE);
+    int max = 0;
+    for (Court item : courts.findAll()) {
+      if ("DELETED".equalsIgnoreCase(item.getStatus())) continue;
+      if (item.getName() != null) {
+        var m = p.matcher(item.getName().trim());
+        if (m.matches()) {
+          try {
+            int num = Integer.parseInt(m.group(1));
+            if (num > max) max = num;
+          } catch (NumberFormatException ignored) {}
+        }
+      }
+    }
+    int next = max + 1;
+    String candidate = String.format("Sân %s%02d", zoneLetter, next);
+    while (isCourtNameDuplicate(null, candidate)) {
+      next++;
+      candidate = String.format("Sân %s%02d", zoneLetter, next);
+    }
+    return candidate;
+  }
+
+  private boolean isCourtNameDuplicate(UUID currentCourtId, String rawName) {
+    if (rawName == null || rawName.isBlank()) return false;
+    String cleanName = rawName.trim().replaceAll("^(?i)(sân|san)\\s+", "");
+    return courts.findAll().stream()
+        .filter(c -> !"DELETED".equalsIgnoreCase(c.getStatus()))
+        .filter(c -> currentCourtId == null || !c.getId().equals(currentCourtId))
+        .anyMatch(c -> {
+          if (c.getName() == null) return false;
+          String existingRaw = c.getName().trim();
+          if (existingRaw.equalsIgnoreCase(rawName.trim())) return true;
+          String existingClean = existingRaw.replaceAll("^(?i)(sân|san)\\s+", "");
+          return existingClean.equalsIgnoreCase(cleanName);
+        });
   }
 }

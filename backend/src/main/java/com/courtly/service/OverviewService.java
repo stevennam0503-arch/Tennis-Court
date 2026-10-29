@@ -47,6 +47,7 @@ public class OverviewService {
     return map(
         "courts",
             courts.findAll().stream()
+                .filter(c -> !"DELETED".equalsIgnoreCase(c.getStatus()))
                 .sorted(Comparator.comparing(Court::getName))
                 .map(
                     c ->
@@ -75,6 +76,7 @@ public class OverviewService {
                 .toList(),
         "prices",
             prices.findAllWithCourt().stream()
+                .filter(p -> p.getCourt() != null && !"DELETED".equalsIgnoreCase(p.getCourt().getStatus()))
                 .map(
                     p ->
                         map(
@@ -93,6 +95,7 @@ public class OverviewService {
                 .toList(),
         "schedules",
             schedules.findByScheduleDateOrderByStartTime(date).stream()
+                .filter(p -> p.getCourt() != null && !"DELETED".equalsIgnoreCase(p.getCourt().getStatus()))
                 .map(
                     p ->
                         map(
@@ -212,6 +215,7 @@ public class OverviewService {
     return map(
         "courts",
             courts.findAll().stream()
+                .filter(c -> !"DELETED".equalsIgnoreCase(c.getStatus()))
                 .sorted(Comparator.comparing(Court::getName))
                 .map(
                     c ->
@@ -240,6 +244,7 @@ public class OverviewService {
                 .toList(),
         "prices",
             prices.findAllWithCourt().stream()
+                .filter(p -> p.getCourt() != null && !"DELETED".equalsIgnoreCase(p.getCourt().getStatus()))
                 .map(
                     p ->
                         map(
@@ -258,6 +263,7 @@ public class OverviewService {
                 .toList(),
         "schedules",
             schedules.findByScheduleDateOrderByStartTime(date).stream()
+                .filter(p -> p.getCourt() != null && !"DELETED".equalsIgnoreCase(p.getCourt().getStatus()))
                 .map(
                     p ->
                         map(

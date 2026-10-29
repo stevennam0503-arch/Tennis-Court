@@ -253,7 +253,7 @@ export default function SystemPage() {
               <div style={{ fontWeight: 600, marginBottom: 8 }}>Sau khi đặt lại, hệ thống sẽ chứa:</div>
               <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <li><b>7 đơn hàng mẫu chuẩn:</b> Check-in, Confirmed, Giữ chỗ 5p, Định kỳ 4 tuần, Hoàn tất có hóa đơn, Hủy hoàn 70%, Thuê trọng tài.</li>
-                <li><b>4 tài khoản hệ thống chuẩn:</b> <code>admin@gmail.com</code> (12345), <code>staff@gmail.com</code> (12345), <code>hoangnam@gmail.com</code> (1234567890123), <code>khachmoi@gmail.com</code> (1234567890123).</li>
+                <li><b>4 tài khoản hệ thống chuẩn:</b> <code>admin@gmail.com</code> (123456), <code>staff@gmail.com</code> (123456), <code>hoangnam@gmail.com</code> (123456), <code>khachmoi@gmail.com</code> (123456).</li>
                 <li><b>Tài khoản tự tạo:</b> Đã được xóa hoàn toàn và giải phóng email để bạn sẵn sàng đăng ký lại từ đầu!</li>
                 <li><b>Báo cáo tài chính:</b> 3 trụ cột (Tiền sân, Trọng tài, Giải đấu & Membership) khớp từng đồng.</li>
               </ul>
