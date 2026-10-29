@@ -18,7 +18,7 @@ import './booking.css';
 import './header.css';
 import './footer.css';
 
-function Modal({children,onClose,title}){
+function Modal({children,onClose,title,hideClose}){
   const ref=useRef();
   useEffect(()=>{
     const old=document.activeElement,overflow=document.body.style.overflow;
@@ -39,7 +39,7 @@ function Modal({children,onClose,title}){
       old?.focus()
     }
   },[]);
-  return <div className="gx-backdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><section className="gx-dialog" ref={ref} role="dialog" aria-modal="true" aria-label={title}><button className="gx-close" aria-label={title} onClick={onClose}><X/></button>{children}</section></div>;
+  return <div className="gx-backdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><section className="gx-dialog" ref={ref} role="dialog" aria-modal="true" aria-label={title}>{!hideClose && <button className="gx-close" aria-label={title} onClick={onClose}><X/></button>}{children}</section></div>;
 }
 
 const paths={about:'/',booking:'/dat-san',pricing:'/bang-gia',cashdesk:'/quay-thu',news:'/tin-tuc',contact:'/lien-he',feedback:'/feedback',tournaments:'/giai-dau',membership:'/membership',orders:'/tai-khoan/don',history:'/tai-khoan/lich',payments:'/tai-khoan/thanh-toan',profile:'/tai-khoan',policies:'/chinh-sach'};
@@ -412,7 +412,7 @@ export default function Portal({session,onSession,onLogout}){
         <Footer/>
 
         {auth ? (
-          <Modal title={t('Đóng đăng nhập')} onClose={()=>setAuth(false)}>
+          <Modal title={t('Đóng đăng nhập')} onClose={()=>setAuth(false)} hideClose>
             <GuestAuth
               initialMode={authMode}
               context={authContext}

@@ -48,6 +48,9 @@
   padding: 38px 32px 32px;
   border-radius: 14px;
 }
+#courtly-balanced-amenities .gx-dialog:has(.gx-auth-card) .gx-close {
+  display: none !important;
+}
 #courtly-balanced-amenities .gx-auth-submit-btn {
   display: flex !important;
   align-items: center !important;
