@@ -328,6 +328,20 @@ public class OrderService {
     quote(order, allSlots);
     totals.recalculate(order);
 
+    var meta = documents.decode(order.getMetadata());
+    var history = (List<Map<String, Object>>) meta.computeIfAbsent("extensionHistory", k -> new ArrayList<>());
+    var extFee = newSlots.stream().map(CourtSchedule::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+    history.add(map(
+        "duration", newSlots.size() * 30,
+        "fee", extFee,
+        "startTime", sortedNew.get(0).getStartTime().toString(),
+        "endTime", sortedNew.get(sortedNew.size() - 1).getEndTime().toString(),
+        "extendedAt", Instant.now().toString()
+    ));
+    meta.put("totalExtensionMinutes", history.stream().mapToInt(h -> ((Number) h.get("duration")).intValue()).sum());
+    meta.put("totalExtensionFee", history.stream().map(h -> PresentationService.decimal(h.get("fee"))).reduce(BigDecimal.ZERO, BigDecimal::add));
+    order.setMetadata(documents.encode(meta));
+
     audit.log("GIA HẠN SÂN", id.toString() + " (+" + (newSlots.size() * 30) + " phút)");
   }
 

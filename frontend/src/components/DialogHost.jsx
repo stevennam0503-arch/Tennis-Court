@@ -4,7 +4,7 @@ import {useCourtly} from '../context';
 import {Modal,FormDialog,Button,Table} from './UI';
 import MoveDialog from './MoveDialog';
 import EntityDialog from './EntityDialog';
-import {BookingDialog,OrderDetail,OrderActionDialog,PaymentDialog,RefundDialog,InvoiceDialog,ExtendOrderDialog} from './OrderDialogs';
+import {BookingDialog,OrderDetail,OrderActionDialog,PaymentDialog,RefundDialog,InvoiceDialog,ExtendOrderDialog,CheckOutDialog} from './OrderDialogs';
 import {TournamentDetail,TournamentActionDialog,MatchDetail,MatchActionDialog} from './TournamentDialogs';
 import OrderTable from './OrderTable';
 import AutoQRCheckInModal from './AutoQRCheckInModal';
@@ -31,6 +31,7 @@ export default function DialogHost({dialog,onClose}){
   case 'booking':return <BookingDialog {...p}/>;
   case 'order':return <OrderDetail {...p}/>;
   case 'extend-order':return <ExtendOrderDialog {...p}/>;
+  case 'check-out':return <CheckOutDialog {...p}/>;
   case 'cancel':case 'move':case 'assign-staff':return <OrderActionDialog {...p}/>;
   case 'payment':return <PaymentDialog {...p}/>;
   case 'refund':return <RefundDialog {...p}/>;

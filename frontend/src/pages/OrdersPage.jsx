@@ -64,6 +64,11 @@ export default function OrdersPage() {
   };
 
   const handleQuickCheckOut = async (orderId) => {
+    const o = data.orders.find(x => x.id === orderId);
+    if (o && (o.paid < o.total || o.paid > o.total)) {
+      show({ type: 'check-out', id: orderId });
+      return;
+    }
     try {
       setActionLoading(true);
       await mutate(`/orders/${orderId}/check-out`, {});
@@ -77,10 +82,19 @@ export default function OrdersPage() {
 
   // Status counts for quick tabs
   const counts = useMemo(() => {
-    const map = { all: data.orders.length, HOLDING: 0, CONFIRMED: 0, CHECKED_IN: 0, COMPLETED: 0, CANCELLED: 0 };
+    const map = { all: data.orders.length, HOLDING: 0, CONFIRMED: 0, CHECKED_IN: 0, COMPLETED: 0, CANCELLED: 0, REFUND_PENDING: 0 };
     for (const o of data.orders) {
       if (map[o.status] !== undefined) map[o.status]++;
       else if (o.status === 'EXPIRED') map.CANCELLED++;
+
+      const isCancelled = ['CANCELLED', 'EXPIRED'].includes(o.status);
+      const refunded = o.finance?.refunded || 0;
+      const settlement = o.cancellationSettlement || o.metadata?.cancellationSettlement;
+      const expectedRefund = settlement ? (settlement.refundAmount || 0) : 0;
+      const refundPending = o.finance?.refundPending || expectedRefund || 0;
+      if (isCancelled && (refundPending > 0 || (expectedRefund > 0 && refunded < expectedRefund)) && refunded === 0) {
+        map.REFUND_PENDING++;
+      }
     }
     return map;
   }, [data.orders]);
@@ -97,7 +111,16 @@ export default function OrdersPage() {
 
       // 2. Status filter
       if (status) {
-        if (status === 'CANCELLED') {
+        if (status === 'REFUND_PENDING') {
+          const isCancelled = ['CANCELLED', 'EXPIRED'].includes(o.status);
+          const refunded = o.finance?.refunded || 0;
+          const settlement = o.cancellationSettlement || o.metadata?.cancellationSettlement;
+          const expectedRefund = settlement ? (settlement.refundAmount || 0) : 0;
+          const refundPending = o.finance?.refundPending || expectedRefund || 0;
+          if (!isCancelled || ((refundPending <= 0 && expectedRefund <= 0) || refunded > 0)) {
+            return false;
+          }
+        } else if (status === 'CANCELLED') {
           if (!['CANCELLED', 'EXPIRED'].includes(o.status)) return false;
         } else if (o.status !== status) {
           return false;
@@ -187,7 +210,8 @@ export default function OrdersPage() {
           ['CONFIRMED', `Đã xác nhận (${counts.CONFIRMED})`],
           ['CHECKED_IN', `Đang chơi (${counts.CHECKED_IN})`],
           ['COMPLETED', `Hoàn tất (${counts.COMPLETED})`],
-          ['CANCELLED', `Đã hủy / Hết hạn (${counts.CANCELLED})`]
+          ['CANCELLED', `Đã hủy / Hết hạn (${counts.CANCELLED})`],
+          ['REFUND_PENDING', `💸 Chờ hoàn tiền (${counts.REFUND_PENDING})`]
         ].map(([s, label]) => (
           <button
             key={s}

@@ -648,8 +648,86 @@ export function Orders({history=false}){
                 </div>
               )}
 
-              {o.finance?.refundPending>0&&<p className="gx-notice">{t('Chờ hoàn')}: {money(o.finance.refundPending)} · {t('CLB đang xử lý; chưa chuyển hoàn tự động.')}</p>}
-              {o.cancellationSettlement&&<p>{t('Tiền giữ lại theo chính sách')}: {money(o.cancellationSettlement.retainedAmount)}</p>}
+              {/* Transparent Refund & Cancellation Settlement Card */}
+              {['CANCELLED', 'EXPIRED'].includes(o.status) && (
+                (() => {
+                  const settlement = o.cancellationSettlement || meta?.cancellationSettlement;
+                  const refunded = o.finance?.refunded || 0;
+                  const refundPending = o.finance?.refundPending || (settlement ? (settlement.refundAmount || 0) : 0);
+                  const policyDesc = settlement?.policyDescription || (
+                    settlement?.hoursBeforePlay !== undefined && settlement?.hoursBeforePlay !== null
+                      ? (settlement.hoursBeforePlay >= 24 ? 'Hủy trước > 24h: Hoàn 100% cọc' : settlement.hoursBeforePlay >= 12 ? 'Hủy 12h - 24h: Hoàn 50% cọc' : 'Hủy cận giờ < 12h: Giữ 100% cọc')
+                      : (o.paid > 0 ? 'Chính sách hoàn hủy CLB' : 'Hủy đơn giữ chỗ')
+                  );
+                  const retained = settlement?.retainedAmount || 0;
+                  const isPending = refundPending > 0 && refunded === 0;
+
+                  return (
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '14px 16px', margin: '14px 0', fontSize: 13 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                        <strong style={{ color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13.5 }}>
+                          <span>⚖️</span> {t('Đối soát hoàn tiền & Chính sách')}
+                        </strong>
+                        <span style={{
+                          fontSize: 11.5,
+                          fontWeight: 700,
+                          padding: '3px 9px',
+                          borderRadius: 6,
+                          background: refunded > 0 ? '#dcfce7' : (isPending ? '#fef3c7' : '#f1f5f9'),
+                          color: refunded > 0 ? '#166534' : (isPending ? '#b45309' : '#64748b'),
+                          border: `1px solid ${refunded > 0 ? '#bbf7d0' : (isPending ? '#fde68a' : '#e2e8f0')}`
+                        }}>
+                          {refunded > 0 ? t('✓ ĐÃ HOÀN TIỀN') : (isPending ? t('⏳ ĐANG CHỜ HOÀN TIỀN') : (o.paid > 0 ? t('GIỮ CỌC') : t('ĐÃ HỦY')))}
+                        </span>
+                      </div>
+
+                      <div style={{ color: '#334155', fontSize: 12.5, marginBottom: 10, lineHeight: 1.5 }}>
+                        <b>{t('Chính sách áp dụng')}:</b> <span style={{ color: '#1e40af', fontWeight: 600 }}>{t(policyDesc)}</span>
+                        {meta?.cancelReason && (
+                          <div style={{ color: '#475569', marginTop: 3 }}>
+                            <b>{t('Lý do hủy')}:</b> {meta.cancelReason}
+                          </div>
+                        )}
+                        {settlement?.cancelledBy && (
+                          <div style={{ color: '#64748b', fontSize: 11.5, marginTop: 2 }}>
+                            {t('Người thực hiện hủy')}: {settlement.cancelledBy}
+                          </div>
+                        )}
+                      </div>
+
+                      {o.paid > 0 && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8, background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 12px' }}>
+                          <div>
+                            <small style={{ color: '#64748b', display: 'block' }}>{t('Tiền đã đóng')}:</small>
+                            <b style={{ color: '#0f172a', fontSize: 14 }}>{money(o.paid)}</b>
+                          </div>
+                          {refunded > 0 ? (
+                            <div>
+                              <small style={{ color: '#166534', display: 'block' }}>{t('Đã chuyển hoàn')}:</small>
+                              <b style={{ color: '#166534', fontSize: 14 }}>{money(refunded)}</b>
+                            </div>
+                          ) : (
+                            <div>
+                              <small style={{ color: '#b45309', display: 'block' }}>{t('Số tiền được hoàn')}:</small>
+                              <b style={{ color: isPending ? '#d97706' : '#64748b', fontSize: 14 }}>{money(refundPending)}</b>
+                            </div>
+                          )}
+                          <div>
+                            <small style={{ color: '#64748b', display: 'block' }}>{t('Khấu trừ / Giữ cọc')}:</small>
+                            <b style={{ color: retained > 0 ? '#b91c1c' : '#64748b', fontSize: 14 }}>{money(retained)}</b>
+                          </div>
+                        </div>
+                      )}
+
+                      {isPending && (
+                        <div style={{ marginTop: 10, fontSize: 12, color: '#92400e', background: '#fffbeb', padding: '8px 12px', borderRadius: 6, border: '1px solid #fef3c7', lineHeight: 1.5 }}>
+                          ℹ️ {t('Khoản hoàn')} <b>{money(refundPending)}</b> {t('đã được ghi nhận vào danh sách chờ hoàn của bộ phận kế toán. Quý khách vui lòng kiểm tra tài khoản đã thanh toán hoặc liên hệ hotline CLB để nhận hoàn sớm nhất.')}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
+              )}
 
               {/* Action Buttons */}
               <div className="gx-order-actions" style={{display:'flex',gap:10,flexWrap:'wrap',alignItems:'center',marginTop:14,paddingTop:12,borderTop:'1px solid #f0f3eb'}}>
@@ -728,10 +806,113 @@ export function Orders({history=false}){
 }
 
 export function CancelDialog({order,onClose}){
- const {t,refresh}=useGuest();const [busy,setBusy]=useState(false),[error,setError]=useState(''),[quote,setQuote]=useState(null);
- const [id]=useState(requestId);
- useEffect(()=>{let live=true;api(`/orders/${order.id}/cancellation-preview`).then(x=>{if(live)setQuote(x)}).catch(e=>{if(live)setError(e.message)});return()=>{live=false}},[order.id]);
- return <div className="gx-form"><h2>{t('Xác nhận hủy đơn')}</h2><p>#{order.id.slice(0,8)} · {order.date}</p>{quote&&<><p>{t('Đã thu')}: {money(quote.paid)}</p><p>{t('Dự kiến hoàn')}: {money(quote.refundAmount)} ({quote.refundPercent}%)</p><p>{t('Giữ lại theo chính sách')}: {money(quote.retainedAmount)}</p><p>{t('Sân sẽ được giải phóng. Khoản hoàn chuyển sang chờ CLB xử lý, chưa tự chuyển tiền về ngân hàng.')}</p></>}{error&&<div className="gx-error" role="alert">{t(error)}</div>}<Action disabled={busy||!quote||!!error} onClick={async()=>{setBusy(true);try{await api(`/orders/${order.id}/cancel`,'POST',{requestId:id});await refresh();onClose()}catch(e){setError(e.message)}finally{setBusy(false)}}}>{t('Xác nhận hủy')}</Action><Action secondary onClick={onClose}>{t('Giữ đơn')}</Action></div>;
+  const {t,refresh}=useGuest();
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState('');
+  const [quote,setQuote]=useState(null);
+  const [reason,setReason]=useState('Bận việc đột xuất');
+  const [customReason,setCustomReason]=useState('');
+  const [id]=useState(requestId);
+
+  useEffect(()=>{
+    let live=true;
+    api(`/orders/${order.id}/cancellation-preview`)
+      .then(x=>{if(live)setQuote(x)})
+      .catch(e=>{if(live)setError(e.message)});
+    return()=>{live=false};
+  },[order.id]);
+
+  const finalReason = reason === 'Khác' ? (customReason.trim() || 'Lý do cá nhân') : reason;
+
+  return (
+    <div className="gx-form" style={{maxWidth: 460, margin: '0 auto'}}>
+      <h2 style={{margin: '0 0 6px', color: '#173c32'}}>{t('Xác nhận hủy đơn đặt sân')}</h2>
+      <p style={{margin: '0 0 16px', color: '#52655a', fontSize: 13}}>
+        #{order.id.slice(0,8).toUpperCase()} · {order.date}
+      </p>
+
+      {quote && (
+        <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '14px 16px', marginBottom: 16, fontSize: 13}}>
+          <div style={{display: 'inline-block', background: '#dbeafe', color: '#1e40af', padding: '3px 8px', borderRadius: 6, fontWeight: 700, fontSize: 12, marginBottom: 8}}>
+            {quote.policyDescription || (quote.refundPercent === 100 ? t('Hoàn 100% tiền cọc') : quote.refundPercent === 50 ? t('Hoàn 50% tiền cọc') : t('Giữ 100% cọc (Không hoàn)'))}
+          </div>
+
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, margin: '8px 0'}}>
+            <div>
+              <span style={{color: '#64748b', fontSize: 12, display: 'block'}}>{t('Tiền cọc đã đóng')}:</span>
+              <strong style={{color: '#0f172a', fontSize: 15}}>{money(quote.paid)}</strong>
+            </div>
+            <div>
+              <span style={{color: '#64748b', fontSize: 12, display: 'block'}}>{t('Dự kiến hoàn trả')}:</span>
+              <strong style={{color: quote.refundAmount > 0 ? '#15803d' : '#64748b', fontSize: 15}}>
+                {money(quote.refundAmount)} ({quote.refundPercent}%)
+              </strong>
+            </div>
+          </div>
+
+          {quote.retainedAmount > 0 && (
+            <div style={{color: '#b91c1c', fontSize: 12, marginTop: 4}}>
+              * {t('Khấu trừ theo quy định hủy')}: <b>{money(quote.retainedAmount)}</b>
+            </div>
+          )}
+
+          <div style={{marginTop: 10, fontSize: 11.5, color: '#64748b', borderTop: '1px dashed #cbd5e1', paddingTop: 8, lineHeight: 1.4}}>
+            ℹ️ {t('Sân sẽ được giải phóng cho khách khác ngay lập tức. Số tiền hoàn (nếu có) sẽ chuyển sang danh sách đối soát để CLB hoàn tiền về tài khoản của bạn.')}
+          </div>
+        </div>
+      )}
+
+      <div style={{marginBottom: 16}}>
+        <label style={{display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 6}}>
+          {t('Lý do hủy đơn')}:
+        </label>
+        <select
+          value={reason}
+          onChange={e=>setReason(e.target.value)}
+          style={{width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13}}
+        >
+          <option value="Bận việc đột xuất">{t('Bận việc đột xuất')}</option>
+          <option value="Thời tiết không thuận lợi">{t('Thời tiết không thuận lợi')}</option>
+          <option value="Thay đổi kế hoạch của nhóm">{t('Thay đổi kế hoạch của nhóm')}</option>
+          <option value="Đặt nhầm ngày / giờ">{t('Đặt nhầm ngày / giờ')}</option>
+          <option value="Khác">{t('Lý do khác…')}</option>
+        </select>
+        {reason === 'Khác' && (
+          <input
+            style={{width: '100%', marginTop: 8, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13}}
+            placeholder={t('Nhập chi tiết lý do…')}
+            value={customReason}
+            onChange={e=>setCustomReason(e.target.value)}
+            maxLength={120}
+          />
+        )}
+      </div>
+
+      {error && <div className="gx-error" role="alert" style={{marginBottom: 14}}>{t(error)}</div>}
+
+      <div style={{display: 'flex', gap: 10, marginTop: 8}}>
+        <Action
+          disabled={busy || !quote || !!error}
+          onClick={async()=>{
+            setBusy(true);
+            try{
+              await api(`/orders/${order.id}/cancel`,'POST',{requestId: id, reason: finalReason});
+              await refresh();
+              onClose();
+            }catch(e){
+              setError(e.message);
+            }finally{
+              setBusy(false);
+            }
+          }}
+          style={{background: '#dc2626', color: '#fff', border: 'none', flex: 1}}
+        >
+          {busy ? t('Đang xử lý…') : t('Xác nhận hủy sân')}
+        </Action>
+        <Action secondary onClick={onClose} style={{flex: 1}}>{t('Giữ lại đơn')}</Action>
+      </div>
+    </div>
+  );
 }
 
 export function Membership(){

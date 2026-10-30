@@ -159,6 +159,7 @@ public class OrderApplicationService {
         "hoursUntilMatch", Math.round(hours * 10.0) / 10.0,
         "tier", tier,
         "description", description,
+        "policyDescription", description,
         "status", refund.signum() > 0 ? "REFUND_PENDING" : "NO_REFUND",
         "requestedAt", Instant.now().toString());
   }
@@ -234,10 +235,22 @@ public class OrderApplicationService {
             case "cancel" -> {
               customerPolicy(a, o, "cancel");
               if (Set.of("ADMIN", "STAFF").contains(a.getRole())) text((String) b.get("reason"), "Lý do hủy");
-              var settlement = cancellationPreview(id, a);
+              var settlement = new LinkedHashMap<>(cancellationPreview(id, a));
+              if (Set.of("ADMIN", "STAFF").contains(a.getRole()) && Boolean.TRUE.equals(b.get("fullRefund"))) {
+                settlement.put("refundPercent", 100);
+                settlement.put("refundAmount", o.getPaidAmount());
+                settlement.put("retainedAmount", java.math.BigDecimal.ZERO);
+                settlement.put("tier", "ADMIN_100");
+                settlement.put("policyDescription", "Quản trị viên duyệt hoàn 100% tiền cọc (Sự cố sân / thời tiết / bất khả kháng).");
+                settlement.put("description", "Quản trị viên duyệt hoàn 100% tiền cọc (Sự cố sân / thời tiết / bất khả kháng).");
+                settlement.put("status", o.getPaidAmount().signum() > 0 ? "REFUND_PENDING" : "NO_REFUND");
+              }
               service.cancel(id);
               var extra = docs.decode(o.getMetadata());
               extra.put("cancellationSettlement", settlement);
+              extra.put("cancelReason", b.get("reason"));
+              extra.put("cancelledBy", a.getFullName());
+              extra.put("cancelledAt", Instant.now().toString());
               extra.put("refundPending", settlement.get("refundAmount"));
               extra.put("financialReview", PresentationService.decimal(settlement.get("refundAmount")).signum() > 0 ? "REFUND_PENDING" : null);
               o.setMetadata(docs.encode(extra));

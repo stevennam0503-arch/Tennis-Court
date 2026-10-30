@@ -155,6 +155,45 @@ export function MyHistory() {
             <p className="subtitle">
               {o.slots.map(s => `${data.courts.find(c => c.id === s.court)?.name || 'Sân'} · ${slotLabel(s)}`).join(' / ')}
             </p>
+            {o.totalExtensionMinutes > 0 && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 8px', borderRadius: 6, background: '#dbeafe', color: '#1e40af', fontSize: 12, fontWeight: 700, margin: '4px 0 8px' }}>
+                ⚡ Đã gia hạn +{o.totalExtensionMinutes} phút chơi
+              </div>
+            )}
+            {['CANCELLED','EXPIRED'].includes(o.status) && (
+              (() => {
+                const settlement = o.cancellationSettlement || o.metadata?.cancellationSettlement;
+                const refunded = o.finance?.refunded || 0;
+                const refundPending = o.finance?.refundPending || (settlement ? settlement.refundAmount : 0);
+                const policyDesc = settlement?.policyDescription || (
+                  settlement?.hoursBeforePlay !== undefined && settlement?.hoursBeforePlay !== null
+                    ? (settlement.hoursBeforePlay >= 24 ? 'Hủy trước > 24h: Hoàn 100% cọc' : settlement.hoursBeforePlay >= 12 ? 'Hủy 12h - 24h: Hoàn 50% cọc' : 'Hủy cận giờ < 12h: Giữ 100% cọc')
+                    : 'Chính sách hoàn cọc'
+                );
+                const retained = settlement?.retainedAmount || 0;
+                return (
+                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 12px', margin: '8px 0', fontSize: 12.5 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, flexWrap: 'wrap', gap: 4 }}>
+                      <strong style={{ color: '#1e40af' }}>⚖️ {policyDesc}</strong>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: refunded > 0 ? '#dcfce7' : (refundPending > 0 ? '#fef3c7' : '#f1f5f9'), color: refunded > 0 ? '#166534' : (refundPending > 0 ? '#b45309' : '#64748b') }}>
+                        {refunded > 0 ? '✓ Đã hoàn tiền' : (refundPending > 0 ? '⏳ Chờ hoàn tiền' : 'Giữ cọc')}
+                      </span>
+                    </div>
+                    {o.paid > 0 && (
+                      <div style={{ display: 'flex', gap: 14, color: '#475569', fontSize: 12, marginTop: 4, flexWrap: 'wrap' }}>
+                        <span>Đã thu: <b>{money(o.paid)}</b></span>
+                        {refunded > 0 ? (
+                          <span style={{ color: '#166534' }}>Đã hoàn: <b>{money(refunded)}</b></span>
+                        ) : (
+                          <span style={{ color: refundPending > 0 ? '#d97706' : '#64748b' }}>Được hoàn: <b>{money(refundPending)}</b></span>
+                        )}
+                        {retained > 0 && <span style={{ color: '#b91c1c' }}>Khấu trừ: <b>{money(retained)}</b></span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()
+            )}
             <OrderActions order={o} />
             <details className="history-details">
               <summary>Xem các lần cập nhật</summary>

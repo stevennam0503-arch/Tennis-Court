@@ -61,6 +61,33 @@ export default function PaymentsPage() {
   const memTotal = memPayments.reduce((a, p) => a + p.amount, 0);
   const inDay = allPayments.filter((p) => localDate(p.createdAt || p.paidAt) === date);
 
+  const pendingRefundOrders = useMemo(() => {
+    return (data.orders || []).filter((o) => {
+      const isCancelled = ['CANCELLED', 'EXPIRED'].includes(o.status);
+      if (!isCancelled) return false;
+      const refunded = o.finance?.refunded || 0;
+      const settlement = o.cancellationSettlement || o.metadata?.cancellationSettlement;
+      const expectedRefund = settlement ? (settlement.refundAmount || 0) : 0;
+      const refundPending = o.finance?.refundPending || expectedRefund || 0;
+      return (refundPending > 0 || expectedRefund > 0) && refunded === 0;
+    }).map((o) => {
+      const settlement = o.cancellationSettlement || o.metadata?.cancellationSettlement;
+      const hours = settlement?.hoursBeforePlay ?? null;
+      const policyDesc = settlement?.policyDescription || (
+        hours !== null
+          ? (hours >= 24 ? 'Hủy trước > 24h: Hoàn 100% cọc' : hours >= 12 ? 'Hủy 12h - 24h: Hoàn 50% cọc' : 'Hủy cận giờ < 12h: Giữ 100% cọc')
+          : 'Hủy đơn có cọc'
+      );
+      const refundAmount = settlement?.refundAmount ?? (o.finance?.refundPending || 0);
+      return {
+        ...o,
+        settlement,
+        policyDesc,
+        refundAmount
+      };
+    });
+  }, [data.orders]);
+
   // Filtered Payments
   const filteredPayments = useMemo(() => {
     return allPayments.filter((p) => {
@@ -117,7 +144,8 @@ export default function PaymentsPage() {
       <Tabs
         options={[
           ['transactions', `Giao dịch (${allPayments.length})`],
-          ['refunds', `Hoàn tiền (${data.refunds.length})`],
+          ['pending-refunds', `Đơn cần hoàn tiền (${pendingRefundOrders.length})`],
+          ['refunds', `Lịch sử hoàn tiền (${data.refunds.length})`],
           ['closing', 'Đối chiếu ca'],
           ['reconciliation', 'Đối soát & Ngoại lệ'],
         ]}
@@ -127,7 +155,9 @@ export default function PaymentsPage() {
 
       <Panel
         title={
-          tab === 'refunds'
+          tab === 'pending-refunds'
+            ? `Danh sách đơn hủy cần hoàn tiền (${pendingRefundOrders.length})`
+            : tab === 'refunds'
             ? `Lịch sử hoàn tiền (${data.refunds.length})`
             : tab === 'closing'
             ? 'Đối chiếu cuối ngày'
@@ -262,6 +292,69 @@ export default function PaymentsPage() {
               </div>
             )}
           </>
+        )}
+
+        {tab === 'pending-refunds' && (
+          <Table headings={['Mã đơn', 'Khách hàng', 'Lịch sân', 'Đã thu', 'Chính sách & Lý do hoàn', 'Số tiền hoàn', 'Thao tác']} empty={!pendingRefundOrders.length}>
+            {pendingRefundOrders.map((o) => (
+              <tr key={o.id}>
+                <td>
+                  <b>#{o.id.slice(0, 8)}</b>
+                  <small>{o.date}</small>
+                </td>
+                <td className="name">
+                  {o.name}
+                  <small>{o.phone || 'Chưa có SĐT'}</small>
+                </td>
+                <td>
+                  {(o.slots || []).slice(0, 2).map((s) => (
+                    <div key={s.id}>
+                      {data.courts.find((c) => c.id === s.court)?.name} · {s.start?.slice(0, 5)} - {s.end?.slice(0, 5)}
+                    </div>
+                  ))}
+                  {(o.slots || []).length > 2 && <small>+{o.slots.length - 2} khung giờ</small>}
+                </td>
+                <td style={{ fontWeight: 600 }}>{money(o.paid)}</td>
+                <td>
+                  <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700, color: '#1e40af', background: '#dbeafe', border: '1px solid #bfdbfe' }}>
+                    {o.policyDesc}
+                  </span>
+                  {o.metadata?.cancelReason && (
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                      Lý do: {o.metadata.cancelReason}
+                    </div>
+                  )}
+                  {o.settlement?.cancelledBy && (
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                      Bởi: {o.settlement.cancelledBy}
+                    </div>
+                  )}
+                </td>
+                <td>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#dc2626' }}>
+                    {money(o.refundAmount)}
+                  </span>
+                </td>
+                <td>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <Button
+                      className="sm primary"
+                      style={{ background: '#e11d48', borderColor: '#be123c' }}
+                      onClick={() => show({ type: 'refund', orderId: o.id })}
+                    >
+                      Hoàn tiền ngay
+                    </Button>
+                    <Button
+                      className="sm"
+                      onClick={() => show({ type: 'order', id: o.id, visitDate: o.visitDate })}
+                    >
+                      Chi tiết
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </Table>
         )}
 
         {tab === 'refunds' && (
