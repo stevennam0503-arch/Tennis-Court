@@ -81,16 +81,13 @@ export default function EntityDialog({ collection, row = {}, onClose }) {
 
   const handleDelete = async () => {
     if (!row.id) return;
-    const confirmed = window.confirm(
-      `Bạn có chắc chắn muốn xóa sân "${row.name}"?\n\nSau khi xóa, sân sẽ được loại bỏ hoàn toàn khỏi toàn bộ hệ thống và giao diện web (bảng đặt sân khách, sơ đồ sân, danh sách quản lý).`
-    );
-    if (!confirmed) return;
     try {
       await mutate(`/catalog/${collection}/${row.id}`, {}, 'DELETE');
       notify(`Đã xóa thành công "${row.name}" khỏi hệ thống.`);
       onClose();
     } catch (e) {
       notify(e.message || 'Không thể xóa sân. Vui lòng thử lại.');
+      throw e;
     }
   };
 
