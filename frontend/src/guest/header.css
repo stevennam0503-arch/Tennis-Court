@@ -219,6 +219,19 @@
   flex-shrink: 0;
 }
 
+/* Customer Notification Bell Button */
+#courtly-balanced-amenities .ct-notif-bell-btn:hover {
+  background: #173c32 !important;
+  color: #def46a !important;
+  border-color: #173c32 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(23, 60, 50, 0.22) !important;
+}
+
+#courtly-balanced-amenities .ct-notif-bell-btn:active {
+  transform: translateY(0);
+}
+
 /* Login CTA Button */
 #courtly-balanced-amenities .ct-header.ct-original-header .ca-login-button {
   display: inline-flex;

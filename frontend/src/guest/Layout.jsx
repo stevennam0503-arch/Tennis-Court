@@ -6,7 +6,7 @@ import {customerNavigation} from '../navigation';
 export function Logo(){const {navigate,t}=useGuest();return <button className="ct-logo" onClick={()=>navigate('about')} aria-label={t('Courtly trang chủ')}><img src="/favicon.svg" width="38" height="38" alt=""/><span className="ct-original-wordmark">Courtly<em>TENNIS CLUB</em></span></button>;}
 
 export function CustomerNotifications() {
-  const { t, user, data, navigate, show, pay } = useGuest();
+  const { t, user, data, navigate, show, pay, login } = useGuest();
   const [open, setOpen] = useState(false);
   const [readIds, setReadIds] = useState(() => {
     try {
@@ -165,7 +165,7 @@ export function CustomerNotifications() {
     return list;
   }, [user, data, t, navigate, show, pay]);
 
-  const unreadCount = notifications.filter(n => !readIds.includes(n.id)).length;
+  const unreadCount = user ? notifications.filter(n => !readIds.includes(n.id)).length : 0;
 
   const markAllRead = () => {
     const allIds = notifications.map(n => n.id);
@@ -199,37 +199,40 @@ export function CustomerNotifications() {
         title={t('Thông báo đơn hàng')}
         style={{
           position: 'relative',
-          background: open ? 'rgba(222, 244, 106, 0.2)' : 'rgba(255, 255, 255, 0.08)',
-          border: '1px solid rgba(255, 255, 255, 0.22)',
-          borderRadius: 8,
-          width: 36,
-          height: 36,
+          background: open ? '#173c32' : '#ffffff',
+          border: '1.5px solid ' + (open ? '#173c32' : 'rgba(23, 60, 50, 0.16)'),
+          borderRadius: '50%',
+          width: 40,
+          height: 40,
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: open ? '#def46a' : '#ffffff',
+          color: open ? '#def46a' : '#173c32',
           cursor: 'pointer',
-          transition: 'all 0.15s ease'
+          boxShadow: '0 2px 6px rgba(23, 60, 50, 0.08)',
+          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          flexShrink: 0
         }}
       >
-        <Bell size={18} />
+        <Bell size={20} strokeWidth={2.2} />
         {unreadCount > 0 && (
           <span style={{
             position: 'absolute',
-            top: -3,
-            right: -3,
-            minWidth: 17,
-            height: 17,
-            padding: '0 4px',
-            borderRadius: 10,
+            top: -2,
+            right: -2,
+            minWidth: 18,
+            height: 18,
+            padding: '0 5px',
+            borderRadius: 999,
             background: '#ef4444',
             color: '#ffffff',
-            fontSize: 10,
+            fontSize: 10.5,
             fontWeight: 800,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '1.5px solid #13332b',
+            border: '2px solid #ffffff',
+            boxShadow: '0 2px 5px rgba(239, 68, 68, 0.4)',
             lineHeight: 1
           }}>
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -242,12 +245,12 @@ export function CustomerNotifications() {
           position: 'absolute',
           top: 'calc(100% + 10px)',
           right: 0,
-          width: 350,
+          width: 360,
           maxWidth: '92vw',
           background: '#ffffff',
-          borderRadius: 12,
-          boxShadow: '0 12px 36px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.08)',
-          border: '1px solid #d1d5db',
+          borderRadius: 14,
+          boxShadow: '0 16px 40px rgba(23, 60, 50, 0.22), 0 2px 10px rgba(0,0,0,0.06)',
+          border: '1px solid rgba(23, 60, 50, 0.15)',
           zIndex: 1000,
           overflow: 'hidden',
           color: '#1e293b'
@@ -261,7 +264,8 @@ export function CustomerNotifications() {
             justifyContent: 'space-between'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <strong style={{ fontSize: 14, color: '#0f172a' }}>{t('Thông báo đơn hàng')}</strong>
+              <span style={{ fontSize: 16 }}>🔔</span>
+              <strong style={{ fontSize: 14, color: '#0f172a' }}>{t('Thông báo của bạn')}</strong>
               {unreadCount > 0 && (
                 <span style={{
                   background: '#fee2e2',
@@ -294,99 +298,134 @@ export function CustomerNotifications() {
             )}
           </div>
 
-          <div style={{ maxHeight: 360, overflowY: 'auto', padding: '6px 0' }}>
-            {notifications.length === 0 ? (
-              <div style={{ padding: '30px 16px', textAlign: 'center', color: '#64748b', fontSize: 13 }}>
-                <span style={{ fontSize: 26, display: 'block', marginBottom: 8 }}>📭</span>
-                {t('Bạn không có thông báo nào mới.')}
-              </div>
-            ) : (
-              notifications.map(n => {
-                const isUnread = !readIds.includes(n.id);
-                return (
-                  <div
-                    key={n.id}
-                    style={{
-                      padding: '10px 14px',
-                      borderBottom: '1px solid #f1f5f9',
-                      background: isUnread ? '#f0fdf4' : '#ffffff',
-                      display: 'flex',
-                      gap: 10,
-                      alignItems: 'flex-start',
-                      transition: 'background 0.15s'
-                    }}
-                  >
-                    <span style={{ fontSize: 19, marginTop: 1 }}>{n.icon}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
-                        <b style={{ fontSize: 12.5, color: isUnread ? '#166534' : '#1e293b', fontWeight: isUnread ? 700 : 600 }}>
-                          {n.title}
-                        </b>
-                        {isUnread && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />}
-                      </div>
-                      <p style={{ fontSize: 12, color: '#475569', margin: '3px 0 6px', lineHeight: 1.4 }}>
-                        {n.description}
-                      </p>
-                      {n.actionLabel && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            markOneRead(n.id);
-                            setOpen(false);
-                            n.action();
-                          }}
-                          style={{
-                            background: n.urgent ? '#15803d' : '#e2ebd9',
-                            color: n.urgent ? '#ffffff' : '#173c32',
-                            border: 'none',
-                            borderRadius: 4,
-                            padding: '3px 8px',
-                            fontSize: 11,
-                            fontWeight: 700,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {n.actionLabel} →
-                        </button>
-                      )}
-                    </div>
+          {!user ? (
+            <div style={{ padding: '28px 20px', textAlign: 'center' }}>
+              <span style={{ fontSize: 32, display: 'block', marginBottom: 10 }}>🔔</span>
+              <h4 style={{ margin: '0 0 6px', fontSize: 15, color: '#173c32' }}>{t('Đăng nhập để nhận thông báo')}</h4>
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
+                {t('Theo dõi lịch thi đấu hôm nay, vé QR Check-in sân, trạng thái thanh toán và hoàn tiền cọc.')}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  login('login');
+                }}
+                style={{
+                  background: '#173c32',
+                  color: '#def46a',
+                  border: 'none',
+                  borderRadius: 20,
+                  padding: '9px 20px',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(23,60,50,0.2)'
+                }}
+              >
+                🎾 {t('Đăng nhập ngay')}
+              </button>
+            </div>
+          ) : (
+            <>
+              <div style={{ maxHeight: 360, overflowY: 'auto', padding: '6px 0' }}>
+                {notifications.length === 0 ? (
+                  <div style={{ padding: '34px 16px', textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+                    <span style={{ fontSize: 28, display: 'block', marginBottom: 8 }}>📭</span>
+                    {t('Hiện tại bạn không có thông báo nào mới.')}
                   </div>
-                );
-              })
-            )}
-          </div>
+                ) : (
+                  notifications.map(n => {
+                    const isUnread = !readIds.includes(n.id);
+                    return (
+                      <div
+                        key={n.id}
+                        style={{
+                          padding: '11px 14px',
+                          borderBottom: '1px solid #f1f5f9',
+                          background: isUnread ? '#f0fdf4' : '#ffffff',
+                          display: 'flex',
+                          gap: 10,
+                          alignItems: 'flex-start',
+                          transition: 'background 0.15s'
+                        }}
+                      >
+                        <span style={{ fontSize: 20, marginTop: 1 }}>{n.icon}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+                            <b style={{ fontSize: 12.8, color: isUnread ? '#166534' : '#1e293b', fontWeight: isUnread ? 700 : 600 }}>
+                              {n.title}
+                            </b>
+                            {isUnread && <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />}
+                          </div>
+                          <p style={{ fontSize: 12, color: '#475569', margin: '3px 0 6px', lineHeight: 1.4 }}>
+                            {n.description}
+                          </p>
+                          {n.actionLabel && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                markOneRead(n.id);
+                                setOpen(false);
+                                n.action();
+                              }}
+                              style={{
+                                background: n.urgent ? '#15803d' : '#e2ebd9',
+                                color: n.urgent ? '#ffffff' : '#173c32',
+                                border: 'none',
+                                borderRadius: 5,
+                                padding: '4px 10px',
+                                fontSize: 11.5,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4
+                              }}
+                            >
+                              {n.actionLabel} →
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
 
-          <div style={{
-            padding: '8px 16px',
-            background: '#f8fafc',
-            borderTop: '1px solid #e2e8f0',
-            textAlign: 'center'
-          }}>
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                navigate('orders');
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#0f766e',
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              {t('Xem danh sách tất cả đơn')} →
-            </button>
-          </div>
+              <div style={{
+                padding: '9px 16px',
+                background: '#f8fafc',
+                borderTop: '1px solid #e2e8f0',
+                textAlign: 'center'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    navigate('orders');
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#0f766e',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {t('Xem danh sách tất cả đơn')} →
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-export function Header(){const {t,lang,setLang,user,navigate,route,login,logout}=useGuest();const [open,setOpen]=useState(false);const links=customerNavigation.map(({id,label})=>[id,label]);return <><div className="ct-prototype"><span>COURTLY · TENNIS CLUB</span><span>{t('MỖI LẦN RA SÂN, MỘT NIỀM VUI.')}</span></div><header className="ct-header ct-original-header"><Logo/><nav id="guest-primary-navigation" className={open?'gx-nav-open':''} aria-label={t('Điều hướng chính')}>{links.map(([id,label])=><button key={id} data-nav={id} data-primary={['pricing','booking','tournaments','membership'].includes(id)?'true':undefined} aria-current={route===id?'page':undefined} onClick={()=>{navigate(id);setOpen(false)}}>{t(label)}</button>)}</nav><div className="cl-header-tools"><div className="cl-language">{['vi','en'].map(l=><button key={l} lang={l} onClick={()=>setLang(l)} aria-pressed={lang===l}>{l.toUpperCase()}</button>)}</div><div className="cl-header-divider" aria-hidden="true"/>{user && <CustomerNotifications/>}{user?<details className="ct-account-menu"><summary className="ct-account"><span className="ca-avatar">{user.name?.slice(0,1)}</span><span className="gx-user-name">{user.name}</span><ChevronDown/></summary><div>{[['profile','Hồ sơ của tôi'],['orders','Đơn của tôi'],['history','Lịch sử đặt sân'],['payments','Lịch sử thanh toán'],['membership','Membership của tôi']].map(([id,label])=><button key={id} onClick={e=>{e.currentTarget.closest('details').open=false;navigate(id)}}>{t(label)}</button>)}{['ADMIN','STAFF'].includes(user.role)&&<button onClick={e=>{e.currentTarget.closest('details').open=false;navigate('cashdesk')}}>{t('Thu tiền tại quầy')}</button>}{['ADMIN','STAFF'].includes(user.role)&&<a href="/app">{user.role==='ADMIN'?t('Quản trị'):t('Vận hành')}</a>}<button onClick={logout}>{t('Đăng xuất')} <LogOut/></button></div></details>:<div className="ct-header-auth-group"><button className="ca-login-button" onClick={()=>login('login')}>{t('Đăng nhập')}</button></div>}<button className="gx-menu" aria-label={t('Mở menu')} aria-controls="guest-primary-navigation" aria-expanded={open} onClick={()=>setOpen(!open)}><Menu/></button></div></header></>;}
+export function Header(){const {t,lang,setLang,user,navigate,route,login,logout}=useGuest();const [open,setOpen]=useState(false);const links=customerNavigation.map(({id,label})=>[id,label]);return <><div className="ct-prototype"><span>COURTLY · TENNIS CLUB</span><span>{t('MỖI LẦN RA SÂN, MỘT NIỀM VUI.')}</span></div><header className="ct-header ct-original-header"><Logo/><nav id="guest-primary-navigation" className={open?'gx-nav-open':''} aria-label={t('Điều hướng chính')}>{links.map(([id,label])=><button key={id} data-nav={id} data-primary={['pricing','booking','tournaments','membership'].includes(id)?'true':undefined} aria-current={route===id?'page':undefined} onClick={()=>{navigate(id);setOpen(false)}}>{t(label)}</button>)}</nav><div className="cl-header-tools"><div className="cl-language">{['vi','en'].map(l=><button key={l} lang={l} onClick={()=>setLang(l)} aria-pressed={lang===l}>{l.toUpperCase()}</button>)}</div><div className="cl-header-divider" aria-hidden="true"/><CustomerNotifications/>{user?<details className="ct-account-menu"><summary className="ct-account"><span className="ca-avatar">{user.name?.slice(0,1)}</span><span className="gx-user-name">{user.name}</span><ChevronDown/></summary><div>{[['profile','Hồ sơ của tôi'],['orders','Đơn của tôi'],['history','Lịch sử đặt sân'],['payments','Lịch sử thanh toán'],['membership','Membership của tôi']].map(([id,label])=><button key={id} onClick={e=>{e.currentTarget.closest('details').open=false;navigate(id)}}>{t(label)}</button>)}{['ADMIN','STAFF'].includes(user.role)&&<button onClick={e=>{e.currentTarget.closest('details').open=false;navigate('cashdesk')}}>{t('Thu tiền tại quầy')}</button>}{['ADMIN','STAFF'].includes(user.role)&&<a href="/app">{user.role==='ADMIN'?t('Quản trị'):t('Vận hành')}</a>}<button onClick={logout}>{t('Đăng xuất')} <LogOut/></button></div></details>:<div className="ct-header-auth-group"><button className="ca-login-button" onClick={()=>login('login')}>{t('Đăng nhập')}</button></div>}<button className="gx-menu" aria-label={t('Mở menu')} aria-controls="guest-primary-navigation" aria-expanded={open} onClick={()=>setOpen(!open)}><Menu/></button></div></header></>;}
 export function Footer(){
   const {t,navigate,club,lang,setLang}=useGuest();
   const servicesLinks=[
