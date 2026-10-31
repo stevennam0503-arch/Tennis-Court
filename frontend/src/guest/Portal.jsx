@@ -1,7 +1,7 @@
 import React,{useState,useEffect,useCallback,useRef,useMemo} from 'react';
 import {X} from 'lucide-react';
 import {api} from '../services/api';
-import {GuestContext,translate,dateToday,Action} from './context';
+import {GuestContext,translate,dateToday,Action,money} from './context';
 import {Header,Footer} from './Layout';
 import Overview from './Overview';
 import Booking from './Booking';
@@ -73,7 +73,14 @@ export default function Portal({session,onSession,onLogout}){
         [preferredZone,setPreferredZone]=useState(()=>new URLSearchParams(location.search).get('khu')||'ALL'),
         [moveOrder,setMoveOrder]=useState(null),
         [toast,setToast]=useState(''),
-        [bannerDismissed,setBannerDismissed]=useState(false);
+        [bannerDismissed,setBannerDismissed]=useState(false),
+        [paymentBannerDismissed,setPaymentBannerDismissed]=useState(false),
+        [membershipBannerDismissed,setMembershipBannerDismissed]=useState(()=>{
+          try { return sessionStorage.getItem('courtly_membership_banner_dismissed') === 'true'; } catch { return false; }
+        }),
+        [tourneyBannerDismissed,setTourneyBannerDismissed]=useState(()=>{
+          try { return sessionStorage.getItem('courtly_tourney_banner_dismissed') === 'true'; } catch { return false; }
+        });
 
   const serial=useRef(0),timer=useRef();
   const user=session?.authenticated?session.user:null;
@@ -213,15 +220,27 @@ export default function Portal({session,onSession,onLogout}){
 
   const protectedRoute=['profile','orders','history','payments','cashdesk'].includes(route);
 
+  const myOrders = useMemo(() => {
+    if (!user || !data?.orders) return [];
+    return data.orders.filter(o => o.accountId === user.id || o.email === user.email || o.phone === user.phone);
+  }, [user, data?.orders]);
+
+  const hasAnyBooking = myOrders.length > 0;
+
   const todayMatch = user && !bannerDismissed && data?.orders?.find(o => {
     const oDate = o.date || o.slots?.[0]?.scheduleDate || '';
-    return oDate === dateToday() && ['CONFIRMED', 'CHECKED_IN'].includes(o.status);
+    const isMine = o.accountId === user.id || o.email === user.email || o.phone === user.phone;
+    return isMine && oDate === dateToday() && ['CONFIRMED', 'CHECKED_IN'].includes(o.status);
   });
+
+  const pendingPaymentOrder = useMemo(() => {
+    if (!user || paymentBannerDismissed) return null;
+    return myOrders.find(o => ['HOLDING', 'PENDING'].includes(o.status) && (o.paid || 0) < (o.deposit || o.total || 0));
+  }, [user, myOrders, paymentBannerDismissed]);
 
   const isNewCustomer = useMemo(() => {
     if (!user || user.role !== 'CUSTOMER') return false;
-    if (!data || !Array.isArray(data.orders)) return false;
-    if (data.orders.length > 0) return false;
+    if (hasAnyBooking) return false;
     try {
       if (localStorage.getItem(`courtly_welcome_used_${user.id}`) === 'true') return false;
       if (localStorage.getItem(`courtly_welcome_dismissed_${user.id}`) === 'true') return false;
@@ -232,9 +251,23 @@ export default function Portal({session,onSession,onLogout}){
       if (ageDays > 7) return false;
     }
     return true;
-  }, [user, data]);
+  }, [user, hasAnyBooking]);
 
-  const welcomeBannerVisible = user && (showWelcomeBanner || isNewCustomer) && !welcomeBannerDismissed;
+  const welcomeBannerVisible = user && !hasAnyBooking && isNewCustomer && !welcomeBannerDismissed;
+
+  const hasActiveMembership = useMemo(() => {
+    if (!user || !data?.memberships) return false;
+    return data.memberships.some(m => m.status === 'ACTIVE');
+  }, [user, data?.memberships]);
+
+  const membershipBannerVisible = user && hasAnyBooking && !hasActiveMembership && !membershipBannerDismissed;
+
+  const featuredTournament = useMemo(() => {
+    if (!data?.tournaments) return null;
+    return data.tournaments.find(t => t.status === 'OPEN' && t.start >= dateToday());
+  }, [data?.tournaments]);
+
+  const tournamentBannerVisible = user && hasAnyBooking && !membershipBannerVisible && featuredTournament && !tourneyBannerDismissed;
 
   return (
     <GuestContext.Provider value={value}>
@@ -267,6 +300,48 @@ export default function Portal({session,onSession,onLogout}){
                 </button>
               )}
               <button type="button" onClick={()=>setBannerDismissed(true)} aria-label="Đóng thông báo" style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.7)',fontSize:18,cursor:'pointer',padding:'4px 8px'}}>
+                ✕
+              </button>
+            </div>
+          </aside>
+        )}
+
+        {pendingPaymentOrder && (
+          <aside className="gx-payment-reminder-banner" style={{
+            background: 'linear-gradient(90deg, #7c2d12 0%, #9a3412 100%)',
+            color: '#ffffff',
+            padding: '11px 24px',
+            boxShadow: '0 4px 14px rgba(124, 45, 18, 0.25)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 12,
+            position: 'sticky',
+            top: todayMatch ? 116 : 60,
+            zIndex: 89
+          }}>
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              <span style={{fontSize:22}}>⚠️</span>
+              <div>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <strong style={{color:'#fef08a',fontSize:13,textTransform:'uppercase',letterSpacing:0.5}}>
+                    {t('Đơn giữ chỗ chờ thanh toán')}
+                  </strong>
+                  <span style={{background:'#ea580c',color:'#fff',fontSize:10.5,fontWeight:700,padding:'2px 8px',borderRadius:10}}>
+                    {t('CẦN THU CỌC')}
+                  </span>
+                </div>
+                <span style={{fontSize:13,color:'#ffedd5',display:'block',marginTop:2}}>
+                  {t('Đơn')} #{pendingPaymentOrder.id.slice(0,8).toUpperCase()} · {pendingPaymentOrder.date} · {t('Còn cần thanh toán')}: <b style={{color:'#fef08a'}}>{money((pendingPaymentOrder.deposit || pendingPaymentOrder.total || 0) - (pendingPaymentOrder.paid || 0))}</b>
+                </span>
+              </div>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <button type="button" onClick={()=>setDialog({kind:'payment',order:pendingPaymentOrder})} style={{background:'#fef08a',color:'#7c2d12',border:'none',padding:'7px 14px',borderRadius:6,fontSize:12.5,fontWeight:700,cursor:'pointer'}}>
+                💳 {t('Thanh toán cọc ngay')}
+              </button>
+              <button type="button" onClick={()=>setPaymentBannerDismissed(true)} aria-label={t('Đóng thông báo')} style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.7)',fontSize:18,cursor:'pointer',padding:'4px 8px'}}>
                 ✕
               </button>
             </div>
@@ -374,6 +449,92 @@ export default function Portal({session,onSession,onLogout}){
           </aside>
         )}
 
+        {membershipBannerVisible && !pendingPaymentOrder && (
+          <aside className="gx-membership-promo-banner" style={{
+            background: 'linear-gradient(90deg, #1e3a8a 0%, #172554 100%)',
+            color: '#ffffff',
+            padding: '11px 24px',
+            boxShadow: '0 4px 14px rgba(30, 58, 138, 0.2)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 12,
+            position: 'sticky',
+            top: todayMatch ? 116 : 60,
+            zIndex: 88,
+            borderBottom: '1px solid rgba(222, 244, 106, 0.3)'
+          }}>
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              <span style={{fontSize:22}}>👑</span>
+              <div>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <strong style={{color:'#def46a',fontSize:13,textTransform:'uppercase',letterSpacing:0.5}}>
+                    {t('Đặc quyền Hội viên Courtly Club')}
+                  </strong>
+                  <span style={{background:'#3b82f6',color:'#fff',fontSize:10.5,fontWeight:700,padding:'2px 8px',borderRadius:10}}>
+                    {t('TIẾT KIỆM ĐẾN 15%')}
+                  </span>
+                </div>
+                <span style={{fontSize:13,color:'#dbeafe',display:'block',marginTop:2}}>
+                  {t('Bạn đã thi đấu tại Courtly! Đăng ký hội viên để hưởng giảm giá sân, đặt trước 21 ngày và miễn phí đổi lịch.')}
+                </span>
+              </div>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <button type="button" onClick={()=>navigate('membership')} style={{background:'#def46a',color:'#172554',border:'none',padding:'7px 14px',borderRadius:6,fontSize:12.5,fontWeight:700,cursor:'pointer'}}>
+                ⭐ {t('Xem gói Hội viên')}
+              </button>
+              <button type="button" onClick={()=>{setMembershipBannerDismissed(true);sessionStorage.setItem('courtly_membership_banner_dismissed','true');}} aria-label={t('Đóng thông báo')} style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.7)',fontSize:18,cursor:'pointer',padding:'4px 8px'}}>
+                ✕
+              </button>
+            </div>
+          </aside>
+        )}
+
+        {tournamentBannerVisible && !pendingPaymentOrder && (
+          <aside className="gx-tournament-promo-banner" style={{
+            background: 'linear-gradient(90deg, #14532d 0%, #052e16 100%)',
+            color: '#ffffff',
+            padding: '11px 24px',
+            boxShadow: '0 4px 14px rgba(20, 83, 45, 0.2)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 12,
+            position: 'sticky',
+            top: todayMatch ? 116 : 60,
+            zIndex: 88,
+            borderBottom: '1px solid rgba(222, 244, 106, 0.3)'
+          }}>
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              <span style={{fontSize:22}}>🏆</span>
+              <div>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <strong style={{color:'#def46a',fontSize:13,textTransform:'uppercase',letterSpacing:0.5}}>
+                    {t('Giải đấu đang mở đăng ký')}
+                  </strong>
+                  <span style={{background:'#15803d',color:'#fff',fontSize:10.5,fontWeight:700,padding:'2px 8px',borderRadius:10}}>
+                    {featuredTournament.name}
+                  </span>
+                </div>
+                <span style={{fontSize:13,color:'#dcfce7',display:'block',marginTop:2}}>
+                  {t('Khởi tranh')} {featuredTournament.start} · {t('Hạn đăng ký')}: {featuredTournament.deadline} · {money(featuredTournament.fee)}
+                </span>
+              </div>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <button type="button" onClick={()=>navigate('tournaments')} style={{background:'#def46a',color:'#14532d',border:'none',padding:'7px 14px',borderRadius:6,fontSize:12.5,fontWeight:700,cursor:'pointer'}}>
+                🎾 {t('Đăng ký giải')}
+              </button>
+              <button type="button" onClick={()=>{setTourneyBannerDismissed(true);sessionStorage.setItem('courtly_tourney_banner_dismissed','true');}} aria-label={t('Đóng thông báo')} style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.7)',fontSize:18,cursor:'pointer',padding:'4px 8px'}}>
+                ✕
+              </button>
+            </div>
+          </aside>
+        )}
+
         <main>
           {error && (
             <div className="gx-error gx-global-error" role="alert">
@@ -468,16 +629,28 @@ export default function Portal({session,onSession,onLogout}){
                   location.assign('/app');
                   return;
                 }
-                setShowWelcomeBanner(true);
-                sessionStorage.removeItem('courtly_welcome_dismissed');
-                setWelcomeBannerDismissed(false);
-                if(authContext?.from==='booking'||route==='booking'){
-                  navigate('booking');
-                  setActiveVoucherCode('WELCOME');
-                  setWelcomeBannerApplied(true);
-                  notify(t('Chào mừng bạn! Mã ưu đãi WELCOME (-50.000₫) đã được chuẩn bị cho đơn đặt sân của bạn.'));
-                }else{
-                  notify(t(`Chào mừng ${s.user.name||'bạn'}! Nhận ngay voucher WELCOME giảm 50.000₫.`));
+                const userHasOrders = (data?.orders || []).some(o => o.accountId === s.user.id || o.email === s.user.email);
+                const voucherUsed = localStorage.getItem(`courtly_welcome_used_${s.user.id}`) === 'true';
+                const voucherDismissed = localStorage.getItem(`courtly_welcome_dismissed_${s.user.id}`) === 'true';
+
+                if (!userHasOrders && !voucherUsed && !voucherDismissed) {
+                  setShowWelcomeBanner(true);
+                  setWelcomeBannerDismissed(false);
+                  if (authContext?.from === 'booking' || route === 'booking') {
+                    navigate('booking');
+                    setActiveVoucherCode('WELCOME');
+                    setWelcomeBannerApplied(true);
+                    notify(t('Chào mừng bạn! Mã ưu đãi WELCOME (-50.000₫) đã được chuẩn bị cho đơn đầu tiên.'));
+                  } else {
+                    notify(t(`Chào mừng ${s.user.name || 'bạn'}! Nhận ngay voucher WELCOME giảm 50.000₫ cho đơn đầu tiên.`));
+                  }
+                } else {
+                  setShowWelcomeBanner(false);
+                  setWelcomeBannerDismissed(true);
+                  notify(t(`Chào mừng trở lại, ${s.user.name || 'bạn'}!`));
+                  if (authContext?.from === 'booking' || route === 'booking') {
+                    navigate('booking');
+                  }
                 }
               }}
             />
