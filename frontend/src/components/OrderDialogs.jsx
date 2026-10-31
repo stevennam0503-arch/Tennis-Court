@@ -787,27 +787,33 @@ export function CheckOutDialog({id, onClose}) {
         </div>
       )}
 
+      {due > 0 && (
+        <div style={{ background: '#fff1f2', border: '1.5px solid #fecdd3', borderRadius: 8, padding: '12px 14px', marginBottom: 16, color: '#9f1239', fontSize: 13, lineHeight: 1.5 }}>
+          <strong>⚠️ ĐƠN HÀNG CHƯA THANH TOÁN ĐỦ (CÒN THIẾU {money(due)}):</strong>
+          <div style={{ marginTop: 4, color: '#be123c' }}>
+            Quy định CLB yêu cầu phải thu đủ 100% tiền sân & chi phí phát sinh trước khi làm thủ tục Check-out. Vui lòng thu tiền mặt tại quầy hoặc mở mã VietQR để khách chuyển khoản trước khi hoàn tất.
+          </div>
+        </div>
+      )}
+
       {/* Action Footer */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap', paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
-        <Button disabled={submitting} onClick={onClose}>Đóng / Để xử lý sau</Button>
+        <Button disabled={submitting} onClick={onClose}>Đóng / Chờ thu tiền</Button>
 
         {due > 0 && (
           <>
             <Button disabled={submitting} onClick={() => setShowQR(!showQR)}>
-              📱 {showQR ? 'Ẩn mã QR' : 'Mở mã VietQR'}
-            </Button>
-            <Button className="sm" disabled={submitting} onClick={handlePureCheckOut} title="Check-out và để lại công nợ">
-              Ghi nợ & Check-out
+              📱 {showQR ? 'Ẩn mã QR' : 'Mở mã VietQR chuyển khoản'}
             </Button>
             <Button className="primary" disabled={submitting} onClick={handleCashCheckOut} style={{ background: '#16a34a', borderColor: '#15803d', fontWeight: 700 }}>
-              {submitting ? 'Đang xử lý…' : `💵 Thu tiền mặt ${money(due)} & Hoàn tất Check-out`}
+              {submitting ? 'Đang xử lý…' : `💵 Thu đủ tiền mặt ${money(due)} & Hoàn tất Check-out`}
             </Button>
           </>
         )}
 
         {due === 0 && excess === 0 && (
           <Button className="primary" disabled={submitting} onClick={handlePureCheckOut} style={{ background: '#173c32', borderColor: '#173c32', fontWeight: 700 }}>
-            {submitting ? 'Đang check-out…' : '🏁 Xác nhận Check-out & Giải phóng sân'}
+            {submitting ? 'Đang check-out…' : '🏁 Đã thanh toán đủ • Xác nhận Check-out & Giải phóng sân'}
           </Button>
         )}
 

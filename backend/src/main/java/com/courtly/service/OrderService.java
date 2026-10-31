@@ -277,6 +277,10 @@ public class OrderService {
   public void checkOut(UUID id) {
     CustomerOrder order = lock(id);
     require("CHECKED_IN".equals(order.getStatus()), "Khách chưa check-in");
+    var totalAmount = order.getTotalAmount() != null ? order.getTotalAmount() : BigDecimal.ZERO;
+    var paidAmount = order.getPaidAmount() != null ? order.getPaidAmount() : BigDecimal.ZERO;
+    require(paidAmount.compareTo(totalAmount) >= 0,
+        "Đơn hàng chưa thanh toán đủ tiền (còn thiếu " + totalAmount.subtract(paidAmount) + "đ). Vui lòng thu đủ 100% trước khi check-out!");
     var date = visitDate(order, null);
     Booking b = booking(order);
     releaseVisit(b, date, true);

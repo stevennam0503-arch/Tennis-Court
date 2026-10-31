@@ -35,6 +35,9 @@ export default function OperationsPage() {
       (['CONFIRMED', 'CHECKED_IN', 'COMPLETED'].includes(o.status) && (o.paid || 0) < (o.total || 0))
     );
 
+    const cancelled = orders.filter(o => ['CANCELLED', 'EXPIRED'].includes(o.status))
+      .sort((a, b) => (b.createdAt || b.date || '').localeCompare(a.createdAt || a.date || ''));
+
     const referee = orders.filter(o => 
       ['HOLDING', 'CONFIRMED', 'CHECKED_IN'].includes(o.status) && (o.staff || []).length > 0
     );
@@ -45,7 +48,8 @@ export default function OperationsPage() {
       ...inUse.map(o => o.id),
       ...holding.map(o => o.id),
       ...finance.map(o => o.id),
-      ...referee.map(o => o.id)
+      ...referee.map(o => o.id),
+      ...cancelled.map(o => o.id)
     ]);
     const all = orders.filter(o => allSet.has(o.id))
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -56,6 +60,7 @@ export default function OperationsPage() {
       inUse,
       holding,
       finance,
+      cancelled,
       referee
     };
   }, [data.orders, currentToday]);
@@ -67,6 +72,7 @@ export default function OperationsPage() {
       case 'inUse': return groups.inUse;
       case 'holding': return groups.holding;
       case 'finance': return groups.finance;
+      case 'cancelled': return groups.cancelled;
       case 'referee': return groups.referee;
       default: return groups.all;
     }
@@ -76,7 +82,7 @@ export default function OperationsPage() {
   const filtered = useMemo(() => {
     return pool.filter(o => {
       // Date filter
-      if (dateFilter === 'today' && o.date !== currentToday && activeTab !== 'holding') {
+      if (dateFilter === 'today' && o.date !== currentToday && activeTab !== 'holding' && activeTab !== 'cancelled') {
         // For holding orders, keep today or upcoming
         if (o.status !== 'HOLDING') return false;
       }
@@ -111,6 +117,7 @@ export default function OperationsPage() {
     { id: 'inUse', label: 'Đang dùng sân', count: groups.inUse.length, color: '#0284c7' },
     { id: 'holding', label: 'Chờ cọc / Giữ chỗ', count: groups.holding.length, color: '#d97706' },
     { id: 'finance', label: 'Cần thu / Đối chiếu', count: groups.finance.length, color: '#e11d48' },
+    { id: 'cancelled', label: 'Đơn hủy cần xử lý', count: groups.cancelled.length, color: '#dc2626' },
     { id: 'referee', label: 'Phân công trọng tài', count: groups.referee.length, color: '#7c3aed' },
   ];
 
@@ -439,13 +446,24 @@ export default function OperationsPage() {
 
                 {/* 6. Action */}
                 <td>
-                  <Button 
-                    className="sm primary" 
-                    onClick={() => show({ type: 'order', id: o.id })}
-                    style={{ whiteSpace: 'nowrap' }}
-                  >
-                    <Eye size={14} style={{ marginRight: 4 }} /> Mở đơn
-                  </Button>
+                  <div style={{ display: 'inline-flex', gap: 6 }}>
+                    {['CANCELLED', 'EXPIRED'].includes(o.status) && (o.finance?.refundPending > 0 || (o.cancellationSettlement?.refundAmount > 0 && !o.finance?.refunded)) && (
+                      <Button
+                        className="sm"
+                        style={{ background: '#fff1f2', color: '#e11d48', borderColor: '#fecdd3', whiteSpace: 'nowrap' }}
+                        onClick={() => show({ type: 'refund', orderId: o.id })}
+                      >
+                        Hoàn tiền
+                      </Button>
+                    )}
+                    <Button 
+                      className="sm primary" 
+                      onClick={() => show({ type: 'order', id: o.id })}
+                      style={{ whiteSpace: 'nowrap' }}
+                    >
+                      <Eye size={14} style={{ marginRight: 4 }} /> Mở đơn
+                    </Button>
+                  </div>
                 </td>
               </tr>
             );
