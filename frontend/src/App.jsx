@@ -71,8 +71,14 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
      )
    );
    const holdingCount = orders.filter(o => o.status === 'HOLDING').length;
-   const inUseCount = orders.filter(o => o.status === 'CHECKED_IN').length;
-   const operationsCount = cancelledNeedingAction.length + holdingCount + inUseCount;
+   const inUseCount = orders.filter(o => o.status === 'CHECKED_IN' && o.date === curToday).length;
+   const uncollectedCount = orders.filter(o => {
+     if (['CANCELLED', 'EXPIRED'].includes(o.status)) return false;
+     const due = (o.total || 0) - (o.paid || 0);
+     if (due <= 0) return false;
+     return o.status === 'COMPLETED' || (o.status === 'CHECKED_IN' && o.date < curToday) || (o.status === 'CONFIRMED' && o.date < curToday);
+   }).length;
+   const operationsCount = cancelledNeedingAction.length + holdingCount + inUseCount + uncollectedCount;
 
    const newOrdersCount = orders.filter(o => {
      const isToday = o.date === curToday || (o.createdAt && o.createdAt.startsWith(curToday));

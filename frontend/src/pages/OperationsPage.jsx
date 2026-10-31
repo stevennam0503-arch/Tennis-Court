@@ -7,6 +7,87 @@ import { useCourtly } from '../context';
 import { Title, Panel, Button, Chip, Table } from '../components/UI';
 import { money, today, slotLabel } from '../utils/format';
 
+export function getOrderTiming(order, currentToday) {
+  if (!order) return { state: 'UNKNOWN' };
+  const slots = order.slots || [];
+  if (!slots.length) return { state: 'UNKNOWN' };
+
+  let maxEnd = '00:00';
+  for (const s of slots) {
+    const endStr = s.end ? s.end.slice(0, 5) : `${String(Math.floor(s.hour + (s.hours || 1))).padStart(2, '0')}:00`;
+    if (endStr > maxEnd) maxEnd = endStr;
+  }
+
+  const orderDate = order.date;
+  const isPastDay = orderDate < currentToday;
+  const isFutureDay = orderDate > currentToday;
+
+  if (isPastDay) {
+    return {
+      state: 'OVERDUE',
+      endTime: maxEnd,
+      isOverdue: true,
+      diffMinutes: 9999,
+      label: `Quá hạn từ ngày ${orderDate.split('-').reverse().join('/')}`
+    };
+  }
+
+  if (isFutureDay) {
+    return {
+      state: 'FUTURE',
+      endTime: maxEnd,
+      isOverdue: false,
+      diffMinutes: -9999,
+      label: `Lịch ngày ${orderDate.split('-').reverse().join('/')}`
+    };
+  }
+
+  // Today
+  const now = new Date();
+  const [endH, endM] = maxEnd.split(':').map(Number);
+  const endDateTime = new Date();
+  endDateTime.setHours(endH, endM, 0, 0);
+
+  const diffMs = now.getTime() - endDateTime.getTime();
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+  if (diffMinutes < -15) {
+    return {
+      state: 'PLAYING',
+      endTime: maxEnd,
+      isOverdue: false,
+      diffMinutes,
+      label: `Đang chơi (kết thúc ${maxEnd})`
+    };
+  } else if (diffMinutes >= -15 && diffMinutes <= 0) {
+    return {
+      state: 'EXPIRING_SOON',
+      endTime: maxEnd,
+      isOverdue: false,
+      diffMinutes,
+      remainingMinutes: Math.abs(diffMinutes),
+      label: `Sắp hết giờ (còn ${Math.abs(diffMinutes)}p · đến ${maxEnd})`
+    };
+  } else if (diffMinutes > 0 && diffMinutes <= 15) {
+    return {
+      state: 'GRACE_PERIOD',
+      endTime: maxEnd,
+      isOverdue: true,
+      diffMinutes,
+      graceLeft: 15 - diffMinutes,
+      label: `Đến giờ trả sân! Thu tiền & Check-out trong 15p (còn ${15 - diffMinutes}p)`
+    };
+  } else {
+    return {
+      state: 'OVERDUE',
+      endTime: maxEnd,
+      isOverdue: true,
+      diffMinutes,
+      label: `Quá hạn check-out (+${diffMinutes}p)`
+    };
+  }
+}
+
 export default function OperationsPage() {
   const { data, show } = useCourtly();
   const currentToday = today();
@@ -17,35 +98,74 @@ export default function OperationsPage() {
   const [page, setPage] = useState(1);
   const pageSize = 12;
 
-  // Categorize orders
+  // Categorize orders with realistic operational boundaries
   const groups = useMemo(() => {
     const orders = data.orders || [];
 
+    // 1. Upcoming confirmed orders
     const upcoming = orders.filter(o => o.status === 'CONFIRMED' && o.date >= currentToday)
       .sort((a, b) => a.date.localeCompare(b.date) || (a.slots[0]?.hour || 0) - (b.slots[0]?.hour || 0));
 
-    const inUse = orders.filter(o => o.status === 'CHECKED_IN');
+    // 2. Currently playing today (only active sessions today, not overdue past 15m)
+    const inUse = orders.filter(o => {
+      if (o.status !== 'CHECKED_IN') return false;
+      const timing = getOrderTiming(o, currentToday);
+      return o.date === currentToday && timing.state !== 'OVERDUE';
+    });
 
+    // 3. Uncollected orders (past due date or overdue > 15m with unpaid balance)
+    const uncollected = orders.filter(o => {
+      if (['CANCELLED', 'EXPIRED'].includes(o.status)) return false;
+      const due = (o.total || 0) - (o.paid || 0);
+      if (due <= 0) return false;
+
+      if (o.status === 'COMPLETED') return true;
+      if (o.status === 'CHECKED_IN') {
+        const timing = getOrderTiming(o, currentToday);
+        return timing.state === 'OVERDUE' || o.date < currentToday;
+      }
+      if (o.status === 'CONFIRMED' && o.date < currentToday) return true;
+      return false;
+    }).sort((a, b) => b.date.localeCompare(a.date));
+
+    // 4. Overdue check-in orders but paid in full (need admin to click checkout and release court)
+    const needCheckout = orders.filter(o => {
+      if (o.status !== 'CHECKED_IN') return false;
+      const due = (o.total || 0) - (o.paid || 0);
+      const timing = getOrderTiming(o, currentToday);
+      return (timing.state === 'OVERDUE' || o.date < currentToday) && due <= 0;
+    }).sort((a, b) => b.date.localeCompare(a.date));
+
+    // 5. Holding orders waiting for deposit
     const holding = orders.filter(o => o.status === 'HOLDING')
       .sort((a, b) => (a.holdUntil || '').localeCompare(b.holdUntil || ''));
 
+    // 6. Finance review / refunds
     const finance = orders.filter(o => 
       o.finance?.review || 
       (o.finance?.refundPending || 0) > 0 || 
       (['CONFIRMED', 'CHECKED_IN', 'COMPLETED'].includes(o.status) && (o.paid || 0) < (o.total || 0))
     );
 
+    // 7. Cancelled orders needing attention
     const cancelled = orders.filter(o => ['CANCELLED', 'EXPIRED'].includes(o.status))
       .sort((a, b) => (b.createdAt || b.date || '').localeCompare(a.createdAt || a.date || ''));
 
+    // 8. Referee assignments
     const referee = orders.filter(o => 
       ['HOLDING', 'CONFIRMED', 'CHECKED_IN'].includes(o.status) && (o.staff || []).length > 0
     );
+
+    // Real-time notification pools
+    const expiringSoon = inUse.filter(o => getOrderTiming(o, currentToday).state === 'EXPIRING_SOON');
+    const gracePeriod = inUse.filter(o => getOrderTiming(o, currentToday).state === 'GRACE_PERIOD');
 
     // All active operations (deduplicated)
     const allSet = new Set([
       ...upcoming.map(o => o.id),
       ...inUse.map(o => o.id),
+      ...uncollected.map(o => o.id),
+      ...needCheckout.map(o => o.id),
       ...holding.map(o => o.id),
       ...finance.map(o => o.id),
       ...referee.map(o => o.id),
@@ -58,10 +178,14 @@ export default function OperationsPage() {
       all,
       upcoming,
       inUse,
+      uncollected,
+      needCheckout,
       holding,
       finance,
       cancelled,
-      referee
+      referee,
+      expiringSoon,
+      gracePeriod
     };
   }, [data.orders, currentToday]);
 
@@ -70,6 +194,8 @@ export default function OperationsPage() {
     switch (activeTab) {
       case 'upcoming': return groups.upcoming;
       case 'inUse': return groups.inUse;
+      case 'uncollected': return groups.uncollected;
+      case 'needCheckout': return groups.needCheckout;
       case 'holding': return groups.holding;
       case 'finance': return groups.finance;
       case 'cancelled': return groups.cancelled;
@@ -81,10 +207,10 @@ export default function OperationsPage() {
   // Filter pool by date & search query
   const filtered = useMemo(() => {
     return pool.filter(o => {
-      // Date filter
-      if (dateFilter === 'today' && o.date !== currentToday && activeTab !== 'holding' && activeTab !== 'cancelled') {
-        // For holding orders, keep today or upcoming
-        if (o.status !== 'HOLDING') return false;
+      // Cross-day tabs should not be filtered out by dateFilter === 'today'
+      const isCrossDayTab = ['uncollected', 'needCheckout', 'holding', 'cancelled'].includes(activeTab);
+      if (dateFilter === 'today' && o.date !== currentToday && !isCrossDayTab) {
+        return false;
       }
 
       // Query search
@@ -113,10 +239,11 @@ export default function OperationsPage() {
   // Tab definitions
   const tabs = [
     { id: 'all', label: 'Tất cả việc', count: groups.all.length, color: '#0f172a' },
-    { id: 'upcoming', label: 'Khách sắp đến', count: groups.upcoming.length, color: '#16a34a' },
     { id: 'inUse', label: 'Đang dùng sân', count: groups.inUse.length, color: '#0284c7' },
-    { id: 'holding', label: 'Chờ cọc / Giữ chỗ', count: groups.holding.length, color: '#d97706' },
-    { id: 'finance', label: 'Cần thu / Đối chiếu', count: groups.finance.length, color: '#e11d48' },
+    { id: 'uncollected', label: 'Đơn chưa thu tiền', count: groups.uncollected.length, color: '#b91c1c' },
+    { id: 'needCheckout', label: 'Cần Check-out đóng ca', count: groups.needCheckout.length, color: '#d97706' },
+    { id: 'upcoming', label: 'Khách sắp đến', count: groups.upcoming.length, color: '#16a34a' },
+    { id: 'holding', label: 'Chờ cọc / Giữ chỗ', count: groups.holding.length, color: '#eab308' },
     { id: 'cancelled', label: 'Đơn hủy cần xử lý', count: groups.cancelled.length, color: '#dc2626' },
     { id: 'referee', label: 'Phân công trọng tài', count: groups.referee.length, color: '#7c3aed' },
   ];
@@ -126,6 +253,69 @@ export default function OperationsPage() {
       <Title subtitle="Bảng theo dõi và xử lý nhanh các tác vụ vận hành trong ca làm việc.">
         Việc cần xử lý
       </Title>
+
+      {/* Real-time Urgent Operational Notifications */}
+      {groups.gracePeriod.length > 0 && (
+        <div style={{ background: '#fff1f2', border: '1.5px solid #fecdd3', borderRadius: 10, padding: '14px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 24 }}>⏰</span>
+            <div>
+              <strong style={{ color: '#9f1239', fontSize: 14, display: 'block' }}>
+                ĐẾN GIỜ TRẢ SÂN ({groups.gracePeriod.length} ca)! Yêu cầu Admin Check-out & thu tiền trong 15 phút
+              </strong>
+              <span style={{ fontSize: 12.5, color: '#be123c' }}>
+                {groups.gracePeriod.map(o => `${o.name} (${data.courts.find(c => c.id === o.slots?.[0]?.court)?.name || 'Sân'})`).join(' • ')}
+              </span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {groups.gracePeriod.slice(0, 2).map(o => (
+              <Button
+                key={o.id}
+                className="sm primary"
+                style={{ background: '#e11d48', borderColor: '#be123c', fontWeight: 700 }}
+                onClick={() => show({ type: 'check-out', id: o.id })}
+              >
+                ⚡ Check-out #{o.id.slice(0, 6)}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {groups.expiringSoon.length > 0 && (
+        <div style={{ background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 20 }}>🔔</span>
+            <div>
+              <strong style={{ color: '#92400e', fontSize: 13.5, display: 'block' }}>
+                Chuẩn bị Check-out ({groups.expiringSoon.length} ca sắp hết giờ trong 15 phút tới)
+              </strong>
+              <span style={{ fontSize: 12, color: '#b45309' }}>
+                {groups.expiringSoon.map(o => `${o.name} (${data.courts.find(c => c.id === o.slots?.[0]?.court)?.name || 'Sân'})`).join(' • ')}
+              </span>
+            </div>
+          </div>
+          <Button className="sm" onClick={() => { setActiveTab('inUse'); setPage(1); }}>
+            Xem ca đang chơi
+          </Button>
+        </div>
+      )}
+
+      {groups.uncollected.length > 0 && activeTab !== 'uncollected' && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <span style={{ fontSize: 13, color: '#991b1b' }}>
+            🚨 Phát hiện <b>{groups.uncollected.length} đơn</b> quá hạn chưa thu đủ tiền. Đã tự động đưa vào mục "Đơn chưa thu tiền".
+          </span>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('uncollected'); setPage(1); }}
+            style={{ border: 'none', background: 'none', color: '#b91c1c', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', textDecoration: 'underline' }}
+          >
+            Chuyển đến Đơn chưa thu tiền →
+          </button>
+        </div>
+      )}
 
       {/* KPI Cards / Quick Tabs */}
       <div style={{
@@ -205,23 +395,25 @@ export default function OperationsPage() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '6px 14px',
+                padding: '7px 14px',
                 borderRadius: 20,
-                border: activeTab === t.id ? '1px solid #1e293b' : '1px solid #e2e8f0',
-                background: activeTab === t.id ? '#1e293b' : '#ffffff',
-                color: activeTab === t.id ? '#ffffff' : '#475569',
+                border: activeTab === t.id ? '1px solid #173c32' : '1px solid #e2e8f0',
+                background: activeTab === t.id ? '#173c32' : '#ffffff',
+                color: activeTab === t.id ? '#def46a' : '#475569',
                 fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer'
+                fontWeight: activeTab === t.id ? 700 : 500,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
               }}
             >
-              {t.label}
+              <span>{t.label}</span>
               <span style={{
                 fontSize: 11,
                 padding: '1px 6px',
-                borderRadius: 99,
-                background: activeTab === t.id ? 'rgba(255,255,255,0.2)' : '#f1f5f9',
-                color: activeTab === t.id ? '#ffffff' : '#64748b'
+                borderRadius: 10,
+                background: activeTab === t.id ? 'rgba(222,244,106,0.25)' : '#f1f5f9',
+                color: activeTab === t.id ? '#def46a' : '#64748b',
+                fontWeight: 700
               }}>
                 {t.count}
               </span>
@@ -290,6 +482,9 @@ export default function OperationsPage() {
             const due = Math.max(0, (o.total || 0) - (o.paid || 0));
             const hasReview = o.finance?.review;
             const refundPending = o.finance?.refundPending || 0;
+            const timing = getOrderTiming(o, currentToday);
+            const isCancelled = ['CANCELLED', 'EXPIRED'].includes(o.status);
+
             const courtsSummary = (o.slots || []).map(s => {
               const court = data.courts.find(c => c.id === s.court);
               return `${court ? court.name : 'Sân'} (${slotLabel(s)})`;
@@ -335,7 +530,44 @@ export default function OperationsPage() {
                 {/* 3. Task Nature Badge */}
                 <td>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {o.status === 'CHECKED_IN' && (
+                    {/* Overdue Debt Notice */}
+                    {due > 0 && (o.status === 'COMPLETED' || (o.status === 'CHECKED_IN' && (o.date < currentToday || timing.state === 'OVERDUE'))) && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: 12,
+                        color: '#991b1b',
+                        background: '#fee2e2',
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        fontWeight: 700,
+                        border: '1px solid #fecaca'
+                      }}>
+                        <AlertCircle size={13} /> QUÁ HẠN CHƯA THU ĐỦ TIỀN ({money(due)})
+                      </span>
+                    )}
+
+                    {/* Overdue but fully paid needing release */}
+                    {due <= 0 && o.status === 'CHECKED_IN' && (o.date < currentToday || timing.state === 'OVERDUE') && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: 12,
+                        color: '#b45309',
+                        background: '#fef3c7',
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        fontWeight: 700,
+                        border: '1px solid #fde68a'
+                      }}>
+                        <Clock size={13} /> ĐÃ ĐÓNG ĐỦ · CẦN CHECK-OUT TRẢ SÂN
+                      </span>
+                    )}
+
+                    {/* Active playing today */}
+                    {o.status === 'CHECKED_IN' && o.date === currentToday && timing.state === 'PLAYING' && (
                       <span style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -347,10 +579,47 @@ export default function OperationsPage() {
                         borderRadius: 6,
                         fontWeight: 600
                       }}>
-                        <Clock size={12} /> Đang sử dụng sân
+                        <Clock size={12} /> {timing.label}
                       </span>
                     )}
 
+                    {/* Expiring soon (in 15m) */}
+                    {o.status === 'CHECKED_IN' && o.date === currentToday && timing.state === 'EXPIRING_SOON' && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: 12,
+                        color: '#b45309',
+                        background: '#fef3c7',
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        fontWeight: 700,
+                        border: '1px solid #fde68a'
+                      }}>
+                        🔔 {timing.label}
+                      </span>
+                    )}
+
+                    {/* Grace period (15m to checkout & collect) */}
+                    {o.status === 'CHECKED_IN' && o.date === currentToday && timing.state === 'GRACE_PERIOD' && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: 12,
+                        color: '#dc2626',
+                        background: '#fee2e2',
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        fontWeight: 700,
+                        border: '1px solid #fecaca'
+                      }}>
+                        ⏰ {timing.label}
+                      </span>
+                    )}
+
+                    {/* Upcoming confirmed */}
                     {o.status === 'CONFIRMED' && o.date >= currentToday && (
                       <span style={{
                         display: 'inline-flex',
@@ -367,6 +636,7 @@ export default function OperationsPage() {
                       </span>
                     )}
 
+                    {/* Holding */}
                     {o.status === 'HOLDING' && (
                       <span style={{
                         display: 'inline-flex',
@@ -382,6 +652,39 @@ export default function OperationsPage() {
                         <AlertTriangle size={12} />
                         Hạn giữ: {o.holdUntil ? new Date(o.holdUntil).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '5 phút'}
                       </span>
+                    )}
+
+                    {/* Cancelled */}
+                    {isCancelled && (
+                      (() => {
+                        const settlement = o.cancellationSettlement || o.metadata?.cancellationSettlement;
+                        const refunded = o.finance?.refunded || 0;
+                        const hasPending = (o.finance?.refundPending || settlement?.refundAmount || 0) > 0 && refunded === 0;
+
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              fontSize: 12,
+                              color: hasPending ? '#b45309' : '#b91c1c',
+                              background: hasPending ? '#fef3c7' : '#fee2e2',
+                              padding: '2px 8px',
+                              borderRadius: 6,
+                              fontWeight: 700
+                            }}>
+                              ❌ {hasPending ? `Khách hủy · Chờ hoàn ${money(settlement?.refundAmount || o.finance?.refundPending)}` : 'Đơn khách đã hủy'}
+                            </span>
+                            {settlement?.policyDescription && (
+                              <small style={{ color: '#1e40af', fontSize: 11, fontWeight: 600 }}>{settlement.policyDescription}</small>
+                            )}
+                            {o.metadata?.cancelReason && (
+                              <small style={{ color: '#64748b', fontSize: 11 }}>Lý do: {o.metadata.cancelReason}</small>
+                            )}
+                          </div>
+                        );
+                      })()
                     )}
 
                     {hasReview && (
@@ -400,7 +703,7 @@ export default function OperationsPage() {
                       </span>
                     )}
 
-                    {refundPending > 0 && (
+                    {refundPending > 0 && !isCancelled && (
                       <span style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -430,11 +733,11 @@ export default function OperationsPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>{money(o.total)}</span>
                     {due > 0 ? (
-                      <small style={{ color: '#e11d48', fontWeight: 600 }}>
+                      <small style={{ color: '#e11d48', fontWeight: 700 }}>
                         Còn thu: {money(due)}
                       </small>
                     ) : (
-                      <small style={{ color: '#16a34a' }}>Đã thanh toán đủ</small>
+                      <small style={{ color: '#16a34a', fontWeight: 600 }}>Đã thanh toán đủ</small>
                     )}
                   </div>
                 </td>
@@ -447,7 +750,22 @@ export default function OperationsPage() {
                 {/* 6. Action */}
                 <td>
                   <div style={{ display: 'inline-flex', gap: 6 }}>
-                    {['CANCELLED', 'EXPIRED'].includes(o.status) && (o.finance?.refundPending > 0 || (o.cancellationSettlement?.refundAmount > 0 && !o.finance?.refunded)) && (
+                    {o.status === 'CHECKED_IN' && (
+                      <Button
+                        className="sm primary"
+                        style={{
+                          background: due > 0 ? '#e11d48' : '#16a34a',
+                          borderColor: due > 0 ? '#be123c' : '#15803d',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap'
+                        }}
+                        onClick={() => show({ type: 'check-out', id: o.id })}
+                      >
+                        {due > 0 ? 'Thu tiền & Check-out' : 'Check-out'}
+                      </Button>
+                    )}
+
+                    {isCancelled && (o.finance?.refundPending > 0 || (o.cancellationSettlement?.refundAmount > 0 && !o.finance?.refunded)) && (
                       <Button
                         className="sm"
                         style={{ background: '#fff1f2', color: '#e11d48', borderColor: '#fecdd3', whiteSpace: 'nowrap' }}
@@ -456,12 +774,13 @@ export default function OperationsPage() {
                         Hoàn tiền
                       </Button>
                     )}
+
                     <Button 
-                      className="sm primary" 
+                      className="sm" 
                       onClick={() => show({ type: 'order', id: o.id })}
                       style={{ whiteSpace: 'nowrap' }}
                     >
-                      <Eye size={14} style={{ marginRight: 4 }} /> Mở đơn
+                      <Eye size={14} style={{ marginRight: 4 }} /> Chi tiết
                     </Button>
                   </div>
                 </td>
