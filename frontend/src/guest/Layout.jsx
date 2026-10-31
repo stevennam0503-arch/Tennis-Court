@@ -16,7 +16,8 @@ export function Footer(){
     ['about','Giới thiệu câu lạc bộ'],
     ['news','Tin tức & Hoạt động'],
     ['feedback','Đánh giá & Góp ý'],
-    ['policies','Chính sách & Quy định'],
+    ['policies','Chính sách & Quyền riêng tư'],
+    ['rules','Quy chế hoạt động CLB'],
   ];
   return (
     <footer className="ct-footer-pro">
@@ -100,7 +101,7 @@ export function Footer(){
         <div className="ct-sub-right">
           <button type="button" onClick={()=>navigate('policies')}>{t('Chính sách & quyền riêng tư')}</button>
           <span className="ct-dot">•</span>
-          <button type="button" onClick={()=>navigate('about')}>{t('Quy chế CLB')}</button>
+          <button type="button" onClick={()=>navigate('rules')}>{t('Quy chế CLB')}</button>
           <span className="ct-dot">•</span>
           <button type="button" className="ct-back-to-top" onClick={()=>window.scrollTo({top:0,behavior:'smooth'})}>
             {t('Lên đầu trang')} ↑

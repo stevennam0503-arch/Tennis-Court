@@ -279,12 +279,13 @@ export function ZaloZnsDialog({order, onClose}) {
 }
 
 export function ExtendCourtDialog({order, onClose}) {
-  const {t, refresh, notify} = useGuest();
+  const {t, refresh, notify, pay, show} = useGuest();
   const [loading, setLoading] = useState(true);
   const [extData, setExtData] = useState(null);
   const [error, setError] = useState('');
   const [selectedDuration, setSelectedDuration] = useState(30);
   const [submitting, setSubmitting] = useState(false);
+  const [extendedResult, setExtendedResult] = useState(null);
 
   useEffect(() => {
     api(`/orders/${order.id}/extension-options`)
@@ -311,7 +312,7 @@ export function ExtendCourtDialog({order, onClose}) {
       });
       await refresh();
       notify(t(`Đã gia hạn sân thêm ${selectedOpt.duration} phút thành công!`));
-      onClose();
+      setExtendedResult(selectedOpt);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -319,50 +320,134 @@ export function ExtendCourtDialog({order, onClose}) {
     }
   };
 
-  return (
-    <div style={{maxWidth: 440, margin: '0 auto', padding: '6px 4px'}}>
-      <div style={{textAlign: 'center', marginBottom: 18}}>
-        <div style={{width: 48, height: 48, borderRadius: '50%', background: '#eff6ff', color: '#2563eb', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, marginBottom: 8}}>
-          ⚡
+  if (extendedResult) {
+    return (
+      <div style={{maxWidth: 460, margin: '0 auto', textAlign: 'center', padding: '10px 6px'}}>
+        <div style={{width: 60, height: 60, borderRadius: '50%', background: '#dcfce7', color: '#15803d', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, marginBottom: 14, boxShadow: '0 4px 12px rgba(22,101,52,0.15)'}}>
+          ✓
         </div>
-        <h2 style={{fontSize: 20, margin: 0, color: '#173c32'}}>{t('Gia Hạn Giờ Chơi Đang Diễn Ra')}</h2>
-        <p style={{fontSize: 13, color: '#637269', margin: '6px 0 0'}}>
-          {t('Sân')}: <b>{extData?.courtName || 'Đang sử dụng'}</b> · {t('Giờ kết thúc hiện tại')}: <b>{extData?.currentEndTime || '...'}</b>
+        <div style={{display: 'inline-block', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, letterSpacing: 0.5, marginBottom: 8}}>
+          {t('GIA HẠN THÀNH CÔNG')}
+        </div>
+        <h2 style={{fontSize: 22, margin: '0 0 6px', color: '#173c32', fontWeight: 800}}>
+          {t('Chúc mừng! Giờ chơi đã được kéo dài')}
+        </h2>
+        <p style={{fontSize: 14, color: '#4b5563', margin: '0 0 16px', lineHeight: 1.5}}>
+          {t('Bạn có thêm')} <b style={{color: '#15803d', fontSize: 16}}>+{extendedResult.duration} {t('phút')}</b> {t('thi đấu trên sân')}.
         </p>
+
+        <div style={{background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 12, padding: '16px 18px', textAlign: 'left', marginBottom: 20, fontSize: 13.5, display: 'grid', gap: 10}}>
+          <div style={{display: 'flex', justifyContent: 'space-between'}}>
+            <span style={{color: '#64748b'}}>{t('Sân thi đấu')}:</span>
+            <strong style={{color: '#0f172a'}}>{extData?.courtName || t('Sân hiện tại')}</strong>
+          </div>
+          <div style={{display: 'flex', justifyContent: 'space-between'}}>
+            <span style={{color: '#64748b'}}>{t('Giờ kết thúc mới')}:</span>
+            <strong style={{color: '#2563eb', fontSize: 16}}>{extendedResult.endTime}</strong>
+          </div>
+          <div style={{display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed #cbd5e1', paddingTop: 8}}>
+            <span style={{color: '#64748b'}}>{t('Phí gia hạn thêm')}:</span>
+            <strong style={{color: '#15803d', fontSize: 16}}>+{money(extendedResult.total)}</strong>
+          </div>
+        </div>
+
+        <div style={{background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: 8, padding: '10px 14px', marginBottom: 20, textAlign: 'left', fontSize: 12.5, color: '#92400e', lineHeight: 1.5}}>
+          💡 <b>{t('Thanh toán tiện lợi')}:</b> {t('Khoản phí gia hạn đã được cộng vào tài khoản đơn. Bạn có thể thanh toán tại quầy lễ tân khi làm thủ tục check-out hoặc chuyển khoản VietQR ngay bây giờ.')}
+        </div>
+
+        <div style={{display: 'grid', gap: 10}}>
+          <Action
+            onClick={() => {
+              onClose();
+              pay('ORDER', order.id, 'BALANCE');
+            }}
+            style={{background: '#173c32', color: '#def46a', fontWeight: 700, padding: '12px'}}
+          >
+            📱 {t('Quét mã VietQR thanh toán ngay')} ({money(extendedResult.total)})
+          </Action>
+
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10}}>
+            <Action
+              secondary
+              onClick={() => {
+                onClose();
+                show({kind: 'ticket', order});
+              }}
+            >
+              🎫 {t('Xem Vé Điện Tử')}
+            </Action>
+            <Action secondary onClick={onClose} style={{fontWeight: 600}}>
+              🎾 {t('Tiếp tục thi đấu')}
+            </Action>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{maxWidth: 480, margin: '0 auto', padding: '4px'}}>
+      {/* Modern Card Hero Header */}
+      <div style={{background: 'linear-gradient(135deg, #173c32 0%, #235245 100%)', color: '#ffffff', borderRadius: 14, padding: '20px 18px', marginBottom: 18, position: 'relative', overflow: 'hidden', boxShadow: '0 8px 24px rgba(23,60,50,0.18)'}}>
+        <div style={{position: 'absolute', right: -15, top: -15, width: 90, height: 90, borderRadius: '50%', background: 'rgba(222,244,106,0.1)', pointerEvents: 'none'}} />
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10}}>
+          <span style={{background: 'rgba(222,244,106,0.2)', color: '#def46a', border: '1px solid rgba(222,244,106,0.3)', padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, display: 'inline-flex', alignItems: 'center', gap: 6}}>
+            <span style={{width: 7, height: 7, borderRadius: '50%', background: '#def46a', display: 'inline-block'}} />
+            {t('ĐANG SỬ DỤNG SÂN')}
+          </span>
+          <span style={{fontSize: 12, color: 'rgba(255,255,255,0.7)', fontFamily: 'monospace'}}>
+            #CT-{order.id.slice(0, 8).toUpperCase()}
+          </span>
+        </div>
+
+        <h2 style={{fontSize: 20, margin: '0 0 6px', color: '#ffffff', fontWeight: 800}}>
+          {t('Gia Hạn Thêm Giờ Chơi')}
+        </h2>
+        <div style={{display: 'flex', alignItems: 'center', gap: 14, fontSize: 13, color: '#d1dac4', flexWrap: 'wrap'}}>
+          <span>🏟️ <b>{extData?.courtName || t('Sân của bạn')}</b></span>
+          <span>⏰ {t('Kết thúc ca hiện tại')}: <b style={{color: '#def46a'}}>{extData?.currentEndTime || '...'}</b></span>
+        </div>
       </div>
 
       {loading ? (
-        <div style={{padding: '30px 0', textAlign: 'center', color: '#637269', fontSize: 14}}>
-          {t('Đang kiểm tra tính khả dụng của sân và bảng giá…')}
+        <div style={{padding: '36px 0', textAlign: 'center', color: '#637269', fontSize: 14}}>
+          <div style={{fontSize: 24, marginBottom: 8}}>🎾</div>
+          {t('Đang kiểm tra tính khả dụng của sân và ưu đãi hội viên…')}
         </div>
       ) : error ? (
-        <div style={{background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: 14, color: '#b91c1c', fontSize: 13, marginBottom: 16}}>
+        <div style={{background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: 16, color: '#b91c1c', fontSize: 13.5, marginBottom: 16}}>
           {error}
         </div>
       ) : !extData?.canExtend ? (
-        <div style={{background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: 10, padding: 16, marginBottom: 18}}>
-          <div style={{display: 'flex', gap: 10, alignItems: 'flex-start'}}>
-            <span style={{fontSize: 22}}>⚠️</span>
+        <div style={{background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: 12, padding: 18, marginBottom: 18}}>
+          <div style={{display: 'flex', gap: 12, alignItems: 'flex-start'}}>
+            <span style={{fontSize: 26}}>⚠️</span>
             <div>
-              <strong style={{color: '#92400e', fontSize: 14, display: 'block', marginBottom: 4}}>{t('Không thể gia hạn sân này')}</strong>
+              <strong style={{color: '#92400e', fontSize: 15, display: 'block', marginBottom: 4}}>
+                {t('Hiện không thể gia hạn sân này')}
+              </strong>
               <p style={{fontSize: 13, color: '#b45309', margin: 0, lineHeight: 1.5}}>
-                {extData?.reason || t('Sân đã có lịch đặt tiếp theo ngay sau giờ chơi của bạn.')}
+                {extData?.reason || t('Sân đã có khách khác đặt trước ngay sau khung giờ hiện tại.')}
               </p>
-              <small style={{display: 'block', marginTop: 8, color: '#78350f', lineHeight: 1.4}}>
-                {t('Quý khách vui lòng kết thúc trận đúng giờ hoặc liên hệ quầy lễ tân để được hỗ trợ chuyển sang sân khác còn trống.')}
-              </small>
+              <div style={{marginTop: 10, padding: 10, background: 'rgba(255,255,255,0.7)', borderRadius: 8, fontSize: 12, color: '#78350f', lineHeight: 1.4}}>
+                💡 <b>{t('Giải pháp')}:</b> {t('Quý khách vui lòng kết thúc trận đúng giờ hoặc ghé quầy lễ tân để kiểm tra chuyển sang sân trống khác.')}
+              </div>
             </div>
           </div>
-          <Action onClick={onClose} style={{marginTop: 16, width: '100%'}}>{t('Đã hiểu')}</Action>
+          <Action onClick={onClose} style={{marginTop: 16, width: '100%'}}>{t('Đã hiểu & Đóng')}</Action>
         </div>
       ) : (
         <div>
-          <div style={{background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#166534', display: 'flex', alignItems: 'center', gap: 8}}>
-            <span>✓</span>
-            <span>{t('Sân trống ở khung giờ liền kề. Bạn có thể gia hạn ngay!')}</span>
+          <div style={{background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12.5, color: '#166534', display: 'flex', alignItems: 'center', gap: 8}}>
+            <span style={{fontWeight: 700}}>✓</span>
+            <span>{t('Sân trống ở khung giờ tiếp theo! Quý khách có thể gia hạn thi đấu ngay lập tức.')}</span>
           </div>
 
-          <div style={{display: 'grid', gap: 10, marginBottom: 18}}>
+          <label style={{fontSize: 13, fontWeight: 700, color: '#173c32', display: 'block', marginBottom: 8}}>
+            {t('Chọn thời gian gia hạn thêm')}:
+          </label>
+
+          <div style={{display: 'grid', gap: 12, marginBottom: 18}}>
             {extData.options.map(opt => {
               const isSelected = selectedDuration === opt.duration;
               return (
@@ -372,16 +457,17 @@ export function ExtendCourtDialog({order, onClose}) {
                   style={{
                     border: isSelected ? '2px solid #173c32' : '1.5px solid #dce4d6',
                     background: isSelected ? '#f7faf5' : '#ffffff',
-                    borderRadius: 10,
+                    borderRadius: 12,
                     padding: '14px 16px',
                     cursor: 'pointer',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
+                    boxShadow: isSelected ? '0 4px 12px rgba(23,60,50,0.08)' : 'none',
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  <div style={{display: 'flex', alignItems: 'center', gap: 10}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
                     <input
                       type="radio"
                       name="duration"
@@ -390,34 +476,58 @@ export function ExtendCourtDialog({order, onClose}) {
                       style={{accentColor: '#173c32', width: 18, height: 18}}
                     />
                     <div>
-                      <strong style={{fontSize: 15, color: '#173c32', display: 'block'}}>
-                        +{opt.duration} {t('phút')} ({opt.startTime} – {opt.endTime})
-                      </strong>
+                      <div style={{display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap'}}>
+                        <strong style={{fontSize: 16, color: '#173c32'}}>
+                          +{opt.duration} {t('phút')}
+                        </strong>
+                        <span style={{background: isSelected ? '#173c32' : '#e2ebd9', color: isSelected ? '#def46a' : '#2d4538', fontSize: 11.5, fontWeight: 700, padding: '2px 8px', borderRadius: 6}}>
+                          {opt.startTime} → {opt.endTime}
+                        </span>
+                      </div>
+                      <span style={{fontSize: 12, color: '#637269', display: 'block', marginTop: 3}}>
+                        {opt.duration === 30 ? t('Thi đấu tie-break / giải quyết ván đấu') : t('Thi đấu thêm một set hoàn chỉnh')}
+                      </span>
                       {opt.planName && (
-                        <small style={{color: '#15803d', fontSize: 11.5}}>
+                        <span style={{color: '#15803d', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 2}}>
                           ★ {t('Ưu đãi')} {opt.planName}: -{money(opt.discount)}
-                        </small>
+                        </span>
                       )}
                     </div>
                   </div>
-                  <strong style={{fontSize: 16, color: '#173c32'}}>
-                    +{money(opt.total)}
-                  </strong>
+                  <div style={{textAlign: 'right'}}>
+                    <strong style={{fontSize: 17, color: '#173c32', display: 'block'}}>
+                      +{money(opt.total)}
+                    </strong>
+                    {opt.discount > 0 && (
+                      <del style={{fontSize: 12, color: '#94a3b8'}}>{money(opt.total + opt.discount)}</del>
+                    )}
+                  </div>
                 </div>
               );
             })}
           </div>
 
-          <div style={{background: '#f8faf7', borderRadius: 8, padding: '12px 14px', fontSize: 12.5, color: '#52655a', marginBottom: 18, lineHeight: 1.5, border: '1px solid #e2ebd9'}}>
-            ℹ️ {t('Tiền gia hạn')} (<b>+{money(selectedOpt?.total || 0)}</b>) {t('sẽ được cộng vào tổng đơn. Bạn có thể thanh toán tại quầy lễ tân khi check-out hoặc chuyển khoản VietQR.')}
+          <div style={{background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 14px', fontSize: 12.5, color: '#475569', marginBottom: 18, lineHeight: 1.5}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 4}}>
+              <span>{t('Thời gian chơi sau gia hạn')}:</span>
+              <strong style={{color: '#173c32'}}>{extData?.currentEndTime} → {selectedOpt?.endTime}</strong>
+            </div>
+            <div style={{display: 'flex', justifyContent: 'space-between'}}>
+              <span>{t('Chi phí phát sinh')}:</span>
+              <strong style={{color: '#15803d', fontSize: 14}}>+{money(selectedOpt?.total || 0)}</strong>
+            </div>
           </div>
 
           <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10}}>
             <Action secondary onClick={onClose} disabled={submitting}>
               {t('Hủy bỏ')}
             </Action>
-            <Action onClick={handleConfirm} disabled={submitting} style={{background: '#173c32', color: '#def46a', fontWeight: 700}}>
-              {submitting ? t('Đang gia hạn…') : t('Xác nhận gia hạn')}
+            <Action
+              onClick={handleConfirm}
+              disabled={submitting}
+              style={{background: '#173c32', color: '#def46a', fontWeight: 700, padding: '12px'}}
+            >
+              {submitting ? t('Đang gia hạn…') : `⚡ ${t('Xác nhận gia hạn')} (+${selectedOpt?.duration || 30}p)`}
             </Action>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import {slotLabel,slotHours,hourLabel} from '../utils/format';
-import React,{useRef,useState} from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import BookingFlow from './BookingFlow';
 import MoveDialog from './MoveDialog';
 import {FinancialSummary,StaffLines,PolicyNotice} from './OrderSummary';

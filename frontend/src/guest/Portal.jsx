@@ -411,7 +411,7 @@ export default function Portal({session,onSession,onLogout}){
               {route==='news' && <News/>}
               {route==='feedback' && <Feedback/>}
               {route==='contact' && <Contact/>}
-              {route==='policies' && <Policies/>}
+              {(route==='policies' || route==='rules') && <Policies/>}
             </>
           )}
         </main>
