@@ -59,3 +59,206 @@
   width: 100% !important;
 }
 
+/* Typography & Modal Letter-spacing Safety Reset (fixes character collision and squished font bug) */
+#courtly-balanced-amenities h1,
+#courtly-balanced-amenities h2,
+#courtly-balanced-amenities h3 {
+  letter-spacing: -0.015em;
+}
+
+#courtly-balanced-amenities .gx-dialog h1,
+#courtly-balanced-amenities .gx-dialog h2,
+#courtly-balanced-amenities .gx-dialog h3,
+#courtly-balanced-amenities .gx-dialog h4,
+#courtly-balanced-amenities .gx-ticket-modal h1,
+#courtly-balanced-amenities .gx-ticket-modal h2,
+#courtly-balanced-amenities .gx-ticket-modal h3,
+#courtly-balanced-amenities .modal h1,
+#courtly-balanced-amenities .modal h2,
+#courtly-balanced-amenities .modal h3 {
+  letter-spacing: normal !important;
+}
+
+/* Modern Overview Styling */
+#courtly-balanced-amenities .gx-court-card {
+  background: #fffefa;
+  border: 1px solid #cfd5c8;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+#courtly-balanced-amenities .gx-court-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(23,60,50,0.12);
+  border-color: #173c32;
+}
+#courtly-balanced-amenities .gx-court-card .haus-court-img {
+  aspect-ratio: 1.4;
+}
+#courtly-balanced-amenities .gx-court-card .haus-court-caption {
+  padding: 18px 20px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  border-bottom: 0;
+}
+#courtly-balanced-amenities .gx-court-perks {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: #556358;
+  padding-top: 8px;
+  border-top: 1px dashed #d5dcd0;
+}
+
+/* Redesigned Amenities Cards */
+#courtly-balanced-amenities .gx-amenities-redesigned {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+  margin-top: 48px;
+}
+#courtly-balanced-amenities .gx-amenity-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  padding: 24px 14px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+#courtly-balanced-amenities .gx-amenity-card:hover {
+  background: rgba(255,255,255,0.12);
+  transform: translateY(-3px);
+  border-color: #def46a;
+}
+#courtly-balanced-amenities .gx-amenity-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(222,244,106,0.15);
+  color: #def46a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#courtly-balanced-amenities .gx-amenity-card strong {
+  color: #fffdf5;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+#courtly-balanced-amenities .gx-amenity-card span {
+  font-size: 11px;
+  color: #c5d4c3;
+  line-height: 1.4;
+}
+
+/* Ways To Play Section */
+#courtly-balanced-amenities .gx-ways-photo-banner {
+  max-width: 680px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+#courtly-balanced-amenities .gx-ways-badge {
+  display: inline-block;
+  background: #def46a;
+  color: #173c32;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  width: fit-content;
+}
+#courtly-balanced-amenities .gx-ways-photo-banner h2 {
+  font-size: clamp(32px, 5.5vw, 56px);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+#courtly-balanced-amenities .gx-ways-photo-banner p {
+  color: #e2ede0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+#courtly-balanced-amenities .gx-ways-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 36px;
+}
+#courtly-balanced-amenities .gx-way-card {
+  background: #fffefa;
+  border: 1px solid #cfd5c8;
+  border-radius: 12px;
+  padding: 28px 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 20px;
+  transition: all 0.25s ease;
+}
+#courtly-balanced-amenities .gx-way-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(23,60,50,0.08);
+  border-color: #173c32;
+}
+#courtly-balanced-amenities .gx-way-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: #173c32;
+  background: #def46a;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+#courtly-balanced-amenities .gx-way-card h3 {
+  font-size: 20px;
+  margin: 0 0 8px;
+  color: #173c32;
+}
+#courtly-balanced-amenities .gx-way-card p {
+  font-size: 13px;
+  color: #556358;
+  line-height: 1.6;
+  margin: 0;
+}
+#courtly-balanced-amenities .gx-way-card .haus-round {
+  align-self: flex-end;
+  background: #f6f4ee;
+  border: 1px solid #cfd5c8;
+  transition: all 0.2s;
+}
+#courtly-balanced-amenities .gx-way-card:hover .haus-round {
+  background: #173c32;
+  color: #def46a;
+  border-color: #173c32;
+}
+
+@media(max-width: 960px) {
+  #courtly-balanced-amenities .gx-amenities-redesigned {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  #courtly-balanced-amenities .gx-ways-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media(max-width: 600px) {
+  #courtly-balanced-amenities .gx-amenities-redesigned {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+

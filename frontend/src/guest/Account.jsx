@@ -60,7 +60,7 @@ export function TicketDialog({order, onClose}) {
         <div style={{fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: '#def46a', fontWeight: 600}}>
           COURTLY TENNIS CLUB · VÉ ĐIỆN TỬ
         </div>
-        <h2 style={{fontSize: 22, margin: '8px 0 4px', color: '#fff'}}>{t('Vé Check-in Vào Sân')}</h2>
+        <h2 style={{fontSize: 22, margin: '8px 0 4px', color: '#fff', letterSpacing: 'normal'}}>{t('Vé Check-in Vào Sân')}</h2>
         <div style={{fontSize: 13, color: '#d1dac4'}}>{t('Mã vé')}: <b style={{color: '#def46a', letterSpacing: 1.5, fontFamily: 'monospace', fontSize: 16}}>{ticketCode}</b></div>
       </div>
 

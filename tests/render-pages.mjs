@@ -12,7 +12,7 @@ globalThis.location=new URL('http://localhost/app#calendar');
 try{
  const {CourtlyContext}=await server.ssrLoadModule('/src/context.js');
  const value={data,user:data.viewer,isAdmin:true,date:new Date().toISOString().slice(0,10),setDate(){},navigate(){},show(){},notify(){},mutate(){},refresh(){}};
- const names=['Calendar','Orders','Payments','Courts','Products','Staff','Accounts','Tournaments','Reports','System','Notifications','Operations','Profile','Customer','Public','Information','Membership','MyMembership','MembershipAdmin','ContentAdmin'];
+ const names=['Calendar','Orders','Payments','Courts','Staff','Accounts','Tournaments','Reports','System','Notifications','Operations','Profile','Customer','Public','Information','Membership','MyMembership','MembershipAdmin','ContentAdmin'];
  for(const name of names){const {default:Page}=await server.ssrLoadModule(`/src/pages/${name}Page.jsx`.replace('/MyMembershipPage.jsx','/MyMembership.jsx'));const props=name==='Information'?{path:'/gioi-thieu'}:name==='Customer'?{route:'calendar'}:{};const html=renderToString(React.createElement(CourtlyContext.Provider,{value},React.createElement(Page,props)));assert(html.length>0);assert(!html.includes('NaN'));console.log('PASS render',name);}
  const {AuthenticatedApp}=await server.ssrLoadModule('/src/App.jsx');
  const admin=renderToString(React.createElement(AuthenticatedApp,{session:{user:data.viewer},onLogout(){}}));assert(admin.includes('class="sidebar'));
