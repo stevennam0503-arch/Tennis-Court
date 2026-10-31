@@ -368,7 +368,7 @@ export default function Pricing() {
               {t('Người dùng nhập mã voucher tại trang đặt sân hoặc quầy thu ngân để được khấu trừ trực tiếp vào tiền cọc.')}
             </p>
             <p style={{ fontSize: 13, color: '#52655a', margin: 0 }}>
-              {t('Tích lũy 10 điểm cho mỗi 100.000 đ chi tiêu để đổi voucher giảm 50k, 100k hoặc slot thuê vợt miễn phí.')}
+              {t('Tích lũy 10 điểm cho mỗi 100.000 đ chi tiêu để đổi voucher giảm 50k, 100k cho các lượt đặt sân.')}
             </p>
           </article>
 

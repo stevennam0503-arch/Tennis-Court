@@ -73,6 +73,8 @@ public class DemoResetService {
     jdbc.execute("DELETE FROM booking_staff");
     jdbc.execute("DELETE FROM booking_slots");
     jdbc.execute("DELETE FROM order_products");
+    jdbc.execute("DELETE FROM drinks");
+    jdbc.execute("DELETE FROM rental_items");
     jdbc.execute("DELETE FROM bookings");
     jdbc.execute("DELETE FROM orders");
     jdbc.execute("UPDATE vouchers SET used_count = 0");
@@ -116,10 +118,7 @@ public class DemoResetService {
     );
     jdbc.execute(upsertAccountsSql);
 
-    // 2. Khởi tạo danh mục Nước uống & Dụng cụ thuê nếu chưa có
-    seedCatalogItemsIfEmpty();
-
-    // 3. Khởi tạo mã giảm giá Vouchers
+    // 2. Khởi tạo mã giảm giá Vouchers
     seedVouchers();
 
     // 4. Sinh court_schedules chuẩn 30 phút (06:00 - 22:00) cho các ngày cần thiết
@@ -166,10 +165,9 @@ public class DemoResetService {
     UUID courtV01 = getCourtIdByName("Sân V01");
     UUID courtV02 = getCourtIdByName("Sân V02");
 
-    // Lấy trọng tài & đồ uống
+    // Lấy trọng tài
     UUID refereeId = getRefereeStaffId();
     BigDecimal refereeRate = BigDecimal.valueOf(250000.00);
-    UUID drinkPocari = getDrinkIdByName("Pocari Sweat");
 
     // Lấy giải đấu
     UUID tournId = getOrOpenTournamentId();
@@ -200,14 +198,14 @@ public class DemoResetService {
     String playEndStr = String.format("%02d:%02d:00", futureHalfHour / 60, futureHalfHour % 60);
 
     // 1. ĐƠN 1: IN-USE PLAYING - Sân A01 hôm nay (Trần Hoàng Nam VIP Plus)
-    // Đang chơi, kết thúc sau thời điểm hiện tại. Kèm 2 chai Pocari Sweat. Đã cọc 50%, còn nợ 50%
+    // Đang chơi, kết thúc sau thời điểm hiện tại. Đã cọc 50%, còn nợ 50%
     String ord1Id = "11111111-1111-1111-1111-111111111111";
     String bkg1Id = "11111111-1111-1111-1111-222222222222";
     String pay1Id = "11111111-1111-1111-1111-333333333333";
     String meta1 = "{\"customerFlow\": true, \"membershipBenefit\": {\"gross\": 400000, \"discount\": 60000, \"net\": 340000, \"planName\": \"Plus\", \"discountPercent\": 15}}";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CHECKED_IN', 380000.00, 190000.00, 190000.00, 'PARTIAL', NOW() - interval '2 hours', 0, ?)",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CHECKED_IN', 340000.00, 170000.00, 170000.00, 'PARTIAL', NOW() - interval '2 hours', 0, ?)",
         ord1Id, NAM_ID, NAM_ID, meta1
     );
     jdbc.update(
@@ -215,16 +213,10 @@ public class DemoResetService {
         bkg1Id, ord1Id
     );
     jdbc.update(
-        "INSERT INTO payments (id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at) VALUES (?::uuid, ?::uuid, ?::uuid, 'DEPOSIT', 'BANK_TRANSFER', 190000.00, 'PAY-NOW-001', 'PAID', NOW() - interval '2 hours')",
+        "INSERT INTO payments (id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at) VALUES (?::uuid, ?::uuid, ?::uuid, 'DEPOSIT', 'BANK_TRANSFER', 170000.00, 'PAY-NOW-001', 'PAID', NOW() - interval '2 hours')",
         pay1Id, ord1Id, STAFF_ID
     );
     bookCourtSlots(courtA01, todayStr, playStartStr, playEndStr, bkg1Id);
-    if (drinkPocari != null) {
-      jdbc.update(
-          "INSERT INTO order_products (id, order_id, booking_id, item_type, drink_id, quantity, unit_price, issued_at) VALUES (gen_random_uuid(), ?::uuid, ?::uuid, 'DRINK', ?::uuid, 2, 20000.00, NOW() - interval '30 minutes')",
-          ord1Id, bkg1Id, drinkPocari
-      );
-    }
 
     // 2. ĐƠN 2: IN-USE EXPIRING_SOON (Sắp hết giờ chơi) - Sân A04 hôm nay
     String ord2ExpId = "12121212-1212-1212-1212-111111111111";
@@ -610,39 +602,11 @@ public class DemoResetService {
     return list.isEmpty() ? null : list.get(0);
   }
 
-  private UUID getDrinkIdByName(String name) {
-    List<UUID> list = jdbc.query("SELECT id FROM drinks WHERE name LIKE ? LIMIT 1", (rs, rowNum) -> (UUID) rs.getObject("id"), "%" + name + "%");
-    return list.isEmpty() ? null : list.get(0);
-  }
-
   private UUID getOrOpenTournamentId() {
     List<UUID> list = jdbc.query("SELECT id FROM tournaments WHERE status = 'OPEN' ORDER BY start_date LIMIT 1", (rs, rowNum) -> (UUID) rs.getObject("id"));
     if (!list.isEmpty()) return list.get(0);
     list = jdbc.query("SELECT id FROM tournaments ORDER BY created_at DESC LIMIT 1", (rs, rowNum) -> (UUID) rs.getObject("id"));
     return list.isEmpty() ? null : list.get(0);
-  }
-
-  private void seedCatalogItemsIfEmpty() {
-    Integer drinkCount = jdbc.queryForObject("SELECT COUNT(*) FROM drinks", Integer.class);
-    if (drinkCount == null || drinkCount == 0) {
-      jdbc.execute("""
-          INSERT INTO drinks (id, name, unit, unit_price, stock_quantity, status) VALUES
-            (gen_random_uuid(), 'Pocari Sweat 500ml', 'Chai', 20000.00, 100, 'AVAILABLE'),
-            (gen_random_uuid(), 'Nước khoáng LaVie 500ml', 'Chai', 10000.00, 150, 'AVAILABLE'),
-            (gen_random_uuid(), 'Nước tăng lực Red Bull 250ml', 'Lon', 25000.00, 80, 'AVAILABLE'),
-            (gen_random_uuid(), 'Nước bù điện giải Aquarius 500ml', 'Chai', 18000.00, 90, 'AVAILABLE');
-          """);
-    }
-
-    Integer rentalCount = jdbc.queryForObject("SELECT COUNT(*) FROM rental_items", Integer.class);
-    if (rentalCount == null || rentalCount == 0) {
-      jdbc.execute("""
-          INSERT INTO rental_items (id, name, category, brand, price_per_hour, stock_quantity, status, version) VALUES
-            (gen_random_uuid(), 'Vợt Tennis Wilson Pro Staff 97', 'RACKET', 'Wilson', 50000.00, 12, 'AVAILABLE', 0),
-            (gen_random_uuid(), 'Vợt Tennis Babolat Pure Drive', 'RACKET', 'Babolat', 50000.00, 10, 'AVAILABLE', 0),
-            (gen_random_uuid(), 'Giỏ bóng tập Head Tour 60 quả', 'BALLS', 'Head', 40000.00, 8, 'AVAILABLE', 0);
-          """);
-    }
   }
 
   private void seedVouchers() {

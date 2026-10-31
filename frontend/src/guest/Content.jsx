@@ -175,7 +175,7 @@ export function Policies(){
           </h3>
           <ul>
             <li><b>Giữ chỗ tạm thời (Holding):</b> Khi chọn sân trên hệ thống, đơn đặt sẽ được giữ chỗ trong <b>5 phút</b> để khách hàng tiến hành chuyển khoản cọc. Nếu quá thời gian trên chưa thanh toán, hệ thống sẽ tự động hủy đơn và giải phóng sân.</li>
-            <li><b>Tỷ lệ đặt cọc:</b> Khách hàng thanh toán tối thiểu <b>50% tổng giá trị đơn đặt</b> để xác nhận đơn thành công. Phần chi phí còn lại (50%) kèm tiền dịch vụ phát sinh (thuê vợt, nước uống, gia hạn thêm giờ) sẽ được thanh toán tại quầy lễ tân khi làm thủ tục Check-out.</li>
+            <li><b>Tỷ lệ đặt cọc:</b> Khách hàng thanh toán tối thiểu <b>50% tổng giá trị đơn đặt</b> để xác nhận đơn thành công. Phần chi phí còn lại (50%) cùng phí gia hạn giờ chơi hoặc trọng tài phát sinh (nếu có) sẽ được thanh toán tại quầy lễ tân khi làm thủ tục Check-out.</li>
           </ul>
 
           <h3 style={{color: '#173c32', fontSize: 18, marginTop: 24, borderBottom: '1px solid #e2ebd9', paddingBottom: 6}}>

@@ -289,6 +289,12 @@ export default function Booking() {
           recurringWeeks: recurringWeeks > 1 ? recurringWeeks : undefined,
           requestId: req.current
         });
+        if (appliedVoucher?.code === 'WELCOME') {
+          try {
+            localStorage.setItem(`courtly_welcome_used_${user.id}`, 'true');
+            localStorage.setItem(`courtly_welcome_dismissed_${user.id}`, 'true');
+          } catch {}
+        }
         resetAll();
         navigate('orders');
         await refresh();

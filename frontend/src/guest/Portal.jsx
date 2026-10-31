@@ -61,7 +61,15 @@ export default function Portal({session,onSession,onLogout}){
         [activeVoucherCode,setActiveVoucherCode]=useState(null),
         [showWelcomeBanner,setShowWelcomeBanner]=useState(false),
         [welcomeBannerApplied,setWelcomeBannerApplied]=useState(false),
-        [welcomeBannerDismissed,setWelcomeBannerDismissed]=useState(()=>sessionStorage.getItem('courtly_welcome_dismissed')==='true'),
+        [welcomeBannerDismissed,setWelcomeBannerDismissed]=useState(()=>{
+          try {
+            const u = session?.user;
+            if (!u?.id) return false;
+            return localStorage.getItem(`courtly_welcome_dismissed_${u.id}`) === 'true';
+          } catch {
+            return false;
+          }
+        }),
         [preferredZone,setPreferredZone]=useState(()=>new URLSearchParams(location.search).get('khu')||'ALL'),
         [moveOrder,setMoveOrder]=useState(null),
         [toast,setToast]=useState(''),
@@ -69,6 +77,14 @@ export default function Portal({session,onSession,onLogout}){
 
   const serial=useRef(0),timer=useRef();
   const user=session?.authenticated?session.user:null;
+
+  useEffect(() => {
+    if (user?.id) {
+      try {
+        setWelcomeBannerDismissed(localStorage.getItem(`courtly_welcome_dismissed_${user.id}`) === 'true');
+      } catch {}
+    }
+  }, [user?.id]);
   const t=useCallback(s=>translate(lang,s),[lang]);
 
   const navigate=useCallback(id=>{
@@ -202,7 +218,22 @@ export default function Portal({session,onSession,onLogout}){
     return oDate === dateToday() && ['CONFIRMED', 'CHECKED_IN'].includes(o.status);
   });
 
-  const isNewCustomer = user && user.role === 'CUSTOMER' && (!data?.orders || data.orders.length === 0);
+  const isNewCustomer = useMemo(() => {
+    if (!user || user.role !== 'CUSTOMER') return false;
+    if (!data || !Array.isArray(data.orders)) return false;
+    if (data.orders.length > 0) return false;
+    try {
+      if (localStorage.getItem(`courtly_welcome_used_${user.id}`) === 'true') return false;
+      if (localStorage.getItem(`courtly_welcome_dismissed_${user.id}`) === 'true') return false;
+    } catch {}
+    if (user.createdAt) {
+      const createdTime = new Date(user.createdAt).getTime();
+      const ageDays = (Date.now() - createdTime) / (1000 * 60 * 60 * 24);
+      if (ageDays > 7) return false;
+    }
+    return true;
+  }, [user, data]);
+
   const welcomeBannerVisible = user && (showWelcomeBanner || isNewCustomer) && !welcomeBannerDismissed;
 
   return (
@@ -289,6 +320,11 @@ export default function Portal({session,onSession,onLogout}){
                 onClick={() => {
                   setActiveVoucherCode('WELCOME');
                   setWelcomeBannerApplied(true);
+                  setShowWelcomeBanner(false);
+                  setWelcomeBannerDismissed(true);
+                  try {
+                    if (user?.id) localStorage.setItem(`courtly_welcome_dismissed_${user.id}`, 'true');
+                  } catch {}
                   if (route !== 'booking') {
                     navigate('booking');
                   }
@@ -318,7 +354,9 @@ export default function Portal({session,onSession,onLogout}){
                 onClick={() => {
                   setShowWelcomeBanner(false);
                   setWelcomeBannerDismissed(true);
-                  sessionStorage.setItem('courtly_welcome_dismissed', 'true');
+                  try {
+                    if (user?.id) localStorage.setItem(`courtly_welcome_dismissed_${user.id}`, 'true');
+                  } catch {}
                 }}
                 aria-label={t('Đóng thông báo')}
                 style={{
