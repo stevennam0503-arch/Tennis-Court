@@ -744,7 +744,48 @@ export default function OperationsPage() {
 
                 {/* 5. Status */}
                 <td>
-                  <Chip status={o.status} />
+                  {(() => {
+                    const isPast = o.date < currentToday || timing.state === "OVERDUE";
+                    if (o.status === "CHECKED_IN" && isPast) {
+                      if (due > 0) {
+                        return (
+                          <span
+                            className="chip red"
+                            style={{
+                              fontWeight: 700,
+                              whiteSpace: "nowrap",
+                              background: "#fee2e2",
+                              color: "#991b1b",
+                              border: "1px solid #fecaca",
+                              padding: "3px 8px",
+                              borderRadius: 6,
+                              fontSize: 12
+                            }}
+                          >
+                            Quá hạn chưa thu tiền
+                          </span>
+                        );
+                      }
+                      return (
+                        <span
+                          className="chip orange"
+                          style={{
+                            fontWeight: 700,
+                            whiteSpace: "nowrap",
+                            background: "#fef3c7",
+                            color: "#92400e",
+                            border: "1px solid #fde68a",
+                            padding: "3px 8px",
+                            borderRadius: 6,
+                            fontSize: 12
+                          }}
+                        >
+                          Quá giờ chưa check-out
+                        </span>
+                      );
+                    }
+                    return <Chip status={o.status} />;
+                  })()}
                 </td>
 
                 {/* 6. Action */}

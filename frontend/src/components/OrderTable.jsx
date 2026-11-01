@@ -34,7 +34,25 @@ export default function OrderTable({ orders }) {
               <small>Đã thu {money(o.paid)}</small>
             </td>
             <td>
-              <Chip status={o.status} />
+              {(() => {
+                const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+                const isPast = o.date < todayStr;
+                if (o.status === "CHECKED_IN" && isPast) {
+                  if (o.total > o.paid) {
+                    return (
+                      <span className="chip red" style={{ fontWeight: 700, whiteSpace: "nowrap" }}>
+                        Quá hạn nợ tiền
+                      </span>
+                    );
+                  }
+                  return (
+                    <span className="chip orange" style={{ fontWeight: 700, whiteSpace: "nowrap" }}>
+                      Quá giờ chưa check-out
+                    </span>
+                  );
+                }
+                return <Chip status={o.status} />;
+              })()}
               {extMinutes > 0 && (
                 <span style={{ display: 'inline-block', marginLeft: 4, padding: '2px 6px', fontSize: 11, fontWeight: 700, color: '#1d4ed8', background: '#dbeafe', borderRadius: 4 }}>
                   +{extMinutes}p
