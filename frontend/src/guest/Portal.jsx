@@ -12,6 +12,7 @@ import {News,Article,Contact,Feedback,Policies} from './Content';
 import {Orders,CancelDialog,Membership,Profile,TicketDialog,ZaloZnsDialog,ExtendCourtDialog} from './Account';
 import Payments,{PaymentDialog,PaymentChoice} from './Payments';
 import GuestAuth from './Auth';
+import AiChatbox from './AiChatbox';
 import './handoff.css';
 import './guest.css';
 import './booking.css';
@@ -226,6 +227,15 @@ export default function Portal({session,onSession,onLogout}){
   }, [user, data?.orders]);
 
   const hasAnyBooking = myOrders.length > 0;
+
+  useEffect(() => {
+    if (user?.id && hasAnyBooking) {
+      try {
+        localStorage.setItem(courtly_welcome_dismissed_, 'true');
+        setWelcomeBannerDismissed(true);
+      } catch {}
+    }
+  }, [user?.id, hasAnyBooking]);
 
   const todayMatch = user && !bannerDismissed && data?.orders?.find(o => {
     const oDate = o.date || o.slots?.[0]?.scheduleDate || '';
@@ -616,6 +626,7 @@ export default function Portal({session,onSession,onLogout}){
         </main>
 
         <Footer/>
+        <AiChatbox/>
 
         {auth ? (
           <Modal title={t('Đóng đăng nhập')} onClose={()=>setAuth(false)} hideClose>
