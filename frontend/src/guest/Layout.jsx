@@ -451,7 +451,7 @@ export function Footer(){
           </p>
           <div className="ct-footer-hours-badge">
             <Clock size={16}/>
-            <span>{t('Mở cửa')}: <strong>{club.openingHours||'06:00 – 23:00'}</strong> ({t('Cả tuần & Ngày lễ')})</span>
+            <span>{t('Mở cửa')}: <strong>06:00 – 23:00</strong> · {t('Cả tuần & Ngày lễ')}</span>
           </div>
         </div>
 

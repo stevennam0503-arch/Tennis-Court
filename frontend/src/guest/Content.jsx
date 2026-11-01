@@ -854,7 +854,7 @@ export function News() {
 // CONTACT COMPONENT
 // ==========================================
 export function Contact() {
-  const { t, club, navigate } = useGuest();
+  const { t, club, navigate, lang } = useGuest();
   return (
     <section className="ct-pad">
       <div className="gx-heading">
@@ -880,12 +880,10 @@ export function Contact() {
             ))}
             <div>
               <dt>{t('Giờ mở cửa')}</dt>
-              <dd>{club.openingHours || '06:00 – 23:00'}</dd>
+              <dd>{lang === 'en' ? '06:00 – 23:00 · All week & Holidays' : (club.openingHours || '06:00 – 23:00 · Cả tuần & Ngày lễ')}</dd>
             </div>
           </dl>
-          {club.address?.includes('DEMO') && (
-            <p>{t('Thông tin liên hệ giả lập, chưa dùng để liên hệ hoặc chỉ đường thực tế.')}</p>
-          )}
+          
         </article>
         <article className="gx-green">
           <h2>{t('Mỗi chia sẻ đều có ý nghĩa.')}</h2>

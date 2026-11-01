@@ -92,7 +92,7 @@
   "Đặt trước tối đa": "Book up to",
   "7 ngày": "7 days ahead",
   "Đổi lịch theo chính sách chung": "Standard rescheduling policy",
-  "Chọn sân": "Choose a court",
+  "Chọn sân": "Select court",
   "CHO NHỊP CHƠI HẰNG TUẦN": "FOR YOUR WEEKLY GAME",
   "THÊM LÝ DO RA SÂN": "MORE REASONS TO PLAY",
   "Ưu đãi thiết thực cho người chơi đều.": "Practical benefits for regular players.",
@@ -1167,5 +1167,18 @@
   "giảm 50.000₫ cho lần đặt sân đầu tiên!": "50,000₫ off for your first court booking!",
   "Tạo tài khoản & Nhận quà": "Create Account & Get Gift",
   "Đăng ký nhận ngay Voucher WELCOME 50.000₫ và giữ chỗ sân tức thì.": "Register now to get a 50,000₫ WELCOME voucher and reserve courts instantly.",
-  "Đăng ký nhanh chóng để giữ chỗ sân trực tuyến và nhận quà chào mừng 50k.": "Sign up quickly to reserve courts online and get a 50k welcome gift."
+  "Đăng ký nhanh chóng để giữ chỗ sân trực tuyến và nhận quà chào mừng 50k.": "Sign up quickly to reserve courts online and get a 50k welcome gift.",
+  "Mức phí chuẩn theo Liên đoàn Quần vợt.": "Official rate according to the Tennis Federation.",
+  "Lịch giải đấu chính thức · Mở cổng đăng ký": "Official tournament schedule · Online registration open",
+  "Tất cả các ngày trong tuần": "All week & Holidays",
+  "Quy mô sân vận hành:": "Operating Venue Scale:",
+  "sân tiêu chuẩn ATP": "ATP standard courts",
+  "ngoài trời": "outdoor",
+  "trong nhà": "indoor",
+  "VIP": "VIP",
+  "Tự động điều chỉnh theo từng sân": "Automatically scales with active courts",
+  "sân đang mở": "active courts",
+  "Tạm đóng (0 sân)": "Closed (0 courts)",
+  "Khu vực này hiện không có sân nào hoạt động": "No active courts in this zone currently",
+  "Các sân trong khu này đã được gỡ bỏ hoặc đang trong thời gian bảo dưỡng. Vui lòng chọn khu sân khác!": "All courts in this zone have been removed or are under maintenance. Please select another zone!"
 }
