@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { labels } from '../utils/format';
+import { labels, today } from '../utils/format';
+import { getOrderTiming } from '../utils/order-timing.mjs';
 
 export function Button({ children, className = '', ...props }) {
   return <button type="button" className={`btn ${className}`} {...props}>{children}</button>;
@@ -16,6 +17,55 @@ export function Stat({ title, value, note, icon: Icon }) {
 export function Chip({ status }) {
   const color = ['ACTIVE','CONFIRMED','COMPLETED','OPEN','FINISHED'].includes(status) ? 'green' : ['HOLDING','PENDING','MAINTENANCE'].includes(status) ? 'orange' : ['CANCELLED','EXPIRED','INACTIVE','LOCKED'].includes(status) ? 'red' : ['CHECKED_IN','BOOKED'].includes(status) ? 'blue' : '';
   return <span className={`chip ${color}`}>{labels[status] || status}</span>;
+}
+
+export function OrderStatusChip({ order, currentToday }) {
+  if (!order) return null;
+  const todayStr = currentToday || today();
+  const timing = getOrderTiming(order, todayStr);
+  const isPast = order.date < todayStr || timing.state === 'OVERDUE';
+  const due = Math.max(0, (order.total || 0) - (order.paid || 0));
+
+  if (order.status === 'CHECKED_IN' && isPast) {
+    if (due > 0) {
+      return (
+        <span
+          className="chip red"
+          style={{
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
+            background: '#fee2e2',
+            color: '#991b1b',
+            border: '1px solid #fecaca',
+            padding: '3px 8px',
+            borderRadius: 6,
+            fontSize: 12
+          }}
+        >
+          Quá hạn chưa thu tiền
+        </span>
+      );
+    }
+    return (
+      <span
+        className="chip orange"
+        style={{
+          fontWeight: 700,
+          whiteSpace: 'nowrap',
+          background: '#fef3c7',
+          color: '#92400e',
+          border: '1px solid #fde68a',
+          padding: '3px 8px',
+          borderRadius: 6,
+          fontSize: 12
+        }}
+      >
+        Quá giờ chưa check-out
+      </span>
+    );
+  }
+
+  return <Chip status={order.status} />;
 }
 export function Table({ headings, children, empty }) {
   return <div className="table-wrap"><table><thead><tr>{headings.map((h,i) => <th key={i}>{h}</th>)}</tr></thead><tbody>{empty ? <tr><td className="empty" colSpan={headings.length}>Chưa có dữ liệu</td></tr> : children}</tbody></table></div>;

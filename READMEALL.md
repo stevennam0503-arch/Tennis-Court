@@ -23025,7 +23025,7 @@ export function PolicyNotice(){const {data}=useCourtly(),p=data.settings.policie
 #### File: `frontend/src/components/OrderTable.jsx`
 ```jsx
 import React from 'react';
-import { Button, Chip, Table } from './UI';
+import { Button, Chip, Table, OrderStatusChip } from './UI';
 import { useCourtly } from '../context';
 import { money, slotLabel } from '../utils/format';
 
@@ -23060,25 +23060,7 @@ export default function OrderTable({ orders }) {
               <small>Đã thu {money(o.paid)}</small>
             </td>
             <td>
-              {(() => {
-                const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-                const isPast = o.date < todayStr;
-                if (o.status === "CHECKED_IN" && isPast) {
-                  if (o.total > o.paid) {
-                    return (
-                      <span className="chip red" style={{ fontWeight: 700, whiteSpace: "nowrap" }}>
-                        Quá hạn nợ tiền
-                      </span>
-                    );
-                  }
-                  return (
-                    <span className="chip orange" style={{ fontWeight: 700, whiteSpace: "nowrap" }}>
-                      Quá giờ chưa check-out
-                    </span>
-                  );
-                }
-                return <Chip status={o.status} />;
-              })()}
+              <OrderStatusChip order={o} />
               {extMinutes > 0 && (
                 <span style={{ display: 'inline-block', marginLeft: 4, padding: '2px 6px', fontSize: 11, fontWeight: 700, color: '#1d4ed8', background: '#dbeafe', borderRadius: 4 }}>
                   +{extMinutes}p
@@ -23856,7 +23838,8 @@ export default function TournamentFlowchart({ tournament, registrations = [], ma
 #### File: `frontend/src/components/UI.jsx`
 ```jsx
 import React, { useEffect, useRef, useState } from 'react';
-import { labels } from '../utils/format';
+import { labels, today } from '../utils/format';
+import { getOrderTiming } from '../utils/order-timing.mjs';
 
 export function Button({ children, className = '', ...props }) {
   return <button type="button" className={`btn ${className}`} {...props}>{children}</button>;
@@ -23873,6 +23856,55 @@ export function Stat({ title, value, note, icon: Icon }) {
 export function Chip({ status }) {
   const color = ['ACTIVE','CONFIRMED','COMPLETED','OPEN','FINISHED'].includes(status) ? 'green' : ['HOLDING','PENDING','MAINTENANCE'].includes(status) ? 'orange' : ['CANCELLED','EXPIRED','INACTIVE','LOCKED'].includes(status) ? 'red' : ['CHECKED_IN','BOOKED'].includes(status) ? 'blue' : '';
   return <span className={`chip ${color}`}>{labels[status] || status}</span>;
+}
+
+export function OrderStatusChip({ order, currentToday }) {
+  if (!order) return null;
+  const todayStr = currentToday || today();
+  const timing = getOrderTiming(order, todayStr);
+  const isPast = order.date < todayStr || timing.state === 'OVERDUE';
+  const due = Math.max(0, (order.total || 0) - (order.paid || 0));
+
+  if (order.status === 'CHECKED_IN' && isPast) {
+    if (due > 0) {
+      return (
+        <span
+          className="chip red"
+          style={{
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
+            background: '#fee2e2',
+            color: '#991b1b',
+            border: '1px solid #fecaca',
+            padding: '3px 8px',
+            borderRadius: 6,
+            fontSize: 12
+          }}
+        >
+          Quá hạn chưa thu tiền
+        </span>
+      );
+    }
+    return (
+      <span
+        className="chip orange"
+        style={{
+          fontWeight: 700,
+          whiteSpace: 'nowrap',
+          background: '#fef3c7',
+          color: '#92400e',
+          border: '1px solid #fde68a',
+          padding: '3px 8px',
+          borderRadius: 6,
+          fontSize: 12
+        }}
+      >
+        Quá giờ chưa check-out
+      </span>
+    );
+  }
+
+  return <Chip status={order.status} />;
 }
 export function Table({ headings, children, empty }) {
   return <div className="table-wrap"><table><thead><tr>{headings.map((h,i) => <th key={i}>{h}</th>)}</tr></thead><tbody>{empty ? <tr><td className="empty" colSpan={headings.length}>Chưa có dữ liệu</td></tr> : children}</tbody></table></div>;
@@ -28581,7 +28613,7 @@ export default function OperationsPage() {
                         fontWeight: 700,
                         border: '1px solid #fecaca'
                       }}>
-                        <AlertCircle size={13} /> QUÁ HẠN CHƯA THU ĐỦ TIỀN ({money(due)})
+                        <AlertCircle size={13} /> QUÁ GIỜ · CẦN THU NỐT {money(due)} & CHECK-OUT
                       </span>
                     )}
 
@@ -28781,48 +28813,7 @@ export default function OperationsPage() {
 
                 {/* 5. Status */}
                 <td>
-                  {(() => {
-                    const isPast = o.date < currentToday || timing.state === "OVERDUE";
-                    if (o.status === "CHECKED_IN" && isPast) {
-                      if (due > 0) {
-                        return (
-                          <span
-                            className="chip red"
-                            style={{
-                              fontWeight: 700,
-                              whiteSpace: "nowrap",
-                              background: "#fee2e2",
-                              color: "#991b1b",
-                              border: "1px solid #fecaca",
-                              padding: "3px 8px",
-                              borderRadius: 6,
-                              fontSize: 12
-                            }}
-                          >
-                            Quá hạn chưa thu tiền
-                          </span>
-                        );
-                      }
-                      return (
-                        <span
-                          className="chip orange"
-                          style={{
-                            fontWeight: 700,
-                            whiteSpace: "nowrap",
-                            background: "#fef3c7",
-                            color: "#92400e",
-                            border: "1px solid #fde68a",
-                            padding: "3px 8px",
-                            borderRadius: 6,
-                            fontSize: 12
-                          }}
-                        >
-                          Quá giờ chưa check-out
-                        </span>
-                      );
-                    }
-                    return <Chip status={o.status} />;
-                  })()}
+                  <OrderStatusChip order={o} currentToday={currentToday} />
                 </td>
 
                 {/* 6. Action */}
