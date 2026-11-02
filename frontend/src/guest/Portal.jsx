@@ -713,7 +713,7 @@ export default function Portal({session,onSession,onLogout}){
                 onSession(s);
                 setAuth(false);
                 if(['ADMIN','STAFF'].includes(s.user.role)){
-                  location.assign('/app');
+                  location.replace('/app#operations');
                   return;
                 }
                 const userHasOrders = (data?.orders || []).some(o => o.accountId === s.user.id || o.email === s.user.email);

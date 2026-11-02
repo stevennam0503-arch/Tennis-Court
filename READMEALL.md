@@ -10959,7 +10959,17 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
  const notify=useCallback(text=>{clearTimeout(toastTimer.current);setToast(text);toastTimer.current=setTimeout(()=>setToast(''),4500);},[]);
  useEffect(()=>()=>clearTimeout(toastTimer.current),[]);
  useEffect(()=>{setDialog(null);},[user.role]);
- const navigate=useCallback(r=>{setRoute(r);setMobile(false);setDialog(null);history.replaceState(null,'','#'+r);},[]);
+ const navigate=useCallback((r,replace=false)=>{
+  setRoute(r);
+  setMobile(false);
+  setDialog(null);
+  const targetUrl='/app#'+r;
+  if(replace||location.hash==='#'+r){
+   history.replaceState(null,'',targetUrl);
+  }else{
+   history.pushState(null,'',targetUrl);
+  }
+ },[]);
  useEffect(()=>{const warn=()=>notify('Thao tác đã thành công, nhưng chưa tải lại được dữ liệu. Hãy làm mới; không gửi lại thao tác.');window.addEventListener('courtly-committed-refresh-error',warn);return()=>window.removeEventListener('courtly-committed-refresh-error',warn);},[notify]);
  const close=useCallback(()=>setDialog(null),[]);
  const resumed=useRef(false);
@@ -11032,7 +11042,22 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
   {label:'VẬN HÀNH',ids:['operations','calendar','orders','payments','services']},
   {label:'TRA CỨU & CÁ NHÂN',ids:['history','profile']}
  ]:[{label:'LỊCH CHƠI CỦA BẠN',ids:customerMenu.map(x=>x[0])}];
- useEffect(()=>{const change=()=>setRoute(location.hash.slice(1)||(session.user.role==='ADMIN'||session.user.role==='STAFF'?'operations':'calendar'));window.addEventListener('hashchange',change);return()=>window.removeEventListener('hashchange',change);},[]);
+ useEffect(()=>{
+  const change=()=>{
+   if(isInternal&&location.pathname!=='/app'){
+    history.replaceState(null,'','/app'+(location.hash||'#operations'));
+   }
+   const target=location.hash.slice(1)||(isInternal?'operations':'calendar');
+   setRoute(target);
+   setDialog(null);
+  };
+  window.addEventListener('popstate',change);
+  window.addEventListener('hashchange',change);
+  return()=>{
+   window.removeEventListener('popstate',change);
+   window.removeEventListener('hashchange',change);
+  };
+ },[isInternal,session.user.role]);
  const Page=pages[safeRoute]||CalendarPage;
  if(!isInternal)return <CourtlyContext.Provider value={{...club,user,isAdmin,isStaff,date,setDate,navigate,show:setDialog,notify}}><div className="customer-workspace"><PublicHeader user={user} onLogout={onLogout}/><main className="main">{club.error&&<div className="error" role="alert">{club.error} <Button onClick={()=>club.refresh().catch(()=>{})}>Thử lại</Button></div>}{club.loading?<div className="loading">Đang tải dữ liệu…</div>:club.data?(safeRoute.startsWith('profile')?<ProfilePage tab={safeRoute.split('-')[1]||'info'} initialPlan={membershipPlan}/>:<CustomerPage key={safeRoute} route={safeRoute}/>):<div className="empty">Không thể kết nối máy chủ. Vui lòng thử lại.</div>}</main><PublicFooter/>{club.data&&dialog&&<CustomerDialogs key={`${dialog.type}-${dialog.id||''}`} dialog={dialog} onClose={close}/>}<div aria-live="polite">{toast&&<div className="toast">{toast}</div>}</div></div></CourtlyContext.Provider>;
  return <CourtlyContext.Provider value={{...club,user,isAdmin,isStaff,date,setDate,navigate,show:setDialog,notify}}><div className="layout"><aside className={`sidebar ${mobile?'open':''}`}><div className="brand"><img src="/favicon.svg" alt="" width="34" height="34"/><div>Courtly<em>TENNIS CLUB</em></div></div><nav className="nav" aria-label={isAdmin?'Quản trị':isStaff?'Staff':'Khách hàng'}>{menuGroups.map(group=><section className="nav-group" key={group.label}><div className="nav-caption">{group.label}</div>{group.ids.map(id=>{
@@ -11089,14 +11114,19 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
       )}
     </button>
   );
-})}</section>)}</nav><div className="side-foot"><button className="signed-user avatar-button" aria-label="Hồ sơ của tôi" onClick={()=>navigate('profile')}><span className="avatar">{user.name.slice(0,1).toUpperCase()}</span><div><b>{user.name}</b><small>{isAdmin?'Quản trị viên':isStaff?'Staff':'Khách hàng'}</small></div></button><a className="signout" href="/">Website câu lạc bộ ↗</a><a className="signout" href="/feedback">Gửi feedback ↗</a><button className="signout" onClick={onLogout}><LogOut size={16}/>Đăng xuất</button></div></aside><div className="content"><header className="topbar"><div className="tools"><button className="mobile-menu" aria-label="Mở menu" onClick={()=>setMobile(!mobile)}><Menu size={20}/></button><span className="crumb">Courtly <span className="muted"> / </span>{menu.find(x=>x[0]===safeRoute)?.[2]||'Thông báo'}</span></div><div className="right"><button className="btn sm" style={{background:'#e8f5e9',borderColor:'#a5d6a7',color:'#1b5e20',fontWeight:700,display:'inline-flex',alignItems:'center',gap:6,padding:'5px 12px'}} onClick={()=>setDialog({type:'auto-qr-checkin'})}><span>📷</span> Quét QR Check-in</button><span className="date-label meta">{dateLabel(today())}</span><span className={`chip ${isAdmin?'green':isStaff?'orange':'blue'}`}>{isAdmin?'Admin':isStaff?'Staff':'Khách hàng'}</span>{isAdmin&&<button aria-label="Thông báo" onClick={()=>navigate('notifications')} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Bell size={20}/>{(badges.totalAlerts || 0) > 0 && <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, background: '#ef4444', color: '#ffffff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #ffffff', lineHeight: 1 }}>{badges.totalAlerts > 99 ? '99+' : badges.totalAlerts}</span>}</button>}<button className="header-signout" onClick={onLogout} aria-label="Đăng xuất"><LogOut size={19}/></button></div></header><main className="main">{club.error&&<div className="error" role="alert">{club.error} <Button className="sm" onClick={()=>club.refresh().catch(()=>{})}>Thử lại</Button></div>}{club.loading?<div className="loading">Đang tải dữ liệu…</div>:club.data?(safeRoute.startsWith('profile')?<ProfilePage tab={safeRoute.split('-')[1]||'info'}/>:isInternal?<Page key={safeRoute}/>:<CustomerPage key={safeRoute} route={safeRoute}/>):<div className="empty">Không thể kết nối máy chủ. Vui lòng thử lại.</div>}</main></div></div>{club.data&&dialog&&(isInternal?<DialogHost key={`${dialog.type}-${dialog.id||dialog.collection||''}`} dialog={dialog} onClose={close}/>:<CustomerDialogs key={`${dialog.type}-${dialog.id||''}`} dialog={dialog} onClose={close}/>)}<div aria-live="polite">{toast&&<div className="toast">{toast}</div>}</div></CourtlyContext.Provider>;
+})}</section>)}</nav><div className="side-foot"><button className="signed-user avatar-button" aria-label="Hồ sơ của tôi" onClick={()=>navigate('profile')}><span className="avatar">{user.name.slice(0,1).toUpperCase()}</span><div><b>{user.name}</b><small>{isAdmin?'Quản trị viên':isStaff?'Staff':'Khách hàng'}</small></div></button><a className="signout" href="/" target="_blank" rel="noopener noreferrer">Website câu lạc bộ ↗</a><a className="signout" href="/feedback">Gửi feedback ↗</a><button className="signout" onClick={onLogout}><LogOut size={16}/>Đăng xuất</button></div></aside><div className="content"><header className="topbar"><div className="tools"><button className="mobile-menu" aria-label="Mở menu" onClick={()=>setMobile(!mobile)}><Menu size={20}/></button><span className="crumb">Courtly <span className="muted"> / </span>{menu.find(x=>x[0]===safeRoute)?.[2]||'Thông báo'}</span></div><div className="right"><button className="btn sm" style={{background:'#e8f5e9',borderColor:'#a5d6a7',color:'#1b5e20',fontWeight:700,display:'inline-flex',alignItems:'center',gap:6,padding:'5px 12px'}} onClick={()=>setDialog({type:'auto-qr-checkin'})}><span>📷</span> Quét QR Check-in</button><span className="date-label meta">{dateLabel(today())}</span><span className={`chip ${isAdmin?'green':isStaff?'orange':'blue'}`}>{isAdmin?'Admin':isStaff?'Staff':'Khách hàng'}</span>{isAdmin&&<button aria-label="Thông báo" onClick={()=>navigate('notifications')} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Bell size={20}/>{(badges.totalAlerts || 0) > 0 && <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, background: '#ef4444', color: '#ffffff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #ffffff', lineHeight: 1 }}>{badges.totalAlerts > 99 ? '99+' : badges.totalAlerts}</span>}</button>}<button className="header-signout" onClick={onLogout} aria-label="Đăng xuất"><LogOut size={19}/></button></div></header><main className="main">{club.error&&<div className="error" role="alert">{club.error} <Button className="sm" onClick={()=>club.refresh().catch(()=>{})}>Thử lại</Button></div>}{club.loading?<div className="loading">Đang tải dữ liệu…</div>:club.data?(safeRoute.startsWith('profile')?<ProfilePage tab={safeRoute.split('-')[1]||'info'}/>:isInternal?<Page key={safeRoute}/>:<CustomerPage key={safeRoute} route={safeRoute}/>):<div className="empty">Không thể kết nối máy chủ. Vui lòng thử lại.</div>}</main></div></div>{club.data&&dialog&&(isInternal?<DialogHost key={`${dialog.type}-${dialog.id||dialog.collection||''}`} dialog={dialog} onClose={close}/>:<CustomerDialogs key={`${dialog.type}-${dialog.id||''}`} dialog={dialog} onClose={close}/>)}<div aria-live="polite">{toast&&<div className="toast">{toast}</div>}</div></CourtlyContext.Provider>;
 }
 export default function App(){
  const [session,setSession]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);
  useEffect(()=>{api('/auth/session').then(setSession).catch(e=>setError(e.message)).finally(()=>setLoading(false));},[]);
  const logout=async()=>{await api('/auth/logout','POST',{});setSession(null);history.replaceState(null,'','/');};
  if(loading)return <div className="loading">Courtly…</div>;
- if(session?.authenticated&&['ADMIN','STAFF'].includes(session.user.role)&&location.pathname==='/app')return <AuthenticatedApp session={session} onAccessError={e=>{setError(e.message);setSession(null)}} onLogout={logout}/>;
+ if(session?.authenticated&&['ADMIN','STAFF'].includes(session.user.role)){
+  if(location.pathname!=='/app'){
+   history.replaceState(null,'','/app'+(location.hash||'#operations'));
+  }
+  return <AuthenticatedApp session={session} onAccessError={e=>{setError(e.message);setSession(null)}} onLogout={logout}/>;
+ }
  return <GuestPortal session={session} onSession={setSession} onLogout={logout}/>;
 }
 ```
@@ -19624,7 +19654,7 @@ export default function Portal({session,onSession,onLogout}){
                 onSession(s);
                 setAuth(false);
                 if(['ADMIN','STAFF'].includes(s.user.role)){
-                  location.assign('/app');
+                  location.replace('/app#operations');
                   return;
                 }
                 const userHasOrders = (data?.orders || []).some(o => o.accountId === s.user.id || o.email === s.user.email);
