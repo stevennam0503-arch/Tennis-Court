@@ -25,6 +25,18 @@ export default function Booking() {
   const [pendingVoucherCode, setPendingVoucherCode] = useState(null);
   const req = useRef(requestId());
 
+  const overdueDebtOrders = React.useMemo(() => {
+    if (!user || !data?.orders) return [];
+    return data.orders.filter(o => {
+      const isMine = o.accountId === user.id || o.email === user.email || o.phone === user.phone;
+      if (!isMine) return false;
+      const due = (o.total || 0) - (o.paid || 0);
+      if (due <= 0) return false;
+      const oDate = o.date || o.slots?.[0]?.scheduleDate || '';
+      return oDate < dateToday() || ['COMPLETED', 'CHECKED_IN'].includes(o.status);
+    });
+  }, [user, data?.orders]);
+
   useEffect(() => {
     api('/public/vouchers').then(setPublicVouchers).catch(() => {});
   }, [user?.id]);
@@ -256,6 +268,12 @@ export default function Booking() {
 
   const submit = async () => {
     if (!user) { login('login', { from: 'booking' }); return; }
+    if (overdueDebtOrders.length > 0) {
+      const debt = overdueDebtOrders[0];
+      const debtAmt = (debt.total || 0) - (debt.paid || 0);
+      setError(t(`Tài khoản của bạn đang có đơn nợ quá hạn (#${debt.id.slice(0, 8).toUpperCase()} - còn nợ ${money(debtAmt)}). Theo chính sách CLB Courtly, quý khách vui lòng tất toán đơn nợ cũ trước khi tiếp tục đặt sân mới.`));
+      return;
+    }
     if (!ready) return;
     setSaving(true);
     setError('');
@@ -291,9 +309,9 @@ export default function Booking() {
         });
         try {
           if (appliedVoucher?.code === 'WELCOME') {
-            localStorage.setItem(courtly_welcome_used_, 'true');
+            localStorage.setItem('courtly_welcome_used_' + (user?.id || ''), 'true');
           }
-          localStorage.setItem(courtly_welcome_dismissed_, 'true');
+          localStorage.setItem('courtly_welcome_dismissed_' + (user?.id || ''), 'true');
         } catch {}
         resetAll();
         navigate('orders');
@@ -1010,10 +1028,28 @@ export default function Booking() {
             <p className="gx-notice">{t('Đăng nhập để tạo đơn gắn với tài khoản của bạn. Lựa chọn hiện tại được giữ khi đăng nhập.')}</p>
           )}
 
+          
+          {overdueDebtOrders.length > 0 && (
+            <div className="gx-booking-debt-alert" style={{ background: '#fff1f2', border: '1.5px solid #fca5a5', borderRadius: 8, padding: '14px 16px', margin: '0 0 16px', color: '#9f1239' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 13, marginBottom: 5 }}>
+                <span style={{ fontSize: 16 }}>🚨</span> {t('Đơn nợ quá hạn chưa tất toán')}
+              </div>
+              <p style={{ fontSize: 12.5, lineHeight: 1.5, color: '#be123c', margin: 0 }}>
+                {t('Đơn')} #{overdueDebtOrders[0].id.slice(0, 8).toUpperCase()} ({overdueDebtOrders[0].date}) {t('hiện còn nợ')} <b>{money((overdueDebtOrders[0].total || 0) - (overdueDebtOrders[0].paid || 0))}</b>. {t('Theo quy định CLB Courtly, quý khách vui lòng tất toán đơn nợ cũ để mở lại quyền đặt sân mới.')}
+              </p>
+              <button
+                type="button"
+                onClick={() => pay('ORDER', overdueDebtOrders[0].id, 'BALANCE')}
+                style={{ marginTop: 10, background: '#e11d48', color: '#fff', border: 0, padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                💳 {t('Tất toán nợ ngay')}
+              </button>
+            </div>
+          )}
           {error && <div className="gx-error" role="alert">{t(error)}</div>}
 
-          <Action disabled={!ready} onClick={submit}>
-            {t(saving ? 'Đang xử lý…' : !user ? 'Đăng nhập để đặt sân' : moveOrder ? (preview ? 'Xác nhận đổi lịch' : 'Xem trước đổi lịch') : 'Tiếp tục thanh toán')}
+          <Action disabled={!ready || overdueDebtOrders.length > 0} onClick={submit}>
+            {t(saving ? 'Đang xử lý…' : !user ? 'Đăng nhập để đặt sân' : overdueDebtOrders.length > 0 ? 'Tất toán nợ cũ để đặt sân' : moveOrder ? (preview ? 'Xác nhận đổi lịch' : 'Xem trước đổi lịch') : 'Tiếp tục thanh toán')}
             <ArrowUpRight size={18}/>
           </Action>
           <p className="gx-quote-note">

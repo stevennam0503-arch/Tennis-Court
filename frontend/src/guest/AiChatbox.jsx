@@ -41,6 +41,10 @@ Courtly Tennis Club là tổ hợp quần vợt cao cấp gồm 10 sân tiêu ch
   + Club Member: 290.000đ/tháng (Giảm 10% tiền sân, đặt trước 14 ngày, miễn phí gửi xe, 1 lượt đổi lịch).
   + Member Plus: 590.000đ/tháng (Giảm 15% tiền sân thường, 10% sân VIP, phòng chờ VIP Lounge, đặt trước 21 ngày, 2 lượt đổi lịch).
 - Ưu đãi thành viên mới: Tặng voucher WELCOME giảm ngay 50.000đ cho đơn đặt sân đầu tiên.
+- Chính sách Công nợ & Thanh toán:
+  + Khách vãng lai bắt buộc cọc tối thiểu 50% qua VietQR để giữ sân và thanh toán 100% trước khi rời sân.
+  + Khách có đơn nợ quá hạn chưa thanh toán sẽ tạm thời bị khóa quyền đặt sân mới cho đến khi tất toán.
+  + Hội viên doanh nghiệp / sinh hoạt định kỳ có thể ký thỏa thuận công nợ chốt định kỳ cuối tháng.
 `;
 
 const QUICK_PROMPTS = [
@@ -84,48 +88,83 @@ export default function AiChatbox() {
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/đ/g, 'd');
 
-    // 1. Pricing / Cost
+    // 1. Cancellation & Deposit Refund Policy (Highest priority - handles "hủy", "hoàn tiền", "hoàn cọc", "đổi lịch")
     if (
-      norm.includes('gia') ||
-      norm.includes('bao nhieu') ||
-      norm.includes('bang gia') ||
-      norm.includes('chi phi') ||
-      norm.includes('tien') ||
-      norm.includes('phi thue') ||
-      norm.includes('bao tien')
+      norm.includes('huy') ||
+      norm.includes('hoan tien') ||
+      norm.includes('hoan coc') ||
+      norm.includes('chinh sach huy') ||
+      norm.includes('tra coc') ||
+      norm.includes('doi lich') ||
+      norm.includes('doi san') ||
+      norm.includes('doi gio')
     ) {
-      return `💰 **Bảng giá thuê sân Courtly Tennis Club:**
-
-- **Khu A (Ngoài trời · Sân A01–A04):**
-  • Ban ngày (06:00 – 17:00): **120.000đ/giờ** (60.000đ / 30 phút)
-  • Giờ vàng tối (17:00 – 23:00): **180.000đ/giờ** (90.000đ / 30 phút, bao gồm đèn LED 500 Lux)
-
-- **Khu B (Trong nhà có mái che · Sân B01–B04):**
-  • Ban ngày (06:00 – 17:00): **150.000đ/giờ**
-  • Buổi tối & Cuối tuần: **220.000đ/giờ** (mát mẻ, không ngại nắng mưa)
-
-- **Khu V (Sân VIP · Sân V01–V02):**
-  • Giá từ **250.000đ – 350.000đ/giờ** (đặc quyền phòng chờ VIP Lounge, sofa & nước uống miễn phí)
-
-*(Hội viên Club Member được giảm thêm 10%, Member Plus giảm đến 15% tổng hóa đơn).*`;
+      return `💸 **Chính sách Hủy sân & Hoàn cọc của Courtly:**
+- **Hủy trước 24 giờ:** Hoàn lại **100% tiền cọc** (quy đổi vào ví Voucher tích lũy để bạn sử dụng cho lần đặt tiếp theo).
+- **Hủy trong vòng dưới 24 giờ:** Không được hoàn tiền cọc do khung giờ đã được hệ thống khóa độc quyền cho bạn.
+- **Trường hợp thời tiết:** Nếu gặp mưa to tại cụm sân ngoài trời Khu A, CLB sẽ chủ động chuyển sang sân trong nhà Khu B hoặc đổi lịch miễn phí 100%.
+- **Cách hủy:** Bạn chỉ cần vào mục **Đơn của tôi** -> bấm nút **[Hủy đơn]** để gửi yêu cầu trực tiếp.`;
     }
 
-    // 2. Opening hours & Operating schedule
+    // 2. Debt & Credit Policy ("nợ", "công nợ", "ghi nợ", "chưa trả")
     if (
-      norm.includes('gio mo') ||
-      norm.includes('gio hoat dong') ||
-      norm.includes('may gio') ||
-      norm.includes('thoi gian') ||
-      norm.includes('dong cua') ||
-      norm.includes('mo cua') ||
-      norm.includes('lich mo')
+      norm.includes('no') ||
+      norm.includes('cong no') ||
+      norm.includes('ghi no') ||
+      norm.includes('chua thanh toan') ||
+      norm.includes('no tien') ||
+      norm.includes('cho no')
     ) {
-      return `⏰ **Thời gian hoạt động:**
-- CLB mở cửa từ **06:00 đến 23:00** tất cả các ngày trong tuần (kể cả Thứ 7, Chủ Nhật và các ngày nghỉ lễ, Tết).
-- Bạn có thể đặt sân linh hoạt theo từng khung giờ **30 phút** hoặc đặt liên tục nhiều giờ tùy theo nhu cầu tập luyện và thi đấu.`;
+      return `📋 **Chính sách Thanh toán & Quản lý Công nợ tại Courtly:**
+- **Khách vãng lai:** Bắt buộc đặt cọc tối thiểu **50% qua VietQR** để giữ chỗ và tất toán 100% trước khi rời sân. Khách hàng đang có đơn nợ quá hạn chưa thanh toán sẽ tạm thời bị khóa quyền đặt sân mới.
+- **Hội viên VIP & Doanh nghiệp:** Được quyền mở hạn mức **Công nợ ký sổ (Folio)** cho toàn bộ tiền sân, dịch vụ nước uống, bóng tập và thanh toán tổng hợp một lần vào cuối tháng.
+- **Tất toán nợ:** Bạn có thể thanh toán trực tiếp tại quầy tiếp tân hoặc bấm nút **[Tất toán nợ ngay]** trên thanh thông báo cá nhân.`;
     }
 
-    // 3. Indoor courts & Rainy / Hot weather
+    // 3. Referee & Coach services (Must check before general pricing because users might ask "giá trọng tài")
+    if (
+      norm.includes('trong tai') ||
+      norm.includes('referee') ||
+      norm.includes('hlv') ||
+      norm.includes('huan luyen') ||
+      norm.includes('thay day') ||
+      norm.includes('nhat bong') ||
+      norm.includes('bat loi') ||
+      norm.includes('tinh diem')
+    ) {
+      return `👨‍⚖️ **Dịch vụ Trọng tài & HLV chuyên nghiệp:**
+- Phí thuê trọng tài: **75.000đ / 30 phút** (tương đương **150.000đ / 1 giờ**).
+- **Tiêu chuẩn:** Đội ngũ trọng tài được đào tạo chuẩn Liên đoàn Quần vợt, cam kết đúng giờ, điều hành chuẩn xác, tính điểm và bắt lỗi chuyên nghiệp.
+- **Cách đặt:** Khi đặt sân tại trang **Đặt sân**, bạn chỉ cần tích chọn ô *“Thuê trọng tài bắt trận”* và có thể chọn trọng tài mong muốn.`;
+    }
+
+    // 4. Membership tiers & Benefits (Check before general pricing for "giá hội viên", "gói hội viên")
+    if (
+      norm.includes('hoi vien') ||
+      norm.includes('membership') ||
+      norm.includes('thanh vien') ||
+      norm.includes('member') ||
+      norm.includes('plus') ||
+      norm.includes('goi tap')
+    ) {
+      return `👑 **Các gói Hội viên Courtly Club:**
+- **Gói Club Member (290.000đ/tháng):**
+  • Giảm 10% tiền giờ chơi tất cả các sân
+  • Đặt trước lịch sân tối đa **14 ngày**
+  • Miễn phí 1 lượt đổi lịch mỗi tháng
+  • Tích điểm thưởng đổi giờ chơi
+
+- **Gói Member Plus (590.000đ/tháng):**
+  • Giảm 15% sân thường & 10% sân VIP
+  • Đặt trước lịch sân tối đa **21 ngày**
+  • Miễn phí 2 lượt đổi lịch mỗi tháng
+  • Miễn phí sử dụng phòng chờ VIP Lounge
+  • Ưu tiên suất tham gia các giải đấu CLB
+
+👉 Bạn có thể vào tab **Hội viên (Membership)** để đăng ký nâng hạng trực tiếp!`;
+    }
+
+    // 5. Indoor courts & Rainy / Hot weather (Khu B)
     if (
       norm.includes('khu b') ||
       norm.includes('trong nha') ||
@@ -143,7 +182,7 @@ export default function AiChatbox() {
 - **Giá thuê:** 150.000đ – 220.000đ/giờ.`;
     }
 
-    // 4. VIP courts
+    // 6. VIP courts & VIP Lounge
     if (
       norm.includes('khu v') ||
       norm.includes('vip') ||
@@ -159,24 +198,7 @@ export default function AiChatbox() {
 - **Giá thuê:** 250.000đ – 350.000đ/giờ.`;
     }
 
-    // 5. Referee & Coach services
-    if (
-      norm.includes('trong tai') ||
-      norm.includes('referee') ||
-      norm.includes('hlv') ||
-      norm.includes('huan luyen') ||
-      norm.includes('thay') ||
-      norm.includes('nhat bong') ||
-      norm.includes('bat loi') ||
-      norm.includes('tinh diem')
-    ) {
-      return `👨‍⚖️ **Dịch vụ Trọng tài & HLV chuyên nghiệp:**
-- Phí thuê trọng tài: **75.000đ / 30 phút** (tương đương 150.000đ / 1 giờ).
-- **Tiêu chuẩn:** Đội ngũ trọng tài được đào tạo chuẩn Liên đoàn Quần vợt, cam kết đúng giờ, điều hành chuẩn xác, tính điểm và bắt lỗi chuyên nghiệp.
-- **Cách đặt:** Khi đặt sân tại trang **Đặt sân**, bạn chỉ cần tích chọn ô *“Thuê trọng tài bắt trận”* và có thể chọn trọng tài mong muốn.`;
-    }
-
-    // 6. QR Check-in & Electronic Ticket
+    // 7. QR Check-in & Electronic Ticket
     if (
       norm.includes('check in') ||
       norm.includes('checkin') ||
@@ -194,7 +216,34 @@ export default function AiChatbox() {
 3. **Kích hoạt tự động:** Lễ tân quét mã chỉ mất 3 giây, hệ thống sẽ xác nhận ca chơi và tự động bật hệ thống đèn chiếu sáng đúng giờ bạn đặt!`;
     }
 
-    // 7. Booking & Deposit policy
+    // 8. General Court Pricing & Rates (Now with precise keyword matching, excluding bare "tien" that hijacks other intents)
+    if (
+      norm.includes('bang gia') ||
+      norm.includes('gia san') ||
+      norm.includes('gia thue') ||
+      norm.includes('bao nhieu tien') ||
+      norm.includes('chi phi thue') ||
+      norm.includes('phi thue san') ||
+      norm.includes('bao tien mot gio') ||
+      (norm.includes('gia') && (norm.includes('san') || norm.includes('gio') || norm.includes('khu a') || norm.includes('khu b') || norm.includes('khu v')))
+    ) {
+      return `💰 **Bảng giá thuê sân Courtly Tennis Club:**
+
+- **Khu A (Ngoài trời · Sân A01–A04):**
+  • Ban ngày (06:00 – 17:00): **120.000đ/giờ** (60.000đ / 30 phút)
+  • Giờ vàng tối (17:00 – 23:00): **180.000đ/giờ** (90.000đ / 30 phút, bao gồm đèn LED 500 Lux)
+
+- **Khu B (Trong nhà có mái che · Sân B01–B04):**
+  • Ban ngày (06:00 – 17:00): **150.000đ/giờ**
+  • Buổi tối & Cuối tuần: **220.000đ/giờ** (mát mẻ, không ngại nắng mưa)
+
+- **Khu V (Sân VIP · Sân V01–V02):**
+  • Giá từ **250.000đ – 350.000đ/giờ** (đặc quyền phòng chờ VIP Lounge, sofa & nước uống miễn phí)
+
+*(Hội viên Club Member được giảm thêm 10%, Member Plus giảm đến 15% tổng hóa đơn).*`;
+    }
+
+    // 9. Booking process & Deposit
     if (
       norm.includes('dat san') ||
       norm.includes('dat cho') ||
@@ -203,29 +252,13 @@ export default function AiChatbox() {
       norm.includes('thanh toan') ||
       norm.includes('chuyen khoan') ||
       norm.includes('vietqr') ||
-      norm.includes('the')
+      norm.includes('the atm')
     ) {
       return `💳 **Quy trình Đặt sân & Đặt cọc giữ chỗ:**
 - **Bước 1:** Chọn ngày chơi, khu sân (A, B hoặc VIP) và các khung giờ 30 phút mong muốn.
 - **Bước 2:** Chọn thêm dịch vụ trọng tài (nếu cần) và áp dụng mã voucher ưu đãi.
 - **Bước 3:** Thanh toán **tiền cọc 50% trong vòng 15 phút** qua cổng chuyển khoản VietQR tự động hoặc thẻ ATM/Visa để hệ thống khóa sân cho bạn.
 - **Bước 4:** 50% tiền sân còn lại sẽ thanh toán khi bạn đến sân check-in hoặc check-out.`;
-    }
-
-    // 8. Cancellation & Refund
-    if (
-      norm.includes('huy') ||
-      norm.includes('hoan tien') ||
-      norm.includes('hoan coc') ||
-      norm.includes('doi lich') ||
-      norm.includes('doi san') ||
-      norm.includes('doi gio')
-    ) {
-      return `💸 **Chính sách Hủy sân & Hoàn cọc:**
-- **Hủy trước 24 giờ:** Hoàn lại **100% tiền cọc** (quy đổi thành ví Voucher tích lũy để bạn sử dụng cho lần đặt sau).
-- **Hủy trong vòng dưới 24 giờ:** Không được hoàn tiền cọc do khung giờ đã được khóa riêng cho bạn.
-- **Trường hợp thời tiết:** Nếu mưa lớn tại sân ngoài trời Khu A, CLB sẽ chủ động dời sang sân trong nhà hoặc đổi lịch miễn phí 100%.
-- **Cách hủy:** Bạn vào mục **Đơn của tôi** -> bấm nút **[Hủy đơn]** để gửi yêu cầu.`;
     }
 
     // 9. Amenities: Parking, showers, rackets, lockers

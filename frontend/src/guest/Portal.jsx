@@ -82,6 +82,7 @@ export default function Portal({session,onSession,onLogout}){
         [tourneyBannerDismissed,setTourneyBannerDismissed]=useState(()=>{
           try { return sessionStorage.getItem('courtly_tourney_banner_dismissed') === 'true'; } catch { return false; }
         });
+  const [debtBannerDismissed, setDebtBannerDismissed] = useState(false);
 
   const serial=useRef(0),timer=useRef();
   const user=session?.authenticated?session.user:null;
@@ -228,10 +229,20 @@ export default function Portal({session,onSession,onLogout}){
 
   const hasAnyBooking = myOrders.length > 0;
 
+  const overdueDebtOrder = useMemo(() => {
+    if (!user) return null;
+    return myOrders.find(o => {
+      const due = (o.total || 0) - (o.paid || 0);
+      if (due <= 0) return false;
+      const oDate = o.date || o.slots?.[0]?.scheduleDate || '';
+      return oDate < dateToday() || ['COMPLETED', 'CHECKED_IN'].includes(o.status);
+    });
+  }, [user, myOrders]);
+
   useEffect(() => {
     if (user?.id && hasAnyBooking) {
       try {
-        localStorage.setItem(courtly_welcome_dismissed_, 'true');
+        localStorage.setItem('courtly_welcome_dismissed_' + (user?.id || ''), 'true');
         setWelcomeBannerDismissed(true);
       } catch {}
     }
@@ -263,7 +274,7 @@ export default function Portal({session,onSession,onLogout}){
     return true;
   }, [user, hasAnyBooking]);
 
-  const welcomeBannerVisible = user && !hasAnyBooking && isNewCustomer && !welcomeBannerDismissed;
+  const welcomeBannerVisible = user && !hasAnyBooking && !overdueDebtOrder && isNewCustomer && !welcomeBannerDismissed;
 
   const hasActiveMembership = useMemo(() => {
     if (!user || !data?.memberships) return false;
@@ -283,6 +294,71 @@ export default function Portal({session,onSession,onLogout}){
     <GuestContext.Provider value={value}>
       <div id="courtly-balanced-amenities" lang={lang}>
         <Header/>
+
+        
+        {overdueDebtOrder && !debtBannerDismissed && (
+          <aside className="gx-debt-reminder-banner" style={{
+            background: 'linear-gradient(90deg, #991b1b 0%, #b91c1c 60%, #7f1d1d 100%)',
+            color: '#ffffff',
+            padding: '12px 24px',
+            boxShadow: '0 4px 16px rgba(153, 27, 27, 0.35)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 12,
+            position: 'sticky',
+            top: todayMatch ? 116 : 60,
+            zIndex: 91,
+            borderBottom: '1px solid rgba(254, 202, 202, 0.4)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <span style={{ fontSize: 24 }}>🚨</span>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <strong style={{ color: '#fef08a', fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                    {t('Cảnh báo: Đơn quá hạn chưa thanh toán đủ tiền')}
+                  </strong>
+                  <span style={{ background: '#fef08a', color: '#991b1b', fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 10 }}>
+                    {t('CÒN NỢ')}: {money((overdueDebtOrder.total || 0) - (overdueDebtOrder.paid || 0))}
+                  </span>
+                </div>
+                <span style={{ fontSize: 13, color: '#fee2e2', display: 'block', marginTop: 3 }}>
+                  {t('Đơn')} #{overdueDebtOrder.id.slice(0, 8).toUpperCase()} ({overdueDebtOrder.date}) {t('chưa tất toán. Theo chính sách CLB Courtly, quý khách vui lòng tất toán nợ cũ để được mở quyền đặt sân mới.')}
+                </span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setDialog({ kind: 'payment', order: overdueDebtOrder, intent: 'BALANCE' })}
+                style={{
+                  background: '#fef08a',
+                  color: '#991b1b',
+                  border: 'none',
+                  padding: '7px 15px',
+                  borderRadius: 6,
+                  fontSize: 12.5,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+              >
+                💳 {t('Tất toán nợ ngay')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDebtBannerDismissed(true)}
+                aria-label={t('Đóng thông báo')}
+                style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', fontSize: 18, cursor: 'pointer', padding: '4px 8px' }}
+              >
+                ✕
+              </button>
+            </div>
+          </aside>
+        )}
 
         {todayMatch && (
           <aside className="gx-match-reminder-banner" style={{background:'linear-gradient(90deg, #173c32 0%, #1e4d40 100%)',color:'#ffffff',padding:'11px 24px',boxShadow:'0 4px 14px rgba(23,60,50,0.18)',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,position:'sticky',top:60,zIndex:90}}>
