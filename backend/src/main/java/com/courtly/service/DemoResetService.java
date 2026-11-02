@@ -80,6 +80,11 @@ public class DemoResetService {
     jdbc.execute("UPDATE vouchers SET used_count = 0");
     jdbc.execute("DELETE FROM tournament_registrations");
 
+    // Đảm bảo toàn bộ sân cùng 1 danh mục có giá chuẩn đồng nhất
+    jdbc.execute("UPDATE courts SET base_price = 160000.00 WHERE type = 'OUTDOOR'");
+    jdbc.execute("UPDATE courts SET base_price = 240000.00 WHERE type = 'INDOOR'");
+    jdbc.execute("UPDATE courts SET base_price = 400000.00 WHERE type = 'VIP'");
+
     // Xóa các tài khoản tạm / phát sinh kiểm thử, giữ lại bộ 8 tài khoản chuẩn
     jdbc.execute("DELETE FROM accounts WHERE email NOT IN ('admin@gmail.com', 'staff@gmail.com', 'hoangnam@gmail.com', 'khachmoi@gmail.com', 'thao.le@gmail.com', 'minhduc@gmail.com', 'phuong.vu@gmail.com', 'hoanglong@gmail.com')");
 
