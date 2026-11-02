@@ -855,6 +855,10 @@ export function Orders({history=false}){
                     <Action secondary onClick={()=>show({kind:'ticket',order:o})}>
                       🎫 {t('Xem lại vé')}
                     </Action>
+                    <div style={{width:'100%',fontSize:12.5,color:'#92400e',background:'#fef3c7',border:'1px solid #fde68a',borderRadius:8,padding:'8px 12px',marginTop:6,display:'flex',alignItems:'center',gap:6}}>
+                      <span>ℹ️</span>
+                      <span><strong>{t('Lý do không thể đổi / hủy:')}</strong> {t('Đơn đã qua khung giờ bắt đầu theo lịch hẹn. Không thể tự hủy hoặc đổi sân quá hạn.')}</span>
+                    </div>
                   </>
                 )}
 
@@ -863,8 +867,11 @@ export function Orders({history=false}){
                     <Action onClick={()=>show({kind:'ticket',order:o})} style={{background:'#173c32',color:'#ffffff'}}>
                       🎫 {t('Xem Vé Điện Tử & Mã QR Check-in')}
                     </Action>
-                    <Action secondary onClick={()=>{setDate(o.date);setMoveOrder(o);navigate('booking')}}>{t('Đổi lịch sân')}</Action>
+                    <Action secondary onClick={()=>{setDate(o.date);setMoveOrder(o);navigate('booking',{keepMoveOrder:true})}}>{t('Đổi lịch sân')}</Action>
                     <Action secondary onClick={()=>show({kind:'cancel',order:o})}>{t('Hủy đơn')}</Action>
+                    <div style={{width:'100%',fontSize:12,color:'#64748b',marginTop:4}}>
+                      * {t('Quy định đổi/hủy: Đổi trước giờ chơi và còn slot trống. Hủy trước > 24h hoàn 100% cọc, 12h-24h hoàn 50% cọc, dưới 12h giữ cọc.')}
+                    </div>
                   </>
                 )}
 
@@ -879,12 +886,19 @@ export function Orders({history=false}){
                     {o.paid < o.total && (
                       <Action onClick={()=>pay('ORDER',o.id,'BALANCE')}>{t('Thanh toán còn lại')} ({money(o.total - o.paid)})</Action>
                     )}
+                    <div style={{width:'100%',fontSize:12.5,color:'#1e40af',background:'#eff6ff',border:'1px solid #bfdbfe',borderRadius:8,padding:'8px 12px',marginTop:6,display:'flex',alignItems:'center',gap:6}}>
+                      <span>ℹ️</span>
+                      <span><strong>{t('Lý do không thể đổi / hủy:')}</strong> {t('Đơn đang trong giờ chơi thực tế (Đã Check-in vào sân lúc')} {o.checkInAt ? new Date(o.checkInAt).toLocaleTimeString('vi-VN') : t('vào sân')}. {t('Hệ thống không hỗ trợ đổi lịch hoặc hủy trực tuyến khi đang sử dụng sân. Nếu có sự cố bất khả kháng hoặc thời tiết, vui lòng liên hệ Lễ tân tại quầy.')}</span>
+                    </div>
                   </>
                 )}
 
                 {o.status==='COMPLETED' && (
                   <>
                     <Action secondary onClick={()=>show({kind:'ticket',order:o})}>🎫 {t('Xem lại vé')}</Action>
+                    <div style={{width:'100%',fontSize:12,color:'#475569',marginTop:4}}>
+                      ✓ {t('Đơn hàng đã hoàn tất buổi chơi và làm thủ tục check-out trả sân thành công.')}
+                    </div>
                   </>
                 )}
               </div>
@@ -998,7 +1012,16 @@ export function CancelDialog({order,onClose}){
         )}
       </div>
 
-      {error && <div className="gx-error" role="alert" style={{marginBottom: 14}}>{t(error)}</div>}
+      {error && (
+        <div className="gx-error" role="alert" style={{marginBottom: 14, padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#991b1b', fontSize: 13}}>
+          <strong>⚠️ {t('Không thể hủy đơn lúc này:')}</strong>
+          <div style={{marginTop: 4, lineHeight: 1.4}}>
+            {error.includes('qua hạn') || error.includes('liên hệ quầy')
+              ? t('Đơn hàng đã qua hạn được phép tự hủy trực tuyến theo chính sách câu lạc bộ (yêu cầu trước ít nhất 24 giờ). Quý khách vui lòng liên hệ trực tiếp Quầy Lễ tân hoặc Hotline 0908.888.888 để được hỗ trợ.')
+              : t(error)}
+          </div>
+        </div>
+      )}
 
       <div style={{display: 'flex', gap: 10, marginTop: 8}}>
         <Action

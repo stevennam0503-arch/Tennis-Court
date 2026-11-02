@@ -282,7 +282,7 @@ export function PaymentDialog({id,registrationId,onClose}) {
   const reg=data.registrations.find(r=>r.id===registrationId);
   const due=reg?data.tournaments.find(t=>t.id===reg.tournamentId).fee-reg.paid:order?order.total-order.paid:0;
   const targetId=reg?reg.id:order?.id;
-  const refCode=targetId?('CT'+targetId.replace(/-/g,'').substring(0,16).toUpperCase()):'';
+  const refCode = 'CASH-' + (targetId ? targetId.replace(/-/g,'').substring(0,8).toUpperCase() : '') + '-' + Date.now().toString(36).toUpperCase();
 
   return <FormDialog
     title="Ghi nhận thu tiền mặt tại quầy"
@@ -825,7 +825,7 @@ export function CheckOutDialog({id, onClose}) {
           orderId: o.id,
           amount: due,
           method: 'CASH',
-          transactionCode: 'CO-' + o.id.slice(0, 8).toUpperCase(),
+          transactionCode: 'CO-' + o.id.slice(0, 8).toUpperCase() + '-' + Date.now().toString(36).toUpperCase(),
           reason: extMinutes > 0 ? `Thu nốt tiền sân & phí gia hạn (${extMinutes}p) khi check-out` : 'Thu nốt tiền sân khi check-out'
         });
       }

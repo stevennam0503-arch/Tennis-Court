@@ -293,6 +293,7 @@ export default function Booking() {
           requestId: req.current
         });
         setMoveOrder(null);
+        resetAll();
         navigate('orders');
         notify(t('Đã đổi lịch'));
         await refresh();
@@ -338,9 +339,33 @@ export default function Booking() {
       </header>
 
       {moveOrder && (
-        <div className="gx-notice">
-          {t('Đang đổi lịch đơn')} #{moveOrder.id.slice(0, 8)}{' '}
-          <button onClick={() => setMoveOrder(null)}>{t('Bỏ đổi lịch')}</button>
+        <div className="gx-notice" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 20 }}>🔄</span>
+            <div>
+              <strong style={{ color: '#92400e', fontSize: 14 }}>{t('Đang trong chế độ đổi lịch:')}</strong>{' '}
+              <span style={{ color: '#78350f', fontSize: 13.5 }}>{t('Đơn')} #{moveOrder.id.slice(0, 8).toUpperCase()} ({moveOrder.date})</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setMoveOrder(null); resetAll(); }}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 6,
+              background: '#ffffff',
+              border: '1.5px solid #d97706',
+              color: '#b45309',
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontSize: 13,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4
+            }}
+          >
+            ✕ {t('Hủy đổi lịch • Đặt sân mới')}
+          </button>
         </div>
       )}
 

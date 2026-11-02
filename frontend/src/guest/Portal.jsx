@@ -96,7 +96,10 @@ export default function Portal({session,onSession,onLogout}){
   }, [user?.id]);
   const t=useCallback(s=>translate(lang,s),[lang]);
 
-  const navigate=useCallback(id=>{
+  const navigate=useCallback((id, options = {})=>{
+    if (id === 'booking' && !options?.keepMoveOrder) {
+      setMoveOrder(null);
+    }
     setRoute(id);
     history.pushState(null,'',paths[id]||'/');
     window.scrollTo({top:0,behavior:'instant'});

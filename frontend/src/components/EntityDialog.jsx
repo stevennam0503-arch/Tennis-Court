@@ -90,6 +90,16 @@ export default function EntityDialog({ collection, row = {}, onClose }) {
 
   const handleDelete = async () => {
     if (!row.id) return;
+    if (collection === 'courts') {
+      const activeOrders = (data.orders || []).filter(o =>
+        ['HOLDING', 'CONFIRMED', 'CHECKED_IN'].includes(o.status) &&
+        o.slots?.some(s => s.court === row.id)
+      );
+      if (activeOrders.length > 0) {
+        const firstOrder = activeOrders[0];
+        throw new Error(`Không thể xóa "${row.name}" lúc này vì có ${activeOrders.length} đơn đặt sân đang hoạt động (ví dụ: #${firstOrder.id.slice(0, 8).toUpperCase()} · ${firstOrder.name}). Vui lòng hoàn tất hoặc dời đơn sang sân khác trước khi xóa.`);
+      }
+    }
     try {
       await mutate(`/catalog/${collection}/${row.id}`, {}, 'DELETE');
       notify(`Đã xóa thành công "${row.name}" khỏi hệ thống.`);

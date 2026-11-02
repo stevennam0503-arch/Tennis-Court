@@ -12191,6 +12191,10 @@ export function Orders({history=false}){
                     <Action secondary onClick={()=>show({kind:'ticket',order:o})}>
                       🎫 {t('Xem lại vé')}
                     </Action>
+                    <div style={{width:'100%',fontSize:12.5,color:'#92400e',background:'#fef3c7',border:'1px solid #fde68a',borderRadius:8,padding:'8px 12px',marginTop:6,display:'flex',alignItems:'center',gap:6}}>
+                      <span>ℹ️</span>
+                      <span><strong>{t('Lý do không thể đổi / hủy:')}</strong> {t('Đơn đã qua khung giờ bắt đầu theo lịch hẹn. Không thể tự hủy hoặc đổi sân quá hạn.')}</span>
+                    </div>
                   </>
                 )}
 
@@ -12199,8 +12203,11 @@ export function Orders({history=false}){
                     <Action onClick={()=>show({kind:'ticket',order:o})} style={{background:'#173c32',color:'#ffffff'}}>
                       🎫 {t('Xem Vé Điện Tử & Mã QR Check-in')}
                     </Action>
-                    <Action secondary onClick={()=>{setDate(o.date);setMoveOrder(o);navigate('booking')}}>{t('Đổi lịch sân')}</Action>
+                    <Action secondary onClick={()=>{setDate(o.date);setMoveOrder(o);navigate('booking',{keepMoveOrder:true})}}>{t('Đổi lịch sân')}</Action>
                     <Action secondary onClick={()=>show({kind:'cancel',order:o})}>{t('Hủy đơn')}</Action>
+                    <div style={{width:'100%',fontSize:12,color:'#64748b',marginTop:4}}>
+                      * {t('Quy định đổi/hủy: Đổi trước giờ chơi và còn slot trống. Hủy trước > 24h hoàn 100% cọc, 12h-24h hoàn 50% cọc, dưới 12h giữ cọc.')}
+                    </div>
                   </>
                 )}
 
@@ -12215,12 +12222,19 @@ export function Orders({history=false}){
                     {o.paid < o.total && (
                       <Action onClick={()=>pay('ORDER',o.id,'BALANCE')}>{t('Thanh toán còn lại')} ({money(o.total - o.paid)})</Action>
                     )}
+                    <div style={{width:'100%',fontSize:12.5,color:'#1e40af',background:'#eff6ff',border:'1px solid #bfdbfe',borderRadius:8,padding:'8px 12px',marginTop:6,display:'flex',alignItems:'center',gap:6}}>
+                      <span>ℹ️</span>
+                      <span><strong>{t('Lý do không thể đổi / hủy:')}</strong> {t('Đơn đang trong giờ chơi thực tế (Đã Check-in vào sân lúc')} {o.checkInAt ? new Date(o.checkInAt).toLocaleTimeString('vi-VN') : t('vào sân')}. {t('Hệ thống không hỗ trợ đổi lịch hoặc hủy trực tuyến khi đang sử dụng sân. Nếu có sự cố bất khả kháng hoặc thời tiết, vui lòng liên hệ Lễ tân tại quầy.')}</span>
+                    </div>
                   </>
                 )}
 
                 {o.status==='COMPLETED' && (
                   <>
                     <Action secondary onClick={()=>show({kind:'ticket',order:o})}>🎫 {t('Xem lại vé')}</Action>
+                    <div style={{width:'100%',fontSize:12,color:'#475569',marginTop:4}}>
+                      ✓ {t('Đơn hàng đã hoàn tất buổi chơi và làm thủ tục check-out trả sân thành công.')}
+                    </div>
                   </>
                 )}
               </div>
@@ -12334,7 +12348,16 @@ export function CancelDialog({order,onClose}){
         )}
       </div>
 
-      {error && <div className="gx-error" role="alert" style={{marginBottom: 14}}>{t(error)}</div>}
+      {error && (
+        <div className="gx-error" role="alert" style={{marginBottom: 14, padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#991b1b', fontSize: 13}}>
+          <strong>⚠️ {t('Không thể hủy đơn lúc này:')}</strong>
+          <div style={{marginTop: 4, lineHeight: 1.4}}>
+            {error.includes('qua hạn') || error.includes('liên hệ quầy')
+              ? t('Đơn hàng đã qua hạn được phép tự hủy trực tuyến theo chính sách câu lạc bộ (yêu cầu trước ít nhất 24 giờ). Quý khách vui lòng liên hệ trực tiếp Quầy Lễ tân hoặc Hotline 0908.888.888 để được hỗ trợ.')
+              : t(error)}
+          </div>
+        </div>
+      )}
 
       <div style={{display: 'flex', gap: 10, marginTop: 8}}>
         <Action
@@ -14268,6 +14291,7 @@ export default function Booking() {
           requestId: req.current
         });
         setMoveOrder(null);
+        resetAll();
         navigate('orders');
         notify(t('Đã đổi lịch'));
         await refresh();
@@ -14313,9 +14337,33 @@ export default function Booking() {
       </header>
 
       {moveOrder && (
-        <div className="gx-notice">
-          {t('Đang đổi lịch đơn')} #{moveOrder.id.slice(0, 8)}{' '}
-          <button onClick={() => setMoveOrder(null)}>{t('Bỏ đổi lịch')}</button>
+        <div className="gx-notice" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 20 }}>🔄</span>
+            <div>
+              <strong style={{ color: '#92400e', fontSize: 14 }}>{t('Đang trong chế độ đổi lịch:')}</strong>{' '}
+              <span style={{ color: '#78350f', fontSize: 13.5 }}>{t('Đơn')} #{moveOrder.id.slice(0, 8).toUpperCase()} ({moveOrder.date})</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setMoveOrder(null); resetAll(); }}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 6,
+              background: '#ffffff',
+              border: '1.5px solid #d97706',
+              color: '#b45309',
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontSize: 13,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4
+            }}
+          >
+            ✕ {t('Hủy đổi lịch • Đặt sân mới')}
+          </button>
         </div>
       )}
 
@@ -19135,7 +19183,10 @@ export default function Portal({session,onSession,onLogout}){
   }, [user?.id]);
   const t=useCallback(s=>translate(lang,s),[lang]);
 
-  const navigate=useCallback(id=>{
+  const navigate=useCallback((id, options = {})=>{
+    if (id === 'booking' && !options?.keepMoveOrder) {
+      setMoveOrder(null);
+    }
     setRoute(id);
     history.pushState(null,'',paths[id]||'/');
     window.scrollTo({top:0,behavior:'instant'});
@@ -21932,6 +21983,16 @@ export default function EntityDialog({ collection, row = {}, onClose }) {
 
   const handleDelete = async () => {
     if (!row.id) return;
+    if (collection === 'courts') {
+      const activeOrders = (data.orders || []).filter(o =>
+        ['HOLDING', 'CONFIRMED', 'CHECKED_IN'].includes(o.status) &&
+        o.slots?.some(s => s.court === row.id)
+      );
+      if (activeOrders.length > 0) {
+        const firstOrder = activeOrders[0];
+        throw new Error(`Không thể xóa "${row.name}" lúc này vì có ${activeOrders.length} đơn đặt sân đang hoạt động (ví dụ: #${firstOrder.id.slice(0, 8).toUpperCase()} · ${firstOrder.name}). Vui lòng hoàn tất hoặc dời đơn sang sân khác trước khi xóa.`);
+      }
+    }
     try {
       await mutate(`/catalog/${collection}/${row.id}`, {}, 'DELETE');
       notify(`Đã xóa thành công "${row.name}" khỏi hệ thống.`);
@@ -22414,7 +22475,7 @@ export function PaymentDialog({id,registrationId,onClose}) {
   const reg=data.registrations.find(r=>r.id===registrationId);
   const due=reg?data.tournaments.find(t=>t.id===reg.tournamentId).fee-reg.paid:order?order.total-order.paid:0;
   const targetId=reg?reg.id:order?.id;
-  const refCode=targetId?('CT'+targetId.replace(/-/g,'').substring(0,16).toUpperCase()):'';
+  const refCode = 'CASH-' + (targetId ? targetId.replace(/-/g,'').substring(0,8).toUpperCase() : '') + '-' + Date.now().toString(36).toUpperCase();
 
   return <FormDialog
     title="Ghi nhận thu tiền mặt tại quầy"
@@ -22957,7 +23018,7 @@ export function CheckOutDialog({id, onClose}) {
           orderId: o.id,
           amount: due,
           method: 'CASH',
-          transactionCode: 'CO-' + o.id.slice(0, 8).toUpperCase(),
+          transactionCode: 'CO-' + o.id.slice(0, 8).toUpperCase() + '-' + Date.now().toString(36).toUpperCase(),
           reason: extMinutes > 0 ? `Thu nốt tiền sân & phí gia hạn (${extMinutes}p) khi check-out` : 'Thu nốt tiền sân khi check-out'
         });
       }
@@ -25342,10 +25403,19 @@ export default function CourtsPage() {
 
   const executeDeleteCourt = async (court) => {
     if (deletingId) return;
+    const activeOrders = (data.orders || []).filter(o =>
+      ['HOLDING', 'CONFIRMED', 'CHECKED_IN'].includes(o.status) &&
+      o.slots?.some(s => s.court === court.id)
+    );
+    if (activeOrders.length > 0) {
+      notify(`⚠️ Không thể xóa "${court.name}" vì hiện có ${activeOrders.length} đơn đặt sân đang chơi hoặc sắp tới (ví dụ #${activeOrders[0].id.slice(0, 8).toUpperCase()} · ${activeOrders[0].name}). Vui lòng hoàn tất hoặc đổi sân cho các đơn này trước!`);
+      setConfirmDeleteId(null);
+      return;
+    }
     setDeletingId(court.id);
     try {
       await mutate(`/catalog/courts/${court.id}`, {}, 'DELETE');
-      notify(`Đã xóa sân ${court.name}.`);
+      notify(`Đã xóa sân ${court.name} khỏi hệ thống.`);
       setConfirmDeleteId(null);
     } catch (e) {
       notify(e.message || 'Lỗi khi xóa sân.');

@@ -87,10 +87,19 @@ export default function CourtsPage() {
 
   const executeDeleteCourt = async (court) => {
     if (deletingId) return;
+    const activeOrders = (data.orders || []).filter(o =>
+      ['HOLDING', 'CONFIRMED', 'CHECKED_IN'].includes(o.status) &&
+      o.slots?.some(s => s.court === court.id)
+    );
+    if (activeOrders.length > 0) {
+      notify(`⚠️ Không thể xóa "${court.name}" vì hiện có ${activeOrders.length} đơn đặt sân đang chơi hoặc sắp tới (ví dụ #${activeOrders[0].id.slice(0, 8).toUpperCase()} · ${activeOrders[0].name}). Vui lòng hoàn tất hoặc đổi sân cho các đơn này trước!`);
+      setConfirmDeleteId(null);
+      return;
+    }
     setDeletingId(court.id);
     try {
       await mutate(`/catalog/courts/${court.id}`, {}, 'DELETE');
-      notify(`Đã xóa sân ${court.name}.`);
+      notify(`Đã xóa sân ${court.name} khỏi hệ thống.`);
       setConfirmDeleteId(null);
     } catch (e) {
       notify(e.message || 'Lỗi khi xóa sân.');
