@@ -120,10 +120,10 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
   {label:'VẬN HÀNH',ids:['operations','calendar','orders','services','payments']},
   {label:'TRA CỨU',ids:['history','payment-history','reports']},
   {label:'KINH DOANH',ids:['courts','membership','tournaments']},
-  {label:'QUẢN TRỊ',ids:['staff','accounts','content','system','profile']}
+  {label:'QUẢN TRỊ',ids:['staff','accounts','content','system']}
  ]:isStaff?[
   {label:'VẬN HÀNH',ids:['operations','calendar','orders','payments','services']},
-  {label:'TRA CỨU & CÁ NHÂN',ids:['history','profile']}
+  {label:'TRA CỨU',ids:['history']}
  ]:[{label:'LỊCH CHƠI CỦA BẠN',ids:customerMenu.map(x=>x[0])}];
  useEffect(()=>{
   const change=()=>{
@@ -197,7 +197,111 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
       )}
     </button>
   );
-})}</section>)}</nav><div className="side-foot"><button className="signed-user avatar-button" aria-label="Hồ sơ của tôi" onClick={()=>navigate('profile')}><span className="avatar">{user.name.slice(0,1).toUpperCase()}</span><div><b>{user.name}</b><small>{isAdmin?'Quản trị viên':isStaff?'Staff':'Khách hàng'}</small></div></button><a className="signout" href="/" target="_blank" rel="noopener noreferrer">Website câu lạc bộ ↗</a><a className="signout" href="/feedback">Gửi feedback ↗</a><button className="signout" onClick={onLogout}><LogOut size={16}/>Đăng xuất</button></div></aside><div className="content"><header className="topbar"><div className="tools"><button className="mobile-menu" aria-label="Mở menu" onClick={()=>setMobile(!mobile)}><Menu size={20}/></button><span className="crumb">Courtly <span className="muted"> / </span>{menu.find(x=>x[0]===safeRoute)?.[2]||'Thông báo'}</span></div><div className="right"><button className="btn sm" style={{background:'#e8f5e9',borderColor:'#a5d6a7',color:'#1b5e20',fontWeight:700,display:'inline-flex',alignItems:'center',gap:6,padding:'5px 12px'}} onClick={()=>setDialog({type:'auto-qr-checkin'})}><span>📷</span> Quét QR Check-in</button><span className="date-label meta">{dateLabel(today())}</span><span className={`chip ${isAdmin?'green':isStaff?'orange':'blue'}`}>{isAdmin?'Admin':isStaff?'Staff':'Khách hàng'}</span>{isAdmin&&<button aria-label="Thông báo" onClick={()=>navigate('notifications')} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Bell size={20}/>{(badges.totalAlerts || 0) > 0 && <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, background: '#ef4444', color: '#ffffff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #ffffff', lineHeight: 1 }}>{badges.totalAlerts > 99 ? '99+' : badges.totalAlerts}</span>}</button>}<button className="header-signout" onClick={onLogout} aria-label="Đăng xuất"><LogOut size={19}/></button></div></header><main className="main">{club.error&&<div className="error" role="alert">{club.error} <Button className="sm" onClick={()=>club.refresh().catch(()=>{})}>Thử lại</Button></div>}{club.loading?<div className="loading">Đang tải dữ liệu…</div>:club.data?(safeRoute.startsWith('profile')?<ProfilePage tab={safeRoute.split('-')[1]||'info'}/>:isInternal?<Page key={safeRoute}/>:<CustomerPage key={safeRoute} route={safeRoute}/>):<div className="empty">Không thể kết nối máy chủ. Vui lòng thử lại.</div>}</main></div></div>{club.data&&dialog&&(isInternal?<DialogHost key={`${dialog.type}-${dialog.id||dialog.collection||''}`} dialog={dialog} onClose={close}/>:<CustomerDialogs key={`${dialog.type}-${dialog.id||''}`} dialog={dialog} onClose={close}/>)}<div aria-live="polite">{toast&&<div className="toast">{toast}</div>}</div></CourtlyContext.Provider>;
+})}</section>)}</nav><div className="side-foot" style={{ borderTop: '1px solid #285444', paddingTop: 14, marginTop: 'auto' }}>
+  <button
+    type="button"
+    className={`signed-user-card ${safeRoute === 'profile' ? 'active' : ''}`}
+    onClick={() => navigate('profile')}
+    title="Xem và chỉnh sửa hồ sơ của tôi"
+    style={{
+      width: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '8px 10px',
+      borderRadius: 10,
+      background: safeRoute === 'profile' ? 'var(--lime)' : 'rgba(255, 255, 255, 0.08)',
+      color: safeRoute === 'profile' ? '#173c32' : '#ffffff',
+      border: safeRoute === 'profile' ? '1px solid var(--lime)' : '1px solid rgba(255, 255, 255, 0.12)',
+      cursor: 'pointer',
+      textAlign: 'left',
+      transition: 'all 0.15s ease',
+      boxSizing: 'border-box'
+    }}
+  >
+    <div
+      style={{
+        width: 34,
+        height: 34,
+        minWidth: 34,
+        borderRadius: '50%',
+        background: safeRoute === 'profile' ? '#173c32' : '#2d5849',
+        color: 'var(--lime)',
+        display: 'grid',
+        placeItems: 'center',
+        fontWeight: 800,
+        fontSize: 13,
+        flexShrink: 0
+      }}
+    >
+      {user.name.slice(0, 1).toUpperCase()}
+    </div>
+    <div style={{ minWidth: 0, flex: 1 }}>
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: 12.5,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          color: safeRoute === 'profile' ? '#173c32' : '#f8fafc'
+        }}
+      >
+        {user.name}
+      </div>
+      <div
+        style={{
+          fontSize: 11,
+          color: safeRoute === 'profile' ? '#335548' : '#a7c2b3',
+          marginTop: 1
+        }}
+      >
+        {isAdmin ? 'Quản trị viên' : isStaff ? 'Nhân viên vận hành' : 'Khách hàng'}
+      </div>
+    </div>
+    <UserRound size={15} style={{ color: safeRoute === 'profile' ? '#173c32' : '#a7c2b3', flexShrink: 0 }} />
+  </button>
+
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10 }}>
+    <a
+      className="signout"
+      href="/"
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ padding: '6px 4px', fontSize: 12, color: '#c2d3c9', display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}
+    >
+      Website câu lạc bộ ↗
+    </a>
+    <a
+      className="signout"
+      href="/feedback"
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ padding: '6px 4px', fontSize: 12, color: '#c2d3c9', display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}
+    >
+      Gửi feedback ↗
+    </a>
+    <button
+      type="button"
+      className="signout"
+      onClick={onLogout}
+      style={{
+        padding: '6px 4px',
+        fontSize: 12,
+        color: '#fca5a5',
+        background: 'none',
+        border: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        cursor: 'pointer',
+        textAlign: 'left'
+      }}
+    >
+      <LogOut size={14} /> Đăng xuất
+    </button>
+  </div>
+</div></aside><div className="content"><header className="topbar"><div className="tools"><button className="mobile-menu" aria-label="Mở menu" onClick={()=>setMobile(!mobile)}><Menu size={20}/></button><span className="crumb">Courtly <span className="muted"> / </span>{menu.find(x=>x[0]===safeRoute)?.[2]||'Thông báo'}</span></div><div className="right"><button className="btn sm" style={{background:'#e8f5e9',borderColor:'#a5d6a7',color:'#1b5e20',fontWeight:700,display:'inline-flex',alignItems:'center',gap:6,padding:'5px 12px'}} onClick={()=>setDialog({type:'auto-qr-checkin'})}><span>📷</span> Quét QR Check-in</button><span className="date-label meta">{dateLabel(today())}</span><span className={`chip ${isAdmin?'green':isStaff?'orange':'blue'}`}>{isAdmin?'Admin':isStaff?'Staff':'Khách hàng'}</span>{isAdmin&&<button aria-label="Thông báo" onClick={()=>navigate('notifications')} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Bell size={20}/>{(badges.totalAlerts || 0) > 0 && <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, background: '#ef4444', color: '#ffffff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #ffffff', lineHeight: 1 }}>{badges.totalAlerts > 99 ? '99+' : badges.totalAlerts}</span>}</button>}<button className="header-signout" onClick={onLogout} aria-label="Đăng xuất"><LogOut size={19}/></button></div></header><main className="main">{club.error&&<div className="error" role="alert">{club.error} <Button className="sm" onClick={()=>club.refresh().catch(()=>{})}>Thử lại</Button></div>}{club.loading?<div className="loading">Đang tải dữ liệu…</div>:club.data?(safeRoute.startsWith('profile')?<ProfilePage tab={safeRoute.split('-')[1]||'info'}/>:isInternal?<Page key={safeRoute}/>:<CustomerPage key={safeRoute} route={safeRoute}/>):<div className="empty">Không thể kết nối máy chủ. Vui lòng thử lại.</div>}</main></div></div>{club.data&&dialog&&(isInternal?<DialogHost key={`${dialog.type}-${dialog.id||dialog.collection||''}`} dialog={dialog} onClose={close}/>:<CustomerDialogs key={`${dialog.type}-${dialog.id||''}`} dialog={dialog} onClose={close}/>)}<div aria-live="polite">{toast&&<div className="toast">{toast}</div>}</div></CourtlyContext.Provider>;
 }
 export default function App(){
  const [session,setSession]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);
