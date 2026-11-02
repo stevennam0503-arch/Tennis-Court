@@ -27,6 +27,7 @@
             <path>
               <groupId>org.projectlombok</groupId>
               <artifactId>lombok</artifactId>
+              <version></version>
             </path>
           </annotationProcessorPaths>
         </configuration>

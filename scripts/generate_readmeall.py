@@ -11,6 +11,13 @@ header_text = """# COURTLY — TOÀN BỘ KIẾN TRÚC, MÃ NGUỒN VÀ DỮ LI�
 ## MỤC LỤC
 1. [TỔNG QUAN HỆ THỐNG & CÔNG NGHỆ](#1-tổng-quan-hệ-thống--công-nghệ)
 2. [MÔ HÌNH NGHIỆP VỤ & QUY TẮC VẬN HÀNH](#2-mô-hình-nghiệp-vụ--quy-tắc-vận-hành)
+   - 2.1 Quản lý Sân & Khung giờ chơi
+   - 2.2 Quy tắc Đặt sân & Đặt nhiều sân trong 1 đơn (Multi-Court Booking)
+   - 2.3 Hội viên (Membership)
+   - 2.4 Dịch vụ Trọng tài (Referee)
+   - 2.5 Thanh toán & Đối soát
+   - 2.6 Bảng giá đồng nhất theo danh mục & Cơ chế quy đổi tự động
+   - 2.7 Cấu trúc 4 Luồng nghiệp vụ chuẩn của hệ thống
 3. [KIẾN TRÚC & LUỒNG DỮ LIỆU](#3-kiến-trúc--luồng-dữ-liệu)
 4. [DATABASE SCHEMA & FLYWAY MIGRATIONS](#4-database-schema--flyway-migrations)
 5. [CẤU HÌNH HỆ THỐNG & DEPLOYMENT](#5-cấu-hình-hệ-thống--deployment)
@@ -27,7 +34,7 @@ header_text = """# COURTLY — TOÀN BỘ KIẾN TRÚC, MÃ NGUỒN VÀ DỮ LI�
    - 7.2 Guest Portal (Giao diện khách đặt sân online)
    - 7.3 Components & Dialogs
    - 7.4 Admin & Operations Pages
-8. [BỘ TEST TỰ ĐỘNG & KIỂM THỬ TÍCH HỢP](#8-bộ-test-tự-động--kiểm-thử-tích-hợp)
+8. [BỘ TEST TỰ ĐỘNG & KIỂM THỬ TÍCH HỢP 4 LUỒNG](#8-bộ-test-tự-động--kiểm-thử-tích-hợp-4-luồng)
 
 ---
 
@@ -35,12 +42,12 @@ header_text = """# COURTLY — TOÀN BỘ KIẾN TRÚC, MÃ NGUỒN VÀ DỮ LI�
 
 ### 1.1 Mục đích dự án
 Courtly là hệ thống quản lý và vận hành Câu lạc bộ Quần vợt (Tennis Club Management Platform) khép kín, bao gồm:
-* **Giao diện Khách hàng (Guest Portal):** Tra cứu sân/giờ trống theo thời gian thực (real-time 30-phút), đặt sân đơn hoặc đặt nhiều sân trong 1 đơn (Multi-court booking), chọn trọng tài đi kèm, đăng ký hội viên (Membership Club/Plus), đăng ký giải đấu, thanh toán cọc tự động qua VietQR Napas 24/7.
-* **Giao diện Quản trị & Vận hành (Staff / Cashier / Admin App):** Sơ đồ lịch sân (Calendar Matrix), quầy thu ngân tiền mặt (Cash Desk), đối soát chốt ca cuối ngày, báo cáo doanh thu & công suất sân thực tế, điều hành giải đấu (bốc thăm sơ đồ nhánh $2^n$), quản lý nhân sự trọng tài và cấu hình chính sách CLB.
+* **Giao diện Khách hàng (Guest Portal):** Tra cứu sân/giờ trống theo thời gian thực (real-time 30-phút), đặt sân đơn hoặc đặt nhiều sân trong 1 đơn (Multi-court booking), chọn trọng tài đi kèm, đăng ký hội viên (Membership Club/Plus), đăng ký giải đấu, thanh toán cọc tự động qua VietQR Napas 24/7, gửi phản hồi/đánh giá (Feedback) sau trận đấu.
+* **Giao diện Quản trị & Vận hành (Staff / Cashier / Admin App):** Sơ đồ lịch sân (Calendar Matrix), quầy thu ngân tiền mặt (Cash Desk), đối soát chốt ca cuối ngày, báo cáo doanh thu & công suất sân thực tế, điều hành giải đấu (bốc thăm sơ đồ nhánh $2^n$), quản lý nhân sự trọng tài, kiểm duyệt & phản hồi feedback, và cấu hình chính sách CLB.
 
 ### 1.2 Tech Stack
 * **Backend:** Java 17, Spring Boot 3.5.16, Spring MVC (RESTful JSON API), Spring Data JPA, Hibernate 6, Spring Security, BCrypt Password Encoder, Flyway Database Migration.
-* **Database:** PostgreSQL 16 (Bảng quan hệ chuẩn hóa + Bảng tài liệu `app_documents` cho JSON snapshot và khóa phân tán).
+* **Database:** PostgreSQL 16 (24 Bảng quan hệ chuẩn hóa + Bảng tài liệu `app_documents` cho JSON snapshot và khóa phân tán).
 * **Frontend:** React 19.3, Vite 8.3.3, Lucide Icons, Pure CSS Responsive Layout (Không phụ thuộc UI framework nặng).
 * **Reverse Proxy & Edge:** Nginx Alpine (Reverse proxy `/api` tới backend, phục vụ React SPA, bảo vệ security headers, chặn giả mạo IP client).
 * **Containerization:** Docker Compose đa container (`postgres`, `backend`, `frontend`).
@@ -50,46 +57,49 @@ Courtly là hệ thống quản lý và vận hành Câu lạc bộ Quần vợt
 ## 2. MÔ HÌNH NGHIỆP VỤ & QUY TẮC VẬN HÀNH
 
 ### 2.1 Quản lý Sân & Khung giờ chơi
-* CLB có các khu sân: **Khu A (Ngoài trời)**, **Khu B (Trong nhà)**, **Khu V (VIP Lounge)**.
+* CLB có các khu sân: **Khu A (Ngoài trời - A01-A04)**, **Khu B (Trong nhà - B01-B04)**, **Khu V (VIP Clubhouse - V01-V02)**.
 * Khung giờ mở cửa: **06:00 – 23:00 mỗi ngày** (Tổng cộng 17 tiếng = 34 slot 30 phút mỗi sân).
-* Slot lịch (`CourtSchedule`) được tự động sinh theo ngày với bước 30 phút. Mỗi slot có giá động phụ thuộc vào:
-  * Loại ngày: `WEEKDAY` (Thứ 2 - Thứ 6) hoặc `WEEKEND` (Thứ 7 - CN).
-  * Khung giờ: Giờ thường vs Giờ cao điểm (Peak hours).
-  * Sân VIP có biểu giá riêng cao cấp hơn.
-* **Công thức tính công suất sân (Occupancy):**
-  $$\\text{Occupancy (\\%)} = \\frac{\\sum \\text{Giờ chơi thực tế (Đơn đặt + Trận giải)}}{17 \\times \\text{Số ngày}} \\times 100$$
-  * Slot 30 phút tính $0.5$ giờ, slot 60 phút tính $1.0$ giờ.
+* Slot lịch (`CourtSchedule`) được tự động sinh theo ngày với bước 30 phút. Mỗi slot có giá động phụ thuộc vào loại ngày (`WEEKDAY`/`WEEKEND`) và khung giờ.
 
 ### 2.2 Quy tắc Đặt sân & Đặt nhiều sân trong 1 đơn (Multi-Court Booking)
 1. **Liên tục trên từng sân (Per-court Continuity):** Trên mỗi sân, các slot khách chọn bắt buộc phải liên tục (không để lại lỗ thủng 30 phút giữa chừng).
-2. **Đặt nhiều sân (Multi-court):** Tối đa 3 sân trong 1 đơn. Giữa các sân:
-   * Có thể diễn ra **cùng giờ (song song)**: Phục vụ công ty, hội nhóm giao lưu đánh nhiều sân cùng lúc.
-   * Có thể diễn ra **nối tiếp nhau (chuyển sân)**: Sân 1 kết thúc lúc 18:00, Sân 2 bắt đầu lúc 18:00 (khoảng cách $\\le 30$ phút).
-   * **Chặn các khung giờ rời rạc:** Sân 1 sáng và Sân 2 tối (cách $> 30$ phút) bị từ chối để tránh kéo dài đơn qua nhiều ca trực gây thất thoát.
+2. **Đặt nhiều sân (Multi-court):** Tối đa 3 sân trong 1 đơn. Giữa các sân có thể song song hoặc nối tiếp (khoảng cách $\\le 30$ phút). Chặn các khung giờ rời rạc cách nhau $> 30$ phút.
 3. **Cọc & Giữ chỗ:**
-   * Giữ chỗ tự động trong $15$ phút (`holdMinutes`). Sau 15 phút nếu chưa thanh toán cọc, Scheduler (`expireHolds`) tự động nhả slot về `AVAILABLE`.
-   * Khách đặt online phải cọc **50% tiền sân sau ưu đãi hội viên** (không tính phí trọng tài vào cọc).
-4. **Gắn nhãn công nợ:** Check-out cho phép kết thúc đơn còn nợ (khách quen trả sau), hệ thống gắn nhãn màu đỏ `CÒN NỢ: <số tiền>` trên bảng quản trị, không chặn luồng check-out.
+   * Giữ chỗ tự động trong $15$ phút (`holdMinutes`). Hết 15 phút không thanh toán cọc, Scheduler (`expireHolds`) tự động nhả slot về `AVAILABLE`.
+   * Cọc tiêu chuẩn 30% tiền sân (có thể cấu hình).
+4. **Bảo vệ Xung đột Đặt chỗ (Concurrency Locking):** Backend dùng Pessimistic Write Lock (`findForUpdate`) trên từng slot. Hai khách bấm đặt cùng lúc, khách 1 thành công thì khách 2 bị từ chối ngay lập tức với HTTP 400.
 
 ### 2.3 Hội viên (Membership)
 * Gói hội viên: **Club Member** (249.000đ/30 ngày) và **Plus Member** (499.000đ/30 ngày).
-* Quyền lợi:
-  * Giảm giá sân thường (5% - 10%) và sân VIP (5% - 10%).
-  * Đặt sân trước: 14 ngày (Club) hoặc 21 ngày (Plus) so với 7 ngày của khách vãng lai.
-  * Ưu đãi giữ chỗ và miễn phí đổi lịch báo trước 24 giờ.
-* Đăng ký hội viên tạo phiếu thanh toán chờ. Chỉ kích hoạt khi thu đủ tiền tại quầy hoặc qua chuyển khoản.
+* Quyền lợi: Giảm giá sân thường (10% - 15%) và sân VIP (5% - 10%), ưu tiên đặt trước 14 đến 21 ngày, đổi lịch linh hoạt.
 
 ### 2.4 Dịch vụ Trọng tài (Referee)
-* Khách có thể chọn thuê trọng tài theo từng slot sân cụ thể.
-* Ràng buộc hệ thống: 1 trọng tài không thể phân công cho 2 sân ở cùng một mốc thời gian.
+* Khách có thể chọn thuê trọng tài theo từng slot sân cụ thể. Hệ thống đảm bảo 1 trọng tài không thể bị trùng ca trên 2 sân cùng giờ.
 
 ### 2.5 Thanh toán & Đối soát
 * **Tại quầy thu ngân (`/quay-thu` & modal thu tiền):** Chỉ ghi nhận tiền mặt (`CASH`), thủ quỹ kiểm đếm tiền trước khi bấm xác nhận.
-* **Chuyển khoản VietQR:**
-  * Sinh mã tham chiếu duy nhất: Tiền tố `CT` + 16 ký tự hex (ví dụ `CT65E7A81B...`).
-  * Backend tạo chuỗi EMV CRC16 (`qrPayload`) và đường dẫn ảnh VietQR Napas 24/7 (`qrImageUrl` trỏ tới `img.vietqr.io` mẫu compact2).
-  * Webhook SePay lắng nghe callback tiền vào tự động xác nhận đơn khi đủ tiền cọc.
-* **Báo cáo chốt ca cuối ngày:** Hợp nhất cả doanh thu đơn đặt sân (`payments`) và doanh thu hội viên (`membershipPayments`), tránh đếm trùng.
+* **Chuyển khoản VietQR:** Sinh mã tham chiếu duy nhất (`CT` + 16 ký tự hex), mã QR chuẩn EMV Co, webhook tự động xác nhận đơn khi đủ tiền cọc.
+* **Đối soát:** Tổng giá trị đơn = Tiền cọc online + Tiền mặt thu tại quầy. Đối soát công nợ bằng 0 khi check-out hoàn tất.
+
+### 2.6 Bảng giá đồng nhất theo danh mục & Cơ chế quy đổi tự động
+Nhằm đảm bảo tính thực tế và minh bạch trong kinh doanh:
+* **Mỗi danh mục sân có một mức giá cơ sở (`base_price`) duy nhất:**
+  - Sân Ngoài Trời (A01–A04): **160.000đ/giờ**
+  - Sân Mái Che Trong Nhà (B01–B04): **240.000đ/giờ**
+  - Sân VIP Clubhouse (V01–V02): **400.000đ/giờ**
+* **Thuật toán sinh ma trận giá theo giờ & ngày:**
+  - **Giờ vàng ban ngày (09:00 – 16:00, Thứ 2 - Thứ 6):** Giảm tự động **-25%** (Flash Sale giờ thấp điểm, kích cầu sử dụng sân). Ví dụ sân B giảm từ 240.000đ còn 180.000đ/h.
+  - **Chiều mát (16:00 – 18:00):** Tăng **+25%** theo nhu cầu tan tầm.
+  - **Cao điểm đèn LED (18:00 – 21:00):** Phụ thu dàn đèn 500 Lux (+40%).
+  - **Cuối tuần (Thứ 7 & Chủ Nhật):** Phụ thu ngày nghỉ (+25% ban ngày, +50% ban đêm).
+  - **Đầu sáng (06:00 – 09:00) & Đêm muộn (21:00 – 23:00):** Đúng 100% giá cơ sở (Standard).
+
+### 2.7 Cấu trúc 4 Luồng nghiệp vụ chuẩn của hệ thống
+Hệ thống vận hành theo chu trình khép kín 4 luồng:
+1. **LUỒNG 1 — Quản lý và mở bán dịch vụ (Admin):** Khởi tạo sân, thiết lập bảng giá, cấu hình gói hội viên, quản lý bảo trì slot sân. Thao tác demo: Admin khóa bảo trì sân $\rightarrow$ khách vãng lai thấy ngay trạng thái khóa trên lịch.
+2. **LUỒNG 2 — Tư vấn, đặt sân và thanh toán (Customer):** Khách tra cứu lịch trống, nhận báo giá kèm chiết khấu hội viên, chọn slot và giữ chỗ (bảo vệ chống trùng lịch với Pessimistic Locking), thanh toán cọc 30% bằng VietQR tự động.
+3. **LUỒNG 3 — Vận hành dịch vụ và chăm sóc sau bán (Staff & Customer):** Lễ tân check-in khách vào sân, thu 70% tiền còn lại tại quầy, check-out đóng đơn khi hoàn tất, khách gửi Feedback 5 sao, Quản trị viên duyệt và phản hồi cảm ơn.
+4. **LUỒNG 4 — Đối soát và phân tích kinh doanh (Admin):** Đối soát doanh thu (Cọc online + Thu quầy = Tổng đơn), báo cáo công suất khai thác sân, quản lý quầy thu ngân (Cash Desk) và lưu vết kiểm toán (Audit Trail).
 
 ---
 
@@ -215,6 +225,7 @@ Hệ thống sử dụng PostgreSQL 16 với 24 bảng dữ liệu nghiệp vụ
 
         # 7. FRONTEND SOURCE CODE
         out.write("## 7. TOÀN BỘ MÃ NGUỒN FRONTEND (REACT 19 + VITE)\n\n")
+        guest_files = sorted(set(glob.glob("frontend/src/guest/*.jsx") + glob.glob("frontend/src/guest/*.mjs") + glob.glob("frontend/src/guest/*.js")))
         frontend_dirs = [
             ("7.1 Core App & Services", [
                 "frontend/src/App.jsx",
@@ -222,24 +233,9 @@ Hệ thống sử dụng PostgreSQL 16 với 24 bảng dữ liệu nghiệp vụ
                 "frontend/src/services/api.js",
                 "frontend/src/utils/format.js"
             ]),
-            ("7.2 Guest Portal (Giao diện khách)", [
-                "frontend/src/guest/Portal.jsx",
-                "frontend/src/guest/context.jsx",
-                "frontend/src/guest/Booking.jsx",
-                "frontend/src/guest/CourtMap.jsx",
-                "frontend/src/guest/bookingTime.mjs",
-                "frontend/src/guest/Auth.jsx",
-                "frontend/src/guest/Overview.jsx",
-                "frontend/src/guest/Pricing.jsx",
-                "frontend/src/guest/Orders.jsx",
-                "frontend/src/guest/Payments.jsx",
-                "frontend/src/guest/Profile.jsx",
-                "frontend/src/guest/Membership.jsx",
-                "frontend/src/guest/Tournaments.jsx",
-                "frontend/src/guest/CashDesk.jsx"
-            ]),
-            ("7.3 Components & Dialogs", glob.glob("frontend/src/components/*.jsx")),
-            ("7.4 Admin & Operations Pages", glob.glob("frontend/src/pages/*.jsx"))
+            ("7.2 Guest Portal (Giao diện khách đặt sân online & Bảng giá, Feedback)", guest_files),
+            ("7.3 Components & Dialogs", sorted(glob.glob("frontend/src/components/*.jsx"))),
+            ("7.4 Admin & Operations Pages", sorted(glob.glob("frontend/src/pages/*.jsx")))
         ]
         for section_title, files in frontend_dirs:
             out.write(f"### {section_title}\n\n")
@@ -252,7 +248,7 @@ Hệ thống sử dụng PostgreSQL 16 với 24 bảng dữ liệu nghiệp vụ
                     out.write("\n```\n\n")
 
         # 8. TEST SUITE
-        out.write("## 8. BỘ TEST TỰ ĐỘNG & KIỂM THỬ TÍCH HỢP\n\n")
+        out.write("## 8. BỘ TEST TỰ ĐỘNG & KIỂM THỬ TÍCH HỢP 4 LUỒNG\n\n")
 
         # 8.1 Backend Unit & Integration Tests (JUnit)
         backend_tests = glob.glob("backend/src/test/java/**/*.java", recursive=True)
@@ -267,7 +263,7 @@ Hệ thống sử dụng PostgreSQL 16 với 24 bảng dữ liệu nghiệp vụ
         # 8.2 Node.js Integration & Regression Tests
         node_tests = glob.glob("tests/*.mjs") + glob.glob("tests/*.js")
         if node_tests:
-            out.write("### 8.2 Node.js Integration & Regression Tests\n\n")
+            out.write("### 8.2 Node.js Integration & Regression Tests (Bao gồm Kiểm thử 4 Luồng nghiệp vụ)\n\n")
             for tf in sorted(set(node_tests)):
                 rel_path = tf.replace('\\', '/')
                 out.write(f"#### File: `{rel_path}`\n```javascript\n")

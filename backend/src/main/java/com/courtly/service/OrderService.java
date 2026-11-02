@@ -274,6 +274,23 @@ public class OrderService {
   }
 
   @Transactional
+  @Transactional
+  public void noShow(UUID id, String reason) {
+    CustomerOrder order = lock(id);
+    require(Set.of("CONFIRMED", "HOLDING").contains(order.getStatus()), "Chỉ áp dụng trạng thái Vắng mặt cho đơn đã xác nhận hoặc đang giữ chỗ");
+    order.setStatus("NO_SHOW");
+    Booking b = booking(order);
+    b.setStatus("NO_SHOW");
+    var meta = documents.decode(order.getMetadata());
+    meta.put("noShowAt", Instant.now().toString());
+    meta.put("noShowReason", reason != null && !reason.isBlank() ? reason : "Khách không đến nhận sân");
+    meta.put("retainedDeposit", order.getPaidAmount());
+    order.setMetadata(documents.encode(meta));
+    release(b);
+    audit.log("NO-SHOW", id + ": Khách vắng mặt, ghi nhận bảo lưu 100% tiền cọc (" + order.getPaidAmount() + "đ)");
+  }
+
+  @Transactional
   public void checkOut(UUID id) {
     CustomerOrder order = lock(id);
     require("CHECKED_IN".equals(order.getStatus()), "Khách chưa check-in");

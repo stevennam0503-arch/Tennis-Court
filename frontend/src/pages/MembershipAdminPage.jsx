@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Plus, Trash2, Edit3, ShieldCheck, Crown } from 'lucide-react';
 import { useCourtly } from '../context';
 import { Title, Panel, Table, Button, Chip, Modal, FormDialog } from '../components/UI';
@@ -20,6 +20,12 @@ export default function MembershipAdminPage() {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('PENDING');
   const [request, setRequest] = useState('');
+  const [forceDeletePlan, setForceDeletePlan] = useState(null);
+
+  // Sắp xếp các gói hội viên trong trang quản trị theo giá tăng dần
+  const sortedAdminPlans = useMemo(() => {
+    return [...(data?.membershipPlans || [])].sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+  }, [data?.membershipPlans]);
 
   const members = (data.memberships || []).filter(m => !filter || m.status === filter);
 
@@ -82,7 +88,7 @@ export default function MembershipAdminPage() {
       </Title>
 
       <div className="grid-cards membership-admin-plans">
-        {(data.membershipPlans || []).map(p => (
+        {sortedAdminPlans.map(p => (
           <section className="panel" key={p.id} style={{ display: 'flex', flexDirection: 'column' }}>
             <div className="panel-body" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -386,6 +392,56 @@ export default function MembershipAdminPage() {
             </label>
           </form>
           {error && <p className="error" role="alert">{error}</p>}
+        </Modal>
+      )}
+    
+      {forceDeletePlan && (
+        <Modal
+          title={`Xử lý gói hội viên "${forceDeletePlan.name}"`}
+          onClose={() => setForceDeletePlan(null)}
+          footer={
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', width: '100%', flexWrap: 'wrap' }}>
+              <Button onClick={() => setForceDeletePlan(null)}>Hủy bỏ</Button>
+              <Button
+                style={{ background: '#0284c7', color: '#fff', border: 'none' }}
+                onClick={async () => {
+                  try {
+                    await mutate('/membership/plans', {
+                      ...forceDeletePlan,
+                      enabled: false
+                    }, 'POST');
+                    notify(`Đã chuyển gói "${forceDeletePlan.name}" sang trạng thái Tạm dừng (Ẩn khỏi trang đăng ký).`);
+                    setForceDeletePlan(null);
+                  } catch (err) {
+                    notify(err.message || 'Lỗi khi cập nhật gói');
+                  }
+                }}
+              >
+                Tạm dừng mở bán (Ẩn gói)
+              </Button>
+              <Button
+                className="danger"
+                style={{ background: '#e11d48', color: '#fff', border: 'none' }}
+                onClick={() => handleDeletePlan(forceDeletePlan, true)}
+              >
+                Xóa bỏ hoàn toàn (Hủy thẻ cũ)
+              </Button>
+            </div>
+          }
+        >
+          <div style={{ padding: '8px 0', lineHeight: 1.6 }}>
+            <p style={{ margin: '0 0 12px', fontSize: 14, color: '#0f172a' }}>
+              Gói hội viên <b>"{forceDeletePlan.name}"</b> hiện đang có hội viên sử dụng trong hệ thống.
+            </p>
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, fontSize: 13, color: '#475569', marginBottom: 12 }}>
+              <div style={{ marginBottom: 8 }}>
+                🔹 <b>Tạm dừng mở bán (Khuyến nghị):</b> Gói sẽ bị ẩn khỏi trang khách hàng mới, không ai đăng ký mới được nữa, nhưng hội viên cũ vẫn được bảo lưu quyền lợi đến khi hết hạn.
+              </div>
+              <div>
+                🔸 <b>Xóa bỏ hoàn toàn:</b> Hệ thống sẽ hủy toàn bộ thẻ hội viên của gói này và xóa sạch gói khỏi cơ sở dữ liệu (phù hợp khi dọn dẹp dữ liệu demo).
+              </div>
+            </div>
+          </div>
         </Modal>
       )}
     </>

@@ -174,7 +174,21 @@ export function PaymentDialog({intent,onClose}){
       <PaymentCountdown expiresAt={current.expiresAt} t={t} />
 
       {/* VietQR Display */}
-      <div className="gx-qr" style={{textAlign:'center',margin:'10px 0'}}>
+      <div className="gx-qr" style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        margin: '16px auto',
+        width: 'fit-content',
+        maxWidth: '100%',
+        background: '#ffffff',
+        padding: '16px 20px',
+        borderRadius: 12,
+        border: '1px solid #e2e8f0',
+        boxShadow: '0 4px 14px rgba(0,0,0,0.06)'
+      }}>
         {qrSrc ? (
           <img
             src={qrSrc}
@@ -188,12 +202,17 @@ export function PaymentDialog({intent,onClose}){
                   .catch(() => {});
               }
             }}
-            style={{borderRadius:8, border:'1px solid #e2e8f0', boxShadow:'0 2px 8px rgba(0,0,0,0.06)'}}
+            style={{
+              display: 'block',
+              margin: '0 auto',
+              borderRadius: 8,
+              border: '1px solid #cbd5e1'
+            }}
           />
         ) : (
           <Empty>{t('Đang tạo mã VietQR...')}</Empty>
         )}
-        <div style={{fontSize:11,color:'#666',marginTop:6}}>
+        <div style={{fontSize:11.5,color:'#64748b',marginTop:10,textAlign:'center',maxWidth:260,lineHeight:1.4}}>
           {t('Quét bằng ứng dụng ngân hàng bất kỳ (MB Bank, VCB, BIDV, Techcombank, Momo,...)')}
         </div>
       </div>

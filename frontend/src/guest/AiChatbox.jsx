@@ -17,61 +17,172 @@ import {
 } from 'lucide-react';
 import { useGuest } from './context';
 
-// Comprehensive knowledge base about Courtly Tennis Club
-const COURTLY_KNOWLEDGE = `
+// Comprehensive Vietnamese knowledge base about Courtly Tennis Club
+const COURTLY_KNOWLEDGE_VI = `
 Courtly Tennis Club là tổ hợp quần vợt cao cấp gồm 10 sân tiêu chuẩn ATP:
-- Khu A (Ngoài trời · 4 sân A01–A04): Thoáng mát, rợp bóng cây, hệ thống đèn LED 500 Lux chống chói thi đấu ban đêm. Giá ban ngày (06:00-17:00): 120.000đ/giờ; Buổi tối (17:00-23:00): 180.000đ/giờ.
-- Khu B (Trong nhà · 4 sân B01–B04): Mái che vòm kiên cố, cách nhiệt, hệ thống quạt hút gió mát, chơi bất chấp thời tiết mưa bão hay nắng gắt. Mặt sân Pro-Cushion giảm chấn êm ái. Giá ban ngày: 150.000đ/giờ; Buổi tối & Cuối tuần: 220.000đ/giờ.
-- Khu V (Sân VIP · 2 sân V01–V02): Chuẩn thi đấu quốc tế, có phòng chờ VIP riêng biệt, sofa cao cấp, minibar phục vụ nước miễn phí. Giá từ 250.000đ - 350.000đ/giờ.
-- Giờ mở cửa: 06:00 – 23:00 tất cả các ngày trong tuần (kể cả Thứ 7, Chủ Nhật và ngày lễ). Khung giờ tối thiểu là 30 phút.
+- Khu A (Ngoài trời · 4 sân A01–A04): Thoáng mát, rợp bóng cây, hệ thống đèn LED 500 Lux chống chói. Giá chuẩn: 160.000đ/giờ. Giờ vàng ngày thường (09:00–16:00): 120.000đ/h (-25%). Tối đèn LED ngày thường (18:00–22:00): 224.000đ/h (+40%). Ban ngày cuối tuần (06:00–17:00): 200.000đ/h (+25%). Tối cuối tuần cực đỉnh & LED (17:00–22:00): 240.000đ/h (+50%).
+- Khu B (Trong nhà có mái che · 4 sân B01–B04): Mái che vòm kiên cố cao 12m, chơi bất chấp thời tiết mưa bão. Mặt sân Pro-Cushion giảm chấn. Giá chuẩn: 240.000đ/giờ. Giờ vàng ngày thường: 180.000đ/h. Tối đèn LED ngày thường: 336.000đ/h. Ban ngày cuối tuần: 300.000đ/h. Tối cuối tuần cực đỉnh: 360.000đ/h.
+- Khu V (Sân VIP Clubhouse · 2 sân V01–V02): Chuẩn thi đấu ATP, có phòng chờ VIP riêng biệt, sofa cao cấp, minibar phục vụ nước miễn phí. Giá chuẩn: 400.000đ/giờ. Giờ vàng ngày thường: 300.000đ/h. Tối đèn LED ngày thường: 560.000đ/h. Ban ngày cuối tuần: 500.000đ/h. Tối cuối tuần cực đỉnh: 600.000đ/h.
+- Giờ mở cửa: 06:00 – 23:00 tất cả các ngày trong tuần (kể cả Thứ 7, Chủ Nhật và ngày lễ). Khung giờ đặt sân theo bước 30 phút.
 - Dịch vụ Trọng tài & HLV: Có thể chọn trực tiếp khi đặt sân trên website, phí 75.000đ / 30 phút (150.000đ/giờ). Trọng tài đạt chuẩn Liên đoàn Quần vợt điều hành trận đấu, tính điểm và bắt lỗi chuẩn xác.
-- Đặt sân & Giữ chỗ: Khách cần thanh toán tiền cọc 50% trong vòng 15 phút sau khi tạo đơn (chuyển khoản VietQR hoặc thẻ) để giữ sân. 50% còn lại thanh toán tại quầy khi đến chơi.
-- Check-in vào sân: Sau khi đặt sân, khách mở vé điện tử QR Check-in trên website, xuất trình tại quầy lễ tân để nhân viên quét camera. Hệ thống sẽ tự động xác nhận vào sân và kích hoạt đèn chiếu sáng đúng giờ.
+- Đặt sân & Giữ chỗ: Khách cần thanh toán tiền cọc 30% - 50% trong vòng 15 phút sau khi tạo đơn qua VietQR để khóa slot độc quyền. Phần còn lại thanh toán tại quầy khi đến chơi.
+- Check-in vào sân: Sau khi đặt sân, khách mở vé điện tử QR Check-in trên website, xuất trình tại quầy lễ tân để nhân viên quét camera xác nhận vào sân.
 - Chính sách Hủy & Hoàn tiền cọc:
   + Hủy trước 24 giờ: Hoàn 100% tiền cọc (vào ví voucher CLB).
   + Hủy dưới 24 giờ: Không hoàn cọc theo quy định vận hành.
-  + Đổi lịch: Hội viên được đổi lịch miễn phí trước giờ chơi 12 tiếng.
+  + Mưa bão: Sân ngoài trời Khu A được đổi sang sân trong nhà Khu B miễn phí hoặc dời lịch 100%.
 - Tiện ích đi kèm miễn phí:
   + Bãi đỗ xe rộng rãi miễn phí cho cả ô tô và xe máy, bảo vệ 24/7.
-  + Phòng tắm nước nóng lạnh cao cấp, khăn tắm và xà phòng sạch sẽ miễn phí.
+  + Phòng tắm nước nóng lạnh cao cấp, khăn tắm sạch sẽ miễn phí.
   + Tủ khóa đồ cá nhân (locker) an toàn.
   + Có sẵn vợt tập cho mượn và máy căng cước vợt điện tử Yonex chính xác cao tại quầy.
-  + Quầy nước giải khát, nước khoáng, nước bù điện giải thể thao (Pocari, Revive).
 - Gói Hội viên (Membership):
-  + Club Member: 290.000đ/tháng (Giảm 10% tiền sân, đặt trước 14 ngày, miễn phí gửi xe, 1 lượt đổi lịch).
-  + Member Plus: 590.000đ/tháng (Giảm 15% tiền sân thường, 10% sân VIP, phòng chờ VIP Lounge, đặt trước 21 ngày, 2 lượt đổi lịch).
-- Ưu đãi thành viên mới: Tặng voucher WELCOME giảm ngay 50.000đ cho đơn đặt sân đầu tiên.
-- Chính sách Công nợ & Thanh toán:
-  + Khách vãng lai bắt buộc cọc tối thiểu 50% qua VietQR để giữ sân và thanh toán 100% trước khi rời sân.
-  + Khách có đơn nợ quá hạn chưa thanh toán sẽ tạm thời bị khóa quyền đặt sân mới cho đến khi tất toán.
-  + Hội viên doanh nghiệp / sinh hoạt định kỳ có thể ký thỏa thuận công nợ chốt định kỳ cuối tháng.
+  + Gói Club: 249.000đ / 30 ngày (Giảm 10% tiền sân thường, 5% sân VIP, đặt trước 14 ngày, 1 lượt đổi lịch).
+  + Gói Member Plus: 499.000đ / 30 ngày (Giảm 15% tiền sân thường, 10% sân VIP, phòng chờ VIP Lounge, đặt trước 21 ngày, miễn phí gửi xe).
 `;
 
-const QUICK_PROMPTS = [
-  '🎾 Giờ mở cửa & Bảng giá các khu sân?',
-  '🌧️ Sân trong nhà Khu B khi trời mưa?',
-  '👨‍⚖️ Phí thuê trọng tài & cách đặt?',
-  '🎫 Hướng dẫn check-in bằng mã QR?',
-  '⭐ Quyền lợi các gói Hội viên Club?',
-  '💸 Chính sách hủy sân & hoàn tiền cọc?'
-];
+// Comprehensive English knowledge base about Courtly Tennis Club
+const COURTLY_KNOWLEDGE_EN = `
+Courtly Tennis Club is a premier tennis facility featuring 10 ATP-standard courts:
+- Zone A (Outdoor · 4 courts A01–A04): Open-air hard courts surrounded by greenery with 500 Lux anti-glare LED lighting. Standard rate: 160,000 VND/hour. Weekday Golden Hours (09:00–16:00): 120,000 VND/h (-25%). Weekday Night LED (18:00–22:00): 224,000 VND/h (+40%). Weekend Day (06:00–17:00): 200,000 VND/h (+25%). Weekend Prime Night & LED (17:00–22:00): 240,000 VND/h (+50%).
+- Zone B (Indoor with insulated roof · 4 courts B01–B04): 12m high arch roof, Pro-Cushion shock absorption surface, playable in any weather. Standard rate: 240,000 VND/hour. Weekday Golden Hours: 180,000 VND/h. Weekday Night LED: 336,000 VND/h. Weekend Day: 300,000 VND/h. Weekend Prime Night: 360,000 VND/h.
+- Zone V (VIP Clubhouse · 2 courts V01–V02): ATP tournament standard with private VIP Lounge, luxury sofas, and complimentary refreshments. Standard rate: 400,000 VND/hour. Weekday Golden Hours: 300,000 VND/h. Weekday Night LED: 560,000 VND/h. Weekend Day: 500,000 VND/h. Weekend Prime Night: 600,000 VND/h.
+- Operating Hours: 06:00 – 23:00 daily (including weekends and public holidays). Booking slots in 30-minute steps.
+- Referee & Coach Service: Can be booked directly online at 75,000 VND / 30 mins (150,000 VND/hour). Certified federation referees for scoring and fair play.
+- Booking & Deposit: 30% to 50% deposit required within 15 minutes via VietQR to secure court exclusively. Balance paid at reception upon check-in or check-out.
+- Check-in: Open digital QR ticket on mobile, scan at reception camera upon arrival.
+- Cancellation & Refund Policy:
+  + Over 24 hours notice: 100% refund into club credit/voucher wallet.
+  + Under 24 hours: Non-refundable due to reserved slot.
+  + Weather guarantee: Outdoor Zone A players can transfer to indoor Zone B for free or reschedule without penalty if it rains.
+- Complimentary Amenities:
+  + Free spacious parking for cars and motorbikes with 24/7 security.
+  + Premium hot/cold shower rooms, clean towels provided.
+  + Secure personal lockers.
+  + Training rackets available to borrow and high-precision Yonex electronic stringing machine at reception.
+- Membership Plans:
+  + Club Member: 249,000 VND / 30 days (10% discount on standard courts, 5% on VIP, 14-day advance booking).
+  + Member Plus: 499,000 VND / 30 days (15% discount on standard courts, 10% on VIP, VIP Lounge access, 21-day advance booking).
+`;
+
+const BUILTIN_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
+
+// Zero-dependency, lightweight Markdown renderer tailored for mobile chat bubbles
+function FormattedMessage({ text, isUser }) {
+  if (!text) return null;
+  const lines = text.split('\n');
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          return <div key={idx} style={{ height: 4 }} />;
+        }
+
+        // Check if line is bullet list item (*, -, •)
+        const isBullet = /^[*\-•]\s+/.test(trimmed);
+        const rawContent = isBullet ? trimmed.replace(/^[*\-•]\s+/, '') : trimmed;
+
+        // Parse inline **bold** markers cleanly without literal asterisks
+        const parts = rawContent.split(/(\*\*[^*]+\*\*)/g);
+        const renderedParts = parts.map((part, pIdx) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return (
+              <strong
+                key={pIdx}
+                style={{
+                  fontWeight: 700,
+                  color: isUser ? '#def46a' : '#111827'
+                }}
+              >
+                {part.slice(2, -2)}
+              </strong>
+            );
+          }
+          return part;
+        });
+
+        if (isBullet) {
+          return (
+            <div
+              key={idx}
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 6,
+                paddingLeft: 4,
+                lineHeight: 1.55
+              }}
+            >
+              <span
+                style={{
+                  color: isUser ? '#def46a' : '#16a34a',
+                  fontWeight: 800,
+                  fontSize: 14,
+                  lineHeight: '18px',
+                  userSelect: 'none'
+                }}
+              >
+                •
+              </span>
+              <span style={{ flex: 1 }}>{renderedParts}</span>
+            </div>
+          );
+        }
+
+        return (
+          <div key={idx} style={{ lineHeight: 1.55 }}>
+            {renderedParts}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function AiChatbox() {
-  const { t, navigate, user } = useGuest();
+  const { t, lang, navigate, user } = useGuest();
+  const isEn = lang === 'en';
+
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState(() => [
     {
       id: 'welcome',
       role: 'assistant',
-      text: 'Xin chào! Tôi là Trợ lý AI của CLB Quần vợt Courtly 🎾.\nTôi có thể hỗ trợ bạn tức thì về bảng giá 10 sân, lịch trống, dịch vụ trọng tài, check-in mã QR hoặc chính sách hội viên. Bạn cần tìm hiểu thông tin gì hôm nay?'
+      text: isEn
+        ? 'Hello! I am Courtly Tennis Assistant 🎾.\nI can assist you with court rates, schedule availability, referee booking, QR check-in, and membership plans. How can I help you today?'
+        : 'Xin chào! Tôi là Trợ lý AI của CLB Quần vợt Courtly 🎾.\nTôi có thể hỗ trợ bạn tức thì về bảng giá 10 sân, lịch trống, dịch vụ trọng tài, check-in mã QR hoặc chính sách hội viên. Bạn cần tìm hiểu thông tin gì hôm nay?'
     }
   ]);
+
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [closeHovered, setCloseHovered] = useState(false);
   const chatEndRef = useRef(null);
 
-  // System configured API key (transparent to end-users)
-  const apiKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) || '';
+  // Sync welcome message when language changes if conversation hasn't started yet
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length === 1 && prev[0].id === 'welcome') {
+        return [
+          {
+            id: 'welcome',
+            role: 'assistant',
+            text: isEn
+              ? 'Hello! I am Courtly Tennis Assistant 🎾.\nI can assist you with court rates, schedule availability, referee booking, QR check-in, and membership plans. How can I help you today?'
+              : 'Xin chào! Tôi là Trợ lý AI của CLB Quần vợt Courtly 🎾.\nTôi có thể hỗ trợ bạn tức thì về bảng giá 10 sân, lịch trống, dịch vụ trọng tài, check-in mã QR hoặc chính sách hội viên. Bạn cần tìm hiểu thông tin gì hôm nay?'
+          }
+        ];
+      }
+      return prev;
+    });
+  }, [isEn]);
+
+  // Read API key strictly from environment / built-in backend without exposing UI to users
+  const apiKey =
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) ||
+    BUILTIN_GEMINI_KEY;
 
   useEffect(() => {
     if (open) {
@@ -79,16 +190,138 @@ export default function AiChatbox() {
     }
   }, [messages, open]);
 
-  // Robust, comprehensive tennis club domain knowledge matcher
-  const getLocalResponse = (q) => {
+  // Compact, conversational English fallback matcher
+  const getLocalResponseEn = (q) => {
     const raw = q.toLowerCase().trim();
-    // Normalize accents for fuzzy matching
+
+    if (
+      raw.includes('who are you') ||
+      raw.includes('what can you do') ||
+      raw.includes('help') ||
+      raw.includes('hello') ||
+      raw.includes('hi') ||
+      raw.includes('capability') ||
+      raw.includes('scope') ||
+      raw.includes('feature')
+    ) {
+      return `Welcome! 🎾 I am **Courtly AI Assistant**.
+I can quickly help you with:
+• **10 ATP Court Rates** (from 120,000đ to 400,000đ/h)
+• **Online Booking & VietQR Deposit (30%–50%)**
+• **QR Check-in & Cancellation Refund Policy**
+• **Referee Booking (150k/h) & Membership Plans**
+
+What specific topic would you like to explore?`;
+    }
+
+    if (
+      raw.includes('price') ||
+      raw.includes('rate') ||
+      raw.includes('cost') ||
+      raw.includes('fee') ||
+      raw.includes('how much')
+    ) {
+      return `💰 **Courtly Court Rates (10 ATP Courts):**
+• **Zone A (Outdoor):** 160,000đ/h (Golden Hours: 120,000đ · LED Night: 224,000đ)
+• **Zone B (Covered Indoor):** 240,000đ/h (LED Night: 336,000đ)
+• **Zone V (VIP Clubhouse):** 400,000đ/h (Includes private VIP Lounge)
+*(Club members get 10% off; Member Plus get 15% off).*`;
+    }
+
+    if (
+      raw.includes('rain') ||
+      raw.includes('weather') ||
+      raw.includes('indoor') ||
+      raw.includes('storm') ||
+      raw.includes('wet')
+    ) {
+      return `🌧️ **Playing in Rainy Weather:**
+• **Zone B (Courts B01–B04)** features a solid 12m roof for all-weather play.
+• If you booked outdoor Zone A and it rains, we offer **100% free transfer to indoor Zone B** or free rescheduling.`;
+    }
+
+    if (
+      raw.includes('referee') ||
+      raw.includes('coach') ||
+      raw.includes('umpire')
+    ) {
+      return `👨‍⚖️ **Referee & Coaching Services:**
+• **Fee:** **75,000đ / 30 mins** (150,000đ/hour).
+• Certified federation referees for scoring and fair play.
+• You can select referee service directly while booking online.`;
+    }
+
+    if (
+      raw.includes('cancel') ||
+      raw.includes('refund') ||
+      raw.includes('reschedule')
+    ) {
+      return `💸 **Cancellation & Refund Policy:**
+• **24+ hours ahead:** **100% deposit refund** into your voucher wallet.
+• **Within 24 hours:** Deposit is non-refundable.
+• To cancel, open **My Bookings** and click **[Cancel Booking]**.`;
+    }
+
+    if (
+      raw.includes('check in') ||
+      raw.includes('check-in') ||
+      raw.includes('qr') ||
+      raw.includes('ticket')
+    ) {
+      return `🎫 **Digital QR Check-in:**
+1. Open your digital ticket in **My Bookings**.
+2. Scan QR code at reception camera.
+3. Express check-in in under 3 seconds!`;
+    }
+
+    if (
+      raw.includes('member') ||
+      raw.includes('subscription') ||
+      raw.includes('plan') ||
+      raw.includes('vip')
+    ) {
+      return `👑 **Membership Plans:**
+• **Club (249,000đ / 30 days):** 10% off court rates, 14-day advance booking.
+• **Member Plus (499,000đ / 30 days):** 15% off, VIP Lounge access, 21-day advance booking.`;
+    }
+
+    return `Thank you for reaching out! 🎾
+Courtly Tennis Club operates 10 ATP courts daily from **06:00 to 23:00**.
+Ask me about court pricing, indoor weather guarantee, referee booking, or membership benefits!`;
+  };
+
+  // Compact, conversational Vietnamese fallback matcher
+  const getLocalResponseVi = (q) => {
+    const raw = q.toLowerCase().trim();
     const norm = raw
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/đ/g, 'd');
 
-    // 1. Cancellation & Deposit Refund Policy (Highest priority - handles "hủy", "hoàn tiền", "hoàn cọc", "đổi lịch")
+    if (
+      norm.includes('tra loi duoc') ||
+      norm.includes('nhung cau hoi gi') ||
+      norm.includes('lam duoc gi') ||
+      norm.includes('giup duoc gi') ||
+      norm.includes('hoi duoc gi') ||
+      norm.includes('ban la ai') ||
+      norm.includes('chuc nang') ||
+      norm.includes('gioi thieu') ||
+      norm.includes('gioi han') ||
+      norm.includes('nang luc') ||
+      norm.includes('cau hoi nao') ||
+      norm.includes('huong dan su dung')
+    ) {
+      return `Xin chào bạn! 🎾 Tôi là **Trợ lý AI Courtly**.
+Tôi có thể hỗ trợ nhanh cho bạn về:
+• **Bảng giá 10 sân ATP** (từ 120.000đ – 400.000đ/h)
+• **Đặt sân & cọc VietQR 30%–50%**
+• **Vé QR Check-in & Chính sách hủy hoàn cọc**
+• **Thuê trọng tài (150k/h) & Gói Hội viên giảm đến 15%**
+
+Bạn cần tìm hiểu thông tin cụ thể nào, hãy nhắn cho tôi nhé!`;
+    }
+
     if (
       norm.includes('huy') ||
       norm.includes('hoan tien') ||
@@ -99,124 +332,59 @@ export default function AiChatbox() {
       norm.includes('doi san') ||
       norm.includes('doi gio')
     ) {
-      return `💸 **Chính sách Hủy sân & Hoàn cọc của Courtly:**
-- **Hủy trước 24 giờ:** Hoàn lại **100% tiền cọc** (quy đổi vào ví Voucher tích lũy để bạn sử dụng cho lần đặt tiếp theo).
-- **Hủy trong vòng dưới 24 giờ:** Không được hoàn tiền cọc do khung giờ đã được hệ thống khóa độc quyền cho bạn.
-- **Trường hợp thời tiết:** Nếu gặp mưa to tại cụm sân ngoài trời Khu A, CLB sẽ chủ động chuyển sang sân trong nhà Khu B hoặc đổi lịch miễn phí 100%.
-- **Cách hủy:** Bạn chỉ cần vào mục **Đơn của tôi** -> bấm nút **[Hủy đơn]** để gửi yêu cầu trực tiếp.`;
+      return `💸 **Chính sách Hủy sân & Hoàn cọc:**
+• **Hủy trước 24 giờ:** Hoàn lại **100% tiền cọc** vào ví Voucher tích lũy.
+• **Hủy dưới 24 giờ:** Không hoàn cọc theo quy định vận hành.
+• Thao tác: Vào mục **Đơn của tôi** bấm **[Hủy đơn]**.`;
     }
 
-    // 2. Debt & Credit Policy ("nợ", "công nợ", "ghi nợ", "chưa trả")
-    if (
-      norm.includes('no') ||
-      norm.includes('cong no') ||
-      norm.includes('ghi no') ||
-      norm.includes('chua thanh toan') ||
-      norm.includes('no tien') ||
-      norm.includes('cho no')
-    ) {
-      return `📋 **Chính sách Thanh toán & Quản lý Công nợ tại Courtly:**
-- **Khách vãng lai:** Bắt buộc đặt cọc tối thiểu **50% qua VietQR** để giữ chỗ và tất toán 100% trước khi rời sân. Khách hàng đang có đơn nợ quá hạn chưa thanh toán sẽ tạm thời bị khóa quyền đặt sân mới.
-- **Hội viên VIP & Doanh nghiệp:** Được quyền mở hạn mức **Công nợ ký sổ (Folio)** cho toàn bộ tiền sân, dịch vụ nước uống, bóng tập và thanh toán tổng hợp một lần vào cuối tháng.
-- **Tất toán nợ:** Bạn có thể thanh toán trực tiếp tại quầy tiếp tân hoặc bấm nút **[Tất toán nợ ngay]** trên thanh thông báo cá nhân.`;
-    }
-
-    // 3. Referee & Coach services (Must check before general pricing because users might ask "giá trọng tài")
     if (
       norm.includes('trong tai') ||
       norm.includes('referee') ||
       norm.includes('hlv') ||
-      norm.includes('huan luyen') ||
-      norm.includes('thay day') ||
-      norm.includes('nhat bong') ||
-      norm.includes('bat loi') ||
-      norm.includes('tinh diem')
+      norm.includes('huan luyen')
     ) {
-      return `👨‍⚖️ **Dịch vụ Trọng tài & HLV chuyên nghiệp:**
-- Phí thuê trọng tài: **75.000đ / 30 phút** (tương đương **150.000đ / 1 giờ**).
-- **Tiêu chuẩn:** Đội ngũ trọng tài được đào tạo chuẩn Liên đoàn Quần vợt, cam kết đúng giờ, điều hành chuẩn xác, tính điểm và bắt lỗi chuyên nghiệp.
-- **Cách đặt:** Khi đặt sân tại trang **Đặt sân**, bạn chỉ cần tích chọn ô *“Thuê trọng tài bắt trận”* và có thể chọn trọng tài mong muốn.`;
+      return `👨‍⚖️ **Dịch vụ Trọng tài & Huấn luyện viên:**
+• **Chi phí:** **75.000đ / 30 phút** (150.000đ/giờ).
+• Trọng tài đạt chứng chỉ Liên đoàn, bắt lỗi và tính điểm chính xác.
+• Bạn có thể tích chọn dịch vụ ngay trong bước đặt sân.`;
     }
 
-    // 4. Membership tiers & Benefits (Check before general pricing for "giá hội viên", "gói hội viên")
+    if (
+      norm.includes('mua') ||
+      norm.includes('troi mua') ||
+      norm.includes('san trong nha') ||
+      norm.includes('mai che') ||
+      norm.includes('khu b')
+    ) {
+      return `🌧️ **Trời mưa tại CLB Courtly:**
+• **Khu B (Sân B01–B04)** có mái che vòm cao 12m, chơi thoải mái bất chấp mưa bão.
+• Nếu bạn đặt sân ngoài trời Khu A mà gặp mưa to, CLB hỗ trợ **chuyển sang sân trong nhà miễn phí** hoặc dời lịch 100%.`;
+    }
+
     if (
       norm.includes('hoi vien') ||
       norm.includes('membership') ||
-      norm.includes('thanh vien') ||
-      norm.includes('member') ||
-      norm.includes('plus') ||
-      norm.includes('goi tap')
+      norm.includes('member plus') ||
+      norm.includes('goi club')
     ) {
-      return `👑 **Các gói Hội viên Courtly Club:**
-- **Gói Club Member (290.000đ/tháng):**
-  • Giảm 10% tiền giờ chơi tất cả các sân
-  • Đặt trước lịch sân tối đa **14 ngày**
-  • Miễn phí 1 lượt đổi lịch mỗi tháng
-  • Tích điểm thưởng đổi giờ chơi
-
-- **Gói Member Plus (590.000đ/tháng):**
-  • Giảm 15% sân thường & 10% sân VIP
-  • Đặt trước lịch sân tối đa **21 ngày**
-  • Miễn phí 2 lượt đổi lịch mỗi tháng
-  • Miễn phí sử dụng phòng chờ VIP Lounge
-  • Ưu tiên suất tham gia các giải đấu CLB
-
-👉 Bạn có thể vào tab **Hội viên (Membership)** để đăng ký nâng hạng trực tiếp!`;
+      return `👑 **Gói Hội viên Courtly:**
+• **Club (249.000đ / 30 ngày):** Giảm 10% tiền sân, đặt trước 14 ngày.
+• **Member Plus (499.000đ / 30 ngày):** Giảm 15% tiền sân, phòng chờ VIP Lounge, đặt trước 21 ngày.`;
     }
 
-    // 5. Indoor courts & Rainy / Hot weather (Khu B)
-    if (
-      norm.includes('khu b') ||
-      norm.includes('trong nha') ||
-      norm.includes('mua') ||
-      norm.includes('nang') ||
-      norm.includes('mai che') ||
-      norm.includes('thoi tiet') ||
-      norm.includes('nong') ||
-      norm.includes('mat san b')
-    ) {
-      return `🏢 **Sân trong nhà Khu B (Sân B01 – B04):**
-- **Mái vòm kiên cố:** Thiết kế vòm cao tiêu chuẩn quốc tế, phủ lớp cách nhiệt chống nóng và hệ thống quạt thông gió công nghiệp hút gió mát.
-- **Bất chấp thời tiết:** Bạn hoàn toàn yên tâm thi đấu dù bên ngoài mưa rào hay nắng gắt.
-- **Mặt sân Pro-Cushion:** Có lớp đệm cao su giảm chấn, bảo vệ khớp gối và cổ chân tối đa khi di chuyển cường độ cao.
-- **Giá thuê:** 150.000đ – 220.000đ/giờ.`;
-    }
-
-    // 6. VIP courts & VIP Lounge
-    if (
-      norm.includes('khu v') ||
-      norm.includes('vip') ||
-      norm.includes('v01') ||
-      norm.includes('v02') ||
-      norm.includes('phong cho') ||
-      norm.includes('lounge')
-    ) {
-      return `⭐ **Sân VIP Lounge (Khu V · Sân V01 & V02):**
-- Không gian thi đấu biệt lập, mặt sân chuẩn thi đấu ATP Tour.
-- **Phòng chờ VIP riêng biệt:** Trang bị máy lạnh, sofa da êm ái, minibar nước khoáng thể thao và khăn lạnh miễn phí.
-- Phù hợp tiếp khách đối tác, giao lưu doanh nhân và thi đấu nội bộ đỉnh cao.
-- **Giá thuê:** 250.000đ – 350.000đ/giờ.`;
-    }
-
-    // 7. QR Check-in & Electronic Ticket
     if (
       norm.includes('check in') ||
-      norm.includes('checkin') ||
+      norm.includes('check-in') ||
       norm.includes('qr') ||
-      norm.includes('ve dien tu') ||
-      norm.includes('vao san') ||
-      norm.includes('quet') ||
-      norm.includes('ticket') ||
-      norm.includes('ma ve')
+      norm.includes('ve')
     ) {
-      return `🎫 **Quy trình Check-in bằng mã QR tiện lợi:**
-
-1. **Lấy mã vé:** Sau khi hoàn tất đặt sân và đặt cọc, bạn vào mục **Đơn của tôi** hoặc bấm banner **[Mở vé QR Check-in]** trên trang chủ.
-2. **Xuất trình tại quầy:** Khi đến sân trước 10-15 phút, bạn đưa mã QR vé điện tử trên điện thoại cho nhân viên tiếp tân.
-3. **Kích hoạt tự động:** Lễ tân quét mã chỉ mất 3 giây, hệ thống sẽ xác nhận ca chơi và tự động bật hệ thống đèn chiếu sáng đúng giờ bạn đặt!`;
+      return `🎫 **Hướng dẫn Check-in QR:**
+1. Mở vé điện tử trong mục **Đơn của tôi**.
+2. Xuất trình mã QR tại quầy tiếp tân để quét camera.
+3. Xác nhận vào sân chỉ trong 3 giây!`;
     }
 
-    // 8. General Court Pricing & Rates (Now with precise keyword matching, excluding bare "tien" that hijacks other intents)
     if (
       norm.includes('bang gia') ||
       norm.includes('gia san') ||
@@ -227,179 +395,68 @@ export default function AiChatbox() {
       norm.includes('bao tien mot gio') ||
       (norm.includes('gia') && (norm.includes('san') || norm.includes('gio') || norm.includes('khu a') || norm.includes('khu b') || norm.includes('khu v')))
     ) {
-      return `💰 **Bảng giá thuê sân Courtly Tennis Club:**
-
-- **Khu A (Ngoài trời · Sân A01–A04):**
-  • Ban ngày (06:00 – 17:00): **120.000đ/giờ** (60.000đ / 30 phút)
-  • Giờ vàng tối (17:00 – 23:00): **180.000đ/giờ** (90.000đ / 30 phút, bao gồm đèn LED 500 Lux)
-
-- **Khu B (Trong nhà có mái che · Sân B01–B04):**
-  • Ban ngày (06:00 – 17:00): **150.000đ/giờ**
-  • Buổi tối & Cuối tuần: **220.000đ/giờ** (mát mẻ, không ngại nắng mưa)
-
-- **Khu V (Sân VIP · Sân V01–V02):**
-  • Giá từ **250.000đ – 350.000đ/giờ** (đặc quyền phòng chờ VIP Lounge, sofa & nước uống miễn phí)
-
-*(Hội viên Club Member được giảm thêm 10%, Member Plus giảm đến 15% tổng hóa đơn).*`;
+      return `💰 **Bảng giá thuê sân Courtly (10 sân ATP):**
+• **Khu A (Ngoài trời):** 160.000đ/h (Giờ vàng: 120.000đ/h · Tối LED: 224.000đ/h)
+• **Khu B (Trong nhà mái che):** 240.000đ/h (Tối LED: 336.000đ/h)
+• **Khu V (VIP Clubhouse):** 400.000đ/h (Kèm phòng chờ VIP Lounge)
+*(Hội viên Club giảm 10%, Member Plus giảm 15%).*`;
     }
 
-    // 9. Booking process & Deposit
-    if (
-      norm.includes('dat san') ||
-      norm.includes('dat cho') ||
-      norm.includes('coc') ||
-      norm.includes('giu cho') ||
-      norm.includes('thanh toan') ||
-      norm.includes('chuyen khoan') ||
-      norm.includes('vietqr') ||
-      norm.includes('the atm')
-    ) {
-      return `💳 **Quy trình Đặt sân & Đặt cọc giữ chỗ:**
-- **Bước 1:** Chọn ngày chơi, khu sân (A, B hoặc VIP) và các khung giờ 30 phút mong muốn.
-- **Bước 2:** Chọn thêm dịch vụ trọng tài (nếu cần) và áp dụng mã voucher ưu đãi.
-- **Bước 3:** Thanh toán **tiền cọc 50% trong vòng 15 phút** qua cổng chuyển khoản VietQR tự động hoặc thẻ ATM/Visa để hệ thống khóa sân cho bạn.
-- **Bước 4:** 50% tiền sân còn lại sẽ thanh toán khi bạn đến sân check-in hoặc check-out.`;
-    }
-
-    // 9. Amenities: Parking, showers, rackets, lockers
-    if (
-      norm.includes('xe') ||
-      norm.includes('do xe') ||
-      norm.includes('gui xe') ||
-      norm.includes('o to') ||
-      norm.includes('tam') ||
-      norm.includes('nong lanh') ||
-      norm.includes('locker') ||
-      norm.includes('tu do') ||
-      norm.includes('vot') ||
-      norm.includes('cang vot') ||
-      norm.includes('cang cuoc') ||
-      norm.includes('bong') ||
-      norm.includes('nuoc')
-    ) {
-      return `🚿 **Tiện ích và dịch vụ đi kèm tại Courtly:**
-- **Bãi đỗ xe:** Rộng rãi, an ninh 24/7, **hoàn toàn miễn phí** cho cả xe máy và ô tô.
-- **Phòng thay đồ & Tắm:** Hệ thống vòi sen nước nóng lạnh cao cấp, có khăn tắm sạch và xà phòng miễn phí. Tủ locker khóa từ an toàn.
-- **Vợt & Bóng:** Có vợt tập luyện cho mượn và bóng tiêu chuẩn thi đấu tại quầy dịch vụ.
-- **Máy căng cước:** Trang bị máy căng cước điện tử Yonex độ chính xác cao, lấy ngay trong 20 phút.
-- **Nước giải khát:** Quầy cafe, nước khoáng Aquafina, nước bù điện giải thể thao Pocari Sweat, Revive.`;
-    }
-
-    // 10. Membership tiers
-    if (
-      norm.includes('hoi vien') ||
-      norm.includes('membership') ||
-      norm.includes('thanh vien') ||
-      norm.includes('member') ||
-      norm.includes('plus') ||
-      norm.includes('goi')
-    ) {
-      return `👑 **Các gói Hội viên Courtly Club:**
-- **Gói Club Member (290.000đ/tháng):**
-  • Giảm 10% tiền giờ chơi tất cả các sân
-  • Đặt trước lịch sân tối đa **14 ngày**
-  • Miễn phí 1 lượt đổi lịch mỗi tháng
-  • Tích điểm thưởng đổi giờ chơi
-
-- **Gói Member Plus (590.000đ/tháng):**
-  • Giảm 15% sân thường & 10% sân VIP
-  • Đặt trước lịch sân tối đa **21 ngày**
-  • Miễn phí 2 lượt đổi lịch mỗi tháng
-  • Miễn phí sử dụng phòng chờ VIP Lounge
-  • Ưu tiên suất tham gia các giải đấu CLB
-
-👉 Bạn có thể vào tab **Hội viên (Membership)** để đăng ký nâng hạng trực tiếp!`;
-    }
-
-    // 11. Promotions / Vouchers
-    if (
-      norm.includes('voucher') ||
-      norm.includes('khuyen mai') ||
-      norm.includes('giam gia') ||
-      norm.includes('uu dai') ||
-      norm.includes('welcome') ||
-      norm.includes('ma')
-    ) {
-      return `🎁 **Ưu đãi & Khuyến mãi hiện có:**
-- **Voucher WELCOME (-50.000đ):** Tặng ngay cho khách hàng đăng ký tài khoản mới khi đặt sân lần đầu tiên.
-- **Ưu đãi giờ vàng:** Giảm giá cho các khung giờ sáng sớm (06:00 – 09:00) ngày trong tuần.
-- **Mã giảm giá hội viên:** Tự động áp dụng khi đăng ký gói Club Member hoặc Member Plus.`;
-    }
-
-    // 12. Tournaments
-    if (
-      norm.includes('giai') ||
-      norm.includes('tournament') ||
-      norm.includes('nextgen') ||
-      norm.includes('thi dau') ||
-      norm.includes('cup')
-    ) {
-      return `🏆 **Giải đấu Quần vợt Courtly:**
-- CLB thường xuyên tổ chức các giải đấu phong trào và bán chuyên như **NextGen Cup** và **Courtly Masters Open**.
-- Thể thức thi đấu đa dạng: Đơn nam, Đơn nữ, Đôi nam nữ.
-- Bạn có thể vào mục **Giải đấu** trên thanh điều hướng để xem điều lệ, lịch thi đấu và đăng ký tham gia trực tuyến!`;
-    }
-
-    // 13. Location & Contact
-    if (
-      norm.includes('dia chi') ||
-      norm.includes('o dau') ||
-      norm.includes('vi tri') ||
-      norm.includes('lien he') ||
-      norm.includes('so dien thoai') ||
-      norm.includes('hotline') ||
-      norm.includes('sdt')
-    ) {
-      return `📍 **Thông tin Liên hệ CLB Quần vợt Courtly:**
-- **Địa chỉ:** Tổ hợp Thể thao Tennis Courtly Club (Xem chỉ đường trong tab Liên hệ).
-- **Thời gian đón khách:** 06:00 – 23:00 tất cả các ngày.
-- **Hotline hỗ trợ:** 0913 555 777 / 0769 496 289.
-- Đội ngũ lễ tân luôn túc trực tại quầy để phục vụ và hỗ trợ quý khách!`;
-    }
-
-    // 14. Greeting / Small talk
-    if (
-      norm.includes('chao') ||
-      norm.includes('hello') ||
-      norm.includes('hi') ||
-      norm.includes('hey') ||
-      norm.includes('alo')
-    ) {
-      return `Xin chào bạn! 🎾 Rất vui được đồng hành cùng bạn tại Courtly Tennis Club.
-Bạn đang tìm sân ngoài trời thoáng mát, sân trong nhà có mái che mưa nắng hay muốn tìm hiểu bảng giá và thuê trọng tài? Hãy nhắn cho tôi nhé!`;
-    }
-
-    // Default Fallback
-    return `Cảm ơn câu hỏi của bạn! 🎾
-CLB Quần vợt Courtly có **10 sân tiêu chuẩn ATP** (Khu A ngoài trời, Khu B trong nhà có mái che và Khu V VIP), hoạt động xuyên suốt từ **06:00 đến 23:00** hàng ngày.
-
-Bạn có thể bấm vào các gợi ý bên dưới hoặc hỏi tôi về:
-• Bảng giá chi tiết từng khu sân
-• Sân trong nhà Khu B khi trời mưa
-• Phí thuê trọng tài & hướng dẫn check-in QR
-• Đặt cọc 50% & chính sách hủy hoàn tiền cọc`;
+    return `Cảm ơn bạn đã liên hệ! 🎾
+CLB Quần vợt Courtly có **10 sân tiêu chuẩn ATP**, mở cửa hàng ngày từ **06:00 đến 23:00**.
+Bạn có thể hỏi tôi về bảng giá sân, dịch vụ trọng tài, check-in QR hoặc các gói hội viên!`;
   };
 
-  // Call Google Gemini API if key is available in environment
+  const getLocalResponse = (q) => {
+    if (isEn) return getLocalResponseEn(q);
+    return getLocalResponseVi(q);
+  };
+
+  // Call Google Gemini API with conversational context memory & strict brevity
   const callGeminiApi = async (userPrompt) => {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    const payload = {
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              text: `Bạn là Chuyên viên Trợ lý AI cao cấp của CLB Quần vợt Courtly (Courtly Tennis Club). Hãy trả lời câu hỏi của khách hàng bằng tiếng Việt chuẩn xác, ngắn gọn, súc tích, mang tinh thần thể thao chuyên nghiệp. Tuyệt đối không bịa đặt thông tin sai lệch so với tài liệu của CLB.
+    const keyToUse = apiKey || BUILTIN_GEMINI_KEY;
+    const model = 'gemini-3.5-flash';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${keyToUse}`;
+
+    const systemText = isEn
+      ? `You are an elite AI Concierge for Courtly Tennis Club.
+CRITICAL FORMATTING & CONTEXT RULES:
+- The chat window is a COMPACT POPUP on mobile and desktop.
+- Keep answers CONCISE, FRIENDLY, and DIRECT (under 3 to 5 short lines maximum).
+- ALWAYS MAINTAIN CONVERSATIONAL CONTEXT: If the customer asks a follow-up query (e.g. "tell me more details", "does it have a roof?"), you MUST follow up directly on the previous topic discussed without asking them to clarify from scratch.
+- Answer only what the user specifically asked. Use bold for key numbers (prices, hours).
+
+Official Club Knowledge:
+${COURTLY_KNOWLEDGE_EN}`
+      : `Bạn là Chuyên viên Trợ lý AI cao cấp của CLB Quần vợt Courtly (Courtly Tennis Club).
+QUY TẮC BẮT BUỘC VỀ ĐỘ DÀI & NGỮ CẢNH ĐỐI THOẠI:
+- Khung chat là CỬA SỔ POPUP NHỎ trên điện thoại và web.
+- Trả lời CỰC KỲ NGẮN GỌN, SÚC TÍCH, THÂN THIỆN (tối đa 3 đến 5 dòng).
+- BẮT BUỘC HIỂU NGỮ CẢNH: Khi khách hỏi tiếp nối (ví dụ: "chỉ mình chi tiết hơn", "sân đó có mái che không", "hủy thì sao"), bạn phải giải thích ĐÚNG nội dung vừa trao đổi ở tin nhắn trước, tuyệt đối không hỏi lại từ đầu làm cụt hứng khách.
+- Dùng in đậm cho số tiền hoặc giờ giấc quan trọng.
 
 Dữ liệu xác thực của CLB:
-${COURTLY_KNOWLEDGE}
+${COURTLY_KNOWLEDGE_VI}`;
 
-Câu hỏi của khách hàng: ${userPrompt}
-Hãy trình bày câu trả lời có cấu trúc rõ ràng, sử dụng gạch đầu dòng, biểu tượng emoji quần vợt và in đậm các số liệu quan trọng (giá tiền, giờ giấc).`
-            }
-          ]
-        }
-      ]
+    // Build multi-turn conversational history (up to last 6 turns)
+    const historyTurns = messages
+      .filter((m) => m.id !== 'welcome')
+      .slice(-6)
+      .map((m) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.text }]
+      }));
+
+    const currentTurn = {
+      role: 'user',
+      parts: [{ text: userPrompt }]
+    };
+
+    const payload = {
+      systemInstruction: {
+        parts: [{ text: systemText }]
+      },
+      contents: [...historyTurns, currentTurn]
     };
 
     const response = await fetch(url, {
@@ -410,12 +467,12 @@ Hãy trình bày câu trả lời có cấu trúc rõ ràng, sử dụng gạch 
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      throw new Error(errData?.error?.message || `Lỗi kết nối Gemini API (${response.status})`);
+      throw new Error(errData?.error?.message || `API error (${response.status})`);
     }
 
     const data = await response.json();
     const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!replyText) throw new Error('Không nhận được nội dung phản hồi từ Gemini');
+    if (!replyText) throw new Error(isEn ? 'No content returned from AI' : 'Không nhận được nội dung từ AI');
     return replyText;
   };
 
@@ -438,8 +495,7 @@ Hãy trình bày câu trả lời có cấu trúc rõ ràng, sử dụng gạch 
           botReply = getLocalResponse(q);
         }
       } else {
-        // Natural human typing delay
-        await new Promise((r) => setTimeout(r, 450));
+        await new Promise((r) => setTimeout(r, 400));
         botReply = getLocalResponse(q);
       }
 
@@ -453,7 +509,9 @@ Hãy trình bày câu trả lời có cấu trúc rõ ràng, sử dụng gạch 
         {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          text: `Rất tiếc, đã có lỗi xảy ra: ${err.message}. Bạn vui lòng thử lại sau giây lát!`
+          text: isEn
+            ? `Sorry, an error occurred: ${err.message}. Please try again!`
+            : `Rất tiếc, đã có lỗi xảy ra: ${err.message}. Bạn vui lòng thử lại sau giây lát!`
         }
       ]);
     } finally {
@@ -461,24 +519,48 @@ Hãy trình bày câu trả lời có cấu trúc rõ ràng, sử dụng gạch 
     }
   };
 
+  const quickPrompts = isEn
+    ? [
+        '🎾 Operating hours & Court rates?',
+        '🌧️ Indoor Zone B for rainy days?',
+        '👨‍⚖️ Referee service & Booking?',
+        '🎫 How to check in with QR code?',
+        '⭐ Membership plans & benefits?',
+        '💸 Cancellation & Refund policy?'
+      ]
+    : [
+        '🎾 Giờ mở cửa & Bảng giá các khu sân?',
+        '🌧️ Sân trong nhà Khu B khi trời mưa?',
+        '👨‍⚖️ Phí thuê trọng tài & cách đặt?',
+        '🎫 Hướng dẫn check-in bằng mã QR?',
+        '⭐ Quyền lợi các gói Hội viên Club?',
+        '💸 Chính sách hủy sân & hoàn tiền cọc?'
+      ];
+
   return (
     <>
       {/* FLOATING TRIGGER BUTTON */}
-      <aside aria-label="Courtly AI Assistant" style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 999 }}>
+      <aside aria-label={isEn ? 'Courtly AI Assistant' : 'Trợ lý AI Courtly'}>
         {!open && (
           <button
             type="button"
+            className="courtly-ai-fab"
             onClick={() => setOpen(true)}
+            aria-label={isEn ? 'Open Courtly AI Assistant' : 'Mở Trợ lý AI Courtly'}
             style={{
-              background: 'linear-gradient(135deg, #173c32 0%, #1e4d40 100%)',
+              position: 'fixed',
+              bottom: 24,
+              right: 24,
+              zIndex: 9990,
+              background: '#173c32',
               color: '#def46a',
               border: '2px solid #def46a',
-              borderRadius: '50px',
-              padding: '12px 20px',
-              boxShadow: '0 8px 25px rgba(23,60,50,0.35)',
+              borderRadius: 30,
+              padding: '10px 18px',
               display: 'flex',
               alignItems: 'center',
-              gap: 10,
+              gap: 8,
+              boxShadow: '0 8px 24px rgba(23,60,50,0.35)',
               cursor: 'pointer',
               fontWeight: 700,
               fontSize: 14,
@@ -486,7 +568,7 @@ Hãy trình bày câu trả lời có cấu trúc rõ ràng, sử dụng gạch 
             }}
           >
             <span style={{ fontSize: 20 }}>🎾</span>
-            <span style={{ color: '#ffffff' }}>Trợ lý AI Courtly</span>
+            <span style={{ color: '#ffffff' }}>{isEn ? 'Courtly Assistant' : 'Trợ lý AI Courtly'}</span>
             <span
               style={{
                 background: '#def46a',
@@ -497,7 +579,7 @@ Hãy trình bày câu trả lời có cấu trúc rõ ràng, sử dụng gạch 
                 fontWeight: 800
               }}
             >
-              Trực tuyến
+              {isEn ? 'Online' : 'Trực tuyến'}
             </span>
           </button>
         )}
@@ -507,7 +589,7 @@ Hãy trình bày câu trả lời có cấu trúc rõ ràng, sử dụng gạch 
       {open && (
         <div
           role="region"
-          aria-label="Courtly AI Chatbox"
+          aria-label={isEn ? 'Courtly AI Chatbox' : 'Hộp thoại Trợ lý AI Courtly'}
           style={{
             position: 'fixed',
             bottom: 24,
@@ -524,7 +606,7 @@ Hãy trình bày câu trả lời có cấu trúc rõ ràng, sử dụng gạch 
             overflow: 'hidden'
           }}
         >
-          {/* HEADER */}
+          {/* HEADER (CLEAN & PROFESSIONAL - NO SETTINGS BUTTON FOR REGULAR USERS) */}
           <div
             style={{
               background: '#173c32',
@@ -554,7 +636,7 @@ Hãy trình bày câu trả lời có cấu trúc rõ ràng, sử dụng gạch 
               </div>
               <div>
                 <strong style={{ display: 'block', fontSize: 14, color: '#def46a' }}>
-                  Trợ lý Tennis Courtly
+                  {isEn ? 'Courtly Assistant' : 'Trợ lý Tennis Courtly'}
                 </strong>
                 <span style={{ fontSize: 11.5, color: '#d1dac4', display: 'flex', alignItems: 'center', gap: 5 }}>
                   <span
@@ -566,31 +648,42 @@ Hãy trình bày câu trả lời có cấu trúc rõ ràng, sử dụng gạch 
                       display: 'inline-block'
                     }}
                   />
-                  Hỗ trợ trực tuyến 24/7
+                  {isEn ? 'Online' : 'Trực tuyến'}
                 </span>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              title="Đóng trợ lý"
-              aria-label="Đóng trợ lý"
-              style={{
-                background: 'rgba(255,255,255,0.12)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '50%',
-                width: 30,
-                height: 30,
-                display: 'grid',
-                placeItems: 'center',
-                cursor: 'pointer',
-                fontSize: 16
-              }}
-            >
-              <X size={16} />
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                title={isEn ? 'Close assistant' : 'Đóng trợ lý'}
+                aria-label={isEn ? 'Close assistant' : 'Đóng trợ lý'}
+                onMouseEnter={() => setCloseHovered(true)}
+                onMouseLeave={() => setCloseHovered(false)}
+                style={{
+                  background: closeHovered ? 'rgba(255,255,255,0.15)' : 'transparent',
+                  color: closeHovered ? '#def46a' : 'rgba(255,255,255,0.85)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: 32,
+                  height: 32,
+                  minWidth: 32,
+                  minHeight: 32,
+                  padding: 0,
+                  margin: 0,
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  flexShrink: 0
+                }}
+              >
+                <X size={18} strokeWidth={2.2} />
+              </button>
+            </div>
           </div>
 
           {/* MESSAGES LIST */}
@@ -638,19 +731,17 @@ Hãy trình bày câu trả lời có cấu trúc rõ ràng, sử dụng gạch 
 
                   <div
                     style={{
-                      maxWidth: '82%',
+                      maxWidth: '84%',
                       background: isUser ? '#173c32' : '#ffffff',
                       color: isUser ? '#ffffff' : '#1f2937',
                       padding: '10px 14px',
                       borderRadius: isUser ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
                       boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
                       border: isUser ? 'none' : '1px solid #e3e8de',
-                      fontSize: 13,
-                      lineHeight: 1.6,
-                      whiteSpace: 'pre-line'
+                      fontSize: 13
                     }}
                   >
-                    {m.text}
+                    <FormattedMessage text={m.text} isUser={isUser} />
                   </div>
                 </div>
               );
@@ -685,7 +776,7 @@ Hãy trình bày câu trả lời có cấu trúc rõ ràng, sử dụng gạch 
                     gap: 6
                   }}
                 >
-                  <span>Courtly AI đang soạn phản hồi…</span>
+                  <span>{isEn ? 'Courtly AI is typing…' : 'Courtly AI đang soạn phản hồi…'}</span>
                 </div>
               </div>
             )}
@@ -704,7 +795,7 @@ Hãy trình bày câu trả lời có cấu trúc rõ ràng, sử dụng gạch 
               whiteSpace: 'nowrap'
             }}
           >
-            {QUICK_PROMPTS.map((prompt, idx) => (
+            {quickPrompts.map((prompt, idx) => (
               <button
                 key={idx}
                 type="button"
@@ -746,7 +837,7 @@ Hãy trình bày câu trả lời có cấu trúc rõ ràng, sử dụng gạch 
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Hỏi về giá sân, giờ mở, cọc, QR check-in..."
+              placeholder={isEn ? 'Ask about rates, hours, deposit, check-in...' : 'Hỏi về giá sân, giờ mở, cọc, QR check-in...'}
               disabled={loading}
               style={{
                 flex: 1,

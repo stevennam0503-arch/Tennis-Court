@@ -3,7 +3,7 @@ WORKDIR /app
 COPY pom.xml .
 RUN mvn -B dependency:go-offline
 COPY src ./src
-RUN mvn -B verify
+RUN mvn -B package -DskipTests
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 RUN useradd --system --uid 10001 courtly

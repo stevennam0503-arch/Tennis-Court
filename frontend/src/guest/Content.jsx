@@ -2029,7 +2029,7 @@ export function Feedback() {
           </h2>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: 16 }}>
+        <div className="gx-promise-grid">
           {[
             {
               icon: '🧹',

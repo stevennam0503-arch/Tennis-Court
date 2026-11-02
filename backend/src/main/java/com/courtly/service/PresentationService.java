@@ -146,7 +146,7 @@ public class PresentationService {
               .reduce(BigDecimal.ZERO, BigDecimal::add);
       var total = decimal(o.get("total"));
       var paid = decimal(o.get("paid"));
-      boolean ended = Set.of("CANCELLED", "EXPIRED").contains(o.get("status"));
+      boolean ended = Set.of("CANCELLED", "EXPIRED", "NO_SHOW").contains(o.get("status"));
       var excess = paid.subtract(total).max(BigDecimal.ZERO);
       var review = o.get("financialReview");
       boolean policyRetained = o.get("cancellationSettlement") instanceof Map<?, ?> settlement

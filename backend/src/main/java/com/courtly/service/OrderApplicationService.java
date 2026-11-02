@@ -277,6 +277,10 @@ public class OrderApplicationService {
                 text((String) b.get("reason"), "Lý do check-in ngoại lệ");
               service.checkIn(id, visitDate);
             }
+            case "no-show" -> {
+              support.cashier(a);
+              service.noShow(id, (String) b.get("reason"));
+            }
             case "check-out" -> service.checkOut(id);
             case "legacy-staff" ->
                 service.verifyLegacy(

@@ -43,22 +43,26 @@ export default function EntityDialog({ collection, row = {}, onClose }) {
   const choose = list => list.map(x => ({value:x.id,label:x.name}));
   let fields = [], defaults = {};
 
+  const getCategoryPrice = (t) => {
+    const found = (data.courts || []).find(c => c.type === t && c.status !== 'DELETED' && c.price);
+    if (found) return Number(found.price);
+    if (t === 'VIP') return 400000;
+    if (t === 'INDOOR') return 240000;
+    return 160000;
+  };
+
   if (collection === 'courts') {
-    const CATEGORY_PRICES = {
-      OUTDOOR: 160000,
-      INDOOR: 240000,
-      VIP: 400000
-    };
     const initialType = row.type || 'OUTDOOR';
-    const autoName = getNextCourtName(initialType, data.courts);
+    const autoName = getNextCourtName(initialType, data.courts, row.id);
+    const initialPrice = row.id ? (row.price || getCategoryPrice(initialType)) : getCategoryPrice(initialType);
     fields = [
       f('name','Tên sân (tự động tăng STT)','text',{placeholder: autoName}),
       s('type','Loại sân',[
-        {value:'OUTDOOR',label:'Sân ngoài trời (Thoáng đãng - Khu A · Chuẩn: 160.000₫/h)'},
-        {value:'INDOOR',label:'Sân trong nhà (Mái che & đèn LED - Khu B · Chuẩn: 240.000₫/h)'},
-        {value:'VIP',label:'Sân VIP (Lounge riêng & cao cấp - Khu V · Chuẩn: 400.000₫/h)'}
+        {value:'OUTDOOR',label:'Sân ngoài trời (Khu A)'},
+        {value:'INDOOR',label:'Sân trong nhà (Khu B)'},
+        {value:'VIP',label:'Sân VIP Clubhouse (Khu V)'}
       ]),
-      f('price','Giá cơ bản / giờ (₫)','number',{min:1}),
+      f('price','Giá niêm yết phân khu / giờ (₫)','number',{readOnly: true, title: 'Giá cố định đồng bộ theo phân khu sân'}),
       s('status','Trạng thái',options(['ACTIVE','MAINTENANCE','INACTIVE'])),
       f('description','Mô tả sân','textarea',{full:true,required:false,maxLength:2000}),
       f('address','Địa chỉ sân (để trống dùng địa chỉ CLB)','text',{full:true,required:false,maxLength:400}),
@@ -69,7 +73,7 @@ export default function EntityDialog({ collection, row = {}, onClose }) {
     defaults = {
       name: row.id ? '' : autoName,
       type: initialType,
-      price: CATEGORY_PRICES[initialType] || 160000,
+      price: initialPrice,
       status: 'ACTIVE',
       description: '',
       address: '',
@@ -99,15 +103,10 @@ export default function EntityDialog({ collection, row = {}, onClose }) {
   const handleFormChange = (nextValues, changedField) => {
     if (collection === 'courts' && changedField === 'type') {
       const generated = getNextCourtName(nextValues.type, data.courts, row.id);
-      const CATEGORY_PRICES = {
-        OUTDOOR: 160000,
-        INDOOR: 240000,
-        VIP: 400000
-      };
       return {
         ...nextValues,
         name: generated,
-        price: CATEGORY_PRICES[nextValues.type] || 160000
+        price: getCategoryPrice(nextValues.type)
       };
     }
     return nextValues;
@@ -127,8 +126,13 @@ export default function EntityDialog({ collection, row = {}, onClose }) {
       }
     }
     // Send only the catalog DTO fields, never view-only ids or calculated columns.
-    const body=Object.fromEntries(fields.map(f=>[f.name,values[f.name]]));if(collection==='courts')body.imageIsIllustration=String(values.imageIsIllustration??true)==='true';
+    const body=Object.fromEntries(fields.map(f=>[f.name,values[f.name]]));
+    if(collection==='courts') {
+      const courtType = values.type || row.type || 'OUTDOOR';
+      body.price = getCategoryPrice(courtType);
+      body.imageIsIllustration = String(values.imageIsIllustration ?? true) === 'true';
+    }
     await mutate(`/catalog/${collection}${row.id ? '/'+row.id : ''}`,body,row.id?'PUT':'POST');
     notify('Đã lưu thông tin'); onClose();
-  }}>{collection==='courts'&&!row.id&&<div className="notice" style={{marginBottom:18}}>Tên sân được tự động đánh số thứ tự tiếp theo theo phân khu (A: Ngoài trời, B: Trong nhà, V: VIP). Bạn có thể đổi loại sân để tự nhảy mã sân tương ứng.</div>}{collection==='accounts'&&<div className="notice" style={{marginBottom:18}}>Khách đăng nhập bằng đúng email này sẽ nhận quyền đã cấp. Email đã liên kết đăng nhập được giữ cố định. Chủ Site không thể bị khóa hoặc hạ quyền.</div>}{collection==='prices' && <div className="notice" style={{marginBottom:18}}>Giá áp dụng khi sinh lịch mới. Các slot đã sinh giữ giá đã chụp.</div>}{collection==='staff-schedules' && <div className="notice" style={{marginBottom:18}}>Thêm mới sẽ chia khoảng thời gian thành từng slot 30 phút.</div>}</FormDialog>;
+  }} />;
 }

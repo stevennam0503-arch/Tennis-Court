@@ -70,9 +70,7 @@ export default function SystemPage() {
 
       {tab === 'modules' && (
         <>
-          <div className="notice" style={{ marginBottom: 20 }}>
-            Hệ thống đã hỗ trợ đăng ký/đăng nhập email + mật khẩu, quên mật khẩu gửi mã 6 số về email và hiện/ẩn mật khẩu an toàn. Thanh toán VietQR Napas 24/7 và webhook đối soát tự động đang hoạt động. Các nhãn bên dưới thể hiện phạm vi đã triển khai.
-          </div>
+          
           <Panel title="50 module từ tài liệu">
             <Table headings={['#', 'Module', 'Phạm vi', 'Ưu tiên']}>
               {modules.map(m => (
