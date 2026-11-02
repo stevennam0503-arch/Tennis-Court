@@ -84,6 +84,65 @@ export default function CourtsPage() {
 
       {tab === 'courts' && (
         <>
+          {/* BẢNG GIÁ TIÊU CHUẨN 3 PHÂN KHU */}
+          <div style={{
+            background: 'linear-gradient(135deg, #173c32 0%, #1e4d40 100%)',
+            color: '#ffffff',
+            borderRadius: 14,
+            padding: '20px 24px',
+            marginBottom: 20,
+            boxShadow: '0 4px 16px rgba(23,60,50,0.12)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
+              <div>
+                <strong style={{ fontSize: 16, color: '#def46a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  ⚡ Biểu giá tiêu chuẩn 3 phân khu sân Courtly
+                </strong>
+                <p style={{ margin: '4px 0 0', fontSize: 12.5, color: '#e0ece4', lineHeight: 1.5 }}>
+                  Khi thêm sân mới, hệ thống tự động gán giá tiêu chuẩn theo phân loại. Giá cơ bản sẽ tự động quy đổi thành 6 khung giờ thực tế trên bảng giá và lịch đặt sân.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+              <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 16px', border: '1px solid rgba(255,255,255,0.12)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#86efac' }}>Khu A · Ngoài trời</span>
+                  <span style={{ background: '#22c55e', color: '#052e16', fontSize: 11, fontWeight: 800, padding: '1px 7px', borderRadius: 10 }}>160.000₫/h</span>
+                </div>
+                <div style={{ fontSize: 11.5, color: '#cbd5e1', marginTop: 6, lineHeight: 1.5 }}>
+                  • Giờ vàng (09:00–16:00): <b>120.000₫</b> (-25%)<br/>
+                  • Tối đèn LED (18:00–21:00): <b>224.000₫</b> (+40%)<br/>
+                  • Cuối tuần: <b>200.000₫ – 240.000₫</b>
+                </div>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 16px', border: '1px solid rgba(255,255,255,0.12)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#93c5fd' }}>Khu B · Trong nhà (Mái che)</span>
+                  <span style={{ background: '#38bdf8', color: '#082f49', fontSize: 11, fontWeight: 800, padding: '1px 7px', borderRadius: 10 }}>240.000₫/h</span>
+                </div>
+                <div style={{ fontSize: 11.5, color: '#cbd5e1', marginTop: 6, lineHeight: 1.5 }}>
+                  • Giờ vàng (09:00–16:00): <b>180.000₫</b> (-25%)<br/>
+                  • Tối đèn LED (18:00–21:00): <b>336.000₫</b> (+40%)<br/>
+                  • Cuối tuần: <b>300.000₫ – 360.000₫</b>
+                </div>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 16px', border: '1px solid rgba(255,255,255,0.12)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#fde047' }}>Khu V · VIP Clubhouse</span>
+                  <span style={{ background: '#facc15', color: '#422006', fontSize: 11, fontWeight: 800, padding: '1px 7px', borderRadius: 10 }}>400.000₫/h</span>
+                </div>
+                <div style={{ fontSize: 11.5, color: '#cbd5e1', marginTop: 6, lineHeight: 1.5 }}>
+                  • Giờ vàng (09:00–16:00): <b>300.000₫</b> (-25%)<br/>
+                  • Tối đèn LED (18:00–21:00): <b>560.000₫</b> (+40%)<br/>
+                  • Cuối tuần: <b>500.000₫ – 600.000₫</b>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* 3 Core Court Types Tabs */}
           <div className="tabs" style={{ marginBottom: 18 }}>
             {[

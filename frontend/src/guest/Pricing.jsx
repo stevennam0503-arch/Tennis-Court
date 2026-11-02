@@ -23,8 +23,8 @@ import { WEEK_DAYS, getCourtMatrix } from './pricing.mjs';
 
 const ZONE_DEFAULTS = {
   A: { name: 'Sân Ngoài Trời', Icon: Sun, defaultMin: 120000, desc: 'Thoáng mát, rợp bóng cây, đèn LED 500 Lux' },
-  B: { name: 'Mái Che Trong Nhà', Icon: House, defaultMin: 150000, desc: 'Mái vòm kiên cố, đệm Pro-Cushion, quạt thông gió' },
-  V: { name: 'Sân VIP Clubhouse', Icon: Crown, defaultMin: 250000, desc: 'Phòng chờ riêng, sofa sang trọng & minibar miễn phí' }
+  B: { name: 'Mái Che Trong Nhà', Icon: House, defaultMin: 180000, desc: 'Mái vòm kiên cố, đệm Pro-Cushion, quạt thông gió' },
+  V: { name: 'Sân VIP Clubhouse', Icon: Crown, defaultMin: 300000, desc: 'Phòng chờ riêng, sofa sang trọng & minibar miễn phí' }
 };
 
 export default function Pricing() {

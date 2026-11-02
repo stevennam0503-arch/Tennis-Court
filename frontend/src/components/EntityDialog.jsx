@@ -44,14 +44,19 @@ export default function EntityDialog({ collection, row = {}, onClose }) {
   let fields = [], defaults = {};
 
   if (collection === 'courts') {
+    const CATEGORY_PRICES = {
+      OUTDOOR: 160000,
+      INDOOR: 240000,
+      VIP: 400000
+    };
     const initialType = row.type || 'OUTDOOR';
     const autoName = getNextCourtName(initialType, data.courts);
     fields = [
       f('name','Tên sân (tự động tăng STT)','text',{placeholder: autoName}),
       s('type','Loại sân',[
-        {value:'OUTDOOR',label:'Sân ngoài trời (Thoáng đãng - Khu A)'},
-        {value:'INDOOR',label:'Sân trong nhà (Mái che & đèn LED - Khu B)'},
-        {value:'VIP',label:'Sân VIP (Lounge riêng & cao cấp - Khu V)'}
+        {value:'OUTDOOR',label:'Sân ngoài trời (Thoáng đãng - Khu A · Chuẩn: 160.000₫/h)'},
+        {value:'INDOOR',label:'Sân trong nhà (Mái che & đèn LED - Khu B · Chuẩn: 240.000₫/h)'},
+        {value:'VIP',label:'Sân VIP (Lounge riêng & cao cấp - Khu V · Chuẩn: 400.000₫/h)'}
       ]),
       f('price','Giá cơ bản / giờ (₫)','number',{min:1}),
       s('status','Trạng thái',options(['ACTIVE','MAINTENANCE','INACTIVE'])),
@@ -64,7 +69,7 @@ export default function EntityDialog({ collection, row = {}, onClose }) {
     defaults = {
       name: row.id ? '' : autoName,
       type: initialType,
-      price: 200000,
+      price: CATEGORY_PRICES[initialType] || 160000,
       status: 'ACTIVE',
       description: '',
       address: '',
@@ -94,7 +99,16 @@ export default function EntityDialog({ collection, row = {}, onClose }) {
   const handleFormChange = (nextValues, changedField) => {
     if (collection === 'courts' && changedField === 'type') {
       const generated = getNextCourtName(nextValues.type, data.courts, row.id);
-      return { ...nextValues, name: generated };
+      const CATEGORY_PRICES = {
+        OUTDOOR: 160000,
+        INDOOR: 240000,
+        VIP: 400000
+      };
+      return {
+        ...nextValues,
+        name: generated,
+        price: CATEGORY_PRICES[nextValues.type] || 160000
+      };
     }
     return nextValues;
   };
