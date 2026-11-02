@@ -28073,7 +28073,7 @@ import {
   AlertCircle, AlertTriangle, Users, DollarSign, Eye, Calendar, Sparkles
 } from 'lucide-react';
 import { useCourtly } from '../context';
-import { Title, Panel, Button, Chip, Table } from '../components/UI';
+import { Title, Panel, Button, Chip, Table, OrderStatusChip } from '../components/UI';
 import { money, today, slotLabel } from '../utils/format';
 
 export function getOrderTiming(order, currentToday) {
