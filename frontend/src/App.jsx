@@ -13,6 +13,7 @@ import MembershipPage from './pages/MembershipPage';
 import MembershipAdminPage from './pages/MembershipAdminPage';
 import InformationPage from './pages/InformationPage';
 import ContentAdminPage from './pages/ContentAdminPage';
+import {UserAvatar} from './components/UserAvatar';
 import DialogHost from './components/DialogHost';
 import CustomerDialogs from './components/CustomerDialogs';
 import CustomerPage from './pages/CustomerPage';
@@ -219,23 +220,15 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
       boxSizing: 'border-box'
     }}
   >
-    <div
+    <UserAvatar
+      user={user}
+      size={34}
+      dark={safeRoute !== 'profile'}
       style={{
-        width: 34,
-        height: 34,
-        minWidth: 34,
-        borderRadius: '50%',
         background: safeRoute === 'profile' ? '#173c32' : '#2d5849',
-        color: 'var(--lime)',
-        display: 'grid',
-        placeItems: 'center',
-        fontWeight: 800,
-        fontSize: 13,
-        flexShrink: 0
+        color: safeRoute === 'profile' ? 'var(--lime)' : 'var(--lime)'
       }}
-    >
-      {user.name.slice(0, 1).toUpperCase()}
-    </div>
+    />
     <div style={{ minWidth: 0, flex: 1 }}>
       <div
         style={{

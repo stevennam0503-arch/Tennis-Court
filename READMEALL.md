@@ -10930,6 +10930,7 @@ import MembershipPage from './pages/MembershipPage';
 import MembershipAdminPage from './pages/MembershipAdminPage';
 import InformationPage from './pages/InformationPage';
 import ContentAdminPage from './pages/ContentAdminPage';
+import {UserAvatar} from './components/UserAvatar';
 import DialogHost from './components/DialogHost';
 import CustomerDialogs from './components/CustomerDialogs';
 import CustomerPage from './pages/CustomerPage';
@@ -11136,23 +11137,15 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
       boxSizing: 'border-box'
     }}
   >
-    <div
+    <UserAvatar
+      user={user}
+      size={34}
+      dark={safeRoute !== 'profile'}
       style={{
-        width: 34,
-        height: 34,
-        minWidth: 34,
-        borderRadius: '50%',
         background: safeRoute === 'profile' ? '#173c32' : '#2d5849',
-        color: 'var(--lime)',
-        display: 'grid',
-        placeItems: 'center',
-        fontWeight: 800,
-        fontSize: 13,
-        flexShrink: 0
+        color: safeRoute === 'profile' ? 'var(--lime)' : 'var(--lime)'
       }}
-    >
-      {user.name.slice(0, 1).toUpperCase()}
-    </div>
+    />
     <div style={{ minWidth: 0, flex: 1 }}>
       <div
         style={{
@@ -17824,6 +17817,7 @@ import { ArrowUpRight, Menu, LogOut, ChevronDown, Phone, Mail, MapPin, Clock, Be
 import { money, today as dateToday } from '../utils/format';
 import {useGuest} from './context';
 import {customerNavigation} from '../navigation';
+import {UserAvatar} from '../components/UserAvatar';
 export function Logo(){const {navigate,t}=useGuest();return <button className="ct-logo" onClick={()=>navigate('about')} aria-label={t('Courtly trang chủ')}><img src="/favicon.svg" width="38" height="38" alt=""/><span className="ct-original-wordmark">Courtly<em>TENNIS CLUB</em></span></button>;}
 
 export function CustomerNotifications() {
@@ -18246,7 +18240,7 @@ export function CustomerNotifications() {
   );
 }
 
-export function Header(){const {t,lang,setLang,user,navigate,route,login,logout}=useGuest();const [open,setOpen]=useState(false);const links=customerNavigation.map(({id,label})=>[id,label]);return <><div className="ct-prototype"><span>COURTLY · TENNIS CLUB</span><span>{t('MỖI LẦN RA SÂN, MỘT NIỀM VUI.')}</span></div><header className="ct-header ct-original-header"><Logo/><nav id="guest-primary-navigation" className={open?'gx-nav-open':''} aria-label={t('Điều hướng chính')}>{links.map(([id,label])=><button key={id} data-nav={id} data-primary={['pricing','booking','tournaments','membership'].includes(id)?'true':undefined} aria-current={route===id?'page':undefined} onClick={()=>{navigate(id);setOpen(false)}}>{t(label)}</button>)}</nav><div className="cl-header-tools"><div className="cl-language">{['vi','en'].map(l=><button key={l} lang={l} onClick={()=>setLang(l)} aria-pressed={lang===l}>{l.toUpperCase()}</button>)}</div><div className="cl-header-divider" aria-hidden="true"/><CustomerNotifications/>{user?<details className="ct-account-menu"><summary className="ct-account"><span className="ca-avatar">{user.name?.slice(0,1)}</span><span className="gx-user-name">{user.name}</span><ChevronDown/></summary><div>{[['profile','Hồ sơ của tôi'],['orders','Đơn của tôi'],['history','Lịch sử đặt sân'],['payments','Lịch sử thanh toán'],['membership','Membership của tôi']].map(([id,label])=><button key={id} onClick={e=>{e.currentTarget.closest('details').open=false;navigate(id)}}>{t(label)}</button>)}{['ADMIN','STAFF'].includes(user.role)&&<button onClick={e=>{e.currentTarget.closest('details').open=false;navigate('cashdesk')}}>{t('Thu tiền tại quầy')}</button>}{['ADMIN','STAFF'].includes(user.role)&&<a href="/app">{user.role==='ADMIN'?t('Quản trị'):t('Vận hành')}</a>}<button onClick={logout}>{t('Đăng xuất')} <LogOut/></button></div></details>:<div className="ct-header-auth-group"><button className="ca-login-button" onClick={()=>login('login')}>{t('Đăng nhập')}</button></div>}<button className="gx-menu" aria-label={t('Mở menu')} aria-controls="guest-primary-navigation" aria-expanded={open} onClick={()=>setOpen(!open)}><Menu/></button></div></header></>;}
+export function Header(){const {t,lang,setLang,user,navigate,route,login,logout}=useGuest();const [open,setOpen]=useState(false);const links=customerNavigation.map(({id,label})=>[id,label]);return <><div className="ct-prototype"><span>COURTLY · TENNIS CLUB</span><span>{t('MỖI LẦN RA SÂN, MỘT NIỀM VUI.')}</span></div><header className="ct-header ct-original-header"><Logo/><nav id="guest-primary-navigation" className={open?'gx-nav-open':''} aria-label={t('Điều hướng chính')}>{links.map(([id,label])=><button key={id} data-nav={id} data-primary={['pricing','booking','tournaments','membership'].includes(id)?'true':undefined} aria-current={route===id?'page':undefined} onClick={()=>{navigate(id);setOpen(false)}}>{t(label)}</button>)}</nav><div className="cl-header-tools"><div className="cl-language">{['vi','en'].map(l=><button key={l} lang={l} onClick={()=>setLang(l)} aria-pressed={lang===l}>{l.toUpperCase()}</button>)}</div><div className="cl-header-divider" aria-hidden="true"/><CustomerNotifications/>{user?<details className="ct-account-menu"><summary className="ct-account"><UserAvatar user={user} size={34} className="ca-avatar"/><span className="gx-user-name">{user.name}</span><ChevronDown/></summary><div>{[['profile','Hồ sơ của tôi'],['orders','Đơn của tôi'],['history','Lịch sử đặt sân'],['payments','Lịch sử thanh toán'],['membership','Membership của tôi']].map(([id,label])=><button key={id} onClick={e=>{e.currentTarget.closest('details').open=false;navigate(id)}}>{t(label)}</button>)}{['ADMIN','STAFF'].includes(user.role)&&<button onClick={e=>{e.currentTarget.closest('details').open=false;navigate('cashdesk')}}>{t('Thu tiền tại quầy')}</button>}{['ADMIN','STAFF'].includes(user.role)&&<a href="/app">{user.role==='ADMIN'?t('Quản trị'):t('Vận hành')}</a>}<button onClick={logout}>{t('Đăng xuất')} <LogOut/></button></div></details>:<div className="ct-header-auth-group"><button className="ca-login-button" onClick={()=>login('login')}>{t('Đăng nhập')}</button></div>}<button className="gx-menu" aria-label={t('Mở menu')} aria-controls="guest-primary-navigation" aria-expanded={open} onClick={()=>setOpen(!open)}><Menu/></button></div></header></>;}
 export function Footer(){
   const {t,navigate,club,lang,setLang}=useGuest();
   const servicesLinks=[
@@ -23364,10 +23358,11 @@ import React from 'react';
 import {ArrowUpRight} from 'lucide-react';
 import {Button} from './UI';
 import {customerNavigation,customerFooterLinks} from '../navigation';
+import {UserAvatar} from './UserAvatar';
 export const publicLinks=customerNavigation.map(({href,label})=>[href,label]);
 export const publicFooterLinks=(customerFooterLinks||customerNavigation).map(({href,label})=>[href,label]);
 export function PublicHeader({onLogin,user,active,onLogout}){
- return <header className="public-header"><a className="brand" href="/" aria-label="Courtly trang chủ"><img src="/favicon.svg" width="38" height="38" alt=""/><div>Courtly<em>TENNIS CLUB</em></div></a><nav aria-label="Điều hướng chính">{publicLinks.map(([href,label])=><a key={href} href={href} aria-current={active===href?'page':undefined}>{label}</a>)}</nav>{user?<div className="public-account">{['ADMIN','STAFF'].includes(user.role)&&<a className="btn" href="/app#operations">{user.role==='ADMIN'?'Quản trị':'Vận hành'}</a>}{user.role==='ADMIN'?<a className="avatar-button" aria-label="Hồ sơ của tôi" href="/app#profile"><span className="avatar">{(user.name||'T').slice(0,1).toUpperCase()}</span><span>Tài khoản</span></a>:<details className="customer-avatar-menu"><summary className="avatar-button"><span className="avatar">{(user.name||'T').slice(0,1).toUpperCase()}</span><span>Tài khoản</span></summary><div>{[['profile','Hồ sơ của tôi'],['profile-orders','Đơn của tôi'],['profile-history','Lịch sử đặt sân'],['profile-payments','Lịch sử thanh toán'],['profile-membership','Membership của tôi']].map(([route,label])=><a key={route} href={'/app#'+route} onClick={e=>e.currentTarget.closest('details').removeAttribute('open')}>{label}</a>)}{onLogout&&<button type="button" onClick={onLogout}>Đăng xuất</button>}</div></details>}</div>:<Button className="primary" onClick={()=>onLogin('login')}>Đăng nhập</Button>}</header>;
+ return <header className="public-header"><a className="brand" href="/" aria-label="Courtly trang chủ"><img src="/favicon.svg" width="38" height="38" alt=""/><div>Courtly<em>TENNIS CLUB</em></div></a><nav aria-label="Điều hướng chính">{publicLinks.map(([href,label])=><a key={href} href={href} aria-current={active===href?'page':undefined}>{label}</a>)}</nav>{user?<div className="public-account">{['ADMIN','STAFF'].includes(user.role)&&<a className="btn" href="/app#operations">{user.role==='ADMIN'?'Quản trị':'Vận hành'}</a>}{user.role==='ADMIN'?<a className="avatar-button" aria-label="Hồ sơ của tôi" href="/app#profile"><UserAvatar user={user} size={30} className="avatar"/><span>Tài khoản</span></a>:<details className="customer-avatar-menu"><summary className="avatar-button"><UserAvatar user={user} size={30} className="avatar"/><span>Tài khoản</span></summary><div>{[['profile','Hồ sơ của tôi'],['profile-orders','Đơn của tôi'],['profile-history','Lịch sử đặt sân'],['profile-payments','Lịch sử thanh toán'],['profile-membership','Membership của tôi']].map(([route,label])=><a key={route} href={'/app#'+route} onClick={e=>e.currentTarget.closest('details').removeAttribute('open')}>{label}</a>)}{onLogout&&<button type="button" onClick={onLogout}>Đăng xuất</button>}</div></details>}</div>:<Button className="primary" onClick={()=>onLogin('login')}>Đăng nhập</Button>}</header>;
 }
 export function PublicFooter(){return <footer className="public-footer content-footer"><div><a className="footer-brand" href="/">Courtly · Tennis Club</a><p>Chủ động lịch chơi, sẵn sàng ra sân.</p></div><nav aria-label="Điều hướng cuối trang">{publicFooterLinks.filter(([href])=>href!=='/dat-san').map(([href,label])=><a key={href} href={href}>{label}</a>)}</nav><a className="footer-book" href="/dat-san">Hẹn nhau trên sân <ArrowUpRight size={18}/></a></footer>;}
 ```
@@ -24109,6 +24104,110 @@ export function FormDialog({ title, fields, initial = {}, onSubmit, onClose, chi
     })}</div></form>{error && <div className="error" role="alert">{error}</div>}
   </Modal>;
 }
+```
+
+#### File: `frontend/src/components/UserAvatar.jsx`
+```jsx
+import React, { useState } from 'react';
+import { useUserAvatar } from '../utils/avatar.mjs';
+
+export function UserAvatar({
+  user,
+  avatar: explicitAvatar,
+  size = 34,
+  dark = false,
+  className = '',
+  style = {},
+  alt = ''
+}) {
+  const dynamicAvatar = useUserAvatar(user);
+  const avatar = explicitAvatar !== undefined ? explicitAvatar : dynamicAvatar;
+  const [imageError, setImageError] = useState(false);
+
+  const name = user?.name || user?.fullName || 'Người dùng';
+  const initial = (name.trim().charAt(0) || 'U').toUpperCase();
+
+  const isImage =
+    !imageError &&
+    avatar &&
+    (avatar.startsWith('data:image/') ||
+      avatar.startsWith('http://') ||
+      avatar.startsWith('https://') ||
+      avatar.startsWith('/'));
+
+  if (isImage) {
+    return (
+      <img
+        src={avatar}
+        alt={alt || name}
+        onError={() => setImageError(true)}
+        className={`user-avatar-img ${className}`}
+        style={{
+          width: size,
+          height: size,
+          minWidth: size,
+          borderRadius: '50%',
+          objectFit: 'cover',
+          display: 'block',
+          boxShadow: dark ? '0 0 0 1px rgba(255, 255, 255, 0.2)' : '0 1px 3px rgba(0, 0, 0, 0.1)',
+          ...style
+        }}
+      />
+    );
+  }
+
+  if (avatar && !isImage) {
+    return (
+      <div
+        className={`user-avatar-preset ${className}`}
+        title={alt || name}
+        style={{
+          width: size,
+          height: size,
+          minWidth: size,
+          borderRadius: '50%',
+          display: 'grid',
+          placeItems: 'center',
+          fontSize: Math.round(size * 0.52),
+          lineHeight: 1,
+          userSelect: 'none',
+          background: dark ? 'rgba(255, 255, 255, 0.12)' : '#eef5f1',
+          border: dark ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid #d0dfd6',
+          ...style
+        }}
+      >
+        <span>{avatar}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`user-avatar-initial ${className}`}
+      title={alt || name}
+      style={{
+        width: size,
+        height: size,
+        minWidth: size,
+        borderRadius: '50%',
+        display: 'grid',
+        placeItems: 'center',
+        fontWeight: 800,
+        fontSize: Math.max(12, Math.round(size * 0.4)),
+        lineHeight: 1,
+        color: dark ? 'var(--lime, #def46a)' : '#173c32',
+        background: dark ? '#2d5849' : '#e2ede6',
+        flexShrink: 0,
+        userSelect: 'none',
+        ...style
+      }}
+    >
+      {initial}
+    </div>
+  );
+}
+
+export default UserAvatar;
 ```
 
 ### 7.4 Admin & Operations Pages
@@ -29913,13 +30012,182 @@ import React,{useState,useEffect} from 'react';
 import {CourtlyContext,useCourtly} from '../context';
 import PasswordForm from '../components/PasswordForm';
 import {Title,Panel,Chip,Tabs} from '../components/UI';
+import {UserAvatar} from '../components/UserAvatar';
+import {AVATAR_PRESETS,getStoredAvatar,saveStoredAvatar,resizeImageFile} from '../utils/avatar.mjs';
+
 export function PersonalDetails(){
- const {user,mutate,notify}=useCourtly();const [name,setName]=useState(user.name),[phone,setPhone]=useState(user.phone||''),[error,setError]=useState(''),[saving,setSaving]=useState(false);
- useEffect(()=>{setName(user.name);setPhone(user.phone||'');},[user.name,user.phone]);
- return <><Title subtitle="Thông tin dùng khi đặt sân và đăng ký giải.">Hồ sơ của tôi</Title><div className="profile-grid"><Panel title="Thông tin cá nhân"><form className="panel-body" onSubmit={async e=>{e.preventDefault();if(saving)return;setSaving(true);setError('');try{await mutate('/profile',{name,phone},'PATCH');notify('Đã cập nhật hồ sơ');}catch(e){setError(e.message);}finally{setSaving(false);}}}><div className="form-grid"><div className="field"><label htmlFor="profile-name">Họ và tên</label><input id="profile-name" required maxLength={100} value={name} onChange={e=>setName(e.target.value)}/></div><div className="field"><label htmlFor="profile-phone">Số điện thoại</label><input id="profile-phone" type="tel" maxLength={30} value={phone} onChange={e=>setPhone(e.target.value)}/></div><div className="field full"><label htmlFor="profile-email">Email đăng nhập</label><input id="profile-email" value={user.email} readOnly/><small>Email dùng để đăng nhập tài khoản Courtly.</small></div></div>{error&&<div className="error" role="alert">{error}</div>}<button className="btn primary" style={{marginTop:24}} disabled={saving}>{saving?'Đang lưu…':'Lưu hồ sơ'}</button></form></Panel><Panel title="Quyền truy cập"><div className="panel-body"><Chip status={user.role}/><p className="subtitle" style={{marginTop:14}}>{user.role==='ADMIN'?'Bạn có quyền quản lý vận hành câu lạc bộ, tài khoản và giao dịch.':'Bạn có thể đặt sân, xem và đổi/hủy đơn của mình trước khi check-in, đăng ký giải và cập nhật hồ sơ.'}</p>{user.isOwner&&<p className="notice" style={{marginTop:18}}>Bạn là chủ Site. Quyền quản trị của tài khoản này được bảo vệ.</p>}</div></Panel></div><PasswordForm/></>;
+ const {user,mutate,notify}=useCourtly();
+ const userId=user.id||user.accountId||user.email||'me';
+ const [name,setName]=useState(user.name);
+ const [phone,setPhone]=useState(user.phone||'');
+ const [avatar,setAvatar]=useState(()=>user.avatarUrl||user.avatar||getStoredAvatar(userId));
+ const [error,setError]=useState('');
+ const [saving,setSaving]=useState(false);
+
+ useEffect(()=>{
+  setName(user.name);
+  setPhone(user.phone||'');
+  setAvatar(user.avatarUrl||user.avatar||getStoredAvatar(userId));
+ },[user.name,user.phone,userId]);
+
+ const handleSubmit=async(e)=>{
+  e.preventDefault();
+  if(saving)return;
+  setSaving(true);
+  setError('');
+  try{
+   await mutate('/profile',{name,phone},'PATCH');
+   saveStoredAvatar(userId,avatar);
+   notify('Đã cập nhật hồ sơ và ảnh đại diện');
+  }catch(err){
+   setError(err.message||'Có lỗi xảy ra khi lưu hồ sơ');
+  }finally{
+   setSaving(false);
+  }
+ };
+
+ return (
+  <>
+   <Title subtitle="Thông tin dùng khi đặt sân và đăng ký giải.">Hồ sơ của tôi</Title>
+   <div className="profile-grid">
+    <Panel title="Thông tin cá nhân & Ảnh đại diện">
+     <form className="panel-body" onSubmit={handleSubmit}>
+      <div style={{display:'flex',gap:20,alignItems:'center',marginBottom:22,paddingBottom:20,borderBottom:'1px solid var(--line)'}}>
+       <UserAvatar user={{...user,name}} avatar={avatar} size={78}/>
+       <div style={{flex:1}}>
+        <div style={{fontWeight:700,fontSize:15,marginBottom:4}}>Ảnh đại diện</div>
+        <p style={{color:'var(--muted)',fontSize:13,margin:'0 0 10px 0'}}>
+         Tải ảnh từ thiết bị hoặc chọn biểu tượng thể thao Courtly.
+        </p>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+         <label className="btn sm" style={{cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6}}>
+          <span>📷</span> Tải ảnh từ máy
+          <input
+           type="file"
+           accept="image/png,image/jpeg,image/webp,image/jpg"
+           style={{display:'none'}}
+           onChange={async e=>{
+            const file=e.target.files?.[0];
+            if(!file)return;
+            try{
+             const resized=await resizeImageFile(file,256,256);
+             setAvatar(resized);
+            }catch(err){
+             setError(err.message);
+            }
+           }}
+          />
+         </label>
+         {avatar&&(
+          <button
+           type="button"
+           className="btn sm"
+           onClick={()=>setAvatar(null)}
+           style={{color:'#ef4444',borderColor:'#fca5a5'}}
+          >
+           Xóa ảnh
+          </button>
+         )}
+        </div>
+       </div>
+      </div>
+
+      <div style={{marginBottom:22}}>
+       <label style={{display:'block',fontSize:13,fontWeight:600,marginBottom:8}}>
+        Biểu tượng đại diện nhanh:
+       </label>
+       <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+        {AVATAR_PRESETS.map(p=>(
+         <button
+          key={p.id}
+          type="button"
+          onClick={()=>setAvatar(p.icon)}
+          title={p.label}
+          style={{
+           width:40,
+           height:40,
+           borderRadius:'50%',
+           border:avatar===p.icon?'2px solid var(--green)':'1px solid #d0dfd6',
+           background:avatar===p.icon?'#e8f5e9':'#fff',
+           fontSize:20,
+           display:'grid',
+           placeItems:'center',
+           cursor:'pointer',
+           transition:'all 0.15s ease',
+           boxShadow:avatar===p.icon?'0 0 0 2px rgba(46,125,50,0.2)':'none'
+          }}
+         >
+          {p.icon}
+         </button>
+        ))}
+       </div>
+      </div>
+
+      <div className="form-grid">
+       <div className="field">
+        <label htmlFor="profile-name">Họ và tên</label>
+        <input id="profile-name" required maxLength={100} value={name} onChange={e=>setName(e.target.value)}/>
+       </div>
+       <div className="field">
+        <label htmlFor="profile-phone">Số điện thoại</label>
+        <input id="profile-phone" type="tel" maxLength={30} value={phone} onChange={e=>setPhone(e.target.value)}/>
+       </div>
+       <div className="field full">
+        <label htmlFor="profile-email">Email đăng nhập</label>
+        <input id="profile-email" value={user.email} readOnly/>
+        <small>Email dùng để đăng nhập tài khoản Courtly.</small>
+       </div>
+      </div>
+
+      {error&&<div className="error" role="alert" style={{marginTop:12}}>{error}</div>}
+      <button className="btn primary" style={{marginTop:24}} disabled={saving}>
+       {saving?'Đang lưu…':'Lưu hồ sơ'}
+      </button>
+     </form>
+    </Panel>
+
+    <Panel title="Quyền truy cập">
+     <div className="panel-body">
+      <Chip status={user.role}/>
+      <p className="subtitle" style={{marginTop:14}}>
+       {user.role==='ADMIN'?'Bạn có quyền quản lý vận hành câu lạc bộ, tài khoản và giao dịch.':'Bạn có thể đặt sân, xem và đổi/hủy đơn của mình trước khi check-in, đăng ký giải và cập nhật hồ sơ.'}
+      </p>
+      {user.isOwner&&<p className="notice" style={{marginTop:18}}>Bạn là chủ Site. Quyền quản trị của tài khoản này được bảo vệ.</p>}
+     </div>
+    </Panel>
+   </div>
+   <PasswordForm/>
+  </>
+ );
 }
 
-export default function ProfilePage({tab='info',initialPlan}){const {navigate,data,user}=useCourtly(),isAdmin=user.role==='ADMIN';const mine={...data,orders:isAdmin?data.orders.filter(o=>o.ownerUserId?o.ownerUserId===user.id:o.accountId===user.accountId):data.orders,registrations:isAdmin?data.registrations.filter(r=>r.ownerUserId?r.ownerUserId===user.id:r.accountId===user.accountId):data.registrations};const ids=new Set(mine.orders.map(o=>o.id)),regs=new Set(mine.registrations.map(r=>r.id));mine.payments=data.payments.filter(p=>ids.has(p.orderId)||regs.has(p.registrationId));const payments=new Set(mine.payments.map(p=>p.id));mine.refunds=data.refunds.filter(r=>payments.has(r.paymentId));mine.memberships=(data.memberships||[]).filter(m=>m.accountId===user.accountId);mine.membershipPayments=(data.membershipPayments||[]).filter(m=>m.accountId===user.accountId);const ctx=useCourtly();return <><Tabs value={tab} onChange={t=>navigate(t==='info'?'profile':'profile-'+t)} options={[["info","Thông tin cá nhân"],["membership","Membership của tôi"],["orders","Đơn của tôi"],["history","Lịch sử đặt sân"],["payments","Lịch sử thanh toán"]]}/><CourtlyContext.Provider value={{...ctx,data:mine,isAdmin:false}}>{tab==='membership'?<MyMembership initialPlan={initialPlan}/>:tab==='orders'?<MyOrders/>:tab==='history'?<MyHistory/>:tab==='payments'?<MyPayments/>:<PersonalDetails/>}</CourtlyContext.Provider></>;}
+export default function ProfilePage({tab='info',initialPlan}){
+ const {navigate,data,user}=useCourtly(),isAdmin=user.role==='ADMIN';
+ const mine={
+  ...data,
+  orders:isAdmin?data.orders.filter(o=>o.ownerUserId?o.ownerUserId===user.id:o.accountId===user.accountId):data.orders,
+  registrations:isAdmin?data.registrations.filter(r=>r.ownerUserId?r.ownerUserId===user.id:r.accountId===user.accountId):data.registrations
+ };
+ const ids=new Set(mine.orders.map(o=>o.id)),regs=new Set(mine.registrations.map(r=>r.id));
+ mine.payments=data.payments.filter(p=>ids.has(p.orderId)||regs.has(p.registrationId));
+ const payments=new Set(mine.payments.map(p=>p.id));
+ mine.refunds=data.refunds.filter(r=>payments.has(r.paymentId));
+ mine.memberships=(data.memberships||[]).filter(m=>m.accountId===user.accountId);
+ mine.membershipPayments=(data.membershipPayments||[]).filter(m=>m.accountId===user.accountId);
+ const ctx=useCourtly();
+ return (
+  <>
+   <Tabs
+    value={tab}
+    onChange={t=>navigate(t==='info'?'profile':'profile-'+t)}
+    options={[["info","Thông tin cá nhân"],["membership","Membership của tôi"],["orders","Đơn của tôi"],["history","Lịch sử đặt sân"],["payments","Lịch sử thanh toán"]]}
+   />
+   <CourtlyContext.Provider value={{...ctx,data:mine,isAdmin:false}}>
+    {tab==='membership'?<MyMembership initialPlan={initialPlan}/>:tab==='orders'?<MyOrders/>:tab==='history'?<MyHistory/>:tab==='payments'?<MyPayments/>:<PersonalDetails/>}
+   </CourtlyContext.Provider>
+  </>
+ );
+}
 ```
 
 #### File: `frontend/src/pages/PublicPage.jsx`
