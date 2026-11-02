@@ -1,5 +1,7 @@
 import {slotLabel,slotHours,hourLabel} from '../utils/format';
 import React, { useRef, useState, useEffect } from 'react';
+import QRCode from 'qrcode';
+import { Printer, Receipt, FileText } from 'lucide-react';
 import BookingFlow from './BookingFlow';
 import MoveDialog from './MoveDialog';
 import {FinancialSummary,StaffLines,PolicyNotice} from './OrderSummary';
@@ -364,11 +366,38 @@ export function RefundDialog({id, orderId, onClose}) {
   );
 }
 export function InvoiceDialog({id, onClose}) {
-  const {data} = useCourtly();
+  const {data, user} = useCourtly();
   const current = data.orders.find(x => x.id === id);
   const o = current.invoiceSnapshot || current;
   const invoiceCode = o.invoice || ('HD-' + o.id.slice(0, 8).toUpperCase());
   const issueDate = o.issuedAt ? new Date(o.issuedAt).toLocaleString('vi-VN') : new Date().toLocaleString('vi-VN');
+
+  const [format, setFormat] = useState('k80'); // 'k80' (bill nhiệt 80mm) | 'a4' (khổ A4 chuẩn)
+  const [qrSrc, setQrSrc] = useState('');
+
+  useEffect(() => {
+    const payload = o.qrPayload || ('CHECKIN:' + o.id + ':' + (o.phone || ''));
+    QRCode.toDataURL(payload, { width: 140, margin: 1, errorCorrectionLevel: 'M' })
+      .then(url => setQrSrc(url))
+      .catch(() => {});
+  }, [o]);
+
+  useEffect(() => {
+    const cleanup = () => {
+      document.body.classList.remove('print-k80', 'print-a4', 'printing-report');
+    };
+    window.addEventListener('afterprint', cleanup);
+    return () => window.removeEventListener('afterprint', cleanup);
+  }, []);
+
+  const handlePrint = () => {
+    document.body.classList.remove('print-k80', 'print-a4', 'printing-report');
+    document.body.classList.add(format === 'k80' ? 'print-k80' : 'print-a4');
+    window.print();
+  };
+
+  const cashierName = user?.name || 'Lễ tân CLB';
+  const remainingAmount = Math.max(0, o.total - o.paid);
 
   return (
     <Modal
@@ -378,96 +407,246 @@ export function InvoiceDialog({id, onClose}) {
       footer={
         <>
           <Button onClick={onClose}>Đóng</Button>
-          <Button className="primary" onClick={() => window.print()}>
-            🖨️ In Hóa Đơn / Xuất PDF
+          <Button className="primary" onClick={handlePrint}>
+            <Printer size={16} /> In {format === 'k80' ? 'Bill Nhiệt K80 (Quầy)' : 'Hóa Đơn A4 / Xuất PDF'}
           </Button>
         </>
       }
     >
-      <div className="printable-invoice" style={{ padding: '8px 4px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #173c32', paddingBottom: 16, marginBottom: 16 }}>
-          <div>
-            <h2 style={{ margin: 0, color: '#173c32', fontSize: 22, fontWeight: 800 }}>COURTLY TENNIS CLUB</h2>
-            <div style={{ fontSize: 13, color: '#475569', marginTop: 4 }}>Khu liên hợp thể thao Courtly Tennis Club</div>
-            <div style={{ fontSize: 12, color: '#64748b' }}>MST: 0109887766 · Hotline: 0988 123 456 · Email: contact@courtly.vn</div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#173c32' }}>HÓA ĐƠN DỊCH VỤ</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#0284c7' }}>Số: #{invoiceCode}</div>
-            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Ngày: {issueDate}</div>
-          </div>
+      {/* Format Selector Bar */}
+      <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, padding: '10px 14px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ fontSize: 13, color: '#475569', fontWeight: 600 }}>
+          Chọn định dạng đầu ra phiếu in:
         </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, background: '#f8fafc', padding: 12, borderRadius: 8, marginBottom: 18, fontSize: 13 }}>
-          <div>
-            <span style={{ color: '#64748b' }}>Khách hàng:</span>
-            <div style={{ fontWeight: 700, color: '#0f172a' }}>{o.name}</div>
-          </div>
-          <div>
-            <span style={{ color: '#64748b' }}>Số điện thoại:</span>
-            <div style={{ fontWeight: 600 }}>{o.phone || 'Khách vãng lai'}</div>
-          </div>
-          <div>
-            <span style={{ color: '#64748b' }}>Ngày sử dụng:</span>
-            <div style={{ fontWeight: 600 }}>{o.date}</div>
-          </div>
-        </div>
-
-        <Table headings={['STT', 'Dịch vụ / Hạng mục', 'Thời lượng / SL', 'Đơn giá', 'Thành tiền']}>
-          {o.slots.map((s, idx) => (
-            <tr key={s.id}>
-              <td>{idx + 1}</td>
-              <td><b>{data.courts.find(c => c.id === s.court)?.name}</b> • {slotLabel(s)}</td>
-              <td>{slotHours(s) * 60} phút</td>
-              <td>{money(s.price)}</td>
-              <td className="name">{money(s.price)}</td>
-            </tr>
-          ))}
-
-          {o.staff.map((s, idx) => (
-            <tr key={s.id}>
-              <td>{o.slots.length + idx + 1}</td>
-              <td>Dịch vụ trọng tài • {s.name}</td>
-              <td>{s.hours} giờ</td>
-              <td>{money(s.rate)}/h</td>
-              <td className="name">{money(s.rate * s.hours)}</td>
-            </tr>
-          ))}
-        </Table>
-
-        <div style={{ marginTop: 16, borderTop: '1px solid #e2e8f0', paddingTop: 12 }}>
-          {o.membershipBenefit?.discount > 0 && (
-            <div className="summary-line membership-discount" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span>Ưu đãi hội viên ({o.membershipBenefit.planName})</span>
-              <b style={{ color: '#16a34a' }}>–{money(o.membershipBenefit.discount)}</b>
-            </div>
-          )}
-          {o.voucherBenefit?.discount > 0 && (
-            <div className="summary-line voucher-discount" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span>Voucher giảm giá ({o.voucherBenefit.code})</span>
-              <b style={{ color: '#16a34a' }}>–{money(o.voucherBenefit.discount)}</b>
-            </div>
-          )}
-          <div className="summary-line total" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, marginBottom: 6 }}>
-            <span>Tổng cộng thanh toán:</span>
-            <b style={{ color: '#173c32' }}>{money(o.total)}</b>
-          </div>
-          <div className="summary-line" style={{ display: 'flex', justifyContent: 'space-between', color: '#059669', marginBottom: 6 }}>
-            <span>Đã thanh toán:</span>
-            <b>{money(o.paid)}</b>
-          </div>
-          <div className="summary-line" style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-            <span>{['CANCELLED', 'EXPIRED'].includes(o.status) ? 'Trạng thái đơn' : 'Còn lại cần thu:'}</span>
-            <b style={{ color: ['CANCELLED', 'EXPIRED'].includes(o.status) ? '#dc2626' : o.total - o.paid > 0 ? '#b45309' : '#059669' }}>
-              {['CANCELLED', 'EXPIRED'].includes(o.status) ? (labels[o.status] || o.status) : money(Math.max(0, o.total - o.paid))}
-            </b>
-          </div>
-        </div>
-
-        <div style={{ textAlign: 'center', marginTop: 24, paddingTop: 12, borderTop: '1px dashed #cbd5e1', fontSize: 12, color: '#64748b' }}>
-          <i>Cảm ơn Quý khách đã sử dụng dịch vụ tại Courtly Tennis Club! Hẹn gặp lại Quý khách.</i>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            type="button"
+            className={`invoice-format-pill ${format === 'k80' ? 'active' : ''}`}
+            onClick={() => setFormat('k80')}
+          >
+            <Receipt size={14} /> Khổ Bill nhiệt K80 (Quầy POS)
+          </button>
+          <button
+            type="button"
+            className={`invoice-format-pill ${format === 'a4' ? 'active' : ''}`}
+            onClick={() => setFormat('a4')}
+          >
+            <FileText size={14} /> Khổ A4 Chuẩn (Kế toán & Đoàn)
+          </button>
         </div>
       </div>
+
+      {format === 'k80' ? (
+        /* K80 THERMAL RECEIPT PREVIEW */
+        <div className="k80-wrapper">
+          <div className="printable-invoice-k80">
+            <div style={{ textAlign: 'center', marginBottom: 10 }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#173c32', letterSpacing: 0.5 }}>COURTLY TENNIS CLUB</div>
+              <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>Khu Liên Hợp Thể Thao Cao Cấp</div>
+              <div style={{ fontSize: 10.5, color: '#64748b' }}>Hotline: 0988 123 456 · MST: 0109887766</div>
+              <div style={{ borderBottom: '1px dashed #94a3b8', margin: '8px 0' }} />
+              <div style={{ fontSize: 13.5, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: '#0f172a' }}>PHIẾU THANH TOÁN</div>
+              <div style={{ fontSize: 11, color: '#0284c7', fontWeight: 600, marginTop: 2 }}>Số: #{invoiceCode}</div>
+              <div style={{ fontSize: 10.5, color: '#64748b' }}>{issueDate}</div>
+            </div>
+
+            <div style={{ fontSize: 11.5, marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                <span style={{ color: '#64748b' }}>Khách hàng:</span>
+                <b>{o.name}</b>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                <span style={{ color: '#64748b' }}>Số điện thoại:</span>
+                <span>{o.phone || 'Vãng lai'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                <span style={{ color: '#64748b' }}>Ngày chơi:</span>
+                <span>{o.date}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b' }}>Thu ngân:</span>
+                <span>{cashierName}</span>
+              </div>
+            </div>
+
+            <div style={{ borderBottom: '1px dashed #94a3b8', margin: '8px 0' }} />
+
+            <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, color: '#334155' }}>CHI TIẾT SÂN & DỊCH VỤ</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {o.slots.map((s, idx) => (
+                <div key={s.id || idx}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                    <span>{data.courts.find(c => c.id === s.court)?.name || 'Sân'} ({slotLabel(s)})</span>
+                    <span>{money(s.price)}</span>
+                  </div>
+                  <div style={{ fontSize: 10, color: '#64748b' }}>{slotHours(s) * 60} phút thi đấu</div>
+                </div>
+              ))}
+              {o.staff?.map((s, idx) => (
+                <div key={s.id || idx}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                    <span>Trọng tài • {s.name} ({s.hours}h)</span>
+                    <span>{money(s.rate * s.hours)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ borderBottom: '1px dashed #94a3b8', margin: '8px 0' }} />
+
+            <div style={{ fontSize: 11.5 }}>
+              {o.membershipBenefit?.discount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16a34a', marginBottom: 2 }}>
+                  <span>Ưu đãi hội viên:</span>
+                  <b>–{money(o.membershipBenefit.discount)}</b>
+                </div>
+              )}
+              {o.voucherBenefit?.discount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16a34a', marginBottom: 2 }}>
+                  <span>Voucher giảm giá:</span>
+                  <b>–{money(o.voucherBenefit.discount)}</b>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 12.5, marginTop: 4 }}>
+                <span>TỔNG CỘNG:</span>
+                <span style={{ color: '#173c32' }}>{money(o.total)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2, color: '#059669' }}>
+                <span>Đã thanh toán / cọc:</span>
+                <b>{money(o.paid)}</b>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, paddingTop: 4, borderTop: '1px dotted #cbd5e1', fontSize: 12.5, fontWeight: 800 }}>
+                <span>CÒN PHẢI THU:</span>
+                <span style={{ color: remainingAmount > 0 ? '#b45309' : '#059669' }}>
+                  {['CANCELLED', 'EXPIRED'].includes(o.status) ? (labels[o.status] || o.status) : money(remainingAmount)}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ borderBottom: '1px dashed #94a3b8', margin: '10px 0 8px' }} />
+
+            {qrSrc && (
+              <div style={{ textAlign: 'center', margin: '6px 0' }}>
+                <img src={qrSrc} alt="QR Check-in" style={{ width: 110, height: 110, display: 'inline-block' }} />
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: '#173c32', marginTop: 3 }}>MÃ QR CHECK-IN VÀO SÂN</div>
+                <div style={{ fontSize: 9.5, color: '#64748b' }}>Xuất trình mã tại quầy lễ tân hoặc cổng tự động</div>
+              </div>
+            )}
+
+            <div style={{ textAlign: 'center', marginTop: 10, fontSize: 10, color: '#64748b', lineHeight: 1.4 }}>
+              <div>Wifi: <b>CourtlyTennis</b> · Pass: <b>666888</b></div>
+              <div style={{ marginTop: 2 }}><i>Cảm ơn Quý khách & Chúc trận đấu tuyệt vời!</i></div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* A4 STANDARD INVOICE */
+        <div className="printable-invoice-a4" style={{ padding: '8px 4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #173c32', paddingBottom: 16, marginBottom: 16 }}>
+            <div>
+              <h2 style={{ margin: 0, color: '#173c32', fontSize: 22, fontWeight: 800 }}>COURTLY TENNIS CLUB</h2>
+              <div style={{ fontSize: 13, color: '#475569', marginTop: 4 }}>Khu liên hợp thể thao Courtly Tennis Club</div>
+              <div style={{ fontSize: 12, color: '#64748b' }}>MST: 0109887766 · Hotline: 0988 123 456 · Email: contact@courtly.vn</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#173c32' }}>HÓA ĐƠN DỊCH VỤ</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#0284c7' }}>Số: #{invoiceCode}</div>
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Ngày: {issueDate}</div>
+              <div style={{ fontSize: 12, color: '#64748b' }}>Thu ngân: {cashierName}</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, background: '#f8fafc', padding: 12, borderRadius: 8, marginBottom: 18, fontSize: 13 }}>
+            <div>
+              <span style={{ color: '#64748b' }}>Khách hàng:</span>
+              <div style={{ fontWeight: 700, color: '#0f172a' }}>{o.name}</div>
+            </div>
+            <div>
+              <span style={{ color: '#64748b' }}>Số điện thoại:</span>
+              <div style={{ fontWeight: 600 }}>{o.phone || 'Khách vãng lai'}</div>
+            </div>
+            <div>
+              <span style={{ color: '#64748b' }}>Ngày sử dụng:</span>
+              <div style={{ fontWeight: 600 }}>{o.date}</div>
+            </div>
+          </div>
+
+          <Table headings={['STT', 'Dịch vụ / Hạng mục', 'Thời lượng / SL', 'Đơn giá', 'Thành tiền']}>
+            {o.slots.map((s, idx) => (
+              <tr key={s.id || idx}>
+                <td>{idx + 1}</td>
+                <td><b>{data.courts.find(c => c.id === s.court)?.name}</b> • {slotLabel(s)}</td>
+                <td>{slotHours(s) * 60} phút</td>
+                <td>{money(s.price)}</td>
+                <td className="name">{money(s.price)}</td>
+              </tr>
+            ))}
+
+            {o.staff?.map((s, idx) => (
+              <tr key={s.id || idx}>
+                <td>{o.slots.length + idx + 1}</td>
+                <td>Dịch vụ trọng tài • {s.name}</td>
+                <td>{s.hours} giờ</td>
+                <td>{money(s.rate)}/h</td>
+                <td className="name">{money(s.rate * s.hours)}</td>
+              </tr>
+            ))}
+          </Table>
+
+          <div style={{ marginTop: 16, borderTop: '1px solid #e2e8f0', paddingTop: 12 }}>
+            {o.membershipBenefit?.discount > 0 && (
+              <div className="summary-line membership-discount" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span>Ưu đãi hội viên ({o.membershipBenefit.planName})</span>
+                <b style={{ color: '#16a34a' }}>–{money(o.membershipBenefit.discount)}</b>
+              </div>
+            )}
+            {o.voucherBenefit?.discount > 0 && (
+              <div className="summary-line voucher-discount" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span>Voucher giảm giá ({o.voucherBenefit.code})</span>
+                <b style={{ color: '#16a34a' }}>–{money(o.voucherBenefit.discount)}</b>
+              </div>
+            )}
+            <div className="summary-line total" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, marginBottom: 6 }}>
+              <span>Tổng cộng thanh toán:</span>
+              <b style={{ color: '#173c32' }}>{money(o.total)}</b>
+            </div>
+            <div className="summary-line" style={{ display: 'flex', justifyContent: 'space-between', color: '#059669', marginBottom: 6 }}>
+              <span>Đã thanh toán:</span>
+              <b>{money(o.paid)}</b>
+            </div>
+            <div className="summary-line" style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+              <span>{['CANCELLED', 'EXPIRED'].includes(o.status) ? 'Trạng thái đơn' : 'Còn lại cần thu:'}</span>
+              <b style={{ color: ['CANCELLED', 'EXPIRED'].includes(o.status) ? '#dc2626' : remainingAmount > 0 ? '#b45309' : '#059669' }}>
+                {['CANCELLED', 'EXPIRED'].includes(o.status) ? (labels[o.status] || o.status) : money(remainingAmount)}
+              </b>
+            </div>
+          </div>
+
+          {/* QR Code and Signatures block */}
+          <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr', gap: 20, marginTop: 24, paddingTop: 16, borderTop: '1px solid #e2e8f0', alignItems: 'center' }}>
+            <div style={{ textAlign: 'center', borderRight: '1px dashed #cbd5e1', paddingRight: 16 }}>
+              {qrSrc && <img src={qrSrc} alt="QR Check-in" style={{ width: 110, height: 110, display: 'inline-block' }} />}
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#173c32', marginTop: 4 }}>MÃ QR VÉ VÀO SÂN</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>KHÁCH HÀNG</div>
+              <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>(Ký và ghi rõ họ tên)</div>
+              <div style={{ height: 60 }} />
+              <div style={{ fontSize: 12, fontWeight: 600 }}>{o.name}</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>NGƯỜI LẬP PHIẾU / THU NGÂN</div>
+              <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>(Ký và ghi rõ họ tên)</div>
+              <div style={{ height: 60 }} />
+              <div style={{ fontSize: 12, fontWeight: 600 }}>{cashierName}</div>
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: 20, paddingTop: 12, borderTop: '1px dashed #cbd5e1', fontSize: 12, color: '#64748b' }}>
+            <i>Cảm ơn Quý khách đã sử dụng dịch vụ tại Courtly Tennis Club! Hẹn gặp lại Quý khách.</i>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }

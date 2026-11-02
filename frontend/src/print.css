@@ -1,0 +1,262 @@
+/* Dedicated Print Stylesheet for Invoices & Reports */
+
+/* ------------------------------------------------------------- */
+/* SCREEN STYLES (Styles active in normal browser view)          */
+/* ------------------------------------------------------------- */
+
+.report-print-header,
+.report-print-footer {
+  display: none;
+}
+
+/* Format switch buttons in InvoiceDialog */
+.invoice-format-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  transition: all 0.15s ease;
+}
+
+.invoice-format-pill:hover {
+  background: #e2e8f0;
+}
+
+.invoice-format-pill.active {
+  background: #173c32;
+  color: #def46a;
+  border-color: #173c32;
+  box-shadow: 0 2px 6px rgba(23, 60, 50, 0.2);
+}
+
+/* Printable Bill K80 preview wrapper */
+.k80-wrapper {
+  background: #f1f5f9;
+  padding: 16px;
+  border-radius: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.printable-invoice-k80 {
+  width: 100%;
+  max-width: 320px;
+  background: #ffffff;
+  color: #111827;
+  padding: 18px 16px;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  font-size: 12.5px;
+  line-height: 1.45;
+  border: 1px solid #e2e8f0;
+}
+
+/* ------------------------------------------------------------- */
+/* PRINT MEDIA QUERIES (@media print)                            */
+/* ------------------------------------------------------------- */
+
+@media print {
+  /* Hide interactive / non-printable UI elements */
+  .no-print,
+  .sidebar,
+  .topbar,
+  .modal-footer,
+  .modal-header .close,
+  .toast,
+  button,
+  input,
+  select {
+    display: none !important;
+  }
+
+  /* Force exact background colors and borders in print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* 1. REPORT PRINTING MODE */
+  body.printing-report {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.printing-report .layout {
+    display: block !important;
+  }
+
+  body.printing-report .content {
+    grid-column: 1 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.printing-report .main {
+    display: block !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+  }
+
+  body.printing-report .title-row {
+    display: none !important;
+  }
+
+  body.printing-report .report-print-header {
+    display: block !important;
+    margin-bottom: 20px !important;
+  }
+
+  body.printing-report .report-print-footer {
+    display: block !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-top: 30px !important;
+  }
+
+  body.printing-report .panel {
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 16px !important;
+    border-radius: 8px !important;
+  }
+
+  body.printing-report .stats {
+    gap: 12px !important;
+    margin-bottom: 16px !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  body.printing-report .stat {
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    padding: 12px !important;
+  }
+
+  body.printing-report table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  body.printing-report th,
+  body.printing-report td {
+    border: 1px solid #e2e8f0 !important;
+    padding: 8px 10px !important;
+  }
+
+  /* 2. INVOICE K80 THERMAL RECEIPT PRINT MODE */
+  body.print-k80 {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.print-k80 .main {
+    display: none !important;
+  }
+
+  body.print-k80 .modal-backdrop {
+    position: static !important;
+    padding: 0 !important;
+    background: none !important;
+    display: block !important;
+  }
+
+  body.print-k80 .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  body.print-k80 .modal-header {
+    display: none !important;
+  }
+
+  body.print-k80 .modal-body {
+    padding: 0 !important;
+  }
+
+  body.print-k80 .k80-wrapper {
+    background: none !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  body.print-k80 .printable-invoice-k80 {
+    width: 100% !important;
+    max-width: 78mm !important;
+    margin: 0 auto !important;
+    padding: 2mm 3mm !important;
+    box-shadow: none !important;
+    border: none !important;
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+  }
+
+  body.print-k80 .printable-invoice-a4 {
+    display: none !important;
+  }
+
+  /* 3. INVOICE A4 STANDARD PRINT MODE */
+  body.print-a4 {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body.print-a4 .main {
+    display: none !important;
+  }
+
+  body.print-a4 .modal-backdrop {
+    position: static !important;
+    padding: 0 !important;
+    background: none !important;
+    display: block !important;
+  }
+
+  body.print-a4 .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  body.print-a4 .modal-header {
+    display: none !important;
+  }
+
+  body.print-a4 .modal-body {
+    padding: 0 !important;
+  }
+
+  body.print-a4 .printable-invoice-a4 {
+    width: 100% !important;
+    padding: 10mm 12mm !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  body.print-a4 .printable-invoice-k80,
+  body.print-a4 .k80-wrapper {
+    display: none !important;
+  }
+}

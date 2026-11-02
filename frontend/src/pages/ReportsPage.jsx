@@ -1,6 +1,6 @@
 import { orderInPeriod, consumedOrder } from '../utils/report-period.mjs';
-import React, { useState, useMemo } from 'react';
-import { Wallet, Trophy, Check, Calendar, TrendingUp, Download, PieChart, BarChart3, Clock, Sparkles } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Wallet, Trophy, Check, Calendar, TrendingUp, Download, PieChart, BarChart3, Clock, Sparkles, Printer } from 'lucide-react';
 import { useCourtly } from '../context';
 import { Title, Stat, Panel, Button, Table, Chip } from '../components/UI';
 import { money, labels, today, localDate, slotHours } from '../utils/format';
@@ -340,6 +340,20 @@ export default function ReportsPage() {
     return { circumference, slices };
   }, [categories, totalValue]);
 
+  // Print / Export PDF Handler
+  useEffect(() => {
+    const cleanup = () => {
+      document.body.classList.remove('printing-report');
+    };
+    window.addEventListener('afterprint', cleanup);
+    return () => window.removeEventListener('afterprint', cleanup);
+  }, []);
+
+  const handlePrintReport = () => {
+    document.body.classList.add('printing-report');
+    window.print();
+  };
+
   // Export CSV
   const exportCsv = () => {
     const escape = v => '"' + String(v ?? '').replace(/^[=+@-]/, "'").replaceAll('"', '""') + '"';
@@ -398,16 +412,21 @@ export default function ReportsPage() {
       <Title
         subtitle={`Phân tích tài chính, cơ cấu dịch vụ và công suất sân (${periodLabel}).`}
         action={
-          <Button className="primary" onClick={exportCsv}>
-            <Download size={16} /> Xuất báo cáo CSV
-          </Button>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Button onClick={handlePrintReport}>
+              <Printer size={16} /> In / Xuất PDF Báo Cáo
+            </Button>
+            <Button className="primary" onClick={exportCsv}>
+              <Download size={16} /> Xuất báo cáo CSV
+            </Button>
+          </div>
         }
       >
         Báo cáo & Thống kê
       </Title>
 
       {/* Period Filter Bar */}
-      <div className="panel" style={{ marginBottom: 20 }}>
+      <div className="panel no-print" style={{ marginBottom: 20 }}>
         <div className="panel-body" style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Calendar size={18} style={{ color: 'var(--green)' }} />
@@ -521,6 +540,22 @@ export default function ReportsPage() {
             <span className="chip green" style={{ fontWeight: 600 }}>
               {periodLabel}
             </span>
+          </div>
+        </div>
+      </div>
+
+      {/* OFFICIAL PRINT-ONLY REPORT HEADER */}
+      <div className="report-print-header">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #173c32', paddingBottom: 14, marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#173c32', letterSpacing: 0.5 }}>COURTLY TENNIS CLUB</div>
+            <div style={{ fontSize: 13, color: '#475569', marginTop: 2, fontWeight: 600 }}>TỔ HỢP QUẦN VỢT TIÊU CHUẨN ATP 10 SÂN</div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>Đ/c: Sân Thể Thao Courtly · Hotline: 0988 123 456 · MST: 0109887766</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#173c32' }}>BÁO CÁO DOANH THU & HIỆU SUẤT VẬN HÀNH</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#0284c7', marginTop: 2 }}>Kỳ báo cáo: {periodLabel}</div>
+            <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 2 }}>Thời gian: Từ {startDate} đến {endDate} • Ngày xuất: {new Date().toLocaleString('vi-VN')}</div>
           </div>
         </div>
       </div>
@@ -888,6 +923,30 @@ export default function ReportsPage() {
           </div>
         )}
       </Panel>
+
+      {/* OFFICIAL PRINT-ONLY REPORT SIGNATURES FOOTER */}
+      <div className="report-print-footer">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', textAlign: 'center', marginTop: 32, paddingTop: 16, borderTop: '1px solid #cbd5e1' }}>
+          <div>
+            <b style={{ fontSize: 13, color: '#0f172a' }}>NGƯỜI LẬP BÁO CÁO</b>
+            <div style={{ fontSize: 11.5, color: '#64748b', fontStyle: 'italic', marginTop: 2 }}>(Ký, ghi rõ họ tên)</div>
+            <div style={{ height: 64 }} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#173c32' }}>Ban Vận Hành CLB</span>
+          </div>
+          <div>
+            <b style={{ fontSize: 13, color: '#0f172a' }}>KẾ TOÁN TRƯỞNG</b>
+            <div style={{ fontSize: 11.5, color: '#64748b', fontStyle: 'italic', marginTop: 2 }}>(Ký, ghi rõ họ tên)</div>
+            <div style={{ height: 64 }} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#173c32' }}>Phòng Tài chính - Kế toán</span>
+          </div>
+          <div>
+            <b style={{ fontSize: 13, color: '#0f172a' }}>GIÁM ĐỐC / CHỦ SÂN DUYỆT</b>
+            <div style={{ fontSize: 11.5, color: '#64748b', fontStyle: 'italic', marginTop: 2 }}>(Ký, đóng dấu)</div>
+            <div style={{ height: 64 }} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#173c32' }}>Courtly Tennis Club</span>
+          </div>
+        </div>
+      </div>
     </>
   );
 }
