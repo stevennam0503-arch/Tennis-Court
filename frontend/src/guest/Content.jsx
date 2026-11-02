@@ -1124,8 +1124,7 @@ const INITIAL_SHOWCASE_FEEDBACKS = [
 // ==========================================
 export function Feedback() {
   const { t, user, login, content, refresh, notify, navigate } = useGuest();
-  const [showForm, setShowForm] = useState(false);
-  const [rating, setRating] = useState(5);
+  const [rating, setRating] = useState(0); // 0 = unselected by default
   const [hoverRating, setHoverRating] = useState(0);
   const [message, setMessage] = useState('');
   const [topic, setTopic] = useState('COURT');
@@ -1142,11 +1141,12 @@ export function Feedback() {
   const PAGE_SIZE = 6;
 
   const ratingDescriptions = {
-    1: '😞 Cần cải thiện nhiều',
-    2: '🙁 Chưa được hài lòng',
-    3: '😐 Trải nghiệm tạm ổn',
-    4: '😊 Hài lòng & dịch vụ tốt',
-    5: '🌟 Tuyệt vời! Rất hài lòng'
+    0: t('(Chạm vào ngôi sao để chọn từ 1 đến 5 sao)'),
+    1: t('1 sao — 😞 Cần cải thiện nhiều'),
+    2: t('2 sao — 🙁 Chưa hài lòng'),
+    3: t('3 sao — 😐 Bình thường / Tạm ổn'),
+    4: t('4 sao — 😊 Hài lòng & Dịch vụ tốt'),
+    5: t('5 sao — 🌟 Tuyệt vời! Rất hài lòng')
   };
 
   const topics = [
@@ -1164,8 +1164,14 @@ export function Feedback() {
       login();
       return;
     }
-    if (!rating) return setError(t('Vui lòng chọn từ 1 đến 5 sao.'));
-    if (!message.trim()) return setError(t('Vui lòng nhập nội dung đánh giá.'));
+    if (!rating || rating < 1) {
+      setError(t('Vui lòng chọn số sao đánh giá (từ 1 đến 5 sao).'));
+      return;
+    }
+    if (!message.trim() || message.trim().length < 10) {
+      setError(t('Vui lòng nhập nội dung đánh giá chi tiết (tối thiểu 10 ký tự).'));
+      return;
+    }
 
     setBusy(true);
     setError('');
@@ -1194,8 +1200,7 @@ export function Feedback() {
 
       setLocalSubmissions(prev => [newReview, ...prev]);
       setMessage('');
-      setRating(5);
-      setShowForm(false);
+      setRating(0); // Reset to unselected
       setCurrentPage(1);
       setReq(requestId());
       notify(t('Cảm ơn bạn! Đánh giá đã được gửi thành công đến Ban Quản Lý Courtly.'));
@@ -1232,6 +1237,24 @@ export function Feedback() {
   const allFeedbacks = useMemo(() => {
     return [...localSubmissions, ...serverFeedbacks, ...INITIAL_SHOWCASE_FEEDBACKS];
   }, [localSubmissions, serverFeedbacks]);
+
+  // Real stats calculated directly from feedbacks (NO FAKE CRITERIA BARS)
+  const stats = useMemo(() => {
+    const total = allFeedbacks.length;
+    if (total === 0) return { avg: '5.0', total: 0, counts: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } };
+    const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    let sum = 0;
+    allFeedbacks.forEach(f => {
+      const r = Math.max(1, Math.min(5, Math.round(f.rating || 5)));
+      counts[r] = (counts[r] || 0) + 1;
+      sum += f.rating || 5;
+    });
+    return {
+      avg: (sum / total).toFixed(1),
+      total,
+      counts
+    };
+  }, [allFeedbacks]);
 
   // Filtered feedbacks
   const filteredFeedbacks = useMemo(() => {
@@ -1271,375 +1294,381 @@ export function Feedback() {
     setCurrentPage(1);
   };
 
+  const currentDisplayRating = hoverRating || rating;
+
   return (
-    <section className="ct-pad" style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: 60 }}>
+    <section className="ct-pad" style={{ maxWidth: 1160, margin: '0 auto', paddingBottom: 60 }}>
       {/* 1. HEADER SECTION */}
-      <div className="gx-heading" style={{ marginBottom: 28, textAlign: 'center' }}>
+      <div className="gx-heading" style={{ marginBottom: 24, textAlign: 'center' }}>
         <span className="ct-eyebrow" style={{ color: '#173c32', letterSpacing: 2 }}>
-          COURTLY · KHÁCH HÀNG & CỘNG ĐỒNG
+          COURTLY · ĐÁNH GIÁ & GÓP Ý
         </span>
-        <h1 style={{ fontSize: 34, margin: '10px 0 12px', color: '#173c32', letterSpacing: 'normal' }}>
+        <h1 style={{ fontSize: 32, margin: '8px 0 10px', color: '#173c32', letterSpacing: 'normal' }}>
           {t('Lắng nghe trải nghiệm · Hoàn thiện mỗi ngày')}
         </h1>
-        <p style={{ fontSize: 15, color: '#52655a', maxWidth: 720, margin: '0 auto', lineHeight: 1.7 }}>
+        <p style={{ fontSize: 14.5, color: '#52655a', maxWidth: 680, margin: '0 auto', lineHeight: 1.65 }}>
           {t(
-            'Mỗi lượt đánh giá và góp ý chân thành từ quý khách là nguồn động lực quý báu để Courtly không ngừng nâng cấp cơ sở vật chất, bảo dưỡng mặt sân và nâng tầm chuẩn mực phục vụ.'
+            'Mỗi lượt đánh giá chân thực từ quý khách là cơ sở để Courtly liên tục nâng cao chất lượng sân bãi, dịch vụ trọng tài và tiện ích phục vụ.'
           )}
         </p>
       </div>
 
-      {/* 2. TOP SCORECARD & ASPECT RATINGS (AIRBNB / TRUSTPILOT STYLE) */}
+      {/* 2. RATING SUMMARY SCORECARD (GENUINE STAR DISTRIBUTION, NO FAKE CRITERIA BARS) */}
       <div
         style={{
-          background: 'linear-gradient(135deg, #173c32 0%, #1e4d40 100%)',
-          color: '#ffffff',
-          borderRadius: 18,
-          padding: '28px 32px',
-          marginBottom: 30,
-          boxShadow: '0 8px 30px rgba(23,60,50,0.16)',
+          background: '#ffffff',
+          border: '1px solid #dce4d6',
+          borderRadius: 16,
+          padding: '24px 28px',
+          marginBottom: 24,
+          boxShadow: '0 4px 20px rgba(23,60,50,0.04)',
           display: 'grid',
-          gridTemplateColumns: 'auto 1fr auto',
-          gap: 32,
+          gridTemplateColumns: 'auto 1fr',
+          gap: 36,
           alignItems: 'center'
         }}
       >
-        {/* Left: Overall Score */}
-        <div style={{ textAlign: 'center', paddingRight: 28, borderRight: '1px solid rgba(255,255,255,0.18)' }}>
-          <div style={{ fontSize: 48, fontWeight: 900, lineHeight: 1, color: '#def46a' }}>4.9</div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 3, margin: '6px 0 4px' }}>
-            {[1, 2, 3, 4, 5].map(s => (
-              <Star key={s} size={18} fill="#def46a" color="#def46a" strokeWidth={0} />
-            ))}
+        {/* Overall Score */}
+        <div style={{ textAlign: 'center', paddingRight: 32, borderRight: '1px solid #eef2ea', minWidth: 160 }}>
+          <div style={{ fontSize: 46, fontWeight: 900, lineHeight: 1, color: '#173c32' }}>{stats.avg}</div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 3, margin: '8px 0 6px' }}>
+            {[1, 2, 3, 4, 5].map(s => {
+              const full = s <= Math.round(Number(stats.avg));
+              return (
+                <Star
+                  key={s}
+                  size={20}
+                  fill={full ? '#f59e0b' : '#f1f5f9'}
+                  color={full ? '#d97706' : '#cbd5e1'}
+                  strokeWidth={1}
+                />
+              );
+            })}
           </div>
-          <span style={{ fontSize: 12.5, color: '#cad8c0', whiteSpace: 'nowrap' }}>
-            280+ {t('lượt trải nghiệm')}
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#15803d', display: 'block' }}>
+            {t('Chỉ số đánh giá cao')}
+          </span>
+          <span style={{ fontSize: 12, color: '#64748b', marginTop: 2, display: 'block' }}>
+            {stats.total} {t('lượt đánh giá')}
           </span>
         </div>
 
-        {/* Middle: 4 Aspect Rating Bars */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px 28px' }}>
-          {[
-            { label: 'Mặt sân & độ nảy ATP', percent: 98, score: '4.9/5' },
-            { label: 'Đèn LED 500 Lux chống chói', percent: 96, score: '4.8/5' },
-            { label: 'Trọng tài & Hỗ trợ trận đấu', percent: 100, score: '5.0/5' },
-            { label: 'Phòng tắm, Locker & Cafe', percent: 97, score: '4.9/5' }
-          ].map((bar, idx) => (
-            <div key={idx}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4, color: '#e2ecd8' }}>
-                <span>{bar.label}</span>
-                <b style={{ color: '#def46a' }}>{bar.score}</b>
+        {/* Real Star Rating Distribution (Clickable to filter) */}
+        <div style={{ display: 'grid', gap: 6 }}>
+          {[5, 4, 3, 2, 1].map(stars => {
+            const count = stats.counts[stars] || 0;
+            const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
+            const isFilterActive = filterTopic === (stars === 5 ? '5STAR' : stars === 4 ? '4STAR' : stars <= 3 ? '3STAR' : 'ALL');
+            return (
+              <div
+                key={stars}
+                onClick={() => handleFilterChange(stars === 5 ? '5STAR' : stars === 4 ? '4STAR' : '3STAR')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  fontSize: 12.5,
+                  cursor: 'pointer',
+                  padding: '3px 6px',
+                  borderRadius: 6,
+                  background: isFilterActive ? '#f0fdf4' : 'transparent',
+                  transition: 'background 0.15s ease'
+                }}
+                title={`Xem các đánh giá ${stars} sao`}
+              >
+                <div style={{ width: 44, fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <span>{stars}</span>
+                  <Star size={13} fill="#f59e0b" color="#d97706" strokeWidth={1} />
+                </div>
+                <div style={{ flex: 1, background: '#f1f5f9', height: 8, borderRadius: 4, overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      background: stars >= 4 ? '#10b981' : stars === 3 ? '#f59e0b' : '#ef4444',
+                      width: `${pct}%`,
+                      height: '100%',
+                      borderRadius: 4
+                    }}
+                  />
+                </div>
+                <div style={{ width: 70, textAlign: 'right', color: '#64748b', fontSize: 12 }}>
+                  <b>{pct}%</b> <span style={{ color: '#94a3b8' }}>({count})</span>
+                </div>
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.15)', height: 6, borderRadius: 3, overflow: 'hidden' }}>
-                <div style={{ background: '#def46a', width: `${bar.percent}%`, height: '100%', borderRadius: 3 }} />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Right: Write Review Trigger */}
-        <div style={{ textAlign: 'center' }}>
-          <button
-            type="button"
-            onClick={() => setShowForm(v => !v)}
-            style={{
-              background: showForm ? '#ffffff' : '#def46a',
-              color: '#173c32',
-              border: 'none',
-              borderRadius: 30,
-              padding: '12px 24px',
-              fontSize: 14,
-              fontWeight: 800,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-              transition: 'all 0.2s ease',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            <span>{showForm ? '✕' : '✍️'}</span>
-            <span>{showForm ? t('Đóng biểu mẫu') : t('Viết đánh giá trải nghiệm')}</span>
-          </button>
-          <div style={{ fontSize: 11, color: '#b8ccb0', marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-            <CheckCircle2 size={13} color="#def46a" />
-            <span>100% người chơi thực tế</span>
-          </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* 3. COLLAPSIBLE REVIEW SUBMISSION FORM */}
-      {showForm && (
-        <div
-          style={{
-            background: '#ffffff',
-            border: '1.5px solid #d5dcce',
-            borderRadius: 18,
-            padding: '30px 36px',
-            marginBottom: 32,
-            boxShadow: '0 10px 32px rgba(23,60,50,0.08)'
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 20,
-              borderBottom: '1px solid #eef2ea',
-              paddingBottom: 16
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: '50%',
-                  background: '#def46a',
-                  color: '#173c32',
-                  display: 'grid',
-                  placeItems: 'center',
-                  fontSize: 20
-                }}
-              >
-                ✍️
-              </div>
-              <div>
-                <strong style={{ display: 'block', fontSize: 17, color: '#173c32' }}>
-                  {t('Gửi đánh giá trải nghiệm thực tế')}
-                </strong>
-                <span style={{ fontSize: 12.5, color: '#637269' }}>
-                  {user ? (
-                    <span style={{ color: '#15803d', fontWeight: 600 }}>
-                      ✓ Đang đánh giá với tư cách: {user.name} ({user.email})
-                    </span>
-                  ) : (
-                    <span>Đăng nhập để nhận tích xanh xác thực hội viên</span>
-                  )}
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
+      {/* 3. INLINE REVIEW COMPOSER (ALWAYS VISIBLE RIGHT HERE, NO EXTRA BUTTON, NO SCROLLING DOWN) */}
+      <div
+        style={{
+          background: '#ffffff',
+          border: '1.5px solid #cfe0cb',
+          borderRadius: 16,
+          padding: '24px 26px',
+          marginBottom: 28,
+          boxShadow: '0 6px 24px rgba(23,60,50,0.06)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, borderBottom: '1px solid #f1f4ec', paddingBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
               style={{
-                background: 'transparent',
-                border: 'none',
-                fontSize: 18,
-                cursor: 'pointer',
-                color: '#64748b'
+                width: 42,
+                height: 42,
+                borderRadius: '50%',
+                background: user ? '#173c32' : '#e2e8f0',
+                color: user ? '#def46a' : '#64748b',
+                display: 'grid',
+                placeItems: 'center',
+                fontSize: 16,
+                fontWeight: 800
               }}
             >
-              ✕
-            </button>
-          </div>
-
-          <form onSubmit={submit} style={{ display: 'grid', gap: 20 }}>
-            {/* STAR RATING PICKER */}
-            <div>
-              <label style={{ fontSize: 13.5, fontWeight: 700, color: '#173c32', display: 'block', marginBottom: 8 }}>
-                {t('Mức độ hài lòng của bạn')} <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {[1, 2, 3, 4, 5].map(s => {
-                    const filled = s <= (hoverRating || rating);
-                    return (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setRating(s)}
-                        onMouseEnter={() => setHoverRating(s)}
-                        onMouseLeave={() => setHoverRating(0)}
-                        aria-label={`${s} sao`}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          padding: 3,
-                          transition: 'transform 0.1s ease',
-                          transform: hoverRating === s ? 'scale(1.2)' : 'scale(1)'
-                        }}
-                      >
-                        <Star
-                          size={28}
-                          fill={filled ? '#eab308' : 'none'}
-                          color={filled ? '#eab308' : '#cbd5e1'}
-                          strokeWidth={filled ? 0 : 1.5}
-                        />
-                      </button>
-                    );
-                  })}
-                </div>
-                <span
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: rating >= 4 ? '#15803d' : rating === 3 ? '#b45309' : '#b91c1c'
-                  }}
-                >
-                  {ratingDescriptions[hoverRating || rating]}
-                </span>
-              </div>
+              {user ? (user.name || 'U').slice(0, 2).toUpperCase() : '👤'}
             </div>
-
-            {/* TOPIC SELECTION */}
             <div>
-              <label style={{ fontSize: 13.5, fontWeight: 700, color: '#173c32', display: 'block', marginBottom: 8 }}>
-                {t('Khía cạnh bạn muốn nhận xét')}
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
-                {topics.map(tp => {
-                  const selected = topic === tp.value;
-                  return (
+              <strong style={{ fontSize: 15, color: '#173c32', display: 'block' }}>
+                {user ? `Xin chào, ${user.name}` : t('Viết đánh giá trải nghiệm của bạn')}
+              </strong>
+              <span style={{ fontSize: 12, color: user ? '#15803d' : '#64748b', fontWeight: user ? 600 : 400 }}>
+                {user ? (
+                  '✓ Tài khoản hội viên đã xác thực'
+                ) : (
+                  <span>
+                    Chưa đăng nhập ·{' '}
                     <button
-                      key={tp.value}
                       type="button"
-                      onClick={() => setTopic(tp.value)}
+                      onClick={login}
                       style={{
-                        background: selected ? '#173c32' : '#f8faf6',
-                        color: selected ? '#def46a' : '#2d4536',
-                        border: selected ? '1.5px solid #173c32' : '1px solid #d5dcce',
-                        borderRadius: 8,
-                        padding: '10px 12px',
-                        fontSize: 13,
-                        fontWeight: selected ? 700 : 500,
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#047857',
+                        fontWeight: 700,
+                        textDecoration: 'underline',
                         cursor: 'pointer',
-                        textAlign: 'left',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        transition: 'all 0.15s ease'
+                        padding: 0
                       }}
                     >
-                      <span>{tp.icon}</span>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {tp.label}
-                      </span>
+                      Đăng nhập ngay
+                    </button>{' '}
+                    để hiển thị tích xanh
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+
+          <span style={{ fontSize: 12, color: '#64748b', background: '#f8faf6', padding: '4px 10px', borderRadius: 20, border: '1px solid #e2e8dc' }}>
+            💬 Đánh giá công khai
+          </span>
+        </div>
+
+        <form onSubmit={submit} style={{ display: 'grid', gap: 16 }}>
+          {/* STAR SELECTOR: BIG, PROMINENT, UNSELECTED BY DEFAULT */}
+          <div style={{ background: '#fcfdfa', border: '1px solid #e7ede2', borderRadius: 12, padding: '14px 16px' }}>
+            <label style={{ fontSize: 13.5, fontWeight: 700, color: '#173c32', display: 'block', marginBottom: 8 }}>
+              {t('Bạn chấm mấy sao cho buổi chơi tại Courtly?')} <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 6 }} onMouseLeave={() => setHoverRating(0)}>
+                {[1, 2, 3, 4, 5].map(s => {
+                  const isFilled = s <= currentDisplayRating;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => {
+                        setRating(s);
+                        setError('');
+                      }}
+                      onMouseEnter={() => setHoverRating(s)}
+                      aria-label={`${s} sao`}
+                      style={{
+                        background: isFilled ? '#fef3c7' : '#ffffff',
+                        border: isFilled ? '2px solid #f59e0b' : '1.5px solid #cbd5e1',
+                        borderRadius: 10,
+                        padding: '6px 10px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transform: currentDisplayRating === s ? 'scale(1.1)' : 'scale(1)',
+                        boxShadow: isFilled ? '0 2px 8px rgba(245,158,11,0.25)' : 'none'
+                      }}
+                    >
+                      <Star
+                        size={28}
+                        fill={isFilled ? '#f59e0b' : '#f8fafc'}
+                        color={isFilled ? '#d97706' : '#94a3b8'}
+                        strokeWidth={1.5}
+                      />
                     </button>
                   );
                 })}
               </div>
-            </div>
 
-            {/* MESSAGE TEXTAREA */}
-            <div>
-              <label style={{ fontSize: 13.5, fontWeight: 700, color: '#173c32', display: 'block', marginBottom: 8 }}>
-                {t('Nội dung chia sẻ chi tiết')} <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-              <textarea
-                value={message}
-                onChange={e => setMessage(e.target.value)}
-                required
-                minLength={10}
-                maxLength={2000}
-                rows={4}
-                placeholder={t(
-                  'Hãy chia sẻ cụ thể về chất lượng mặt sân, hệ thống đèn chiếu sáng, tác phong trọng tài hay dịch vụ bạn vừa trải nghiệm...'
-                )}
+              {/* RATING LABEL (DISSIPATES CONFUSION) */}
+              <div
                 style={{
-                  width: '100%',
-                  padding: '14px 16px',
-                  borderRadius: 10,
-                  border: '1px solid #cfd7c9',
-                  background: '#fcfdfa',
                   fontSize: 14,
-                  lineHeight: 1.6,
-                  resize: 'vertical',
-                  outline: 'none'
+                  fontWeight: 700,
+                  color:
+                    currentDisplayRating === 0
+                      ? '#64748b'
+                      : currentDisplayRating >= 4
+                      ? '#15803d'
+                      : currentDisplayRating === 3
+                      ? '#b45309'
+                      : '#dc2626',
+                  fontStyle: currentDisplayRating === 0 ? 'italic' : 'normal'
                 }}
-              />
-              <span style={{ fontSize: 11.5, color: '#78897e', display: 'block', textAlign: 'right', marginTop: 4 }}>
-                {message.length} / 2000 ký tự
-              </span>
+              >
+                {ratingDescriptions[currentDisplayRating]}
+              </div>
             </div>
+          </div>
 
-            {/* CONSENT CHECKBOX */}
+          {/* MESSAGE TEXTAREA */}
+          <div>
+            <textarea
+              value={message}
+              onChange={e => {
+                setMessage(e.target.value);
+                if (error) setError('');
+              }}
+              required
+              minLength={10}
+              maxLength={2000}
+              rows={3}
+              placeholder={t(
+                'Chia sẻ cảm nhận chi tiết của bạn về chất lượng mặt sân, độ nảy bóng, ánh sáng đèn LED, trọng tài hay tiện ích phòng tắm...'
+              )}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: 10,
+                border: '1.5px solid #cfd7c9',
+                background: '#ffffff',
+                fontSize: 14,
+                lineHeight: 1.6,
+                resize: 'vertical',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, fontSize: 11.5, color: '#78897e' }}>
+              <span>Tối thiểu 10 ký tự</span>
+              <span>{message.length} / 2000 ký tự</span>
+            </div>
+          </div>
+
+          {/* TOPIC SELECTION PILLS */}
+          <div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#173c32', marginBottom: 6 }}>
+              {t('Chủ đề nhận xét (tùy chọn):')}
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {topics.map(tp => {
+                const active = topic === tp.value;
+                return (
+                  <button
+                    key={tp.value}
+                    type="button"
+                    onClick={() => setTopic(tp.value)}
+                    style={{
+                      background: active ? '#173c32' : '#f8faf6',
+                      color: active ? '#def46a' : '#2b4437',
+                      border: active ? '1.5px solid #173c32' : '1px solid #d5dcce',
+                      borderRadius: 20,
+                      padding: '5px 12px',
+                      fontSize: 12,
+                      fontWeight: active ? 700 : 500,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <span>{tp.icon}</span>
+                    <span>{tp.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* CONSENT & ERROR */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
             <label
               style={{
                 display: 'flex',
-                alignItems: 'flex-start',
-                gap: 10,
+                alignItems: 'center',
+                gap: 8,
                 cursor: 'pointer',
-                fontSize: 13,
-                color: '#4a5b50',
-                lineHeight: 1.5
+                fontSize: 12.5,
+                color: '#475569'
               }}
             >
               <input
                 type="checkbox"
                 checked={consent}
                 onChange={e => setConsent(e.target.checked)}
-                style={{ marginTop: 3, accentColor: '#173c32' }}
+                style={{ accentColor: '#173c32' }}
               />
-              <span>{t('Cho phép hiển thị nhận xét công khai lên Bảng tin cộng đồng của CLB để lan tỏa tinh thần thể thao.')}</span>
+              <span>{t('Cho phép hiển thị đánh giá công khai trên trang web của CLB')}</span>
             </label>
 
-            {error && (
-              <div
-                style={{
-                  background: '#fef2f2',
-                  border: '1px solid #fecaca',
-                  color: '#991b1b',
-                  padding: '10px 14px',
-                  borderRadius: 8,
-                  fontSize: 13
-                }}
-              >
-                ⚠️ {error}
-              </div>
-            )}
+            {/* SUBMIT BUTTON */}
+            <button
+              type="submit"
+              disabled={busy}
+              style={{
+                background: '#173c32',
+                color: '#def46a',
+                border: 'none',
+                padding: '11px 26px',
+                borderRadius: 30,
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: busy ? 'not-allowed' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                boxShadow: '0 4px 14px rgba(23,60,50,0.18)',
+                marginLeft: 'auto'
+              }}
+            >
+              <span>🎾</span>
+              <span>
+                {busy
+                  ? t('Đang gửi…')
+                  : user
+                  ? t('Gửi đánh giá')
+                  : t('Đăng nhập để gửi đánh giá')}
+              </span>
+            </button>
+          </div>
 
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 6 }}>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                style={{
-                  background: '#f1f5f9',
-                  color: '#475569',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: 30,
-                  padding: '11px 22px',
-                  fontSize: 13.5,
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                {t('Đóng lại')}
-              </button>
-              <button
-                type="submit"
-                disabled={busy}
-                style={{
-                  background: '#173c32',
-                  color: '#def46a',
-                  border: 'none',
-                  padding: '12px 28px',
-                  borderRadius: 30,
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: busy ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  boxShadow: '0 4px 14px rgba(23,60,50,0.2)'
-                }}
-              >
-                <span>🎾</span>
-                <span>
-                  {busy
-                    ? t('Đang gửi đánh giá…')
-                    : user
-                    ? t('Gửi đánh giá cho Ban Quản Lý')
-                    : t('Đăng nhập để gửi đánh giá')}
-                </span>
-              </button>
+          {error && (
+            <div
+              style={{
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#991b1b',
+                padding: '10px 14px',
+                borderRadius: 8,
+                fontSize: 13
+              }}
+            >
+              ⚠️ {error}
             </div>
-          </form>
-        </div>
-      )}
+          )}
+        </form>
+      </div>
 
       {/* 4. REVIEWS CONTAINER & FILTER TOOLBAR */}
       <div ref={reviewsContainerRef}>
@@ -1653,12 +1682,12 @@ export function Feedback() {
             marginBottom: 20
           }}
         >
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {[
               { id: 'ALL', label: `${t('Tất cả')} (${allFeedbacks.length})` },
-              { id: '5STAR', label: '5 ⭐' },
-              { id: '4STAR', label: '4 ⭐' },
-              { id: '3STAR', label: '≤ 3 ⭐' },
+              { id: '5STAR', label: `5 ⭐ (${stats.counts[5] || 0})` },
+              { id: '4STAR', label: `4 ⭐ (${stats.counts[4] || 0})` },
+              { id: '3STAR', label: `≤ 3 ⭐ (${(stats.counts[3] || 0) + (stats.counts[2] || 0) + (stats.counts[1] || 0)})` },
               { id: 'HAS_REPLY', label: '💬 ' + t('Có phản hồi BQL') }
             ].map(tab => {
               const active = filterTopic === tab.id;
@@ -1672,7 +1701,7 @@ export function Feedback() {
                     color: active ? '#def46a' : '#394d40',
                     border: active ? '1px solid #173c32' : '1px solid #d5dcce',
                     borderRadius: 20,
-                    padding: '7px 15px',
+                    padding: '6px 14px',
                     fontSize: 12.5,
                     fontWeight: active ? 700 : 500,
                     cursor: 'pointer',
@@ -1707,12 +1736,12 @@ export function Feedback() {
           </div>
         </div>
 
-        {/* 5. 2-COLUMN RESPONSIVE REVIEWS GRID (BALANCED, NO EMPTY WHITESPACE) */}
+        {/* 5. 2-COLUMN RESPONSIVE REVIEWS GRID (BALANCED, CLEAN, CRISP) */}
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))',
-            gap: 20,
+            gap: 18,
             alignItems: 'stretch'
           }}
         >
@@ -1722,9 +1751,9 @@ export function Feedback() {
               style={{
                 background: '#ffffff',
                 border: '1px solid #e2e8dc',
-                borderRadius: 16,
-                padding: '24px 26px',
-                boxShadow: '0 4px 18px rgba(0,0,0,0.03)',
+                borderRadius: 14,
+                padding: '22px 24px',
+                boxShadow: '0 3px 14px rgba(23,60,50,0.03)',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between'
@@ -1739,37 +1768,37 @@ export function Feedback() {
                     alignItems: 'flex-start',
                     flexWrap: 'wrap',
                     gap: 10,
-                    marginBottom: 14
+                    marginBottom: 12
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div
                       style={{
-                        width: 44,
-                        height: 44,
+                        width: 42,
+                        height: 42,
                         borderRadius: '50%',
                         background: item.avatarBg || '#173c32',
                         color: '#ffffff',
                         display: 'grid',
                         placeItems: 'center',
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: 700,
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
                       }}
                     >
                       {item.userInitials || 'HV'}
                     </div>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <strong style={{ fontSize: 15, color: '#173c32' }}>{item.userName}</strong>
+                        <strong style={{ fontSize: 14.5, color: '#173c32' }}>{item.userName}</strong>
                         <span
                           style={{
                             background: '#ecfdf5',
                             color: '#047857',
                             border: '1px solid #a7f3d0',
-                            fontSize: 11,
+                            fontSize: 10.5,
                             fontWeight: 700,
-                            padding: '1px 8px',
+                            padding: '1px 7px',
                             borderRadius: 10
                           }}
                         >
@@ -1793,17 +1822,20 @@ export function Feedback() {
                     </div>
                   </div>
 
-                  {/* STARS */}
-                  <div style={{ display: 'flex', gap: 2, color: '#eab308' }}>
-                    {[1, 2, 3, 4, 5].map(s => (
-                      <Star
-                        key={s}
-                        size={16}
-                        fill={s <= item.rating ? '#eab308' : 'none'}
-                        color={s <= item.rating ? '#eab308' : '#cbd5e1'}
-                        strokeWidth={0}
-                      />
-                    ))}
+                  {/* STARS (CRISP, CLEAR) */}
+                  <div style={{ display: 'flex', gap: 2 }}>
+                    {[1, 2, 3, 4, 5].map(s => {
+                      const filled = s <= item.rating;
+                      return (
+                        <Star
+                          key={s}
+                          size={16}
+                          fill={filled ? '#f59e0b' : '#f1f5f9'}
+                          color={filled ? '#d97706' : '#cbd5e1'}
+                          strokeWidth={1}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1812,8 +1844,8 @@ export function Feedback() {
                   style={{
                     fontSize: 14,
                     color: '#334155',
-                    lineHeight: 1.7,
-                    margin: '0 0 16px',
+                    lineHeight: 1.65,
+                    margin: '0 0 14px',
                     whiteSpace: 'pre-line'
                   }}
                 >
@@ -1828,33 +1860,33 @@ export function Feedback() {
                     background: '#f4f7ee',
                     borderLeft: '3.5px solid #173c32',
                     borderRadius: '0 10px 10px 0',
-                    padding: '14px 18px',
-                    marginTop: 12
+                    padding: '12px 16px',
+                    marginTop: 10
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
                     <div
                       style={{
-                        width: 24,
-                        height: 24,
+                        width: 22,
+                        height: 22,
                         borderRadius: '50%',
                         background: '#173c32',
                         color: '#def46a',
                         display: 'grid',
                         placeItems: 'center',
-                        fontSize: 12
+                        fontSize: 11
                       }}
                     >
                       🎾
                     </div>
-                    <strong style={{ fontSize: 13, color: '#173c32' }}>{item.reply.adminName}</strong>
+                    <strong style={{ fontSize: 12.5, color: '#173c32' }}>{item.reply.adminName}</strong>
                     <span
                       style={{
                         background: '#173c32',
                         color: '#def46a',
                         fontSize: 10,
                         fontWeight: 700,
-                        padding: '1px 6px',
+                        padding: '1px 5px',
                         borderRadius: 4
                       }}
                     >
@@ -1864,7 +1896,7 @@ export function Feedback() {
                       {item.reply.date}
                     </span>
                   </div>
-                  <p style={{ fontSize: 13, color: '#27382f', lineHeight: 1.6, margin: 0, fontStyle: 'italic' }}>
+                  <p style={{ fontSize: 13, color: '#27382f', lineHeight: 1.55, margin: 0, fontStyle: 'italic' }}>
                     {item.reply.message}
                   </p>
                 </div>
@@ -1879,7 +1911,7 @@ export function Feedback() {
                 textAlign: 'center',
                 padding: '48px 20px',
                 background: '#ffffff',
-                borderRadius: 16,
+                borderRadius: 14,
                 border: '1px dashed #cfd7c9',
                 color: '#637269'
               }}
@@ -1893,11 +1925,11 @@ export function Feedback() {
         {totalPages > 1 && (
           <div
             style={{
-              marginTop: 28,
-              padding: '16px 24px',
+              marginTop: 24,
+              padding: '14px 20px',
               background: '#ffffff',
               border: '1px solid #dce2d6',
-              borderRadius: 14,
+              borderRadius: 12,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -1905,7 +1937,7 @@ export function Feedback() {
               gap: 12
             }}
           >
-            <span style={{ fontSize: 13, color: '#52655a' }}>
+            <span style={{ fontSize: 12.5, color: '#52655a' }}>
               Hiển thị <b>{(currentPage - 1) * PAGE_SIZE + 1}</b> –{' '}
               <b>{Math.min(currentPage * PAGE_SIZE, totalItems)}</b> trên tổng số <b>{totalItems}</b> đánh giá
             </span>
@@ -1987,17 +2019,17 @@ export function Feedback() {
       </div>
 
       {/* 7. CLUB SERVICE COMMITMENTS & SLA */}
-      <div style={{ marginTop: 52, marginBottom: 28 }}>
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+      <div style={{ marginTop: 48, marginBottom: 24 }}>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <span className="ct-eyebrow" style={{ color: '#173c32', letterSpacing: 2 }}>
             COURTLY QUALITY PROMISE
           </span>
-          <h2 style={{ fontSize: 24, margin: '6px 0 0', color: '#173c32' }}>
-            {t('Cam kết chất lượng & Chuẩn mực dịch vụ')}
+          <h2 style={{ fontSize: 22, margin: '6px 0 0', color: '#173c32' }}>
+            {t('Cam kết dịch vụ & Chuẩn mực phục vụ')}
           </h2>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
           {[
             {
               icon: '🧹',
@@ -2026,15 +2058,15 @@ export function Feedback() {
                 background: '#ffffff',
                 border: '1px solid #dbe2d4',
                 borderRadius: 14,
-                padding: '22px 24px',
-                boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
+                padding: '20px 22px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
               }}
             >
-              <div style={{ fontSize: 28, marginBottom: 10 }}>{c.icon}</div>
-              <strong style={{ fontSize: 15, color: '#173c32', display: 'block', marginBottom: 6 }}>
+              <div style={{ fontSize: 26, marginBottom: 8 }}>{c.icon}</div>
+              <strong style={{ fontSize: 14.5, color: '#173c32', display: 'block', marginBottom: 5 }}>
                 {c.title}
               </strong>
-              <p style={{ margin: 0, fontSize: 13, color: '#52655a', lineHeight: 1.6 }}>
+              <p style={{ margin: 0, fontSize: 12.5, color: '#52655a', lineHeight: 1.55 }}>
                 {c.desc}
               </p>
             </div>
@@ -2047,21 +2079,21 @@ export function Feedback() {
         style={{
           background: 'linear-gradient(135deg, #13332b 0%, #1e4d40 100%)',
           borderRadius: 16,
-          padding: '28px 36px',
+          padding: '26px 32px',
           color: '#ffffff',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: 20,
-          boxShadow: '0 8px 24px rgba(23,60,50,0.15)'
+          gap: 18,
+          boxShadow: '0 6px 20px rgba(23,60,50,0.12)'
         }}
       >
         <div>
-          <strong style={{ fontSize: 20, display: 'block', color: '#def46a', marginBottom: 4 }}>
+          <strong style={{ fontSize: 19, display: 'block', color: '#def46a', marginBottom: 4 }}>
             {t('Bạn đã sẵn sàng bước ra sân thi đấu?')}
           </strong>
-          <span style={{ fontSize: 14, color: '#e2ebd9' }}>
+          <span style={{ fontSize: 13.5, color: '#e2ebd9' }}>
             {t('Đặt trước khung giờ yêu thích chỉ với 30% cọc và nhận vé điện tử QR check-in tự động.')}
           </span>
         </div>
@@ -2073,8 +2105,8 @@ export function Feedback() {
             color: '#173c32',
             border: 'none',
             borderRadius: 30,
-            padding: '13px 28px',
-            fontSize: 14.5,
+            padding: '12px 26px',
+            fontSize: 14,
             fontWeight: 800,
             cursor: 'pointer',
             display: 'inline-flex',
