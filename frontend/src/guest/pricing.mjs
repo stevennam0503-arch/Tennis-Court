@@ -28,20 +28,38 @@ export const STANDARD_TIME_BLOCKS = [
 
 export function getSlotPrice(court, prices, dayObj, startHour) {
   if (!court) return 140000;
-  const rates = (prices || []).filter(p => p.court === court.id);
-  const matched = rates.find(p =>
-    (p.dayType === dayObj.dayType || p.dayType === dayObj.key.toUpperCase()) &&
-    Number(p.start) <= startHour && Number(p.end) > startHour
-  );
-  let basePrice = matched ? Number(matched.price) : Number(court.price || court.basePrice || 140000);
+  
+  // Base price defined on court (e.g., 160.000đ for outdoor, 240.000đ for indoor, 400.000đ for VIP)
+  const basePrice = Number(court.price || court.basePrice || 140000);
+  const isWeekend = dayObj.dayType === 'WEEKEND';
 
-  // Apply automatic flash sale discount (-25%) for weekday off-peak slots (09:00 - 16:00)
-  if (dayObj.dayType === 'WEEKDAY' && startHour >= 9 && startHour < 16 && !matched) {
-    basePrice = Math.round((basePrice * 0.75) / 1000) * 1000;
-  } else if (dayObj.key === 'fri' && startHour >= 18 && startHour < 21 && !matched) {
-    // Friday peak session
-    basePrice = Math.round((basePrice * 1.08) / 1000) * 1000;
+  // 1. Weekend Pricing Rules (Thứ 7 & Chủ Nhật)
+  if (isWeekend) {
+    if (startHour >= 18 && startHour < 23) {
+      // Weekend Night Peak (Đèn cao áp cuối tuần đông khách nhất): +50%
+      return Math.round((basePrice * 1.5) / 1000) * 1000;
+    }
+    // Weekend Day (06:00 - 18:00): +25%
+    return Math.round((basePrice * 1.25) / 1000) * 1000;
   }
+
+  // 2. Weekday Pricing Rules (Thứ 2 - Thứ 6)
+  if (startHour >= 9 && startHour < 16) {
+    // Golden Hour Off-Peak (09:00 - 16:00): Flash sale -25% discount to boost utilization
+    return Math.round((basePrice * 0.75) / 1000) * 1000;
+  }
+  
+  if (startHour >= 16 && startHour < 18) {
+    // Cool Afternoon Peak (16:00 - 18:00 tan tầm chiều mát): +25%
+    return Math.round((basePrice * 1.25) / 1000) * 1000;
+  }
+
+  if (startHour >= 18 && startHour < 21) {
+    // Night Prime Peak (18:00 - 21:00 giờ vàng tối bật dàn đèn LED 500 Lux): +40% (hoặc ~340k với sân 240k)
+    return Math.round((basePrice * 1.4) / 1000) * 1000;
+  }
+
+  // Standard early morning (06:00 - 09:00) & Late night (21:00 - 23:00): Exactly 100% Base Price
   return basePrice;
 }
 
