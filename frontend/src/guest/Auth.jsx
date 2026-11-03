@@ -129,7 +129,7 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
     register: isBookingFlow
       ? t('Đăng ký nhận ngay Voucher WELCOME 50.000₫ và giữ chỗ sân tức thì.')
       : t('Đăng ký nhanh chóng để giữ chỗ sân trực tuyến và nhận quà chào mừng 50k.'),
-    'activate-otp': t(`Mã OTP 6 số đã gửi tới ${values.email || 'email của bạn'}.`),
+    'activate-otp': `${t('Mã OTP 6 số đã gửi tới')} ${values.email || t('email của bạn')}.`,
     activate: t('Nhập mã kích hoạt một lần do quản trị viên cấp để thiết lập mật khẩu.')
   };
 
@@ -216,7 +216,7 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
                 required
                 maxLength={100}
                 autoComplete="name"
-                placeholder="Ví dụ: Nguyễn Văn A"
+                placeholder={t("Ví dụ: Nguyễn Văn A")}
                 value={values.name}
                 onChange={e => set('name', e.target.value)}
                 style={{ borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 14px', fontSize: 14 }}
@@ -228,7 +228,7 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
                 type="tel"
                 required
                 maxLength={15}
-                placeholder="0912345678 (10 chữ số)"
+                placeholder={t("0912345678 (10 chữ số)")}
                 value={values.phone}
                 onChange={e => set('phone', e.target.value)}
                 style={{ borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 14px', fontSize: 14 }}
@@ -264,9 +264,9 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
                 }}
               >
                 <div>
-                  <small style={{ display: 'block', color: '#166534', fontWeight: 600 }}>Thử nghiệm / Demo:</small>
+                  <small style={{ display: 'block', color: '#166534', fontWeight: 600 }}>{t('Thử nghiệm / Demo:')}</small>
                   <span style={{ fontSize: 13, color: '#14532d' }}>
-                    Mã OTP: <strong style={{ letterSpacing: 2, fontSize: 15, fontFamily: 'monospace' }}>{devCode}</strong>
+                    {t('Mã OTP:')} <strong style={{ letterSpacing: 2, fontSize: 15, fontFamily: 'monospace' }}>{devCode}</strong>
                   </span>
                 </div>
                 <button
@@ -336,7 +336,7 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
             {t('Mã kích hoạt')}
             <input
               required
-              placeholder="Dán mã kích hoạt tại đây"
+              placeholder={t("Dán mã kích hoạt tại đây")}
               value={values.token}
               onChange={e => set('token', e.target.value)}
               style={{ borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 14px', fontSize: 14 }}
@@ -368,7 +368,7 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
                 required
                 minLength={mode === 'login' ? undefined : 6}
                 maxLength={128}
-                placeholder="Nhập mật khẩu của bạn"
+                placeholder={t("Nhập mật khẩu của bạn")}
                 value={values.password}
                 onChange={e => set('password', e.target.value)}
                 style={{
@@ -411,7 +411,7 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
                 type={showConfirm ? 'text' : 'password'}
                 autoComplete="new-password"
                 required
-                placeholder="Nhập lại chính xác mật khẩu"
+                placeholder={t("Nhập lại chính xác mật khẩu")}
                 value={values.confirm}
                 onChange={e => set('confirm', e.target.value)}
                 style={{

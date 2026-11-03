@@ -153,57 +153,57 @@ export function ZaloZnsDialog({order, onClose}) {
         <div style={{flex: 1}}>
           <div style={{display: 'flex', alignItems: 'center', gap: 6}}>
             <strong style={{fontSize: 16, fontWeight: 700, letterSpacing: -0.2}}>Courtly Tennis Club</strong>
-            <span title="Tài khoản Zalo Doanh Nghiệp đã xác thực" style={{display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 17, height: 17, borderRadius: '50%', background: '#ffd700', color: '#173c32', fontSize: 11, fontWeight: 900}}>✓</span>
+            <span title={t("Tài khoản Zalo Doanh Nghiệp đã xác thực")} style={{display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 17, height: 17, borderRadius: '50%', background: '#ffd700', color: '#173c32', fontSize: 11, fontWeight: 900}}>✓</span>
           </div>
-          <span style={{fontSize: 12, opacity: 0.9, display: 'block'}}>Zalo Official Account Doanh Nghiệp</span>
+          <span style={{fontSize: 12, opacity: 0.9, display: 'block'}}>{t('Zalo Official Account Doanh Nghiệp')}</span>
         </div>
       </div>
 
       <div style={{background: '#f4f5f7', border: '1px solid #dcdfe4', borderTop: 'none', borderRadius: '0 0 12px 12px', padding: '18px 16px', boxShadow: '0 8px 24px rgba(0,0,0,0.06)'}}>
         <div style={{background: '#ffffff', borderRadius: 10, padding: '18px 16px', border: '1px solid #e2e5eb', marginBottom: 14}}>
           <div style={{display: 'inline-block', background: '#eff6ff', color: '#1d4ed8', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 4, textTransform: 'uppercase', marginBottom: 10, letterSpacing: 0.5}}>
-            THÔNG BÁO XÁC NHẬN & NHẮC LỊCH ĐẶT SÂN
+            {t('THÔNG BÁO XÁC NHẬN & NHẮC LỊCH ĐẶT SÂN')}
           </div>
           <h3 style={{fontSize: 16, margin: '0 0 10px', color: '#111827', fontWeight: 700}}>
-            Xin chào {order.name},
+            {t('Xin chào')} {order.name},
           </h3>
           <p style={{fontSize: 13, color: '#4b5563', lineHeight: 1.5, margin: '0 0 14px'}}>
-            Courtly Tennis Club trân trọng thông báo lịch thi đấu / tập luyện của bạn đã được xác nhận thành công trên hệ thống:
+            {t('Courtly Tennis Club trân trọng thông báo lịch thi đấu / tập luyện của bạn đã được xác nhận thành công trên hệ thống:')}
           </p>
 
           <div style={{background: '#f8fafc', borderRadius: 8, padding: '12px 14px', fontSize: 13, display: 'grid', gap: 8, border: '1px solid #e5e7eb'}}>
             <div style={{display: 'flex', justifyContent: 'space-between'}}>
-              <span style={{color: '#6b7280'}}>Mã đặt sân:</span>
+              <span style={{color: '#6b7280'}}>{t('Mã đặt sân:')}</span>
               <strong style={{color: '#0068ff', fontFamily: 'monospace', fontSize: 14}}>{ticketCode}</strong>
             </div>
             <div style={{display: 'flex', justifyContent: 'space-between'}}>
-              <span style={{color: '#6b7280'}}>Sân thi đấu:</span>
+              <span style={{color: '#6b7280'}}>{t('Sân thi đấu:')}</span>
               <strong style={{color: '#111827'}}>{court?.name || 'Sân tiêu chuẩn'} ({labels[court?.type] || 'Sân ngoài trời'})</strong>
             </div>
             <div style={{display: 'flex', justifyContent: 'space-between'}}>
-              <span style={{color: '#6b7280'}}>Thời gian chơi:</span>
+              <span style={{color: '#6b7280'}}>{t('Thời gian chơi:')}</span>
               <strong style={{color: '#111827'}}>{startTime} – {endTime} · {order.date}</strong>
             </div>
             {refStaff && (
               <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                <span style={{color: '#6b7280'}}>Trọng tài hỗ trợ:</span>
+                <span style={{color: '#6b7280'}}>{t('Trọng tài hỗ trợ:')}</span>
                 <strong style={{color: '#111827'}}>{refStaff.name}</strong>
               </div>
             )}
             <div style={{display: 'flex', justifyContent: 'space-between'}}>
-              <span style={{color: '#6b7280'}}>Tiền cọc đã đóng:</span>
+              <span style={{color: '#6b7280'}}>{t('Tiền cọc đã đóng:')}</span>
               <strong style={{color: '#15803d'}}>{money(order.paid)} (50%)</strong>
             </div>
             {order.total > order.paid && (
               <div style={{display: 'flex', justifyContent: 'space-between'}}>
-                <span style={{color: '#6b7280'}}>Còn lại tại quầy:</span>
+                <span style={{color: '#6b7280'}}>{t('Còn lại tại quầy:')}</span>
                 <strong style={{color: '#2563eb'}}>{money(order.total - order.paid)}</strong>
               </div>
             )}
           </div>
 
           <div style={{background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: 8, padding: '10px 12px', marginTop: 14, fontSize: 12, color: '#92400e', lineHeight: 1.5}}>
-            💡 <b>Lưu ý:</b> Quý khách vui lòng có mặt trước giờ chơi 10-15 phút để khởi động và mở <b>Vé điện tử QR</b> tại quầy lễ tân để check-in nhận sân.
+            💡 <b>{t('Lưu ý:')}</b> {t('Quý khách vui lòng có mặt trước giờ chơi 10-15 phút để khởi động và mở Vé điện tử QR tại quầy lễ tân để check-in nhận sân.')}
           </div>
         </div>
 
@@ -229,7 +229,7 @@ export function ZaloZnsDialog({order, onClose}) {
             }}
           >
             <span>🎫</span>
-            <span>Mở Vé Điện Tử QR Check-in</span>
+            <span>{t('Mở Vé Điện Tử QR Check-in')}</span>
           </button>
 
           {order.status === 'CHECKED_IN' && (
@@ -248,7 +248,7 @@ export function ZaloZnsDialog({order, onClose}) {
                 cursor: 'pointer'
               }}
             >
-              ⚡ Gia hạn giờ chơi (+30p / +60p)
+              ⚡ {t('Gia hạn giờ chơi (+30p / +60p)')}
             </button>
           )}
 
@@ -271,7 +271,7 @@ export function ZaloZnsDialog({order, onClose}) {
         </div>
 
         <p style={{margin: '14px 0 0', textAlign: 'center', fontSize: 11, color: '#9ca3af', lineHeight: 1.4}}>
-          Tin nhắn dịch vụ tự động ZNS từ hệ thống Courtly Tennis Club gửi tới số điện thoại {order.phone || 'khách hàng'}. Hotline CSKH: 0987 654 321.
+          {t('Tin nhắn dịch vụ tự động ZNS từ hệ thống Courtly Tennis Club gửi tới số điện thoại')} {order.phone || t('khách hàng')}. Hotline CSKH: 0987 654 321.
         </p>
       </div>
     </div>
@@ -311,7 +311,7 @@ export function ExtendCourtDialog({order, onClose}) {
         requestId: requestId()
       });
       await refresh();
-      notify(t(`Đã gia hạn sân thêm ${selectedOpt.duration} phút thành công!`));
+      notify(`${t('Đã gia hạn sân thêm')} ${selectedOpt.duration} ${t('phút thành công!')}`);
       setExtendedResult(selectedOpt);
     } catch (e) {
       setError(e.message);
@@ -683,7 +683,7 @@ export function Orders({history=false}){
                       <h3 style={{margin:0,fontSize:17,color:'#173c32',fontWeight:700}}>{courtName}</h3>
                       {meta.recurringWeeks > 1 && (
                         <span style={{background:'#ccfbf1',color:'#0f766e',fontSize:11.5,fontWeight:700,padding:'2px 8px',borderRadius:6}}>
-                          🔄 {meta.recurringSummary || `Định kỳ ${meta.recurringWeeks} tuần`}
+                          🔄 {meta.recurringSummary || `${t('Định kỳ')} ${meta.recurringWeeks} ${t('tuần')}`}
                         </span>
                       )}
                     </div>
@@ -766,8 +766,8 @@ export function Orders({history=false}){
                   const refundPending = o.finance?.refundPending || (settlement ? (settlement.refundAmount || 0) : 0);
                   const policyDesc = settlement?.policyDescription || (
                     settlement?.hoursBeforePlay !== undefined && settlement?.hoursBeforePlay !== null
-                      ? (settlement.hoursBeforePlay >= 24 ? 'Hủy trước > 24h: Hoàn 100% cọc' : settlement.hoursBeforePlay >= 12 ? 'Hủy 12h - 24h: Hoàn 50% cọc' : 'Hủy cận giờ < 12h: Giữ 100% cọc')
-                      : (o.paid > 0 ? 'Chính sách hoàn hủy CLB' : 'Hủy đơn giữ chỗ')
+                      ? (settlement.hoursBeforePlay >= 24 ? t('Hủy trước > 24h: Hoàn 100% cọc') : settlement.hoursBeforePlay >= 12 ? t('Hủy 12h - 24h: Hoàn 50% cọc') : t('Hủy cận giờ < 12h: Giữ 100% cọc'))
+                      : (o.paid > 0 ? t('Chính sách hoàn hủy CLB') : t('Hủy đơn giữ chỗ'))
                   );
                   const retained = settlement?.retainedAmount || 0;
                   const isPending = refundPending > 0 && refunded === 0;

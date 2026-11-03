@@ -187,15 +187,15 @@ export default function CashDesk() {
           >
             <div style={{ textAlign: 'center', borderBottom: '1px solid #cbd5e1', paddingBottom: 10, marginBottom: 12 }}>
               <h3 style={{ margin: 0, color: '#0f172a' }}>CLB TENNIS COURTLY</h3>
-              <div style={{ fontSize: 13, color: '#64748b' }}>PHIẾU THU TIỀN MẶT TẠI QUẦY</div>
+              <div style={{ fontSize: 13, color: '#64748b' }}>{t('PHIẾU THU TIỀN MẶT TẠI QUẦY')}</div>
             </div>
             <div style={{ fontSize: 14, lineHeight: 1.8 }}>
-              <div><b>Mã phiếu thu:</b> #{receipt.id.slice(0, 8)}</div>
-              <div><b>Mã đơn đặt sân:</b> #{receipt.orderId.slice(0, 8)}</div>
-              <div><b>Khách hàng:</b> {receipt.customerName}</div>
-              <div><b>Số tiền thu:</b> <span style={{ fontSize: 18, color: '#059669', fontWeight: 700 }}>{money(receipt.amount)}</span></div>
-              <div><b>Thu ngân:</b> {receipt.cashier}</div>
-              <div><b>Thời gian:</b> {receipt.time}</div>
+              <div><b>{t('Mã phiếu thu:')}</b> #{receipt.id.slice(0, 8)}</div>
+              <div><b>{t('Mã đơn đặt sân:')}</b> #{receipt.orderId.slice(0, 8)}</div>
+              <div><b>{t('Khách hàng:')}</b> {receipt.customerName}</div>
+              <div><b>{t('Số tiền thu:')}</b> <span style={{ fontSize: 18, color: '#059669', fontWeight: 700 }}>{money(receipt.amount)}</span></div>
+              <div><b>{t('Thu ngân:')}</b> {receipt.cashier}</div>
+              <div><b>{t('Thời gian:')}</b> {receipt.time}</div>
             </div>
             <div style={{ marginTop: 14, display: 'flex', gap: 10 }}>
               <button
@@ -204,7 +204,7 @@ export default function CashDesk() {
                 style={{ padding: '6px 14px', fontSize: 13 }}
                 onClick={() => window.print()}
               >
-                🖨️ In phiếu thu
+                🖨️ {t('In phiếu thu')}
               </button>
               <button
                 type="button"
@@ -256,7 +256,7 @@ export default function CashDesk() {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: 12, marginBottom: 16 }}>
-              <h2 style={{ margin: 0, fontSize: 18 }}>💼 Chốt ca thu ngân & Bàn giao két</h2>
+              <h2 style={{ margin: 0, fontSize: 18 }}>💼 {t('Chốt ca thu ngân & Bàn giao két')}</h2>
               <button
                 type="button"
                 style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}
@@ -269,22 +269,22 @@ export default function CashDesk() {
             {shiftReport ? (
               <div>
                 <div style={{ padding: 16, background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, marginBottom: 16 }}>
-                  <h3 style={{ margin: '0 0 8px 0', color: '#166534' }}>✓ Đã hoàn tất chốt ca thành công!</h3>
+                  <h3 style={{ margin: '0 0 8px 0', color: '#166534' }}>✓ {t('Đã hoàn tất chốt ca thành công!')}</h3>
                   <div style={{ fontSize: 14, lineHeight: 1.8 }}>
-                    <div><b>Mã biên bản:</b> #{shiftReport.id.slice(0, 8)}</div>
-                    <div><b>Thu ngân:</b> {shiftReport.cashierName}</div>
+                    <div><b>{t('Mã biên bản:')}</b> #{shiftReport.id.slice(0, 8)}</div>
+                    <div><b>{t('Thu ngân:')}</b> {shiftReport.cashierName}</div>
                     <div><b>Ngày:</b> {shiftReport.date}</div>
-                    <div><b>Tiền đầu ca:</b> {money(shiftReport.startingCash)}</div>
-                    <div><b>Tiền mặt đã thu:</b> {money(shiftReport.cashCollected)} ({shiftReport.txCount} giao dịch)</div>
-                    <div><b>Tiền mặt kỳ vọng:</b> {money(shiftReport.expectedCash)}</div>
-                    <div><b>Tiền mặt thực đếm:</b> {money(shiftReport.actualCash)}</div>
-                    <div><b>Chênh lệch két:</b> <span style={{ fontWeight: 700, color: shiftReport.difference === 0 ? '#166534' : '#b91c1c' }}>{money(shiftReport.difference)}</span></div>
-                    {shiftReport.note && <div><b>Ghi chú:</b> {shiftReport.note}</div>}
+                    <div><b>{t('Tiền đầu ca:')}</b> {money(shiftReport.startingCash)}</div>
+                    <div><b>{t('Tiền mặt đã thu:')}</b> {money(shiftReport.cashCollected)} ({shiftReport.txCount} {t('giao dịch')})</div>
+                    <div><b>{t('Tiền mặt kỳ vọng:')}</b> {money(shiftReport.expectedCash)}</div>
+                    <div><b>{t('Tiền mặt thực đếm:')}</b> {money(shiftReport.actualCash)}</div>
+                    <div><b>{t('Chênh lệch két:')}</b> <span style={{ fontWeight: 700, color: shiftReport.difference === 0 ? '#166534' : '#b91c1c' }}>{money(shiftReport.difference)}</span></div>
+                    {shiftReport.note && <div><b>{t('Ghi chú:')}</b> {shiftReport.note}</div>}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button type="button" className="ct-primary" onClick={() => window.print()}>
-                    🖨️ In biên bản chốt ca
+                    🖨️ {t('In biên bản chốt ca')}
                   </button>
                   <button type="button" className="ct-outline" onClick={() => setShiftOpen(false)}>
                     Hoàn tất
@@ -295,7 +295,7 @@ export default function CashDesk() {
               <form onSubmit={handleCloseShift}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16, background: '#f8fafc', padding: 12, borderRadius: 8 }}>
                   <div>
-                    <span style={{ fontSize: 12, color: '#64748b' }}>Ngày ca:</span>
+                    <span style={{ fontSize: 12, color: '#64748b' }}>{t('Ngày ca:')}</span>
                     <div style={{ fontWeight: 600 }}>{shiftData?.shiftDate}</div>
                   </div>
                   <div>

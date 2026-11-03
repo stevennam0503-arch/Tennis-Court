@@ -636,12 +636,12 @@ export default function Portal({session,onSession,onLogout}){
                     setWelcomeBannerApplied(true);
                     notify(t('Chào mừng bạn! Mã ưu đãi WELCOME (-50.000₫) đã được chuẩn bị cho đơn đầu tiên.'));
                   } else {
-                    notify(t(`Chào mừng ${s.user.name || 'bạn'}! Nhận ngay voucher WELCOME giảm 50.000₫ cho đơn đầu tiên.`));
+                    notify(`${t('Chào mừng')} ${s.user.name || t('bạn')}! ${t('Nhận ngay voucher WELCOME giảm 50.000₫ cho đơn đầu tiên.')}`);
                   }
                 } else {
                   setShowWelcomeBanner(false);
                   setWelcomeBannerDismissed(true);
-                  notify(t(`Chào mừng trở lại, ${s.user.name || 'bạn'}!`));
+                  notify(`${t('Chào mừng trở lại')}, ${s.user.name || t('bạn')}!`);
                   if (authContext?.from === 'booking' || route === 'booking') {
                     navigate('booking');
                   }

@@ -63,6 +63,31 @@ export function ArticleReader({ article: a, onBack, onSelectArticle, allArticles
       return a.body.split('\n').filter(Boolean);
     }
 
+    if (lang === 'en') {
+      if (a.category === 'TOURNAMENT' || a.source === 'TOURNAMENT') {
+        return [
+          'The annual tennis tournament at Courtly Tennis Club officially opens its most competitive registration phase of the year, bringing together over 32 standout amateur and semi-pro players from clubs across the region.',
+          'Matches are professionally organized in a single-elimination (Knock-out) format across 4 indoor courts in Zone B. Featuring ATP Tour-standard Pro-Cushion cushioned surfaces and anti-glare 500 Lux LED lighting, athletes enjoy ideal playing conditions rain or shine.',
+          'This year’s prize pool features honorary championship trophies, commemorative medals, sponsor awards, and a 1-year Member Plus package at Courtly.',
+          'All matches are officiated by certified Vietnam Tennis Federation umpires, ensuring fairness, precision, and peak sportsmanship throughout.'
+        ];
+      }
+      if (a.title?.includes('Bảo dưỡng') || a.title?.includes('Khu B') || a.category === 'FACILITY') {
+        return [
+          'To provide a seamless, safe, and world-class playing experience for all members, Courtly Tennis Club management has completed comprehensive maintenance for all 4 indoor courts in Zone B (B01–B04).',
+          'The upgrade highlight is the next-generation 8-layer Pro-Cushion coating technology. The micro-cellular rubber cushion absorbs impact during sprints and sudden directional changes, reducing stress on knees and ankles by up to 28% compared to standard hardcourts.',
+          'Additionally, industrial convection ventilation and 500 Lux LED arrays have been calibrated to eliminate glare on overhead smashes.',
+          'At Courtly, every moment you hold a racket should be fulfilling, exhilarating, and energized.'
+        ];
+      }
+      return [
+        'Tennis requires a harmonious balance of physical endurance, agile footwork, and tactical insight. For recreational players, proper warm-up habits are essential to sustain peak form and prevent injuries.',
+        'According to Courtly fitness specialists, every structured session should begin with 10 minutes of dynamic stretching targeting shoulders, wrists, and hamstrings. After match play, 5 minutes of cool-down and a warm foot bath significantly accelerate muscle recovery.',
+        'Maintaining hydration and electrolyte replenishment every 15–20 minutes is critical to prevent cramping and maintain optimal body temperature.',
+        'Join us at Courtly to experience premier courts and connect with fellow tennis enthusiasts!'
+      ];
+    }
+
     if (a.category === 'TOURNAMENT' || a.source === 'TOURNAMENT') {
       return [
         'Giải quần vợt thường niên tại Cụm sân Courtly Tennis Club chính thức bước vào giai đoạn đăng ký tranh tài sôi nổi nhất trong năm. Sự kiện quy tụ hơn 32 tay vợt phong trào và bán chuyên xuất sắc từ khắp các câu lạc bộ trong khu vực.',
@@ -274,7 +299,7 @@ export function ArticleReader({ article: a, onBack, onSelectArticle, allArticles
               textAlign: 'center'
             }}
           >
-            Ảnh: Không gian thi đấu và hoạt động phong trào sôi nổi tại cụm sân Courtly Tennis Club.
+            {t('Ảnh: Không gian thi đấu và hoạt động phong trào sôi nổi tại cụm sân Courtly Tennis Club.')}
           </figcaption>
         </figure>
 
@@ -311,10 +336,10 @@ export function ArticleReader({ article: a, onBack, onSelectArticle, allArticles
               “
             </span>
             <p style={{ margin: '0 0 10px', fontSize: 17, fontStyle: 'italic', lineHeight: 1.6, color: '#f3f7ed' }}>
-              Quần vợt không đơn thuần là rèn luyện thể lực, đó là nơi tôi luyện sự điềm tĩnh trước mỗi đường bóng và kết nối những tâm hồn đam mê thể thao đích thực.
+              {t('Quần vợt không đơn thuần là rèn luyện thể lực, đó là nơi tôi luyện sự điềm tĩnh trước mỗi đường bóng và kết nối những tâm hồn đam mê thể thao đích thực.')}
             </p>
             <footer style={{ fontSize: 12.5, color: '#def46a', fontWeight: 700 }}>
-              — Huấn luyện viên Trưởng Courtly Tennis Academy
+              {t('— Huấn luyện viên Trưởng Courtly Tennis Academy')}
             </footer>
           </blockquote>
 
@@ -331,12 +356,12 @@ export function ArticleReader({ article: a, onBack, onSelectArticle, allArticles
             }}
           >
             <strong style={{ display: 'block', fontSize: 14.5, marginBottom: 6, color: '#14532d' }}>
-              💡 Lời khuyên cho buổi chơi tại Courtly:
+              💡 {t('Lời khuyên cho buổi chơi tại Courtly:')}
             </strong>
             <ul style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 6 }}>
-              <li>Nên đến sân trước 10–15 phút để làm thủ tục check-in bằng mã QR và khởi động nhẹ.</li>
-              <li>Chọn loại giày tennis đế non-marking nhằm bảo vệ lớp sơn giảm chấn Pro-Cushion của sân.</li>
-              <li>Tận dụng hệ thống tủ locker và phòng tắm nóng lạnh miễn phí sau mỗi buổi tập luyện.</li>
+              <li>{t('Nên đến sân trước 10–15 phút để làm thủ tục check-in bằng mã QR và khởi động nhẹ.')}</li>
+              <li>{t('Chọn loại giày tennis đế non-marking nhằm bảo vệ lớp sơn giảm chấn Pro-Cushion của sân.')}</li>
+              <li>{t('Tận dụng hệ thống tủ locker và phòng tắm nóng lạnh miễn phí sau mỗi buổi tập luyện.')}</li>
             </ul>
           </div>
         </div>
@@ -344,7 +369,7 @@ export function ArticleReader({ article: a, onBack, onSelectArticle, allArticles
         {/* TAGS */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 36, paddingTop: 20, borderTop: '1px solid #eef2ea' }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: '#637269', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Tag size={13} /> Thẻ:
+            <Tag size={13} /> {t('Thẻ:')}
           </span>
           {['#CourtlyTennis', '#QuanVotPhongTrao', '#SanTennisTrongNha', '#ATPStandard'].map(tag => (
             <span
@@ -397,7 +422,7 @@ export function ArticleReader({ article: a, onBack, onSelectArticle, allArticles
               Courtly Editorial Team
             </strong>
             <p style={{ margin: '4px 0 0', fontSize: 12.5, color: '#52655a', lineHeight: 1.5 }}>
-              Kênh truyền thông chính thức phụ trách đưa tin về giải đấu, văn hóa thi đấu, kỹ thuật và nhịp sống thể thao tại Tổ hợp Quần vợt Courtly Tennis Club.
+              {t('Kênh truyền thông chính thức phụ trách đưa tin về giải đấu, văn hóa thi đấu, kỹ thuật và nhịp sống thể thao tại Tổ hợp Quần vợt Courtly Tennis Club.')}
             </p>
           </div>
         </div>

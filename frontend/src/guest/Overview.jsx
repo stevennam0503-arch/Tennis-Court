@@ -168,7 +168,7 @@ export default function Overview() {
         >
           <div>
             <span className="ct-eyebrow" style={{ color: '#173c32', letterSpacing: 2 }}>
-              COMMUNITY VOICES · 4.9 ★ (280+ ĐÁNH GIÁ)
+              {t('COMMUNITY VOICES · 4.9 ★ (280+ ĐÁNH GIÁ)')}
             </span>
             <h2 style={{ fontSize: 28, color: '#173c32', margin: '8px 0 0', fontWeight: 800 }}>
               {t('Trải nghiệm thực tế từ cộng đồng người chơi 🎾')}
@@ -235,7 +235,7 @@ export default function Overview() {
                       borderRadius: 12
                     }}
                   >
-                    {item.tag}
+                    {t(item.tag)}
                   </span>
                 </div>
 
@@ -248,7 +248,7 @@ export default function Overview() {
                     fontStyle: 'italic'
                   }}
                 >
-                  "{item.comment}"
+                  "{t(item.comment)}"
                 </p>
               </div>
 
@@ -271,7 +271,7 @@ export default function Overview() {
                 <div>
                   <strong style={{ fontSize: 13.5, color: '#173c32', display: 'block' }}>{item.name}</strong>
                   <span style={{ fontSize: 11.5, color: '#059669', display: 'flex', alignItems: 'center', gap: 3, fontWeight: 600 }}>
-                    <CheckCircle2 size={12} /> {item.role}
+                    <CheckCircle2 size={12} /> {t(item.role)}
                   </span>
                 </div>
               </div>

@@ -233,7 +233,7 @@ export default function Booking() {
     if (!appliedVoucher) return;
     if (appliedVoucher.minOrder && gross > 0 && gross < appliedVoucher.minOrder) {
       setAppliedVoucher(null);
-      setVoucherError(t(`Voucher ${appliedVoucher.code} đã tự động gỡ: Cần đơn tối thiểu ${money(appliedVoucher.minOrder)}.`));
+      setVoucherError(`${t('Voucher')} ${appliedVoucher.code} ${t('đã tự động gỡ: Cần đơn tối thiểu')} ${money(appliedVoucher.minOrder)}.`);
     }
   }, [gross]);
 
@@ -274,7 +274,7 @@ export default function Booking() {
     if (overdueDebtOrders.length > 0) {
       const debt = overdueDebtOrders[0];
       const debtAmt = (debt.total || 0) - (debt.paid || 0);
-      setError(t(`Tài khoản của bạn đang có đơn nợ quá hạn (#${debt.id.slice(0, 8).toUpperCase()} - còn nợ ${money(debtAmt)}). Theo chính sách CLB Courtly, quý khách vui lòng tất toán đơn nợ cũ trước khi tiếp tục đặt sân mới.`));
+      setError(`${t('Tài khoản của bạn đang có đơn nợ quá hạn')} (#${debt.id.slice(0, 8).toUpperCase()} - ${t('còn nợ')} ${money(debtAmt)}). ${t('Theo quy định CLB Courtly, quý khách vui lòng tất toán đơn nợ cũ để mở lại quyền đặt sân mới.')}`);
       return;
     }
     if (!ready) return;
@@ -447,7 +447,7 @@ export default function Booking() {
               color: '#1e40af'
             }}>
               <span>
-                💡 <b>Đặt nhiều sân:</b> Đang có {selectedCourtEntries.length} sân trong đơn. Bạn có thể chạm vào sân khác trên bản đồ phía trên để chọn thêm giờ.
+                💡 <b>{t('Đặt nhiều sân:')}</b> {t('Đang có')} {selectedCourtEntries.length} {t('sân trong đơn. Bạn có thể chạm vào sân khác trên bản đồ phía trên để chọn thêm giờ.')}
               </span>
             </div>
           )}
@@ -859,7 +859,7 @@ export default function Booking() {
                             <span style={{fontSize: 10, color: isApp ? '#16a34a' : '#94a3b8'}}>({discLabel})</span>
                             {!isApp && vc.reason && (
                               <span style={{fontSize: 9.5, color: '#b45309', marginLeft: 2}}>
-                                • {vc.newUserOnly ? 'khách mới' : vc.memberOnly ? 'Hội viên' : 'chưa đủ đk'}
+                                • {vc.newUserOnly ? t('khách mới') : vc.memberOnly ? t('Hội viên') : t('chưa đủ đk')}
                               </span>
                             )}
                           </button>
@@ -902,7 +902,7 @@ export default function Booking() {
                               Dùng
                             </button>
                           ) : (
-                            <span style={{fontSize: 9.5, color: '#94a3b8', fontStyle: 'italic', flexShrink: 0}}>Chưa đủ ĐK</span>
+                            <span style={{fontSize: 9.5, color: '#94a3b8', fontStyle: 'italic', flexShrink: 0}}>{t('Chưa đủ ĐK')}</span>
                           )}
                         </div>
                       ))}

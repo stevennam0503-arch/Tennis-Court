@@ -109,7 +109,7 @@ export function PaymentDialog({intent,onClose}){
   const copy=async(text,msg)=>{
     try{
       await navigator.clipboard.writeText(text);
-      notify(t(`Đã sao chép ${msg||''}`));
+      notify(`${t('Đã sao chép')} ${msg ? t(msg) : ''}`);
     }catch{
       notify(text);
     }
