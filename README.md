@@ -39,7 +39,7 @@ Yêu cầu Docker Desktop đang chạy (Windows: mở Docker Desktop, chờ "Eng
    | Khách hội viên Plus | `hoangnam@gmail.com` |
    | Khách thường | `khachmoi@gmail.com` |
 
-Reset xóa mọi đơn và tài khoản tự tạo, khôi phục 10 sân chuẩn, đưa chính sách về giữ chỗ 5 phút / cọc 50%, sinh lịch sân theo bảng giá ngày thường / cuối tuần và tạo 17 đơn mẫu bám theo ngày hiện tại. Reset chỉ hoạt động khi `DEMO_MODE=true`; có thể chạy từ terminal bằng `scripts/reset-showcase.bat` hoặc `python scripts/seed_showcase.py`.
+Reset xóa mọi đơn và tài khoản tự tạo, khôi phục 10 sân chuẩn, đưa chính sách về giữ chỗ 5 phút / cọc 50%, sinh lịch sân theo bảng giá ngày thường / cuối tuần và tạo 17 đơn mẫu bám theo ngày hiện tại. Reset chỉ hoạt động khi `DEMO_MODE=true`; có thể chạy từ terminal tại thư mục gốc bằng `.\reset-demo.ps1` (PowerShell), `reset-demo.bat` (nhấp đúp) hoặc `python scripts/seed_showcase.py`.
 
 Cập nhật bản đang chạy: `git pull`, rồi `docker compose up -d --build`. Backend tự chạy migration Flyway; không nhập lại SQL và không xóa volume `postgres_data` (`docker compose down -v` sẽ xóa database).
 
