@@ -3,9 +3,11 @@ package com.courtly.service;
 import static com.courtly.util.Rules.ZONE;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -23,6 +25,8 @@ public class DemoResetService {
   private final AuditService audit;
   private final DemoAccessPolicy demo;
   private final DocumentService documents;
+  private final ScheduleService scheduling;
+  private final com.courtly.repository.CourtScheduleRepository courtSchedules;
 
   private static final String ADMIN_ID = "b27fe32c-e9b7-44bf-8149-81bc00b5bbba";
   private static final String STAFF_ID = "f21bd5fa-cf66-4ee4-a009-3a337eebc6fa";
@@ -80,6 +84,26 @@ public class DemoResetService {
     jdbc.execute("UPDATE vouchers SET used_count = 0");
     jdbc.execute("DELETE FROM tournament_registrations");
 
+    // Khôi phục bộ 10 sân chuẩn (có thể đã bị xóa/tạm ngưng khi thử chức năng quản lý sân)
+    // Mỗi tên chỉ giữ một sân: ưu tiên sân đang hoạt động, chỉ mở lại sân đã xóa khi chưa có sân cùng tên
+    jdbc.execute(
+        "UPDATE courts SET status = 'ACTIVE' WHERE status <> 'ACTIVE' AND id IN (SELECT DISTINCT ON (name) id FROM courts "
+            + "WHERE name IN ('Sân A01', 'Sân A02', 'Sân A03', 'Sân A04', 'Sân B01', 'Sân B02', 'Sân B03', 'Sân B04', 'Sân V01', 'Sân V02') "
+            + "ORDER BY name, (status = 'ACTIVE') DESC, (status = 'DELETED'))");
+    jdbc.execute(
+        "UPDATE courts SET image_url = CASE type WHEN 'OUTDOOR' THEN '/guest/zone-a-outdoor.webp' WHEN 'INDOOR' THEN '/guest/zone-b-indoor.webp' "
+            + "ELSE '/guest/zone-v-lounge.webp' END WHERE image_url IS NULL OR image_url = ''");
+    // Sân chưa có bảng giá (vd. vừa tạo lại) nhận bảng giá của một sân cùng khu đang hoạt động
+    jdbc.execute(
+        "INSERT INTO court_prices (id, court_id, day_type, start_time, end_time, price_per_hour) "
+            + "SELECT gen_random_uuid(), c.id, p.day_type, p.start_time, p.end_time, p.price_per_hour FROM courts c "
+            + "JOIN LATERAL (SELECT p2.court_id FROM court_prices p2 JOIN courts c2 ON c2.id = p2.court_id "
+            + "WHERE c2.type = c.type AND c2.status = 'ACTIVE' ORDER BY c2.name LIMIT 1) ref ON true "
+            + "JOIN court_prices p ON p.court_id = ref.court_id "
+            + "WHERE c.status = 'ACTIVE' AND NOT EXISTS (SELECT 1 FROM court_prices x WHERE x.court_id = c.id)");
+    // Chính sách chuẩn của kịch bản demo: giữ chỗ 5 phút, cọc 50%
+    jdbc.execute("UPDATE club_settings SET hold_minutes = 5, deposit_percent = 50");
+
     // Đảm bảo toàn bộ sân cùng 1 danh mục có giá chuẩn đồng nhất
     jdbc.execute("UPDATE courts SET base_price = 160000.00 WHERE type = 'OUTDOOR'");
     jdbc.execute("UPDATE courts SET base_price = 240000.00 WHERE type = 'INDOOR'");
@@ -126,37 +150,15 @@ public class DemoResetService {
     // 2. Khởi tạo mã giảm giá Vouchers
     seedVouchers();
 
-    // 4. Sinh court_schedules chuẩn 30 phút (06:00 - 22:00) cho các ngày cần thiết
-    String seedSlotsSql = String.format(
-        """
-        DO $$
-        DECLARE
-            c RECORD;
-            d DATE;
-            m INT;
-            st TIME;
-            et TIME;
-            pr NUMERIC;
-        BEGIN
-            FOR d IN SELECT unnest(ARRAY['%s'::DATE, '%s'::DATE, '%s'::DATE, '%s'::DATE, '%s'::DATE, '%s'::DATE, '%s'::DATE, '%s'::DATE]) LOOP
-                FOR c IN SELECT id, base_price FROM courts WHERE status != 'DELETED' LOOP
-                    FOR m IN 360..1320 BY 30 LOOP
-                        st := (make_interval(mins => m))::TIME;
-                        et := (make_interval(mins => m + 30))::TIME;
-                        pr := c.base_price / 2;
-                        IF NOT EXISTS (SELECT 1 FROM court_schedules WHERE court_id = c.id AND schedule_date = d AND start_time = st) THEN
-                            INSERT INTO court_schedules (id, court_id, schedule_date, start_time, end_time, price, status, version)
-                            VALUES (gen_random_uuid(), c.id, d, st, et, pr, 'AVAILABLE', 0);
-                        END IF;
-                    END LOOP;
-                END LOOP;
-            END LOOP;
-        END $$;
-        """,
-        twoDaysAgoStr, yesterdayStr, todayStr, tomorrowStr, dayAfterTomorrowStr,
-        today.plusDays(7).toString(), today.plusDays(14).toString(), today.plusDays(21).toString()
-    );
-    jdbc.execute(seedSlotsSql);
+    // 4. Sinh lại court_schedules 30 phút (06:00 - 23:00) theo bảng giá hiện hành (ngày thường / cuối tuần).
+    // Đơn, trận và phân công đã bị xóa ở bước 1 nên các slot từ 2 ngày trước trở đi không còn bị tham chiếu;
+    // những ngày khác được ScheduleService tự sinh khi có người xem lịch.
+    jdbc.update("DELETE FROM court_schedules WHERE schedule_date >= ?::date", twoDaysAgoStr);
+    for (LocalDate d : List.of(twoDaysAgo, yesterday, today, tomorrow, dayAfterTomorrow, today.plusDays(7), today.plusDays(14), today.plusDays(21))) {
+      scheduling.generate(d);
+    }
+    // Slot vừa sinh qua JPA phải được ghi xuống trước khi các truy vấn JDBC bên dưới gắn chúng vào đơn
+    courtSchedules.flush();
 
     // Lấy ID các sân
     UUID courtA01 = getCourtIdByName("Sân A01");
@@ -207,7 +209,8 @@ public class DemoResetService {
     String ord1Id = "11111111-1111-1111-1111-111111111111";
     String bkg1Id = "11111111-1111-1111-1111-222222222222";
     String pay1Id = "11111111-1111-1111-1111-333333333333";
-    String meta1 = "{\"customerFlow\": true, \"membershipBenefit\": {\"gross\": 400000, \"discount\": 60000, \"net\": 340000, \"planName\": \"Plus\", \"discountPercent\": 15}}";
+    // Số tiền của mọi đơn được tính lại từ giá slot ở reconcileSeededOrders(); ở đây chỉ ghi mức ưu đãi hội viên
+    String meta1 = "{\"customerFlow\": true, \"membershipBenefit\": {\"planName\": \"Plus\", \"discountPercent\": 15}}";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
         "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CHECKED_IN', 340000.00, 170000.00, 170000.00, 'PARTIAL', NOW() - interval '2 hours', 0, ?)",
@@ -229,7 +232,7 @@ public class DemoResetService {
     String pay2ExpId = "12121212-1212-1212-1212-333333333333";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Lê Thị Thảo [Sắp hết giờ]', '0913555777', 'CHECKED_IN', 300000.00, 150000.00, 150000.00, 'PARTIAL', NOW() - interval '50 minutes', 0, '{\"customerFlow\": true}')",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Lê Thị Thảo [Sắp hết giờ]', '0913555777', 'CHECKED_IN', 300000.00, 150000.00, 150000.00, 'PARTIAL', NOW() - interval '50 minutes', 0, '{\"customerFlow\": true, \"membershipBenefit\": {\"planName\": \"Club\", \"discountPercent\": 10}}')",
         ord2ExpId, THAO_ID, THAO_ID
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, check_in_at, created_at) VALUES (?::uuid, ?::uuid, 'CHECKED_IN', NOW() - interval '50 minutes', NOW() - interval '50 minutes')", bkg2ExpId, ord2ExpId);
@@ -253,15 +256,19 @@ public class DemoResetService {
     String ord4ExtId = "14141414-1414-1414-1414-111111111111";
     String bkg4ExtId = "14141414-1414-1414-1414-222222222222";
     String pay4ExtId = "14141414-1414-1414-1414-333333333333";
-    String metaExt = "{\"customerFlow\": true, \"extensionHistory\": [{\"minutes\": 30, \"fee\": 150000, \"extendedAt\": \"" + todayStr + "T14:30:00Z\"}], \"totalExtensionMinutes\": 30, \"totalExtensionFee\": 150000}";
+    // Đặt 1,5 giờ từ 1 giờ trước, đã gia hạn thêm 30 phút -> đang chơi đến 1 giờ sau thời điểm reset
+    String extStartStr = String.format("%02d:%02d:00", (prevHalfHour - 60) / 60, (prevHalfHour - 60) % 60);
+    String extEndStr = String.format("%02d:%02d:00", (prevHalfHour + 60) / 60, (prevHalfHour + 60) % 60);
+    String extendedAt = java.time.Instant.now().minusSeconds(20 * 60).toString();
+    String metaExt = "{\"customerFlow\": true, \"membershipBenefit\": {\"planName\": \"Plus\", \"discountPercent\": 10}, \"extensionHistory\": [{\"minutes\": 30, \"fee\": 0, \"extendedAt\": \"" + extendedAt + "\"}], \"totalExtensionMinutes\": 30, \"totalExtensionFee\": 0}";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
         "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam [Đã gia hạn +30p]', '0912345678', 'CHECKED_IN', 750000.00, 300000.00, 300000.00, 'PARTIAL', NOW() - interval '3 hours', 0, ?)",
         ord4ExtId, NAM_ID, NAM_ID, metaExt
     );
-    jdbc.update("INSERT INTO bookings (id, order_id, status, check_in_at, created_at) VALUES (?::uuid, ?::uuid, 'CHECKED_IN', NOW() - interval '90 minutes', NOW() - interval '3 hours')", bkg4ExtId, ord4ExtId);
+    jdbc.update("INSERT INTO bookings (id, order_id, status, check_in_at, created_at) VALUES (?::uuid, ?::uuid, 'CHECKED_IN', NOW() - interval '60 minutes', NOW() - interval '3 hours')", bkg4ExtId, ord4ExtId);
     jdbc.update("INSERT INTO payments (id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at) VALUES (?::uuid, ?::uuid, ?::uuid, 'DEPOSIT', 'BANK_TRANSFER', 300000.00, 'PAY-EXT-004', 'PAID', NOW() - interval '3 hours')", pay4ExtId, ord4ExtId, STAFF_ID);
-    bookCourtSlots(courtV01, todayStr, "15:00:00", "17:00:00", bkg4ExtId);
+    bookCourtSlots(courtV01, todayStr, extStartStr, extEndStr, bkg4ExtId);
 
     // -----------------------------------------------------------------------------------------
     // B. KHÁCH SẮP ĐẾN (UPCOMING CONFIRMED) & ĐANG GIỮ CHỖ (HOLDING 5 MINS)
@@ -315,7 +322,7 @@ public class DemoResetService {
     String pay8Id = "81818181-8181-8181-8181-333333333333";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Lê Thị Thảo [Chưa thu tiền]', '0913555777', 'CHECKED_IN', 600000.00, 300000.00, 300000.00, 'PARTIAL', (? || ' 15:30:00+07')::timestamptz, 0, '{\"customerFlow\": true}')",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Lê Thị Thảo [Chưa thu tiền]', '0913555777', 'CHECKED_IN', 600000.00, 300000.00, 300000.00, 'PARTIAL', (? || ' 15:30:00+07')::timestamptz, 0, '{\"customerFlow\": true, \"membershipBenefit\": {\"planName\": \"Club\", \"discountPercent\": 10}}')",
         ord8Id, THAO_ID, THAO_ID, twoDaysAgoStr
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, check_in_at, created_at) VALUES (?::uuid, ?::uuid, 'CHECKED_IN', (? || ' 15:55:00+07')::timestamptz, (? || ' 15:30:00+07')::timestamptz)", bkg8Id, ord8Id, twoDaysAgoStr, twoDaysAgoStr);
@@ -368,7 +375,7 @@ public class DemoResetService {
     String ord11Id = "91919191-9191-9191-9191-111111111111";
     String bkg11Id = "91919191-9191-9191-9191-222222222222";
     String pay11Id = "91919191-9191-9191-9191-333333333333";
-    String meta11 = "{\"customerFlow\": true, \"refundPending\": 250000, \"financialReview\": \"REFUND_PENDING\", \"cancellationSettlement\": {\"refundEligible\": true, \"refundPercent\": 100, \"refundAmount\": 250000, \"retainedAmount\": 0, \"reason\": \"Khách hủy trước 24 giờ (được hoàn 100% tiền cọc)\", \"cancelledAt\": \"" + todayStr + "T08:00:00Z\"}}";
+    String meta11 = "{\"customerFlow\": true, \"refundPending\": 250000, \"financialReview\": \"REFUND_PENDING\", \"cancellationSettlement\": {\"refundEligible\": true, \"refundPercent\": 100, \"refundAmount\": 250000, \"retainedAmount\": 0, \"reason\": \"Khách hủy trước 24 giờ (được hoàn 100% tiền cọc)\", \"cancelledAt\": \"" + todayStr + "T01:00:00Z\"}}";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
         "VALUES (?::uuid, ?::uuid, ?::uuid, 'Vũ Mai Phương [Chờ hoàn 100% cọc]', '0903111222', 'CANCELLED', 500000.00, 250000.00, 250000.00, 'PAID', NOW() - interval '1 day', 0, ?)",
@@ -379,11 +386,11 @@ public class DemoResetService {
     releaseCourtSlots(courtA02, today.plusDays(7).toString(), "17:00:00", "19:00:00", bkg11Id, todayStr + " 08:00:00+07");
 
     // 12. ĐƠN 12: CANCELLED HOÀN 50% & GIỮ 50% - Khách hủy 12h - 24h trước trận (Đặng Hoàng Long)
-    // Sân B03 ngày mai 18:00 - 20:00. Đã cọc 400.000đ. Hoàn 200.000đ, giữ lại 200.000đ
+    // Sân B03 ngày mai 06:00 - 08:00, hủy hôm nay lúc 06:30 (23,5 tiếng trước giờ chơi) -> hoàn 50% cọc
     String ord12Id = "92929292-9292-9292-9292-111111111111";
     String bkg12Id = "92929292-9292-9292-9292-222222222222";
     String pay12Id = "92929292-9292-9292-9292-333333333333";
-    String meta12 = "{\"customerFlow\": true, \"refundPending\": 200000, \"financialReview\": \"REFUND_PENDING\", \"cancellationSettlement\": {\"refundEligible\": true, \"refundPercent\": 50, \"refundAmount\": 200000, \"retainedAmount\": 200000, \"reason\": \"Khách hủy trong khoảng 12h - 24h trước trận (hoàn 50% cọc, giữ lại 50%)\", \"cancelledAt\": \"" + todayStr + "T09:00:00Z\"}}";
+    String meta12 = "{\"customerFlow\": true, \"refundPending\": 200000, \"financialReview\": \"REFUND_PENDING\", \"cancellationSettlement\": {\"refundEligible\": true, \"refundPercent\": 50, \"refundAmount\": 200000, \"retainedAmount\": 200000, \"reason\": \"Khách hủy trong khoảng 12h - 24h trước trận (hoàn 50% cọc, giữ lại 50%)\", \"cancelledAt\": \"" + yesterdayStr + "T23:30:00Z\"}}";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
         "VALUES (?::uuid, ?::uuid, ?::uuid, 'Đặng Hoàng Long [Hoàn 50% cọc]', '0938444333', 'CANCELLED', 800000.00, 400000.00, 400000.00, 'PAID', NOW() - interval '18 hours', 0, ?)",
@@ -391,22 +398,22 @@ public class DemoResetService {
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'CANCELLED', NOW() - interval '18 hours')", bkg12Id, ord12Id);
     jdbc.update("INSERT INTO payments (id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at) VALUES (?::uuid, ?::uuid, ?::uuid, 'DEPOSIT', 'BANK_TRANSFER', 400000.00, 'PAY-REF-012', 'PAID', NOW() - interval '18 hours')", pay12Id, ord12Id, STAFF_ID);
-    releaseCourtSlots(courtB03, tomorrowStr, "18:00:00", "20:00:00", bkg12Id, todayStr + " 09:00:00+07");
+    releaseCourtSlots(courtB03, tomorrowStr, "06:00:00", "08:00:00", bkg12Id, todayStr + " 06:30:00+07");
 
     // 13. ĐƠN 13: CANCELLED 0% HOÀN - HỦY DƯỚI 12H - GIỮ 100% CỌC (Lê Thu Hà)
-    // Sân A03 hôm nay. Cọc 300.000đ. Hủy sát giờ 3 tiếng -> Giữ 100% cọc theo quy chế
+    // Sân A03 hôm nay 11:00 - 13:00. Đặt lúc 07:30, hủy lúc 09:00 (2 tiếng trước giờ chơi) -> giữ 100% cọc
     String ord13Id = "93939393-9393-9393-9393-111111111111";
     String bkg13Id = "93939393-9393-9393-9393-222222222222";
     String pay13Id = "93939393-9393-9393-9393-333333333333";
-    String meta13 = "{\"customerFlow\": true, \"refundPending\": 0, \"cancellationSettlement\": {\"refundEligible\": false, \"refundPercent\": 0, \"refundAmount\": 0, \"retainedAmount\": 300000, \"reason\": \"Khách hủy dưới 12h trước giờ chơi (không đủ điều kiện hoàn cọc theo Quy chế CLB)\", \"cancelledAt\": \"" + todayStr + "T07:00:00Z\"}}";
+    String meta13 = "{\"customerFlow\": true, \"refundPending\": 0, \"cancellationSettlement\": {\"refundEligible\": false, \"refundPercent\": 0, \"refundAmount\": 0, \"retainedAmount\": 300000, \"reason\": \"Khách hủy dưới 12h trước giờ chơi (không đủ điều kiện hoàn cọc theo Quy chế CLB)\", \"cancelledAt\": \"" + todayStr + "T02:00:00Z\"}}";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Lê Thu Hà [Giữ 100% cọc hủy muộn]', '0987654321', 'CANCELLED', 600000.00, 300000.00, 300000.00, 'PAID', NOW() - interval '6 hours', 0, ?)",
-        ord13Id, HA_ID, HA_ID, meta13
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Lê Thu Hà [Giữ 100% cọc hủy muộn]', '0987654321', 'CANCELLED', 600000.00, 300000.00, 300000.00, 'PAID', (? || ' 07:30:00+07')::timestamptz, 0, ?)",
+        ord13Id, HA_ID, HA_ID, todayStr, meta13
     );
-    jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'CANCELLED', NOW() - interval '6 hours')", bkg13Id, ord13Id);
-    jdbc.update("INSERT INTO payments (id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at) VALUES (?::uuid, ?::uuid, ?::uuid, 'DEPOSIT', 'BANK_TRANSFER', 300000.00, 'PAY-CANC-013', 'PAID', NOW() - interval '6 hours')", pay13Id, ord13Id, STAFF_ID);
-    releaseCourtSlots(courtA03, todayStr, "11:00:00", "13:00:00", bkg13Id, todayStr + " 07:00:00+07");
+    jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'CANCELLED', (? || ' 07:30:00+07')::timestamptz)", bkg13Id, ord13Id, todayStr);
+    jdbc.update("INSERT INTO payments (id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at) VALUES (?::uuid, ?::uuid, ?::uuid, 'DEPOSIT', 'BANK_TRANSFER', 300000.00, 'PAY-CANC-013', 'PAID', (? || ' 07:35:00+07')::timestamptz)", pay13Id, ord13Id, STAFF_ID, todayStr);
+    releaseCourtSlots(courtA03, todayStr, "11:00:00", "13:00:00", bkg13Id, todayStr + " 09:00:00+07");
 
     // 14. ĐƠN 14: CANCELLED ĐÃ HOÀN TẤT (DONE) - Sân A03 2 ngày trước 18:00 (Vũ Mai Phương)
     // Đặt từ hôm trước, hủy lúc 02:00 (16 tiếng trước giờ chơi) -> mốc 12h - 24h: hoàn 50% cọc, admin đã chi
@@ -434,7 +441,7 @@ public class DemoResetService {
     String bkg15Id = "44444444-4444-4444-4444-222222222222";
     String pay15Id = "44444444-4444-4444-4444-333333333333";
     String meta15 = String.format(
-        "{\"customerFlow\": true, \"recurringWeeks\": 4, \"recurringType\": \"WEEKLY\", \"recurringSummary\": \"Định kỳ 4 tuần (%s đến %s)\", \"membershipBenefit\": {\"gross\": 2400000, \"discount\": 360000, \"net\": 2040000, \"planName\": \"Plus\", \"discountPercent\": 15}}",
+        "{\"customerFlow\": true, \"recurringWeeks\": 4, \"recurringType\": \"WEEKLY\", \"recurringSummary\": \"Định kỳ 4 tuần (%s đến %s)\", \"membershipBenefit\": {\"planName\": \"Plus\", \"discountPercent\": 15}}",
         todayStr, today.plusDays(21).toString()
     );
     jdbc.update(
@@ -456,8 +463,8 @@ public class DemoResetService {
     String pay16_2 = "55555555-5555-5555-5555-333333333332";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, invoice_number, issued_at, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Phạm Minh Đức', '0988666555', 'COMPLETED', 400000.00, 200000.00, 400000.00, 'PAID', 'INV-20261030-001', (? || ' 19:05:00+07')::timestamptz, (? || ' 10:00:00+07')::timestamptz, 0, '{\"customerFlow\": true}')",
-        ord16Id, DUC_ID, DUC_ID, yesterdayStr, yesterdayStr
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Phạm Minh Đức', '0988666555', 'COMPLETED', 400000.00, 200000.00, 400000.00, 'PAID', ?, (? || ' 19:05:00+07')::timestamptz, (? || ' 10:00:00+07')::timestamptz, 0, '{\"customerFlow\": true}')",
+        ord16Id, DUC_ID, DUC_ID, "INV-" + yesterdayStr.replace("-", "") + "-001", yesterdayStr, yesterdayStr
     );
     jdbc.update(
         "INSERT INTO bookings (id, order_id, status, check_in_at, check_out_at, created_at) " +
@@ -471,7 +478,7 @@ public class DemoResetService {
         pay16_1, ord16Id, STAFF_ID, yesterdayStr,
         pay16_2, ord16Id, STAFF_ID, yesterdayStr
     );
-    releaseCourtSlots(courtA02, yesterdayStr, "17:00:00", "19:00:00", bkg16Id, yesterdayStr + " 19:02:00+07");
+    completeCourtSlots(courtA02, yesterdayStr, "17:00:00", "19:00:00", bkg16Id, yesterdayStr + " 19:02:00+07");
 
     // 17. ĐƠN 17: REFEREE (Có thuê trọng tài) - Sân V02 hôm nay 17:00 - 19:00 (Đặng Hoàng Long)
     String ord17Id = "77777777-7777-7777-7777-111111111111";
@@ -517,11 +524,11 @@ public class DemoResetService {
     String memThaoEnd = fortyFiveDaysLater.getYear() + "-" + String.format("%02d", fortyFiveDaysLater.getMonthValue()) + "-28T23:59:59Z";
 
     String memThaoDocJson = String.format(
-        "{\"id\": \"%s\", \"accountId\": \"%s\", \"planId\": \"club\", \"planName\": \"Club\", \"startsAt\": \"%s\", \"endsAt\": \"%s\", \"status\": \"ACTIVE\", \"discountPercent\": 5, \"vipDiscountPercent\": 0, \"price\": 199000, \"rescheduleUsage\": 0}",
+        "{\"id\": \"%s\", \"accountId\": \"%s\", \"planId\": \"club\", \"planName\": \"Club\", \"startsAt\": \"%s\", \"endsAt\": \"%s\", \"status\": \"ACTIVE\", \"discountPercent\": 10, \"vipDiscountPercent\": 5, \"price\": 249000, \"rescheduleUsage\": 0}",
         memThaoId, THAO_ID, memStart, memThaoEnd
     );
     String memThaoPayDocJson = String.format(
-        "{\"id\": \"%s\", \"membershipId\": \"%s\", \"accountId\": \"%s\", \"planId\": \"club\", \"planName\": \"Club\", \"amount\": 199000, \"createdAt\": \"%sT09:00:00Z\", \"status\": \"PAID\", \"method\": \"BANK_TRANSFER\", \"transactionCode\": \"MEM-CLUB-002\"}",
+        "{\"id\": \"%s\", \"membershipId\": \"%s\", \"accountId\": \"%s\", \"planId\": \"club\", \"planName\": \"Club\", \"amount\": 249000, \"createdAt\": \"%sT09:00:00Z\", \"status\": \"PAID\", \"method\": \"BANK_TRANSFER\", \"transactionCode\": \"MEM-CLUB-002\"}",
         memThaoPayId, memThaoId, THAO_ID, yesterdayStr
     );
     jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "membership:" + THAO_ID, memThaoDocJson);
@@ -593,11 +600,13 @@ public class DemoResetService {
       }
     }
 
+    reconcileSeededOrders();
+
     log.info("Đặt lại toàn bộ dữ liệu mẫu chuẩn Hội đồng (Comprehensive Golden Showcase) thành công 100%!");
   }
 
   private UUID getCourtIdByName(String name) {
-    List<UUID> list = jdbc.query("SELECT id FROM courts WHERE name = ? LIMIT 1", (rs, rowNum) -> (UUID) rs.getObject("id"), name);
+    List<UUID> list = jdbc.query("SELECT id FROM courts WHERE name = ? ORDER BY (status = 'ACTIVE') DESC LIMIT 1", (rs, rowNum) -> (UUID) rs.getObject("id"), name);
     return list.isEmpty() ? null : list.get(0);
   }
 
@@ -677,6 +686,97 @@ public class DemoResetService {
     }
   }
 
+  private void completeCourtSlots(UUID courtId, String dateStr, String startTime, String endTime, String bookingId, String completedAtStr) {
+    if (courtId == null) return;
+    List<Map<String, Object>> slots = jdbc.queryForList(
+        "SELECT id, price FROM court_schedules WHERE court_id = ? AND schedule_date = ?::date AND start_time >= ?::time AND start_time < ?::time ORDER BY start_time",
+        courtId, dateStr, startTime, endTime
+    );
+    for (Map<String, Object> s : slots) {
+      jdbc.update(
+          "INSERT INTO booking_slots (id, booking_id, schedule_id, unit_price, released_at, completed_at) VALUES (gen_random_uuid(), ?::uuid, ?, ?, ?::timestamptz, ?::timestamptz)",
+          bookingId, s.get("id"), s.get("price"), completedAtStr, completedAtStr
+      );
+    }
+  }
+
+  /**
+   * Tính lại tiền của mọi đơn mẫu từ giá slot đã ghi, phí trọng tài và mức ưu đãi hội viên, để tổng tiền,
+   * cọc 50%, chứng từ thu và khoản hoàn luôn khớp bảng giá hiện hành. Kịch bản thanh toán của đơn được giữ:
+   * chưa thu, đã cọc, hoặc đã thu đủ.
+   */
+  @SuppressWarnings("unchecked")
+  private void reconcileSeededOrders() {
+    for (Map<String, Object> o : jdbc.queryForList("SELECT id, status, total_amount, paid_amount, metadata FROM orders")) {
+      UUID id = (UUID) o.get("id");
+      boolean cancelled = "CANCELLED".equals(o.get("status"));
+      BigDecimal court = jdbc.queryForObject(
+          "SELECT COALESCE(SUM(bs.unit_price), 0) FROM booking_slots bs JOIN bookings b ON b.id = bs.booking_id WHERE b.order_id = ?"
+              + (cancelled ? "" : " AND (bs.released_at IS NULL OR bs.completed_at IS NOT NULL)"),
+          BigDecimal.class, id);
+      BigDecimal referee = jdbc.queryForObject(
+          "SELECT COALESCE(SUM(st.unit_price * EXTRACT(EPOCH FROM (ss.end_time - ss.start_time)) / 3600), 0) "
+              + "FROM booking_staff st JOIN bookings b ON b.id = st.booking_id JOIN staff_schedules ss ON ss.id = st.staff_schedule_id WHERE b.order_id = ?",
+          BigDecimal.class, id).setScale(0, RoundingMode.HALF_UP);
+
+      Map<String, Object> meta = documents.decode((String) o.get("metadata"));
+      BigDecimal discount = BigDecimal.ZERO;
+      boolean member = meta.get("membershipBenefit") instanceof Map;
+      if (member) {
+        Map<String, Object> benefit = new LinkedHashMap<>((Map<String, Object>) meta.get("membershipBenefit"));
+        discount = court.multiply(PresentationService.decimal(benefit.get("discountPercent"))).divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
+        benefit.put("gross", court);
+        benefit.put("discount", discount);
+        benefit.put("net", court.subtract(discount));
+        meta.put("membershipBenefit", benefit);
+      }
+      BigDecimal total = court.add(referee).subtract(discount);
+      // Cùng quy tắc với OrderApplicationService.customerDeposit: hội viên cọc 50% tiền sân sau ưu đãi
+      BigDecimal deposit = (member ? court.subtract(discount) : total).multiply(new BigDecimal("0.5")).setScale(0, RoundingMode.HALF_UP);
+
+      if (meta.get("extensionHistory") instanceof List<?> history && !history.isEmpty()) {
+        BigDecimal fee = jdbc.queryForObject(
+            "SELECT bs.unit_price FROM booking_slots bs JOIN bookings b ON b.id = bs.booking_id JOIN court_schedules cs ON cs.id = bs.schedule_id "
+                + "WHERE b.order_id = ? ORDER BY cs.schedule_date DESC, cs.start_time DESC LIMIT 1",
+            BigDecimal.class, id);
+        Map<String, Object> last = new LinkedHashMap<>((Map<String, Object>) history.get(history.size() - 1));
+        last.put("fee", fee);
+        meta.put("extensionHistory", List.of(last));
+        meta.put("totalExtensionFee", fee);
+      }
+
+      List<Map<String, Object>> pays = jdbc.queryForList("SELECT id FROM payments WHERE order_id = ? ORDER BY paid_at", id);
+      BigDecimal oldTotal = (BigDecimal) o.get("total_amount"), oldPaid = (BigDecimal) o.get("paid_amount");
+      BigDecimal collected = pays.isEmpty() ? BigDecimal.ZERO
+          : !cancelled && oldPaid.compareTo(oldTotal) >= 0 ? total : deposit;
+      if (pays.size() == 1) {
+        jdbc.update("UPDATE payments SET amount = ? WHERE id = ?", collected, pays.get(0).get("id"));
+      } else if (pays.size() > 1) {
+        jdbc.update("UPDATE payments SET amount = ? WHERE id = ?", deposit, pays.get(0).get("id"));
+        jdbc.update("UPDATE payments SET amount = ? WHERE id = ?", collected.subtract(deposit), pays.get(pays.size() - 1).get("id"));
+      }
+
+      BigDecimal refunded = BigDecimal.ZERO;
+      if (meta.get("cancellationSettlement") instanceof Map) {
+        Map<String, Object> settlement = new LinkedHashMap<>((Map<String, Object>) meta.get("cancellationSettlement"));
+        BigDecimal refund = collected.multiply(PresentationService.decimal(settlement.get("refundPercent"))).divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
+        settlement.put("refundAmount", refund);
+        settlement.put("retainedAmount", collected.subtract(refund));
+        meta.put("cancellationSettlement", settlement);
+        int done = jdbc.update("UPDATE refunds SET amount = ? WHERE payment_id IN (SELECT id FROM payments WHERE order_id = ?)", refund, id);
+        if (done > 0) refunded = refund;
+        meta.put("refundPending", done > 0 ? 0 : refund);
+        if (done == 0 && refund.signum() > 0) meta.put("financialReview", "REFUND_PENDING");
+      }
+
+      BigDecimal paid = collected.subtract(refunded);
+      String status = paid.signum() == 0 ? "UNPAID" : paid.compareTo(total) >= 0 ? "PAID" : "PARTIAL";
+      jdbc.update(
+          "UPDATE orders SET subtotal = ?, total_amount = ?, deposit_required = ?, paid_amount = ?, payment_status = ?, metadata = ? WHERE id = ?",
+          total, total, deposit, paid, status, documents.encode(meta), id);
+    }
+  }
+
   private void bookCourtWithReferee(UUID courtId, String dateStr, String startTime, String endTime, String bookingId, UUID refereeId, BigDecimal refereeRate) {
     if (courtId == null) return;
     List<Map<String, Object>> slots = jdbc.queryForList(
@@ -684,14 +784,10 @@ public class DemoResetService {
         courtId, dateStr, startTime, endTime
     );
     if (slots.size() >= 2 && refereeId != null) {
+      // Giữ toàn bộ khung giờ sân; ca trọng tài 1 gắn slot 17:00, ca 2 gắn slot 18:00
+      bookCourtSlots(courtId, dateStr, startTime, endTime, bookingId);
       UUID s1 = (UUID) slots.get(0).get("id");
-      BigDecimal p1 = (BigDecimal) slots.get(0).get("price");
-      UUID s2 = (UUID) slots.get(1).get("id");
-      BigDecimal p2 = (BigDecimal) slots.get(1).get("price");
-
-      jdbc.update("UPDATE court_schedules SET status = 'BOOKED' WHERE id IN (?, ?)", s1, s2);
-      jdbc.update("INSERT INTO booking_slots (id, booking_id, schedule_id, unit_price) VALUES (gen_random_uuid(), ?::uuid, ?, ?)", bookingId, s1, p1);
-      jdbc.update("INSERT INTO booking_slots (id, booking_id, schedule_id, unit_price) VALUES (gen_random_uuid(), ?::uuid, ?, ?)", bookingId, s2, p2);
+      UUID s2 = (UUID) slots.get(Math.min(2, slots.size() - 1)).get("id");
 
       // Staff schedule shift 1 (17:00 - 18:00)
       List<UUID> sid1List = jdbc.query("SELECT id FROM staff_schedules WHERE staff_id = ? AND work_date = ?::date AND start_time = '17:00:00'::time", (rs, rowNum) -> (UUID) rs.getObject("id"), refereeId, dateStr);

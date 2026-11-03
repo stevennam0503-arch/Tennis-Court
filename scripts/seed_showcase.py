@@ -79,7 +79,7 @@ def main():
             print("  1. Đang dùng sân hôm nay (4 đơn: Đang chơi, Sắp hết giờ, Ân hạn 15p, Đã gia hạn +30p)")
             print("  2. Khách sắp đến (2 đơn: Hôm nay 19:00 sẵn sàng QR Check-in, Ngày mai 08:00)")
             print("  3. Đang giữ chỗ (1 đơn Sân V01 đếm ngược 5:00 phút)")
-            print("  4. Đơn chưa thu tiền (2 đơn: Nợ 2 ngày trước 300k, Nợ hôm qua kèm trọng tài 1.000.000đ)")
+            print("  4. Đơn chưa thu tiền (2 đơn: Nợ từ 2 ngày trước, Nợ hôm qua kèm trọng tài)")
             print("  5. Cần Check-out đóng ca (1 đơn đã trả đủ 100%, sẵn sàng bấm check-out)")
             print("  6. Đơn hủy & Hoàn tiền (4 đơn: Chờ hoàn 100% cọc, Hoàn 50%, Giữ 100%, Đã hoàn xong)")
             print("  7. Đơn định kỳ 4 tuần (Trần Hoàng Nam Plus)")

@@ -9,13 +9,23 @@ import modules from '../modules.json';
 const pending = [], partial = [6, 18, 39, 40, 42, 44, 47, 49, 50];
 
 const SHOWCASE_ORDERS = [
-  { code: 'CT-NOW0001', court: 'Sân A01', time: '14:00 – 16:00 Hôm nay', customer: 'Trần Hoàng Nam [Hội viên Plus]', status: 'CHECKED_IN', desc: 'Đang thi đấu trên sân. Dùng để demo Gia hạn giờ chơi hoặc Check-out.' },
-  { code: 'CT-CONF002', court: 'Sân B01', time: '19:00 – 21:00 Hôm nay', customer: 'Trần Hoàng Nam [Hội viên Plus]', status: 'CONFIRMED', desc: 'Đã cọc 50%, sẵn sàng vào sân. Dùng để demo Vé điện tử, QR Check-in & thu 50% còn lại.' },
-  { code: 'CT-HOLD003', court: 'Sân V01', time: '08:00 – 10:00 Ngày mai', customer: 'Trần Hoàng Nam [Hội viên Plus]', status: 'HOLDING', desc: 'Đang giữ chỗ 5 phút. Dùng để demo Đồng hồ đếm ngược và Quét VietQR cọc tự động.' },
-  { code: 'CT-RECUR04', court: 'Sân B02', time: '16:00 – 18:00 (4 tuần)', customer: 'Trần Hoàng Nam [Hội viên Plus]', status: 'CONFIRMED', desc: 'Đặt lịch định kỳ dài hạn 4 tuần liên tiếp với 8 slot được khóa tự động.' },
-  { code: 'CT-DONE005', court: 'Sân A02', time: '17:00 – 19:00 Hôm qua', customer: 'Trần Hoàng Nam [Hội viên Plus]', status: 'COMPLETED', desc: 'Đã hoàn tất 100%. Dùng để demo Xem và In hóa đơn thanh toán VAT (INV-20261026-001).' },
-  { code: 'CT-CANC006', court: 'Sân A03', time: '18:00 – 20:00 2 ngày trước', customer: 'Vũ Mai Phương', status: 'CANCELLED', desc: 'Hủy 16 tiếng trước giờ chơi (mốc 12h - 24h). Dùng để demo chính sách hoàn 50% tiền cọc (100k), đã chi hoàn.' },
-  { code: 'CT-REF0007', court: 'Sân V02', time: '17:00 – 19:00 Hôm nay', customer: 'Lê Thu Hà', status: 'CONFIRMED', desc: 'Đơn có thuê Trọng tài TT Phạm Quốc Huy (250k/h). Dùng để demo Phân bổ nhân sự.' }
+  { code: 'CT-11111111', court: 'Sân A01', time: 'hôm nay, từ giờ reset đến +1,5 giờ', customer: 'Trần Hoàng Nam (Plus)', status: 'CHECKED_IN', desc: 'Đang chơi, đã cọc 50% tiền sân sau ưu đãi 15%. Demo check-out: hệ thống tính phần còn lại, thu tiền mặt rồi check-out.' },
+  { code: 'CT-14141414', court: 'Sân V01', time: 'hôm nay, 1 giờ trước đến 1 giờ sau', customer: 'Trần Hoàng Nam (Plus)', status: 'CHECKED_IN', desc: 'Đã gia hạn +30 phút, phí gia hạn bằng giá slot cuối; ưu đãi Plus 10% cho sân VIP.' },
+  { code: 'CT-12121212', court: 'Sân A04', time: 'hôm nay, sắp hết giờ', customer: 'Lê Thị Thảo (Club)', status: 'CHECKED_IN', desc: 'Cảnh báo sắp hết giờ; ưu đãi Club 10%.' },
+  { code: 'CT-13131313', court: 'Sân B04', time: 'hôm nay, vừa hết giờ', customer: 'Đặng Hoàng Long', status: 'CHECKED_IN', desc: 'Đơn trong thời gian ân hạn 15 phút, cần check-out.' },
+  { code: 'CT-22222222', court: 'Sân B01', time: 'hôm nay 19:00 - 21:00', customer: 'Lê Thu Hà', status: 'CONFIRMED', desc: 'Đã cọc 50%. Demo vé điện tử và quét QR check-in.' },
+  { code: 'CT-77777777', court: 'Sân V02', time: 'hôm nay 17:00 - 19:00', customer: 'Đặng Hoàng Long', status: 'CONFIRMED', desc: 'Thuê trọng tài TT Phạm Quốc Huy 2 ca (17:00 - 18:00, 18:00 - 19:00); tổng = tiền sân + phí trọng tài.' },
+  { code: 'CT-26262626', court: 'Sân A01', time: 'ngày mai 08:00 - 10:00', customer: 'Phạm Minh Đức', status: 'CONFIRMED', desc: 'Khách đã trả trước 100%.' },
+  { code: 'CT-33333333', court: 'Sân V01', time: 'ngày mai 10:00 - 12:00', customer: 'Nguyễn Văn Tuấn (khách lẻ tại quầy)', status: 'HOLDING', desc: 'Giữ chỗ 5 phút tính từ lúc reset; quá hạn thì sân tự nhả. Reset ngay trước khi demo phần này.' },
+  { code: 'CT-44444444', court: 'Sân B02', time: '16:00 - 18:00, 4 tuần liên tiếp', customer: 'Trần Hoàng Nam (Plus)', status: 'CONFIRMED', desc: 'Đặt định kỳ 4 tuần, 16 slot; cọc 50% của cả chuỗi sau ưu đãi 15%.' },
+  { code: 'CT-81818181', court: 'Sân A03', time: '2 ngày trước 16:00 - 18:00', customer: 'Lê Thị Thảo (Club)', status: 'CHECKED_IN', desc: 'Quá hạn, còn nợ 50%: xuất hiện ở tab đơn chưa thu tiền.' },
+  { code: 'CT-82828282', court: 'Sân V02', time: 'hôm qua 17:00 - 19:00', customer: 'Đặng Hoàng Long', status: 'CHECKED_IN', desc: 'Có trọng tài, còn nợ phần còn lại; khách bị chặn đặt đơn mới tới khi trả nợ.' },
+  { code: 'CT-83838383', court: 'Sân A01', time: '2 ngày trước 18:00 - 20:00', customer: 'Phạm Minh Đức', status: 'CHECKED_IN', desc: 'Đã thu đủ 100% nhưng quên check-out: nằm ở tab cần check-out.' },
+  { code: 'CT-55555555', court: 'Sân A02', time: 'hôm qua 17:00 - 19:00', customer: 'Phạm Minh Đức', status: 'COMPLETED', desc: 'Đã hoàn tất, có hóa đơn INV-<ngày hôm qua>-001. Demo in phiếu thu K80/A4.' },
+  { code: 'CT-91919191', court: 'Sân A02', time: 'tuần sau 17:00 - 19:00', customer: 'Vũ Mai Phương', status: 'CANCELLED', desc: 'Hủy trước hơn 24 giờ → chờ hoàn 100% cọc (Admin duyệt chi).' },
+  { code: 'CT-92929292', court: 'Sân B03', time: 'ngày mai 06:00 - 08:00', customer: 'Đặng Hoàng Long', status: 'CANCELLED', desc: 'Hủy lúc 06:30 hôm nay, 23,5 giờ trước giờ chơi → chờ hoàn 50% cọc.' },
+  { code: 'CT-93939393', court: 'Sân A03', time: 'hôm nay 11:00 - 13:00', customer: 'Lê Thu Hà', status: 'CANCELLED', desc: 'Hủy lúc 09:00, 2 giờ trước giờ chơi → không hoàn, CLB giữ 100% cọc.' },
+  { code: 'CT-66666666', court: 'Sân A03', time: '2 ngày trước 18:00 - 20:00', customer: 'Vũ Mai Phương', status: 'CANCELLED', desc: 'Hủy 16 giờ trước giờ chơi → hoàn 50% cọc, Admin đã chi. Thấy dòng hoàn tiền trong Lịch sử thanh toán.' }
 ];
 
 export default function SystemPage() {
@@ -117,7 +127,7 @@ export default function SystemPage() {
             </div>
           </div>
 
-          <Panel title="Danh sách 7 đơn hàng mẫu chuẩn (Golden Orders)">
+          <Panel title="Danh sách 17 đơn hàng mẫu (Golden Orders)">
             <Table headings={['Mã đơn', 'Sân & Giờ chơi', 'Khách hàng', 'Trạng thái', 'Mục đích trình diễn Hội đồng']}>
               {SHOWCASE_ORDERS.map(o => (
                 <tr key={o.code}>
@@ -250,7 +260,7 @@ export default function SystemPage() {
             <div style={{ fontSize: 13, color: '#334155' }}>
               <div style={{ fontWeight: 600, marginBottom: 8 }}>Sau khi đặt lại, hệ thống sẽ chứa:</div>
               <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <li><b>7 đơn hàng mẫu chuẩn:</b> Check-in, Confirmed, Giữ chỗ 5p, Định kỳ 4 tuần, Hoàn tất có hóa đơn, Hủy hoàn cọc theo 3 mốc (100% / 50% / 0%), Thuê trọng tài.</li>
+                <li><b>17 đơn hàng mẫu:</b> đang chơi, đã gia hạn, sắp hết giờ, ân hạn, sắp đến, giữ chỗ 5 phút, định kỳ 4 tuần, nợ quá hạn, chờ check-out, hoàn tất có hóa đơn, thuê trọng tài, hủy hoàn cọc theo 3 mốc (100% / 50% / 0%). Số tiền được tính lại theo bảng giá hiện hành.</li>
                 <li><b>4 tài khoản hệ thống chuẩn:</b> <code>admin@gmail.com</code> (123456), <code>staff@gmail.com</code> (123456), <code>hoangnam@gmail.com</code> (123456), <code>khachmoi@gmail.com</code> (123456).</li>
                 <li><b>Tài khoản tự tạo:</b> Đã được xóa hoàn toàn và giải phóng email để bạn sẵn sàng đăng ký lại từ đầu!</li>
                 <li><b>Báo cáo tài chính:</b> 3 trụ cột (Tiền sân, Trọng tài, Giải đấu & Membership) khớp từng đồng.</li>
