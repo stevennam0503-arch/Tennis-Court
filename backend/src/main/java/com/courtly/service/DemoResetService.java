@@ -27,6 +27,7 @@ public class DemoResetService {
   private final DocumentService documents;
   private final ScheduleService scheduling;
   private final com.courtly.repository.CourtScheduleRepository courtSchedules;
+  private final DemoBaselineService demoBaseline;
 
   private static final String ADMIN_ID = "b27fe32c-e9b7-44bf-8149-81bc00b5bbba";
   private static final String STAFF_ID = "f21bd5fa-cf66-4ee4-a009-3a337eebc6fa";
@@ -84,32 +85,8 @@ public class DemoResetService {
     jdbc.execute("UPDATE vouchers SET used_count = 0");
     jdbc.execute("DELETE FROM tournament_registrations");
 
-    // Khôi phục bộ 10 sân chuẩn (có thể đã bị xóa/tạm ngưng khi thử chức năng quản lý sân)
-    // Mỗi tên chỉ giữ một sân: ưu tiên sân đang hoạt động, chỉ mở lại sân đã xóa khi chưa có sân cùng tên
-    jdbc.execute(
-        "UPDATE courts SET status = 'ACTIVE' WHERE status <> 'ACTIVE' AND id IN (SELECT DISTINCT ON (name) id FROM courts "
-            + "WHERE name IN ('Sân A01', 'Sân A02', 'Sân A03', 'Sân A04', 'Sân B01', 'Sân B02', 'Sân B03', 'Sân B04', 'Sân V01', 'Sân V02') "
-            + "ORDER BY name, (status = 'ACTIVE') DESC, (status = 'DELETED'))");
-    jdbc.execute(
-        "UPDATE courts SET image_url = CASE type WHEN 'OUTDOOR' THEN '/guest/zone-a-outdoor.webp' WHEN 'INDOOR' THEN '/guest/zone-b-indoor.webp' "
-            + "ELSE '/guest/zone-v-lounge.webp' END WHERE image_url IS NULL OR image_url = ''");
-    // Sân chưa có bảng giá (vd. vừa tạo lại) nhận bảng giá của một sân cùng khu đang hoạt động
-    jdbc.execute(
-        "INSERT INTO court_prices (id, court_id, day_type, start_time, end_time, price_per_hour) "
-            + "SELECT gen_random_uuid(), c.id, p.day_type, p.start_time, p.end_time, p.price_per_hour FROM courts c "
-            + "JOIN LATERAL (SELECT p2.court_id FROM court_prices p2 JOIN courts c2 ON c2.id = p2.court_id "
-            + "WHERE c2.type = c.type AND c2.status = 'ACTIVE' ORDER BY c2.name LIMIT 1) ref ON true "
-            + "JOIN court_prices p ON p.court_id = ref.court_id "
-            + "WHERE c.status = 'ACTIVE' AND NOT EXISTS (SELECT 1 FROM court_prices x WHERE x.court_id = c.id)");
-    // Chính sách chuẩn của kịch bản demo: giữ chỗ 5 phút, cọc 50%
-    // Khách tự hủy được đến 60 phút trước giờ chơi (mức hoàn theo 3 mốc), tự đổi lịch phải trước 24 giờ
-    jdbc.execute("UPDATE club_settings SET hold_minutes = 5, deposit_percent = 50, cancel_refund_percent = 100, "
-        + "policies = (COALESCE(NULLIF(policies, ''), '{}')::jsonb || '{\"cancelCutoffMinutes\": 60, \"changeCutoffMinutes\": 1440}'::jsonb)::text");
-
-    // Đảm bảo toàn bộ sân cùng 1 danh mục có giá chuẩn đồng nhất
-    jdbc.execute("UPDATE courts SET base_price = 160000.00 WHERE type = 'OUTDOOR'");
-    jdbc.execute("UPDATE courts SET base_price = 240000.00 WHERE type = 'INDOOR'");
-    jdbc.execute("UPDATE courts SET base_price = 400000.00 WHERE type = 'VIP'");
+    // 2. Khôi phục các bảng danh mục theo ảnh chụp chuẩn baseline
+    demoBaseline.restoreBaseline();
 
     // Xóa các tài khoản tạm / phát sinh kiểm thử, giữ lại bộ 8 tài khoản chuẩn
     jdbc.execute("DELETE FROM accounts WHERE email NOT IN ('admin@gmail.com', 'staff@gmail.com', 'hoangnam@gmail.com', 'khachmoi@gmail.com', 'thao.le@gmail.com', 'minhduc@gmail.com', 'phuong.vu@gmail.com', 'hoanglong@gmail.com')");
@@ -149,8 +126,6 @@ public class DemoResetService {
     );
     jdbc.execute(upsertAccountsSql);
 
-    // 2. Khởi tạo mã giảm giá Vouchers
-    seedVouchers();
 
     // 4. Sinh lại court_schedules 30 phút (06:00 - 23:00) theo bảng giá hiện hành (ngày thường / cuối tuần).
     // Đơn, trận và phân công đã bị xóa ở bước 1 nên các slot từ 2 ngày trước trở đi không còn bị tham chiếu;

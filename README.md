@@ -39,7 +39,9 @@ Yêu cầu Docker Desktop đang chạy (Windows: mở Docker Desktop, chờ "Eng
    | Khách hội viên Plus | `hoangnam@gmail.com` |
    | Khách thường | `khachmoi@gmail.com` |
 
-Reset xóa mọi đơn và tài khoản tự tạo, khôi phục 10 sân chuẩn, đưa chính sách về giữ chỗ 5 phút / cọc 50%, sinh lịch sân theo bảng giá ngày thường / cuối tuần và tạo 17 đơn mẫu bám theo ngày hiện tại. Reset chỉ hoạt động khi `DEMO_MODE=true`; có thể chạy từ terminal tại thư mục gốc bằng `.\reset-demo.ps1` (PowerShell), `reset-demo.bat` (nhấp đúp) hoặc `python scripts/seed_showcase.py`.
+Reset khôi phục toàn bộ giao diện và dữ liệu danh mục về nguyên vẹn theo ảnh chụp chuẩn (baseline snapshot tại `backend/src/main/resources/demo/baseline.json`): 10 sân chuẩn (`Sân A01`–`A04`, `Sân B01`–`B04`, `Sân V01`–`V02`), bảng giá theo giờ, nhân sự và trọng tài, giải đấu, gói hội viên, 7 mã voucher, bài viết tin tức, thông tin CLB và cài đặt hệ thống (giữ chỗ 5 phút, cọc 50%). Toàn bộ sân tạo thêm hoặc sân đã ngừng bị dọn dẹp sạch; tab "Đã ngừng khai thác" trống; tài khoản và 17 đơn mẫu được tạo mới bám theo ngày hiện tại với mật khẩu `123456`. Reset chỉ hoạt động khi `DEMO_MODE=true`; có thể chạy từ terminal tại thư mục gốc bằng `.\reset-demo.ps1` (PowerShell), `reset-demo.bat` (nhấp đúp) hoặc `python scripts/seed_showcase.py`.
+
+Khi muốn thay đổi trạng thái chuẩn (đổi giá, mô tả sân, thêm giải đấu chuẩn...): chỉnh sửa qua giao diện Admin hoặc SQL, sau đó chạy `python scripts/export_demo_baseline.py` để chụp lại snapshot và build lại backend.
 
 Cập nhật bản đang chạy: `git pull`, rồi `docker compose up -d --build`. Backend tự chạy migration Flyway; không nhập lại SQL và không xóa volume `postgres_data` (`docker compose down -v` sẽ xóa database).
 
