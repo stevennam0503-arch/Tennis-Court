@@ -53,14 +53,14 @@ public class DemoBaselineService {
           document_key LIKE 'registration-details:%'
     """);
 
-    // 2. staff_schedules của nhân sự không có trong baseline -> xóa; rồi khôi phục staff, sau đó staff_schedules
+    // 2. Khôi phục staff và xóa staff_schedules không còn được tham chiếu
     String staffJson = tables.get("staff").toString();
-    jdbc.update("DELETE FROM staff_schedules WHERE staff_id NOT IN (SELECT id FROM json_populate_recordset(NULL::staff, ?::json))", staffJson);
     restoreTable("staff", "id", staffJson, null);
-
-    String staffSchedulesJson = tables.get("staff_schedules").toString();
-    jdbc.execute("DELETE FROM staff_schedules");
-    jdbc.update("INSERT INTO staff_schedules SELECT * FROM json_populate_recordset(NULL::staff_schedules, ?::json)", staffSchedulesJson);
+    jdbc.execute("""
+        DELETE FROM staff_schedules
+        WHERE id NOT IN (SELECT staff_schedule_id FROM booking_staff WHERE staff_schedule_id IS NOT NULL)
+          AND id NOT IN (SELECT staff_schedule_id FROM match_staff WHERE staff_schedule_id IS NOT NULL)
+    """);
 
     // 3. Sân không có trong baseline: xóa court_schedules và court_prices của chúng, rồi xóa sân
     String courtsJson = tables.get("courts").toString();

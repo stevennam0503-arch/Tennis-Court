@@ -129,12 +129,6 @@ def main():
               SELECT * FROM staff
             ) t;
         """,
-        "staff_schedules": """
-            SELECT coalesce(json_agg(t ORDER BY id), '[]') FROM (
-              SELECT * FROM staff_schedules
-              WHERE staff_id IN (SELECT id FROM staff)
-            ) t;
-        """,
         "tournaments": """
             SELECT coalesce(json_agg(t ORDER BY id), '[]') FROM (
               SELECT * FROM tournaments

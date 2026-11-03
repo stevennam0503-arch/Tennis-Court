@@ -86,8 +86,8 @@ class DemoBaselineServiceTest {
     verify(jdbc).execute(contains("DELETE FROM app_documents WHERE"));
     // Xác minh có xóa và chèn court_prices
     verify(jdbc).execute("DELETE FROM court_prices");
-    // Xác minh có xóa và chèn staff_schedules
-    verify(jdbc).execute("DELETE FROM staff_schedules");
+    // Xác minh có xóa staff_schedules không còn được tham chiếu
+    verify(jdbc).execute(contains("DELETE FROM staff_schedules"));
   }
 
   @Test

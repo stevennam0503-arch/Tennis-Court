@@ -36,6 +36,7 @@ public class CatalogService {
   private final AuthService auth;
   private final AuditService audit;
   private final JdbcTemplate jdbc;
+  private final ScheduleService scheduleService;
 
   @Transactional
   public UUID save(String collection, UUID id, CatalogRequest r) {
@@ -303,9 +304,41 @@ public class CatalogService {
     c.setImageUrl(r.imageUrl());
     c.setImageIsIllustration(r.imageIsIllustration() == null || r.imageIsIllustration());
     UUID saved = courts.save(c).getId();
-    copyZonePricesIfMissing(saved, courtType);
     if (reopening) {
+      if (jdbc != null) {
+        courts.flush();
+        jdbc.update("DELETE FROM court_prices WHERE court_id = ?", saved);
+        jdbc.update(
+            """
+            INSERT INTO court_prices (id, court_id, day_type, start_time, end_time, price_per_hour)
+            SELECT gen_random_uuid(), ?, p.day_type, p.start_time, p.end_time, p.price_per_hour
+            FROM court_prices p
+            WHERE p.court_id = (
+                SELECT c2.id FROM courts c2
+                JOIN court_prices p2 ON p2.court_id = c2.id
+                WHERE c2.type = ? AND c2.status <> 'DELETED' AND c2.id <> ?
+                ORDER BY CASE WHEN c2.status = 'ACTIVE' THEN 0 ELSE 1 END, c2.name LIMIT 1
+            )
+            """,
+            saved, courtType, saved);
+        jdbc.update(
+            """
+            UPDATE court_schedules cs
+            SET price = p.price_per_hour / 2
+            FROM court_prices p
+            WHERE cs.court_id = ?
+              AND p.court_id = cs.court_id
+              AND cs.schedule_date >= ?
+              AND cs.status IN ('AVAILABLE', 'MAINTENANCE')
+              AND p.day_type = CASE WHEN EXTRACT(isodow FROM cs.schedule_date) IN (6, 7) THEN 'WEEKEND' ELSE 'WEEKDAY' END
+              AND cs.start_time >= p.start_time
+              AND cs.start_time < p.end_time
+            """,
+            saved, LocalDate.now(ZONE));
+      }
       audit.log("MỞ LẠI SÂN", courtName + " (" + courtType + ")");
+    } else {
+      copyZonePricesIfMissing(saved, courtType);
     }
     return saved;
   }
@@ -521,8 +554,8 @@ public class CatalogService {
           WHERE p.court_id = (
               SELECT c2.id FROM courts c2
               JOIN court_prices p2 ON p2.court_id = c2.id
-              WHERE c2.type = ? AND c2.status = 'ACTIVE' AND c2.id <> ?
-              ORDER BY c2.name LIMIT 1
+              WHERE c2.type = ? AND c2.status <> 'DELETED' AND c2.id <> ?
+              ORDER BY CASE WHEN c2.status = 'ACTIVE' THEN 0 ELSE 1 END, c2.name LIMIT 1
           )
           AND NOT EXISTS (SELECT 1 FROM court_prices x WHERE x.court_id = ?)
           """,
@@ -539,26 +572,29 @@ public class CatalogService {
     if (val instanceof LocalTime lt) {
       return lt;
     }
-    if (val instanceof Number n) {
-      double d = n.doubleValue();
-      int hour = (int) d;
-      int minute = (int) Math.round((d - hour) * 60);
-      return LocalTime.of(hour, minute);
-    }
-    String s = val.toString().trim();
-    if (s.contains(":")) {
-      String[] parts = s.split(":");
-      int hour = Integer.parseInt(parts[0].trim());
-      int minute = parts.length > 1 ? Integer.parseInt(parts[1].trim()) : 0;
-      return LocalTime.of(hour, minute);
-    }
     try {
+      if (val instanceof Number n) {
+        double d = n.doubleValue();
+        int hour = (int) d;
+        int minute = (int) Math.round((d - hour) * 60);
+        return LocalTime.of(hour, minute);
+      }
+      String s = val.toString().trim();
+      if (s.contains(":")) {
+        String[] parts = s.split(":");
+        if (parts.length == 0 || parts[0].trim().isEmpty()) {
+          throw new BusinessException("Định dạng giờ không hợp lệ: " + val);
+        }
+        int hour = Integer.parseInt(parts[0].trim());
+        int minute = parts.length > 1 ? Integer.parseInt(parts[1].trim()) : 0;
+        return LocalTime.of(hour, minute);
+      }
       double d = Double.parseDouble(s);
       int hour = (int) d;
       int minute = (int) Math.round((d - hour) * 60);
       return LocalTime.of(hour, minute);
-    } catch (NumberFormatException e) {
-      throw new BusinessException("Định dạng giờ không hợp lệ: " + s);
+    } catch (DateTimeException | NumberFormatException e) {
+      throw new BusinessException("Định dạng giờ không hợp lệ: " + val);
     }
   }
 
@@ -605,23 +641,33 @@ public class CatalogService {
   public int replaceZoneTariff(String zone, com.courtly.dto.request.ZoneTariffRequest request, Account actor) {
     auth.admin(actor);
     String cleanZone = oneOf(zone, "OUTDOOR", "INDOOR", "VIP");
-    LocalDate effectiveFrom = request.effectiveFrom() != null ? request.effectiveFrom() : LocalDate.now(ZONE);
-    require(!effectiveFrom.isBefore(LocalDate.now(ZONE)), "Ngày áp dụng phải từ hôm nay trở đi");
+    LocalDate today = LocalDate.now(ZONE);
+    LocalDate effectiveFrom = request.effectiveFrom() != null ? request.effectiveFrom() : today;
+    require(!effectiveFrom.isBefore(today), "Ngày áp dụng phải từ hôm nay trở đi");
+    require(!effectiveFrom.isAfter(today.plusDays(90)), "Ngày áp dụng tối đa sau 90 ngày");
 
     List<ParsedTariffRow> rows = validateAndParseTariffRows(request.rows());
 
-    List<Court> activeCourts = courts.findAll().stream()
-        .filter(c -> cleanZone.equalsIgnoreCase(c.getType()) && "ACTIVE".equalsIgnoreCase(c.getStatus()))
+    List<Court> zoneCourts = courts.findAll().stream()
+        .filter(c -> cleanZone.equalsIgnoreCase(c.getType()) && !"DELETED".equalsIgnoreCase(c.getStatus()))
         .toList();
-    require(!activeCourts.isEmpty(), "Không tìm thấy sân đang hoạt động trong khu " + cleanZone);
+    require(!zoneCourts.isEmpty(), "Không tìm thấy sân đang hoạt động trong khu " + cleanZone);
 
-    // 1. Xóa court_prices cũ của các sân ACTIVE trong khu
-    for (Court c : activeCourts) {
+    if (effectiveFrom.isAfter(today)) {
+      for (LocalDate d = today; d.isBefore(effectiveFrom); d = d.plusDays(1)) {
+        scheduleService.generate(d);
+      }
+      courtSchedules.flush();
+      courts.flush();
+    }
+
+    // 1. Xóa court_prices cũ của các sân trong khu (trừ DELETED)
+    for (Court c : zoneCourts) {
       jdbc.update("DELETE FROM court_prices WHERE court_id = ?", c.getId());
     }
 
     // 2. Chèn court_prices mới
-    for (Court c : activeCourts) {
+    for (Court c : zoneCourts) {
       for (ParsedTariffRow r : rows) {
         jdbc.update(
             "INSERT INTO court_prices (id, court_id, day_type, start_time, end_time, price_per_hour) VALUES (gen_random_uuid(), ?, ?, ?, ?, ?)",
@@ -638,7 +684,7 @@ public class CatalogService {
         JOIN courts c ON c.id = p.court_id
         WHERE cs.court_id = c.id
           AND c.type = ?
-          AND c.status = 'ACTIVE'
+          AND c.status <> 'DELETED'
           AND cs.schedule_date >= ?
           AND cs.status IN ('AVAILABLE', 'MAINTENANCE')
           AND p.day_type = CASE WHEN EXTRACT(isodow FROM cs.schedule_date) IN (6, 7) THEN 'WEEKEND' ELSE 'WEEKDAY' END

@@ -25,12 +25,6 @@ export default function Booking() {
   const [pendingVoucherCode, setPendingVoucherCode] = useState(null);
   const req = useRef(requestId());
 
-  const courtMinRate = React.useMemo(() => {
-    if (!court) return 0;
-    const rates = (data?.prices || []).filter(p => p.court === court.id);
-    return rates.length > 0 ? Math.min(...rates.map(p => Number(p.price))) : (court.price || 0);
-  }, [court, data?.prices]);
-
   const overdueDebtOrders = React.useMemo(() => {
     if (!user || !data?.orders) return [];
     return data.orders.filter(o => {
@@ -50,6 +44,12 @@ export default function Booking() {
   const allCourts = data?.courts || [];
   const courts = preferredZone === 'ALL' ? allCourts : allCourts.filter(c => zone(c) === preferredZone);
   const court = courts.find(c => c.id === courtId) || courts.find(c => zone(c) === preferredZone && c.status === 'ACTIVE') || courts[0];
+
+  const courtMinRate = React.useMemo(() => {
+    if (!court) return 0;
+    const rates = (data?.prices || []).filter(p => p.court === court.id);
+    return rates.length > 0 ? Math.min(...rates.map(p => Number(p.price))) : (court.price || 0);
+  }, [court, data?.prices]);
 
   const currentRange = (court && courtRanges[court.id]) || {start: null, end: null, phase: 'start', valid: false, rangeLabel: '', slots: []};
   const {start, end, phase, valid, rangeLabel} = currentRange;

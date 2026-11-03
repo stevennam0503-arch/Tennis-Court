@@ -36,6 +36,7 @@ class CatalogServiceTest {
   @Mock private AuthService auth;
   @Mock private AuditService audit;
   @Mock private org.springframework.jdbc.core.JdbcTemplate jdbc;
+  @Mock private ScheduleService scheduleService;
 
   private CatalogService catalogService;
   private Account actor;
@@ -65,7 +66,8 @@ class CatalogServiceTest {
             docs,
             auth,
             audit,
-            jdbc);
+            jdbc,
+            scheduleService);
 
     actorId = UUID.randomUUID();
     actor = new Account();
@@ -370,5 +372,100 @@ class CatalogServiceTest {
     verify(jdbc).update("DELETE FROM court_prices WHERE court_id = ?", court1.getId());
     verify(jdbc, times(3)).update(org.mockito.ArgumentMatchers.contains("INSERT INTO court_prices"), org.mockito.ArgumentMatchers.eq(court1.getId()), any(), any(), any(), any());
     verify(audit).log(org.mockito.ArgumentMatchers.eq("CẬP NHẬT BẢNG GIÁ"), org.mockito.ArgumentMatchers.contains("OUTDOOR"));
+  }
+
+  @Test
+  @DisplayName("parseTime: ném BusinessException khi giờ sai định dạng (25:00, ab:cd, 6h)")
+  void parseTime_invalidFormat_throwsBusinessException() {
+    List<String> invalidInputs = List.of("25:00", "ab:cd", "6h", "-1:00", "24:00");
+    for (String input : invalidInputs) {
+      BusinessException ex = assertThrows(BusinessException.class, () -> CatalogService.parseTime(input));
+      assertTrue(ex.getMessage().contains("Định dạng giờ không hợp lệ"), "Expected error for input: " + input);
+    }
+  }
+
+  @Test
+  @DisplayName("replaceZoneTariff: từ chối khi ngày áp dụng quá 90 ngày")
+  void replaceZoneTariff_rejectsDateOver90Days() {
+    List<com.courtly.dto.request.ZoneTariffRequest.TariffRowRequest> rows = List.of(
+        new com.courtly.dto.request.ZoneTariffRequest.TariffRowRequest("WEEKDAY", "06:00", "23:00", java.math.BigDecimal.valueOf(100000)),
+        new com.courtly.dto.request.ZoneTariffRequest.TariffRowRequest("WEEKEND", "06:00", "23:00", java.math.BigDecimal.valueOf(200000))
+    );
+    com.courtly.dto.request.ZoneTariffRequest req = new com.courtly.dto.request.ZoneTariffRequest(java.time.LocalDate.now().plusDays(91), rows);
+
+    BusinessException ex = assertThrows(BusinessException.class, () -> catalogService.replaceZoneTariff("OUTDOOR", req, actor));
+    assertTrue(ex.getMessage().contains("Ngày áp dụng tối đa sau 90 ngày"));
+  }
+
+  @Test
+  @DisplayName("replaceZoneTariff: sinh slot chốt giá cũ khi ngày áp dụng ở tương lai")
+  void replaceZoneTariff_preGeneratesSlotsForFutureEffectiveDate() {
+    com.courtly.entity.Court court = new com.courtly.entity.Court();
+    court.setId(UUID.randomUUID());
+    court.setName("Sân A01");
+    court.setType("OUTDOOR");
+    court.setStatus("ACTIVE");
+
+    when(courts.findAll()).thenReturn(List.of(court));
+
+    List<com.courtly.dto.request.ZoneTariffRequest.TariffRowRequest> rows = List.of(
+        new com.courtly.dto.request.ZoneTariffRequest.TariffRowRequest("WEEKDAY", "06:00", "23:00", java.math.BigDecimal.valueOf(100000)),
+        new com.courtly.dto.request.ZoneTariffRequest.TariffRowRequest("WEEKEND", "06:00", "23:00", java.math.BigDecimal.valueOf(200000))
+    );
+    java.time.LocalDate today = java.time.LocalDate.now();
+    java.time.LocalDate effDate = today.plusDays(3);
+    com.courtly.dto.request.ZoneTariffRequest req = new com.courtly.dto.request.ZoneTariffRequest(effDate, rows);
+
+    catalogService.replaceZoneTariff("OUTDOOR", req, actor);
+
+    verify(scheduleService).generate(today);
+    verify(scheduleService).generate(today.plusDays(1));
+    verify(scheduleService).generate(today.plusDays(2));
+    verify(scheduleService, never()).generate(effDate);
+    verify(courtSchedules).flush();
+    verify(courts).flush();
+  }
+
+  @Test
+  @DisplayName("replaceZoneTariff: áp dụng cho cả sân MAINTENANCE, INACTIVE; bỏ qua DELETED")
+  void replaceZoneTariff_appliesToMaintenanceAndInactive_excludesDeleted() {
+    com.courtly.entity.Court cActive = new com.courtly.entity.Court();
+    cActive.setId(UUID.randomUUID());
+    cActive.setName("Sân A01");
+    cActive.setType("OUTDOOR");
+    cActive.setStatus("ACTIVE");
+
+    com.courtly.entity.Court cMaint = new com.courtly.entity.Court();
+    cMaint.setId(UUID.randomUUID());
+    cMaint.setName("Sân A02");
+    cMaint.setType("OUTDOOR");
+    cMaint.setStatus("MAINTENANCE");
+
+    com.courtly.entity.Court cInactive = new com.courtly.entity.Court();
+    cInactive.setId(UUID.randomUUID());
+    cInactive.setName("Sân A03");
+    cInactive.setType("OUTDOOR");
+    cInactive.setStatus("INACTIVE");
+
+    com.courtly.entity.Court cDeleted = new com.courtly.entity.Court();
+    cDeleted.setId(UUID.randomUUID());
+    cDeleted.setName("Sân A04");
+    cDeleted.setType("OUTDOOR");
+    cDeleted.setStatus("DELETED");
+
+    when(courts.findAll()).thenReturn(List.of(cActive, cMaint, cInactive, cDeleted));
+
+    List<com.courtly.dto.request.ZoneTariffRequest.TariffRowRequest> rows = List.of(
+        new com.courtly.dto.request.ZoneTariffRequest.TariffRowRequest("WEEKDAY", "06:00", "23:00", java.math.BigDecimal.valueOf(100000)),
+        new com.courtly.dto.request.ZoneTariffRequest.TariffRowRequest("WEEKEND", "06:00", "23:00", java.math.BigDecimal.valueOf(200000))
+    );
+    com.courtly.dto.request.ZoneTariffRequest req = new com.courtly.dto.request.ZoneTariffRequest(java.time.LocalDate.now(), rows);
+
+    catalogService.replaceZoneTariff("OUTDOOR", req, actor);
+
+    verify(jdbc).update("DELETE FROM court_prices WHERE court_id = ?", cActive.getId());
+    verify(jdbc).update("DELETE FROM court_prices WHERE court_id = ?", cMaint.getId());
+    verify(jdbc).update("DELETE FROM court_prices WHERE court_id = ?", cInactive.getId());
+    verify(jdbc, never()).update("DELETE FROM court_prices WHERE court_id = ?", cDeleted.getId());
   }
 }

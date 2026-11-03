@@ -3,7 +3,7 @@ import { Plus, Trash2, SlidersHorizontal, Clock, RotateCcw, Save, Sun, Calendar,
 import { CourtPhoto, courtDescription } from '../components/CourtGallery';
 import { useCourtly } from '../context';
 import { Title, Chip, Button, Tabs } from '../components/UI';
-import { labels, money } from '../utils/format';
+import { labels, money, today } from '../utils/format';
 
 const HALF_HOURS = [
   '06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
@@ -35,7 +35,13 @@ export default function CourtsPage() {
 
   // Quản lý Bảng giá theo khu
   const [selectedZone, setSelectedZone] = useState('OUTDOOR');
-  const [effectiveDate, setEffectiveDate] = useState(() => new Date().toLocaleDateString('en-CA'));
+  const todayStr = today();
+  const maxDate = useMemo(() => {
+    const [y, m, d] = todayStr.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d + 90));
+    return dt.toISOString().slice(0, 10);
+  }, [todayStr]);
+  const [effectiveDate, setEffectiveDate] = useState(() => todayStr);
   const [customTariffs, setCustomTariffs] = useState({});
   const [showPreview, setShowPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -443,7 +449,8 @@ export default function CourtsPage() {
                   <span style={{ fontSize: 12.5, fontWeight: 600, color: '#475569' }}>Áp dụng từ:</span>
                   <input
                     type="date"
-                    min={new Date().toLocaleDateString('en-CA')}
+                    min={todayStr}
+                    max={maxDate}
                     value={effectiveDate}
                     onChange={(e) => setEffectiveDate(e.target.value)}
                     style={{ border: 'none', background: 'transparent', fontSize: 13, fontWeight: 700, color: '#0f172a', outline: 'none' }}

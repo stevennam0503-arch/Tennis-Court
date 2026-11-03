@@ -83,7 +83,33 @@ Bất cứ khi nào nhóm tập dượt xong (làm bẩn hoặc lệch dữ li�
 
 ---
 
-## 💡 5. BÍ QUYẾT TRẢ LỜI CÁC CÂU HỎI HỘI ĐỒNG THƯỜNG HỎI
+## 🏷️ 5. DEMO ĐỔI GIÁ SÂN (BẢNG GIÁ THEO KHU THỐNG NHẤT)
+
+Khi Hội đồng muốn xem tính năng quản lý và đổi giá sân linh hoạt theo chính sách CLB:
+
+1. **Ghi nhận giá hiện tại:**
+   - Đăng nhập tài khoản khách `hoangnam@gmail.com` (mật khẩu `123456`), mở lịch đặt sân ngày mai, ghi lại giá slot 18:00 Sân A01.
+   - Mở trang **Bảng giá**, ghi lại giá khung 17:00 – 22:00 khu ngoài trời (OUTDOOR).
+2. **Thao tác đổi giá phía Admin:**
+   - Đăng nhập tài khoản Admin `admin@gmail.com` $\rightarrow$ Vào mục **Sân & bảng giá** $\rightarrow$ Chọn tab **"Bảng giá theo khu"** $\rightarrow$ Chọn khu **"Ngoài trời"**.
+   - Sửa giá khung 17:00 – 22:00 ngày thường, chọn ô **"Áp dụng từ" = hôm nay**.
+   - Bấm **"Xem trước"** để đối chiếu bảng giá cũ và mới $\rightarrow$ Bấm **"Lưu thay đổi"**.
+   - Hệ thống thông báo số lượng slot còn trống (`AVAILABLE`, `MAINTENANCE`) được cập nhật tức thì.
+3. **Kiểm tra kết quả phản ánh đồng bộ:**
+   - Tải lại trang Bảng giá công khai và trang Lịch đặt sân của khách hàng: Giá mới hiển thị đồng bộ ở cả hai nơi, kể cả các ngày đã có lịch.
+   - *(Ghi chú: Không cần chọn sân mới hay ngày chưa sinh lịch).*
+4. **Đối soát tính toàn vẹn dữ liệu với đơn đã đặt:**
+   - Mở đơn hàng mẫu đã đặt trước đó trên khu ngoài trời (ví dụ đơn **#CT-26262626**, Sân A01 ngày mai).
+   - Đơn **giữ nguyên đơn giá và tổng tiền** tại thời điểm khách đặt lúc trước.
+   - $\rightarrow$ **Câu trả lời cho Hội đồng:** *"Giá chốt vào đơn tại thời điểm đặt; đổi bảng giá chỉ áp dụng cho slot còn trống."*
+5. **(Tùy chọn) Thử nghiệm ngày áp dụng tương lai:**
+   - Lặp lại với **"Áp dụng từ" = tuần sau**: Lịch tuần này giữ giá cũ, lịch từ tuần sau có giá mới.
+6. **Sau khi demo:**
+   - Bấm **[ 🔄 Đặt lại dữ liệu mẫu Hội đồng ]** để đưa toàn bộ bảng giá và slot về chuẩn.
+
+---
+
+## 💡 6. BÍ QUYẾT TRẢ LỜI CÁC CÂU HỎI HỘI ĐỒNG THƯỜNG HỎI
 
 - **Hội đồng hỏi: *"Hệ thống kiểm soát việc trùng lịch (Double Booking) như thế nào khi nhiều người cùng đặt 1 sân?"***
   $\rightarrow$ **Trả lời:** Hệ thống áp dụng cơ chế khóa bi quan (**Pessimistic Write Lock**) trực tiếp tại tầng cơ sở dữ liệu (`SELECT ... FOR UPDATE`). Khi khách hàng chọn khung giờ, slot được lock lập tức trong transaction, nếu có người khác cùng bấm thì hệ thống sẽ nhận diện xung đột và từ chối an toàn.
