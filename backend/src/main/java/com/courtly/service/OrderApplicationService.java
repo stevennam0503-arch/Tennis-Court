@@ -278,7 +278,7 @@ public class OrderApplicationService {
               service.checkIn(id, visitDate);
             }
             case "no-show" -> {
-              support.cashier(a);
+              auth.cashier(a);
               service.noShow(id, (String) b.get("reason"));
             }
             case "check-out" -> service.checkOut(id);

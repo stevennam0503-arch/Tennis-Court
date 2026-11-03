@@ -274,7 +274,6 @@ public class OrderService {
   }
 
   @Transactional
-  @Transactional
   public void noShow(UUID id, String reason) {
     CustomerOrder order = lock(id);
     require(Set.of("CONFIRMED", "HOLDING").contains(order.getStatus()), "Chỉ áp dụng trạng thái Vắng mặt cho đơn đã xác nhận hoặc đang giữ chỗ");
