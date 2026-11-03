@@ -70,8 +70,8 @@ public class CatalogController {
       @PathVariable UUID id,
       jakarta.servlet.http.HttpServletRequest req) {
     var actor = auth.current(req);
-    service.delete(collection, id, actor);
-    return map("success", true, "id", id);
+    String mode = service.delete(collection, id, actor);
+    return map("success", true, "id", id, "mode", mode);
   }
 
   @PostMapping("/demo-reset")

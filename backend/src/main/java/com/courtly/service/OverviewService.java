@@ -151,6 +151,18 @@ public class OverviewService {
                 s.getCancelRefundPercent()));
   }
 
+  /** Sân đã ngừng khai thác: chỉ để tra tên trong lịch sử đơn, hóa đơn và báo cáo; không mở bán. */
+  public List<Map<String, Object>> archivedCourts() {
+    return courts.findAll().stream()
+        .filter(c -> "DELETED".equalsIgnoreCase(c.getStatus()))
+        .sorted(Comparator.comparing(Court::getName))
+        .map(c -> map("id", c.getId(), "name", c.getName(), "type", c.getType(), "status", c.getStatus(),
+            "price", c.getBasePrice(), "description", c.getDescription(), "address", c.getAddress(),
+            "amenities", c.getAmenities(), "imageUrl", c.getImageUrl(),
+            "imageIsIllustration", c.isImageIsIllustration()))
+        .toList();
+  }
+
   public Map<String, Object> get(LocalDate date) {
     ClubSettings s = settings.findAll().stream().findFirst().orElseThrow();
 

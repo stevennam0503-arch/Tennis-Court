@@ -18,6 +18,7 @@ import './guest.css';
 import './booking.css';
 import './header.css';
 import './footer.css';
+import { withArchivedCourts } from '../utils/courts';
 
 function Modal({children,onClose,title,hideClose}){
   const ref=useRef();
@@ -131,7 +132,7 @@ export default function Portal({session,onSession,onLogout}){
         user?api('/transfers'):Promise.resolve([])
       ]);
       if(id===serial.current){
-        setData(d);
+        setData(withArchivedCourts(d));
         setContent(c);
         setTransfers(ps);
         setError('');

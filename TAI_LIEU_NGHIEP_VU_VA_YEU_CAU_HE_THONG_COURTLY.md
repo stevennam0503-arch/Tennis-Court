@@ -93,6 +93,15 @@ Hệ thống Courtly quản lý sân theo 3 chuẩn phân loại thực tế:
 2. **Sân Trong Nhà (`INDOOR`)**: Sân có mái che kiên cố, chống chói, sàn nảy tiêu chuẩn US Open, hoạt động liên tục bất chấp mưa nắng.
 3. **Sân Ngoài Sân / Ngoài Trời (`OUTDOOR`)**: Sân ngoài trời thoáng đãng, phủ lớp sơn acrylic chống trơn trượt, thích hợp tập luyện và thi đấu các khung giờ sáng sớm hoặc chiều tối.
 
+### 4.1a. Vòng đời sân (Thêm / Sửa / Bảo trì / Ngừng khai thác)
+Sân là dữ liệu gốc mà đơn, phiếu thu và báo cáo đều tham chiếu, nên hệ thống không xóa cứng sân đã từng được đặt:
+1. **Hoạt động (`ACTIVE`)**: đang mở bán.
+2. **Bảo trì / Tạm ngưng (`MAINTENANCE`, `INACTIVE`)**: không nhận đặt mới. Muốn đóng vài giờ thì dùng bảo trì theo khung giờ (mục 6.9).
+3. **Ngừng khai thác**: ẩn khỏi trang đặt sân, bảng giá và lịch; đơn, hóa đơn, báo cáo cũ vẫn hiện đúng tên sân; bảng giá được giữ. Admin xem các sân này ở tab "Đã ngừng khai thác" và có thể **Mở lại**.
+4. **Xóa vĩnh viễn**: chỉ áp dụng tự động cho sân chưa từng có đơn (thường là sân tạo nhầm).
+
+Quy tắc: không ngừng khai thác hoặc chuyển bảo trì sân còn đơn giữ chỗ / đã xác nhận / đang chơi từ hôm nay trở đi; hệ thống liệt kê mã đơn để quầy đổi lịch sang sân khác hoặc hủy và hoàn tiền trước. Không tạo sân mới trùng tên một sân đã ngừng (phải Mở lại sân cũ để giữ lịch sử); tên tự đặt cho sân mới bỏ qua các tên đã dùng. Sửa giá sân chỉ áp dụng cho lịch sinh sau đó; đơn đã đặt giữ đơn giá lúc đặt.
+
 ### 4.2. Khung giờ hoạt động & Phân đoạn thời gian
 - **Giờ mở cửa**: Từ 06:00 đến 23:00 hàng ngày (17 tiếng vận hành mỗi sân).
 - **Độ dài khung giờ**: Mỗi slot kéo dài 30 phút hoặc 60 phút.

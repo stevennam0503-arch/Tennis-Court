@@ -54,20 +54,50 @@ public class CatalogService {
   }
 
   @Transactional
-  public void delete(String collection, UUID id, Account actor) {
+  /** Trả về "ARCHIVED" khi sân có lịch sử chỉ bị ngừng khai thác, "DELETED" khi bản ghi bị xóa hẳn. */
+  public String delete(String collection, UUID id, Account actor) {
     switch (collection) {
-      case "accounts" -> deleteAccount(id, actor);
-      case "courts" -> deleteCourt(id, actor);
+      case "accounts" -> { deleteAccount(id, actor); return "DELETED"; }
+      case "courts" -> { return deleteCourt(id, actor); }
       default -> throw new BusinessException("Danh mục không hỗ trợ xóa");
     }
   }
 
-  private void deleteCourt(UUID id, Account actor) {
+  /** Đơn còn hiệu lực (giữ chỗ, đã xác nhận, đang chơi) có buổi chơi từ hôm nay trở đi trên sân này. */
+  private List<String> upcomingCourtOrders(UUID courtId) {
+    if (jdbc == null) return List.of();
+    return jdbc.queryForList(
+        """
+        SELECT DISTINCT 'CT-' || upper(left(replace(o.id::text, '-', ''), 8)) || ' · ' || o.customer_name
+               || ' · ' || to_char(cs.schedule_date, 'DD/MM') AS label, cs.schedule_date
+        FROM court_schedules cs
+        JOIN booking_slots bs ON bs.schedule_id = cs.id AND bs.released_at IS NULL
+        JOIN bookings b ON b.id = bs.booking_id
+        JOIN orders o ON o.id = b.order_id
+        WHERE cs.court_id = ? AND cs.schedule_date >= ?
+          AND o.status IN ('HOLDING', 'CONFIRMED', 'CHECKED_IN')
+        ORDER BY cs.schedule_date
+        """,
+        courtId, LocalDate.now(ZONE)).stream().map(r -> (String) r.get("label")).distinct().toList();
+  }
+
+  private void requireNoUpcomingOrders(UUID courtId, String action) {
+    var upcoming = upcomingCourtOrders(courtId);
+    require(
+        upcoming.isEmpty(),
+        "Không thể " + action + ": sân còn " + upcoming.size() + " đơn sắp tới ("
+            + String.join("; ", upcoming.subList(0, Math.min(3, upcoming.size())))
+            + (upcoming.size() > 3 ? "; …" : "")
+            + "). Đổi lịch sang sân khác hoặc hủy và hoàn tiền trước.");
+  }
+
+  private String deleteCourt(UUID id, Account actor) {
     auth.admin(actor);
     Court target =
         courts
             .findForUpdate(id)
             .orElseThrow(() -> new BusinessException("Sân không tồn tại"));
+    requireNoUpcomingOrders(id, "ngừng khai thác " + target.getName());
 
     Integer bookedCount = 0;
     if (jdbc != null) {
@@ -87,6 +117,7 @@ public class CatalogService {
     }
 
     if (bookedCount != null && bookedCount > 0) {
+      // Sân đã có lịch sử: ngừng khai thác (lưu trữ). Giữ bảng giá để có thể mở lại.
       target.setStatus("DELETED");
       courts.save(target);
       if (jdbc != null) {
@@ -99,8 +130,9 @@ public class CatalogService {
               AND NOT EXISTS (SELECT 1 FROM booking_staff bst WHERE bst.court_schedule_id = cs.id)
             """,
             id);
-        jdbc.update("DELETE FROM court_prices WHERE court_id = ?", id);
       }
+      audit.log("NGỪNG KHAI THÁC SÂN", target.getName() + " (" + target.getType() + ")");
+      return "ARCHIVED";
     } else {
       if (jdbc != null) {
         jdbc.update("DELETE FROM court_schedules WHERE court_id = ?", id);
@@ -108,7 +140,8 @@ public class CatalogService {
       }
       courts.delete(target);
     }
-    audit.log("XÓA SÂN", target.getName() + " (" + target.getType() + ")");
+    audit.log("XÓA VĨNH VIỄN SÂN", target.getName() + " (" + target.getType() + ")");
+    return "DELETED";
   }
 
   private void deleteAccount(UUID id, Account actor) {
@@ -242,18 +275,17 @@ public class CatalogService {
       courtName = generateNextCourtName(courtType);
     }
     require(!isCourtNameDuplicate(id, courtName), "Tên sân '" + courtName + "' đã tồn tại. Vui lòng chọn tên khác.");
+    boolean renamed = id == null || !courtName.equalsIgnoreCase(c.getName() == null ? "" : c.getName().trim());
+    require(
+        !renamed || !isArchivedCourtName(id, courtName),
+        "Sân '" + courtName + "' đã ngừng khai thác. Hãy mở lại sân này trong mục \"Đã ngừng khai thác\" thay vì tạo sân mới cùng tên.");
+    boolean reopening = id != null && "DELETED".equalsIgnoreCase(c.getStatus());
     c.setName(courtName);
     c.setType(courtType);
     c.setZoneNeedsReview(false);
     String status = oneOf(r.status(), "ACTIVE", "MAINTENANCE", "INACTIVE");
-    if (!"ACTIVE".equals(status) && id != null) {
-      java.time.LocalDate today = java.time.LocalDate.now(ZONE);
-      require(
-          courtSchedules.findAll().stream()
-              .filter(x -> x.getCourt().getId().equals(id))
-              .filter(x -> !x.getScheduleDate().isBefore(today))
-              .noneMatch(x -> !"AVAILABLE".equals(x.getStatus())),
-          "Sân đang có lịch đặt sắp tới. Hủy hoặc đổi lịch trước khi chuyển trạng thái.");
+    if (!"ACTIVE".equals(status) && id != null && !reopening) {
+      requireNoUpcomingOrders(id, "chuyển sân sang trạng thái tạm ngưng");
     }
     c.setStatus(status);
     c.setBasePrice(positive(r.price()));
@@ -270,7 +302,31 @@ public class CatalogService {
     }
     c.setImageUrl(r.imageUrl());
     c.setImageIsIllustration(r.imageIsIllustration() == null || r.imageIsIllustration());
-    return courts.save(c).getId();
+    UUID saved = courts.save(c).getId();
+    if (reopening) {
+      // Sân ngừng trước khi có quy tắc giữ bảng giá: nhận bảng giá của một sân cùng khu đang hoạt động
+      if (jdbc != null) {
+        courts.flush();
+        jdbc.update(
+            "INSERT INTO court_prices (id, court_id, day_type, start_time, end_time, price_per_hour) "
+                + "SELECT gen_random_uuid(), ?, p.day_type, p.start_time, p.end_time, p.price_per_hour FROM court_prices p "
+                + "WHERE p.court_id = (SELECT c2.id FROM courts c2 JOIN court_prices p2 ON p2.court_id = c2.id "
+                + "WHERE c2.type = ? AND c2.status = 'ACTIVE' AND c2.id <> ? ORDER BY c2.name LIMIT 1) "
+                + "AND NOT EXISTS (SELECT 1 FROM court_prices x WHERE x.court_id = ?)",
+            saved, courtType, saved, saved);
+      }
+      audit.log("MỞ LẠI SÂN", courtName + " (" + courtType + ")");
+    }
+    return saved;
+  }
+
+  private boolean isArchivedCourtName(UUID currentCourtId, String rawName) {
+    String cleanName = rawName.trim().replaceAll("^(?i)(sân|san)\\s+", "");
+    return courts.findAll().stream()
+        .filter(c -> "DELETED".equalsIgnoreCase(c.getStatus()))
+        .filter(c -> currentCourtId == null || !c.getId().equals(currentCourtId))
+        .anyMatch(c -> c.getName() != null
+            && c.getName().trim().replaceAll("^(?i)(sân|san)\\s+", "").equalsIgnoreCase(cleanName));
   }
 
   private UUID price(UUID id, CatalogRequest r) {
@@ -431,8 +487,8 @@ public class CatalogService {
     String zoneLetter = "VIP".equalsIgnoreCase(type) ? "V" : "INDOOR".equalsIgnoreCase(type) ? "B" : "A";
     java.util.regex.Pattern p = java.util.regex.Pattern.compile("^(?:Sân\\s+|San\\s+)?" + zoneLetter + "(\\d+)$", java.util.regex.Pattern.CASE_INSENSITIVE);
     java.util.Set<Integer> usedNumbers = new java.util.HashSet<>();
+    // Tên của sân đã ngừng vẫn được coi là đã dùng: muốn dùng lại thì mở lại sân cũ để giữ lịch sử
     for (Court item : courts.findAll()) {
-      if ("DELETED".equalsIgnoreCase(item.getStatus())) continue;
       if (item.getName() != null) {
         var m = p.matcher(item.getName().trim());
         if (m.matches()) {

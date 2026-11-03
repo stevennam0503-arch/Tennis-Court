@@ -85,21 +85,42 @@ export default function CourtsPage() {
 
   const edit = (collection, row) => show({ type: 'entity', collection, row });
 
+  const reopenCourt = async (court) => {
+    if (deletingId) return;
+    setDeletingId(court.id);
+    try {
+      await mutate(`/catalog/courts/${court.id}`, {
+        name: court.name, type: court.type, status: 'ACTIVE', price: court.price,
+        description: court.description, address: court.address, amenities: court.amenities,
+        imageUrl: court.imageUrl, imageIsIllustration: court.imageIsIllustration
+      }, 'PUT');
+      notify(`Đã mở lại ${court.name}; sân hiện lại ở trang đặt sân với bảng giá cũ.`);
+      setCourtTypeFilter('ALL');
+    } catch (e) {
+      notify(e.message || 'Không mở lại được sân.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const executeDeleteCourt = async (court) => {
     if (deletingId) return;
+    // Kiểm tra nhanh trên dữ liệu đang tải; backend vẫn kiểm tra đầy đủ mọi ngày và báo danh sách đơn
     const activeOrders = (data.orders || []).filter(o =>
       ['HOLDING', 'CONFIRMED', 'CHECKED_IN'].includes(o.status) &&
       o.slots?.some(s => s.court === court.id)
     );
     if (activeOrders.length > 0) {
-      notify(`⚠️ Không thể xóa "${court.name}" vì hiện có ${activeOrders.length} đơn đặt sân đang chơi hoặc sắp tới (ví dụ #${activeOrders[0].id.slice(0, 8).toUpperCase()} · ${activeOrders[0].name}). Vui lòng hoàn tất hoặc đổi sân cho các đơn này trước!`);
+      notify(`⚠️ Không thể ngừng khai thác "${court.name}" vì hiện có ${activeOrders.length} đơn đặt sân đang chơi hoặc sắp tới (ví dụ #${activeOrders[0].id.slice(0, 8).toUpperCase()} · ${activeOrders[0].name}). Vui lòng hoàn tất hoặc đổi sân cho các đơn này trước!`);
       setConfirmDeleteId(null);
       return;
     }
     setDeletingId(court.id);
     try {
-      await mutate(`/catalog/courts/${court.id}`, {}, 'DELETE');
-      notify(`Đã xóa sân ${court.name} khỏi hệ thống.`);
+      const result = await mutate(`/catalog/courts/${court.id}`, {}, 'DELETE');
+      notify(result.mode === 'ARCHIVED'
+        ? `Đã ngừng khai thác ${court.name}. Lịch sử giữ nguyên; xem hoặc mở lại ở mục "Đã ngừng khai thác".`
+        : `Đã xóa hẳn ${court.name} (sân chưa từng có đơn).`);
       setConfirmDeleteId(null);
     } catch (e) {
       notify(e.message || 'Lỗi khi xóa sân.');
@@ -395,12 +416,15 @@ export default function CourtsPage() {
     return c;
   }, [activeCourts]);
 
+  const archivedCourts = data.archivedCourts || [];
+
   const filteredCourts = useMemo(() => {
+    if (courtTypeFilter === 'ARCHIVED') return archivedCourts;
     return activeCourts.filter(c => {
       if (courtTypeFilter !== 'ALL' && c.type !== courtTypeFilter) return false;
       return true;
     });
-  }, [activeCourts, courtTypeFilter]);
+  }, [activeCourts, archivedCourts, courtTypeFilter]);
 
   const calcRate = (base, percent) => Math.round(base * (1 + percent / 100));
 
@@ -445,6 +469,7 @@ export default function CourtsPage() {
               ['VIP', `Sân VIP (${courtCounts.VIP})`],
               ['INDOOR', `Sân trong nhà (${courtCounts.INDOOR})`],
               ['OUTDOOR', `Sân ngoài trời (${courtCounts.OUTDOOR})`],
+              ['ARCHIVED', `Đã ngừng khai thác (${archivedCourts.length})`],
             ].map(([t, label]) => (
               <button
                 key={t}
@@ -455,6 +480,18 @@ export default function CourtsPage() {
               </button>
             ))}
           </div>
+
+          {courtTypeFilter === 'ARCHIVED' ? (
+            <p className="notice" style={{ marginBottom: 14 }}>
+              Sân đã ngừng không hiện ở trang đặt sân, bảng giá và lịch; đơn và hóa đơn cũ vẫn giữ nguyên tên sân.
+              Bấm "Mở lại" để bán sân trở lại với bảng giá cũ. {archivedCourts.length === 0 && 'Hiện chưa có sân nào ngừng khai thác.'}
+            </p>
+          ) : (
+            <p className="notice" style={{ marginBottom: 14 }}>
+              "Ngừng khai thác" ẩn sân khỏi trang đặt sân nhưng giữ lịch sử và có thể mở lại; sân chưa từng có đơn sẽ được xóa hẳn.
+              Sân còn đơn sắp tới phải đổi lịch hoặc hủy các đơn đó trước. Muốn đóng tạm thời, dùng "Chỉnh sửa" → trạng thái Bảo trì.
+            </p>
+          )}
 
           <div className="grid-cards">
             {filteredCourts.map((c) => (
@@ -476,7 +513,7 @@ export default function CourtsPage() {
                       <h3 style={{ margin: '0 0 4px', fontSize: 16 }}>{c.name}</h3>
                       <span className="badge info">{labels[c.type] || c.type}</span>
                     </div>
-                    <Chip status={c.status} />
+                    {c.status === 'DELETED' ? <span className="badge">Đã ngừng khai thác</span> : <Chip status={c.status} />}
                   </div>
 
                   <p style={{ margin: '8px 0 12px', fontSize: 13, color: 'var(--muted)', minHeight: 38 }}>
@@ -492,6 +529,18 @@ export default function CourtsPage() {
                     </div>
                   </div>
 
+                  {c.status === 'DELETED' ? (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
+                    <Button
+                      className="sm"
+                      style={{ flex: 1 }}
+                      disabled={deletingId === c.id}
+                      onClick={() => reopenCourt(c)}
+                    >
+                      <RotateCcw size={13} /> {deletingId === c.id ? 'Đang mở lại…' : 'Mở lại sân'}
+                    </Button>
+                  </div>
+                  ) : (
                   <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
                     <Button
                       className="secondary sm"
@@ -509,7 +558,7 @@ export default function CourtsPage() {
                           onClick={() => executeDeleteCourt(c)}
                           style={{ padding: '0 10px' }}
                         >
-                          {deletingId === c.id ? 'Đang xóa…' : 'Xác nhận'}
+                          {deletingId === c.id ? 'Đang xử lý…' : 'Xác nhận ngừng'}
                         </Button>
                         <Button
                           className="secondary sm"
@@ -523,7 +572,7 @@ export default function CourtsPage() {
                       <button
                         type="button"
                         className="btn-danger-icon"
-                        title="Xóa sân"
+                        title="Ẩn sân khỏi trang đặt sân, giữ lịch sử; sân chưa từng có đơn sẽ bị xóa hẳn"
                         onClick={() => setConfirmDeleteId(c.id)}
                         style={{
                           display: 'inline-flex',
@@ -541,10 +590,11 @@ export default function CourtsPage() {
                         }}
                       >
                         <Trash2 size={13} />
-                        <span>Xóa</span>
+                        <span>Ngừng khai thác</span>
                       </button>
                     )}
                   </div>
+                  )}
                 </div>
               </article>
             ))}

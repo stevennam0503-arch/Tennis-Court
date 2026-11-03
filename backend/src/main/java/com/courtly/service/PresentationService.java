@@ -90,6 +90,7 @@ public class PresentationService {
     orders.expireHolds();
     schedules.generate(date);
     var v = overview.get(date);
+    v.put("archivedCourts", overview.archivedCourts());
     var regs = rows(v, "registrations");
     var tournaments = rows(v, "tournaments");
     for (var t : tournaments)

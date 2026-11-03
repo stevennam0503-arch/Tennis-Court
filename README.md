@@ -91,7 +91,8 @@ React là View; Spring MVC cung cấp REST Controller; nghiệp vụ nằm ở S
 ## Chức năng chính
 
 - **Vai trò:** ADMIN (chủ sân), STAFF (lễ tân, thu ngân), CUSTOMER; khách vãng lai xem sân, giá, giải đấu.
-- **Mở bán:** 10 sân chia 3 khu (ngoài trời, trong nhà, VIP); trạng thái hoạt động / bảo trì / ngừng; bảng giá ngày thường / cuối tuần theo khung giờ; bảo trì từng khung giờ.
+- **Mở bán:** 10 sân chia 3 khu (ngoài trời, trong nhà, VIP); bảng giá ngày thường / cuối tuần theo khung giờ; bảo trì từng khung giờ.
+- **Vòng đời sân:** Hoạt động → Bảo trì (tạm đóng) → Ngừng khai thác (ẩn khỏi trang đặt sân, giữ lịch sử và bảng giá, có thể Mở lại). Sân chưa từng có đơn mới bị xóa hẳn. Không ngừng hoặc bảo trì được sân còn đơn sắp tới; không tạo sân mới trùng tên sân đã ngừng.
 - **Đặt sân:** đặt lẻ hoặc định kỳ 4/8/12 tuần, nhiều sân một đơn, thuê trọng tài; giữ chỗ 5 phút; chống đặt trùng bằng khóa dòng và ràng buộc database; cọc 50% qua VietQR hoặc tại quầy.
 - **Ưu đãi:** hội viên Club giảm 10% sân thường / 5% VIP, Plus 15% / 10%; voucher có giới hạn lượt.
 - **Vận hành:** check-in bằng QR, gia hạn giờ, thu tiền mặt, check-out khi đã thu đủ, phiếu thu K80/A4, đổi lịch có xem trước chênh lệch.

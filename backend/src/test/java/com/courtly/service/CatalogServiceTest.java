@@ -240,10 +240,10 @@ class CatalogServiceTest {
     when(jdbc.queryForObject(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(Integer.class), org.mockito.ArgumentMatchers.eq(courtId)))
         .thenReturn(0);
 
-    catalogService.delete("courts", courtId, actor);
+    assertEquals("DELETED", catalogService.delete("courts", courtId, actor));
 
     verify(courts).delete(court);
-    verify(audit).log(org.mockito.ArgumentMatchers.eq("XÓA SÂN"), org.mockito.ArgumentMatchers.contains("Sân A05"));
+    verify(audit).log(org.mockito.ArgumentMatchers.eq("XÓA VĨNH VIỄN SÂN"), org.mockito.ArgumentMatchers.contains("Sân A05"));
   }
 
   @Test
@@ -260,9 +260,32 @@ class CatalogServiceTest {
     when(jdbc.queryForObject(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(Integer.class), org.mockito.ArgumentMatchers.eq(courtId)))
         .thenReturn(3);
 
-    catalogService.delete("courts", courtId, actor);
+    assertEquals("ARCHIVED", catalogService.delete("courts", courtId, actor));
 
     verify(courts).save(argThat(c -> "DELETED".equals(c.getStatus())));
-    verify(audit).log(org.mockito.ArgumentMatchers.eq("XÓA SÂN"), org.mockito.ArgumentMatchers.contains("Sân A01"));
+    verify(courts, org.mockito.Mockito.never()).delete(court);
+    verify(jdbc, org.mockito.Mockito.never()).update("DELETE FROM court_prices WHERE court_id = ?", courtId);
+    verify(audit).log(org.mockito.ArgumentMatchers.eq("NGỪNG KHAI THÁC SÂN"), org.mockito.ArgumentMatchers.contains("Sân A01"));
+  }
+
+  @Test
+  @DisplayName("Ngừng sân: bị chặn khi còn đơn sắp tới, sân giữ nguyên")
+  void deleteCourt_blockedWhenUpcomingOrders() {
+    UUID courtId = UUID.randomUUID();
+    com.courtly.entity.Court court = new com.courtly.entity.Court();
+    court.setId(courtId);
+    court.setName("Sân A01");
+    court.setType("OUTDOOR");
+    court.setStatus("ACTIVE");
+
+    when(courts.findForUpdate(courtId)).thenReturn(Optional.of(court));
+    when(jdbc.queryForList(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(courtId), org.mockito.ArgumentMatchers.any(java.time.LocalDate.class)))
+        .thenReturn(List.of(Map.of("label", "CT-26262626 · Phạm Minh Đức · 04/11")));
+
+    BusinessException e = assertThrows(BusinessException.class, () -> catalogService.delete("courts", courtId, actor));
+
+    assertTrue(e.getMessage().contains("CT-26262626"));
+    verify(courts, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any());
+    verify(courts, org.mockito.Mockito.never()).delete(org.mockito.ArgumentMatchers.any());
   }
 }

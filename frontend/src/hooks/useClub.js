@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../services/api';
+import { withArchivedCourts } from '../utils/courts';
 export function useClub(date, onAccessError) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -9,7 +10,7 @@ export function useClub(date, onAccessError) {
     const request = ++serial.current;
     try {
       await api('/schedules/generate', 'POST', { date });
-      const value = await api(`/overview?date=${date}`);
+      const value = withArchivedCourts(await api(`/overview?date=${date}`));
       if (request === serial.current) { setData(value); setError(''); }
       return value;
     } catch (e) { if (request === serial.current) { setError(e.message); if ([401,403].includes(e.status)) {setData(null);onAccessError?.(e);} } throw e; }
