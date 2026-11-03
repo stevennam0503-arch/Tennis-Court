@@ -62,7 +62,7 @@ export default function EntityDialog({ collection, row = {}, onClose }) {
         {value:'INDOOR',label:'Sân trong nhà (Khu B)'},
         {value:'VIP',label:'Sân VIP Clubhouse (Khu V)'}
       ]),
-      f('price','Giá niêm yết phân khu / giờ (₫)','number',{readOnly: true, title: 'Giá cố định đồng bộ theo phân khu sân'}),
+      f('price','Giá dự phòng (khi khu chưa có bảng giá)','number',{readOnly: true, title: 'Giá dự phòng khi khu chưa có bảng giá'}),
       s('status','Trạng thái',options(['ACTIVE','MAINTENANCE','INACTIVE'])),
       f('description','Mô tả sân','textarea',{full:true,required:false,maxLength:2000}),
       f('address','Địa chỉ sân (để trống dùng địa chỉ CLB)','text',{full:true,required:false,maxLength:400}),

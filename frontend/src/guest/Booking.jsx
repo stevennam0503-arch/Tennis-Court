@@ -25,6 +25,12 @@ export default function Booking() {
   const [pendingVoucherCode, setPendingVoucherCode] = useState(null);
   const req = useRef(requestId());
 
+  const courtMinRate = React.useMemo(() => {
+    if (!court) return 0;
+    const rates = (data?.prices || []).filter(p => p.court === court.id);
+    return rates.length > 0 ? Math.min(...rates.map(p => Number(p.price))) : (court.price || 0);
+  }, [court, data?.prices]);
+
   const overdueDebtOrders = React.useMemo(() => {
     if (!user || !data?.orders) return [];
     return data.orders.filter(o => {
@@ -459,7 +465,7 @@ export default function Booking() {
               <h3>{court?.name || t('Chọn sân')}</h3>
               <p>{displayDate}</p>
             </div>
-            <strong>{money(court?.price)}<small>/ {t('giờ')}</small></strong>
+            <strong>{t('Từ')} {money(courtMinRate)}<small>/ {t('giờ')}</small></strong>
           </div>
 
           <div className="gx-range-head">

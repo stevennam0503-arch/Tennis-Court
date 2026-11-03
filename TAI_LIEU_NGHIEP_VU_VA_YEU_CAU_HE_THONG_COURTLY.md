@@ -102,11 +102,16 @@ Sân là dữ liệu gốc mà đơn, phiếu thu và báo cáo đều tham chi�
 
 Quy tắc: không ngừng khai thác hoặc chuyển bảo trì sân còn đơn giữ chỗ / đã xác nhận / đang chơi từ hôm nay trở đi; hệ thống liệt kê mã đơn để quầy đổi lịch sang sân khác hoặc hủy và hoàn tiền trước. Không tạo sân mới trùng tên một sân đã ngừng (phải Mở lại sân cũ để giữ lịch sử); tên tự đặt cho sân mới bỏ qua các tên đã dùng. Sửa giá sân chỉ áp dụng cho lịch sinh sau đó; đơn đã đặt giữ đơn giá lúc đặt.
 
-### 4.2. Khung giờ hoạt động & Phân đoạn thời gian
+### 4.2. Khung giờ hoạt động & Bảng giá theo khu (Single Source of Truth)
 - **Giờ mở cửa**: Từ 06:00 đến 23:00 hàng ngày (17 tiếng vận hành mỗi sân).
-- **Độ dài khung giờ**: Mỗi slot kéo dài 30 phút hoặc 60 phút.
-- **Bảng giá**: mỗi sân có giá theo loại ngày (`WEEKDAY` thứ Hai – thứ Sáu, `WEEKEND` thứ Bảy – Chủ Nhật) và theo khung giờ trong ngày. Khung tối 17:00 – 22:00 là giờ cao điểm đắt nhất; cuối tuần cao hơn ngày thường cùng khung.
-- **Sinh lịch**: lịch 30 phút của từng ngày được sinh tự động khi có người xem hoặc đặt ngày đó, đơn giá mỗi slot = giá giờ của khung tương ứng / 2. Sân chưa có bảng giá dùng giá gốc của sân.
+- **Độ dài khung giờ**: Mỗi slot kéo dài 30 phút theo bước chuẩn.
+- **Nguồn giá duy nhất theo phân khu**: Bảng giá được quản lý tập trung theo 3 phân khu (`OUTDOOR`, `INDOOR`, `VIP`) và lưu trong bảng `court_prices`. Mọi sân đang hoạt động trong cùng một khu áp dụng chung biểu giá đồng nhất theo loại ngày (`WEEKDAY`, `WEEKEND`) và khung giờ phủ kín 06:00–23:00.
+- **Cập nhật tức thì cho slot trống**: Khi Admin thay đổi bảng giá khu (`PUT /api/catalog/zones/{zone}/tariff`) kèm ngày hiệu lực `effectiveFrom` (mặc định hôm nay):
+  + Toàn bộ bản ghi `court_prices` của các sân `ACTIVE` thuộc khu được cập nhật đồng bộ trong một transaction.
+  + Toàn bộ slot còn trống (`AVAILABLE`) và slot bảo trì (`MAINTENANCE`) của các sân trong khu từ ngày `effectiveFrom` trở đi được tính lại ngay lập tức (`court_schedules.price = price_per_hour / 2`).
+  + Các slot đã đặt (`BOOKED`, `LOCKED`) và đơn hàng lịch sử trong `booking_slots.unit_price` được bảo lưu 100% nguyên vẹn, không thay đổi đơn giá và tổng tiền đã chốt.
+- **Đồng bộ hiển thị toàn hệ thống**: Trang Bảng giá khách (`getCourtMatrix`), Sơ đồ sân, Form đặt sân, Lịch quầy lễ tân và Trợ lý AI Chatbox đều đọc trực tiếp từ `prices`/`court_prices`. Tuyệt đối không sử dụng công thức tính giá cục bộ hay hệ số nhân ảo ở frontend.
+- **Giá dự phòng**: Trường `courts.price` đóng vai trò là "Giá dự phòng (khi khu chưa có bảng giá)" và không hiển thị trực tiếp thay thế bảng giá niêm yết.
 
 ---
 

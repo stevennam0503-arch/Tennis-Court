@@ -20,7 +20,7 @@ export default function Pricing() {
   const currentTab = TABS.find(z => z.id === selectedZone) || TABS[0];
   const courtsInZone = (data?.courts || []).filter(c => zone(c) === selectedZone && c.status !== 'DELETED');
   const rawActive = courtsInZone.find(c => c.status === 'ACTIVE') || courtsInZone[0];
-  const activeCourt = rawActive ? { ...rawActive, price: currentTab.baseRate } : { id: selectedZone, name: currentTab.name, price: currentTab.baseRate, type: selectedZone === 'A' ? 'OUTDOOR' : selectedZone === 'B' ? 'INDOOR' : 'VIP' };
+  const activeCourt = rawActive ? { ...rawActive } : { id: selectedZone, name: currentTab.name, price: currentTab.baseRate, type: selectedZone === 'A' ? 'OUTDOOR' : selectedZone === 'B' ? 'INDOOR' : 'VIP' };
 
   // Dynamic minimum price for each zone based on current court prices & pricing rules
   const getTabMinPrice = (tabId, defaultFallback) => {
@@ -38,7 +38,7 @@ export default function Pricing() {
       }
       if (minVal !== Infinity) return minVal;
     }
-    return Math.round(Number(repCourt.price || defaultFallback) * 0.75);
+    return Number(repCourt?.price || defaultFallback);
   };
 
   // Calculate pricing matrix for active court
@@ -46,8 +46,8 @@ export default function Pricing() {
 
   const handleCellClick = (block, dayKey, dayData) => {
     const dayMeta = WEEK_DAYS.find(d => d.key === dayKey);
-    const isDiscount = dayData.type === 'flash';
-    const origPrice = isDiscount ? Math.round(dayData.price / 0.75) : dayData.price;
+    const isDiscount = false;
+    const origPrice = dayData.price;
     const depositPercent = settings.depositPercent || 50;
     const depositPrice = Math.round((dayData.price * depositPercent) / 100);
 
@@ -80,7 +80,7 @@ export default function Pricing() {
           {t('Bảng giá sân theo ngày & khung giờ')}
         </h1>
         <p style={{ color: '#52655a', fontSize: 14, lineHeight: 1.6, maxWidth: 720 }}>
-          {t('Biểu phí chuẩn theo giờ và phân bổ riêng biệt cho từng ngày trong tuần. Khung Giờ Vàng (-25%) tự động áp dụng trực tiếp khi tạo đơn.')}
+          {t('Biểu phí chuẩn theo giờ và phân bổ riêng biệt cho từng ngày trong tuần theo bảng giá niêm yết của khu.')}
         </p>
       </div>
 
@@ -157,10 +157,10 @@ export default function Pricing() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 11, color: '#52655a' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#15803d', fontWeight: 600 }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#15803d' }} /> {t('Giờ Vàng (-25%)')}
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#15803d' }} /> {t('Ngày thường')}
             </span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#9a3412', fontWeight: 600 }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ea580c' }} /> {t('Cao điểm đèn')}
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ea580c' }} /> {t('Cao điểm tối')}
             </span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#6b21a8', fontWeight: 600 }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#8b5cf6' }} /> {t('Cuối tuần')}

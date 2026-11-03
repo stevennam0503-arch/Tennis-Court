@@ -100,4 +100,23 @@ public class CatalogController {
     audit.log("BẢO TRÌ KHUNG GIỜ", (maintenance ? "BẬT BẢO TRÌ" : "MỞ LẠI SÂN") + " (" + ids.size() + " slot)" + (reason != null && !reason.isBlank() ? ": " + reason : ""));
     return map("success", true, "count", ids.size());
   }
+
+  @PutMapping("/zones/{zone}/tariff")
+  @PreAuthorize("hasRole('ADMIN')")
+  public Map<String, Object> updateZoneTariff(
+      @PathVariable String zone,
+      @Valid @RequestBody com.courtly.dto.request.ZoneTariffRequest request,
+      @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+      jakarta.servlet.http.HttpServletRequest req) {
+    var actor = auth.current(req);
+    return requests.execute(
+        actor.getId(),
+        requestId,
+        "tariff:" + zone.toUpperCase(),
+        request,
+        () -> {
+          int count = service.replaceZoneTariff(zone, request, actor);
+          return map("success", true, "zone", zone.toUpperCase(), "updatedSlots", count);
+        });
+  }
 }

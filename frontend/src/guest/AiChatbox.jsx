@@ -17,14 +17,57 @@ import {
 } from 'lucide-react';
 import { useGuest } from './context';
 
-// Comprehensive Vietnamese knowledge base about Courtly Tennis Club
-const COURTLY_KNOWLEDGE_VI = `
-Courtly Tennis Club là tổ hợp quần vợt cao cấp gồm 10 sân tiêu chuẩn ATP:
-- Khu A (Ngoài trời · 4 sân A01–A04): Thoáng mát, rợp bóng cây, hệ thống đèn LED 500 Lux chống chói. Giá chuẩn: 160.000đ/giờ. Giờ vàng ngày thường (09:00–16:00): 120.000đ/h (-25%). Tối đèn LED ngày thường (18:00–22:00): 224.000đ/h (+40%). Ban ngày cuối tuần (06:00–17:00): 200.000đ/h (+25%). Tối cuối tuần cực đỉnh & LED (17:00–22:00): 240.000đ/h (+50%).
-- Khu B (Trong nhà có mái che · 4 sân B01–B04): Mái che vòm kiên cố cao 12m, chơi bất chấp thời tiết mưa bão. Mặt sân Pro-Cushion giảm chấn. Giá chuẩn: 240.000đ/giờ. Giờ vàng ngày thường: 180.000đ/h. Tối đèn LED ngày thường: 336.000đ/h. Ban ngày cuối tuần: 300.000đ/h. Tối cuối tuần cực đỉnh: 360.000đ/h.
-- Khu V (Sân VIP Clubhouse · 2 sân V01–V02): Chuẩn thi đấu ATP, có phòng chờ VIP riêng biệt, sofa cao cấp, minibar phục vụ nước miễn phí. Giá chuẩn: 400.000đ/giờ. Giờ vàng ngày thường: 300.000đ/h. Tối đèn LED ngày thường: 560.000đ/h. Ban ngày cuối tuần: 500.000đ/h. Tối cuối tuần cực đỉnh: 600.000đ/h.
+export function buildPricingKnowledge(data, isEn) {
+  const courts = data?.courts || [];
+  const prices = data?.prices || [];
+  const refereeRates = data?.refereeRates || [];
+
+  const zoneConfig = [
+    { type: 'OUTDOOR', viName: 'Khu A (Ngoài trời · 4 sân A01–A04)', enName: 'Zone A (Outdoor · 4 courts A01–A04)' },
+    { type: 'INDOOR', viName: 'Khu B (Trong nhà có mái che · 4 sân B01–B04)', enName: 'Zone B (Indoor with insulated roof · 4 courts B01–B04)' },
+    { type: 'VIP', viName: 'Khu V (Sân VIP Clubhouse · 2 sân V01–V02)', enName: 'Zone V (VIP Clubhouse · 2 courts V01–V02)' }
+  ];
+
+  const linesVi = [];
+  const linesEn = [];
+
+  for (const z of zoneConfig) {
+    const courtsInZone = courts.filter(c => c.type === z.type && c.status !== 'DELETED');
+    const repCourt = courtsInZone.find(c => c.status === 'ACTIVE') || courtsInZone[0];
+    const repPrices = repCourt ? prices.filter(p => p.court === repCourt.id) : [];
+
+    const formatByDay = (dayType) => {
+      const dp = repPrices.filter(p => p.dayType === dayType).sort((a, b) => a.start - b.start);
+      if (!dp.length) {
+        const base = repCourt?.price || (z.type === 'VIP' ? 400000 : z.type === 'INDOOR' ? 240000 : 160000);
+        return `${Number(base).toLocaleString('vi-VN')}đ/h`;
+      }
+      return dp.map(p => {
+        const s = `${String(Math.floor(p.start)).padStart(2, '0')}:${String(Math.round((p.start % 1) * 60)).padStart(2, '0')}`;
+        const e = `${String(Math.floor(p.end)).padStart(2, '0')}:${String(Math.round((p.end % 1) * 60)).padStart(2, '0')}`;
+        return `${s}–${e}: ${Number(p.price).toLocaleString('vi-VN')}đ/h`;
+      }).join(', ');
+    };
+
+    linesVi.push(`- ${z.viName}: Ngày thường (${formatByDay('WEEKDAY')}); Cuối tuần (${formatByDay('WEEKEND')}).`);
+    linesEn.push(`- ${z.enName}: Weekdays (${formatByDay('WEEKDAY')}); Weekends (${formatByDay('WEEKEND')}).`);
+  }
+
+  const refTextVi = refereeRates.length
+    ? `Dịch vụ Trọng tài & HLV: Có thể chọn trực tiếp khi đặt sân; biểu phí: ${refereeRates.map(r => `${r.name}: ${Number(r.rate).toLocaleString('vi-VN')}đ/giờ`).join(', ')}. Trọng tài đạt chứng chỉ Liên đoàn Quần vợt.`
+    : `Dịch vụ Trọng tài & HLV: Có thể chọn trực tiếp khi đặt sân trực tuyến; biểu phí chuẩn từ 150.000đ/giờ.`;
+
+  const refTextEn = refereeRates.length
+    ? `Referee & Coach Service: Available during online booking; rates: ${refereeRates.map(r => `${r.name}: ${Number(r.rate).toLocaleString('en-US')} VND/h`).join(', ')}. Certified federation referees.`
+    : `Referee & Coach Service: Available during online booking; certified federation referees.`;
+
+  return isEn
+    ? `${linesEn.join('\n')}\n- ${refTextEn}`
+    : `${linesVi.join('\n')}\n- ${refTextVi}`;
+}
+
+const COURTLY_RULES_VI = `
 - Giờ mở cửa: 06:00 – 23:00 tất cả các ngày trong tuần (kể cả Thứ 7, Chủ Nhật và ngày lễ). Khung giờ đặt sân theo bước 30 phút.
-- Dịch vụ Trọng tài & HLV: Có thể chọn trực tiếp khi đặt sân trên website, phí 75.000đ / 30 phút (150.000đ/giờ). Trọng tài đạt chuẩn Liên đoàn Quần vợt điều hành trận đấu, tính điểm và bắt lỗi chuẩn xác.
 - Đặt sân & Giữ chỗ: Khách cần thanh toán tiền cọc 30% - 50% trong vòng 15 phút sau khi tạo đơn qua VietQR để khóa slot độc quyền. Phần còn lại thanh toán tại quầy khi đến chơi.
 - Check-in vào sân: Sau khi đặt sân, khách mở vé điện tử QR Check-in trên website, xuất trình tại quầy lễ tân để nhân viên quét camera xác nhận vào sân.
 - Chính sách Hủy & Hoàn tiền cọc:
@@ -41,14 +84,8 @@ Courtly Tennis Club là tổ hợp quần vợt cao cấp gồm 10 sân tiêu ch
   + Gói Member Plus: 499.000đ / 30 ngày (Giảm 15% tiền sân thường, 10% sân VIP, phòng chờ VIP Lounge, đặt trước 21 ngày, miễn phí gửi xe).
 `;
 
-// Comprehensive English knowledge base about Courtly Tennis Club
-const COURTLY_KNOWLEDGE_EN = `
-Courtly Tennis Club is a premier tennis facility featuring 10 ATP-standard courts:
-- Zone A (Outdoor · 4 courts A01–A04): Open-air hard courts surrounded by greenery with 500 Lux anti-glare LED lighting. Standard rate: 160,000 VND/hour. Weekday Golden Hours (09:00–16:00): 120,000 VND/h (-25%). Weekday Night LED (18:00–22:00): 224,000 VND/h (+40%). Weekend Day (06:00–17:00): 200,000 VND/h (+25%). Weekend Prime Night & LED (17:00–22:00): 240,000 VND/h (+50%).
-- Zone B (Indoor with insulated roof · 4 courts B01–B04): 12m high arch roof, Pro-Cushion shock absorption surface, playable in any weather. Standard rate: 240,000 VND/hour. Weekday Golden Hours: 180,000 VND/h. Weekday Night LED: 336,000 VND/h. Weekend Day: 300,000 VND/h. Weekend Prime Night: 360,000 VND/h.
-- Zone V (VIP Clubhouse · 2 courts V01–V02): ATP tournament standard with private VIP Lounge, luxury sofas, and complimentary refreshments. Standard rate: 400,000 VND/hour. Weekday Golden Hours: 300,000 VND/h. Weekday Night LED: 560,000 VND/h. Weekend Day: 500,000 VND/h. Weekend Prime Night: 600,000 VND/h.
+const COURTLY_RULES_EN = `
 - Operating Hours: 06:00 – 23:00 daily (including weekends and public holidays). Booking slots in 30-minute steps.
-- Referee & Coach Service: Can be booked directly online at 75,000 VND / 30 mins (150,000 VND/hour). Certified federation referees for scoring and fair play.
 - Booking & Deposit: 30% to 50% deposit required within 15 minutes via VietQR to secure court exclusively. Balance paid at reception upon check-in or check-out.
 - Check-in: Open digital QR ticket on mobile, scan at reception camera upon arrival.
 - Cancellation & Refund Policy:
@@ -142,7 +179,7 @@ function FormattedMessage({ text, isUser }) {
 }
 
 export default function AiChatbox() {
-  const { t, lang, navigate, user } = useGuest();
+  const { t, lang, navigate, user, data } = useGuest();
   const isEn = lang === 'en';
 
   const [open, setOpen] = useState(false);
@@ -221,10 +258,18 @@ What specific topic would you like to explore?`;
       raw.includes('fee') ||
       raw.includes('how much')
     ) {
+      const zRateEn = (type) => {
+        const courts = (data?.courts || []).filter(c => c.type === type && c.status !== 'DELETED');
+        const rep = courts.find(c => c.status === 'ACTIVE') || courts[0];
+        const p = rep ? (data?.prices || []).filter(x => x.court === rep.id) : [];
+        if (!p.length) return Number(rep?.price || 160000).toLocaleString('en-US') + ' VND/h';
+        const min = Math.min(...p.map(x => Number(x.price))), max = Math.max(...p.map(x => Number(x.price)));
+        return min === max ? `${min.toLocaleString('en-US')} VND/h` : `from ${min.toLocaleString('en-US')} – ${max.toLocaleString('en-US')} VND/h`;
+      };
       return `💰 **Courtly Court Rates (10 ATP Courts):**
-• **Zone A (Outdoor):** 160,000đ/h (Golden Hours: 120,000đ · LED Night: 224,000đ)
-• **Zone B (Covered Indoor):** 240,000đ/h (LED Night: 336,000đ)
-• **Zone V (VIP Clubhouse):** 400,000đ/h (Includes private VIP Lounge)
+• **Zone A (Outdoor):** ${zRateEn('OUTDOOR')}
+• **Zone B (Covered Indoor):** ${zRateEn('INDOOR')}
+• **Zone V (VIP Clubhouse):** ${zRateEn('VIP')}
 *(Club members get 10% off; Member Plus get 15% off).*`;
     }
 
@@ -395,10 +440,18 @@ Bạn cần tìm hiểu thông tin cụ thể nào, hãy nhắn cho tôi nhé!`;
       norm.includes('bao tien mot gio') ||
       (norm.includes('gia') && (norm.includes('san') || norm.includes('gio') || norm.includes('khu a') || norm.includes('khu b') || norm.includes('khu v')))
     ) {
+      const zRateVi = (type) => {
+        const courts = (data?.courts || []).filter(c => c.type === type && c.status !== 'DELETED');
+        const rep = courts.find(c => c.status === 'ACTIVE') || courts[0];
+        const p = rep ? (data?.prices || []).filter(x => x.court === rep.id) : [];
+        if (!p.length) return Number(rep?.price || 160000).toLocaleString('vi-VN') + 'đ/h';
+        const min = Math.min(...p.map(x => Number(x.price))), max = Math.max(...p.map(x => Number(x.price)));
+        return min === max ? `${min.toLocaleString('vi-VN')}đ/h` : `từ ${min.toLocaleString('vi-VN')}đ – ${max.toLocaleString('vi-VN')}đ/h`;
+      };
       return `💰 **Bảng giá thuê sân Courtly (10 sân ATP):**
-• **Khu A (Ngoài trời):** 160.000đ/h (Giờ vàng: 120.000đ/h · Tối LED: 224.000đ/h)
-• **Khu B (Trong nhà mái che):** 240.000đ/h (Tối LED: 336.000đ/h)
-• **Khu V (VIP Clubhouse):** 400.000đ/h (Kèm phòng chờ VIP Lounge)
+• **Khu A (Ngoài trời):** ${zRateVi('OUTDOOR')}
+• **Khu B (Trong nhà mái che):** ${zRateVi('INDOOR')}
+• **Khu V (VIP Clubhouse):** ${zRateVi('VIP')}
 *(Hội viên Club giảm 10%, Member Plus giảm 15%).*`;
     }
 
@@ -427,7 +480,10 @@ CRITICAL FORMATTING & CONTEXT RULES:
 - Answer only what the user specifically asked. Use bold for key numbers (prices, hours).
 
 Official Club Knowledge:
-${COURTLY_KNOWLEDGE_EN}`
+Tariff & Services:
+${buildPricingKnowledge(data, true)}
+
+${COURTLY_RULES_EN}`
       : `Bạn là Chuyên viên Trợ lý AI cao cấp của CLB Quần vợt Courtly (Courtly Tennis Club).
 QUY TẮC BẮT BUỘC VỀ ĐỘ DÀI & NGỮ CẢNH ĐỐI THOẠI:
 - Khung chat là CỬA SỔ POPUP NHỎ trên điện thoại và web.
@@ -436,7 +492,10 @@ QUY TẮC BẮT BUỘC VỀ ĐỘ DÀI & NGỮ CẢNH ĐỐI THOẠI:
 - Dùng in đậm cho số tiền hoặc giờ giấc quan trọng.
 
 Dữ liệu xác thực của CLB:
-${COURTLY_KNOWLEDGE_VI}`;
+Bảng giá niêm yết theo khu & Dịch vụ:
+${buildPricingKnowledge(data, false)}
+
+${COURTLY_RULES_VI}`;
 
     // Build multi-turn conversational history (up to last 6 turns)
     const historyTurns = messages

@@ -9,7 +9,7 @@ const zones = [
 ];
 
 export default function CourtMap({courts, selected, onSelect, availability, rangeLabel, courtSelections = {}}) {
-  const {t} = useGuest();
+  const {t, data} = useGuest();
   return <section className="gx-map-section" aria-labelledby="guest-court-map-title">
     <div className="gx-block-heading">
       <div>
@@ -30,8 +30,10 @@ export default function CourtMap({courts, selected, onSelect, availability, rang
             const courtSel = courtSelections[court.id];
             const hasRange = Boolean(courtSel && courtSel.valid);
             const status = maintenance ? 'Bảo trì' : hasRange ? `✓ ${courtSel.rangeLabel}` : busy ? 'Bận trong giờ đã chọn' : chosen ? 'Đang xem' : rangeLabel ? 'Còn trống' : 'Xem lịch';
+            const courtPrices = (data?.prices || []).filter(p => p.court === court.id);
+            const minRate = courtPrices.length > 0 ? Math.min(...courtPrices.map(p => Number(p.price))) : court.price;
             return <button key={court.id} type="button" data-court-id={court.name} aria-pressed={chosen || hasRange}
-              aria-label={`${court.name} · ${t(name)} · ${t(status)} · ${money(court.price)} / ${t('giờ')}`}
+              aria-label={`${court.name} · ${t(name)} · ${t(status)} · ${t('Từ')} ${money(minRate)} / ${t('giờ')}`}
               className={`dg-court ${maintenance ? 'gm-maintenance' : busy ? 'gm-busy' : ''} ${chosen ? 'chosen' : ''}`}
               style={hasRange ? {borderColor: '#16a34a', background: '#f0fdf4', boxShadow: '0 0 0 2px rgba(22, 163, 74, 0.2)'} : {}}
               disabled={maintenance} onClick={() => onSelect(court)}>
@@ -47,7 +49,7 @@ export default function CourtMap({courts, selected, onSelect, availability, rang
                 <strong className="dg-court-id">{court.name}</strong>
                 <span className="gm-court-state" style={hasRange ? {color: '#15803d', fontWeight: 700} : {}}>{t(status)}</span>
               </span>
-              <span className="gx-map-price">{money(court.price)} <span>/ {t('giờ')}</span></span>
+              <span className="gx-map-price">{t('Từ')} {money(minRate)} <span>/ {t('giờ')}</span></span>
             </button>;
           })}</div>
           {!items.length && <p className="gx-map-empty">{t('Chưa có sân trong khu này.')}</p>}

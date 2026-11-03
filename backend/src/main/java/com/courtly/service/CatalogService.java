@@ -303,18 +303,8 @@ public class CatalogService {
     c.setImageUrl(r.imageUrl());
     c.setImageIsIllustration(r.imageIsIllustration() == null || r.imageIsIllustration());
     UUID saved = courts.save(c).getId();
+    copyZonePricesIfMissing(saved, courtType);
     if (reopening) {
-      // Sân ngừng trước khi có quy tắc giữ bảng giá: nhận bảng giá của một sân cùng khu đang hoạt động
-      if (jdbc != null) {
-        courts.flush();
-        jdbc.update(
-            "INSERT INTO court_prices (id, court_id, day_type, start_time, end_time, price_per_hour) "
-                + "SELECT gen_random_uuid(), ?, p.day_type, p.start_time, p.end_time, p.price_per_hour FROM court_prices p "
-                + "WHERE p.court_id = (SELECT c2.id FROM courts c2 JOIN court_prices p2 ON p2.court_id = c2.id "
-                + "WHERE c2.type = ? AND c2.status = 'ACTIVE' AND c2.id <> ? ORDER BY c2.name LIMIT 1) "
-                + "AND NOT EXISTS (SELECT 1 FROM court_prices x WHERE x.court_id = ?)",
-            saved, courtType, saved, saved);
-      }
       audit.log("MỞ LẠI SÂN", courtName + " (" + courtType + ")");
     }
     return saved;
@@ -518,5 +508,146 @@ public class CatalogService {
           String existingClean = existingRaw.replaceAll("^(?i)(sân|san)\\s+", "");
           return existingClean.equalsIgnoreCase(cleanName);
         });
+  }
+
+  private void copyZonePricesIfMissing(UUID courtId, String courtType) {
+    if (jdbc != null && courtId != null) {
+      courts.flush();
+      jdbc.update(
+          """
+          INSERT INTO court_prices (id, court_id, day_type, start_time, end_time, price_per_hour)
+          SELECT gen_random_uuid(), ?, p.day_type, p.start_time, p.end_time, p.price_per_hour
+          FROM court_prices p
+          WHERE p.court_id = (
+              SELECT c2.id FROM courts c2
+              JOIN court_prices p2 ON p2.court_id = c2.id
+              WHERE c2.type = ? AND c2.status = 'ACTIVE' AND c2.id <> ?
+              ORDER BY c2.name LIMIT 1
+          )
+          AND NOT EXISTS (SELECT 1 FROM court_prices x WHERE x.court_id = ?)
+          """,
+          courtId, courtType, courtId, courtId);
+    }
+  }
+
+  public record ParsedTariffRow(String dayType, LocalTime start, LocalTime end, BigDecimal pricePerHour) {}
+
+  public static LocalTime parseTime(Object val) {
+    if (val == null) {
+      throw new BusinessException("Thời gian không được để trống");
+    }
+    if (val instanceof LocalTime lt) {
+      return lt;
+    }
+    if (val instanceof Number n) {
+      double d = n.doubleValue();
+      int hour = (int) d;
+      int minute = (int) Math.round((d - hour) * 60);
+      return LocalTime.of(hour, minute);
+    }
+    String s = val.toString().trim();
+    if (s.contains(":")) {
+      String[] parts = s.split(":");
+      int hour = Integer.parseInt(parts[0].trim());
+      int minute = parts.length > 1 ? Integer.parseInt(parts[1].trim()) : 0;
+      return LocalTime.of(hour, minute);
+    }
+    try {
+      double d = Double.parseDouble(s);
+      int hour = (int) d;
+      int minute = (int) Math.round((d - hour) * 60);
+      return LocalTime.of(hour, minute);
+    } catch (NumberFormatException e) {
+      throw new BusinessException("Định dạng giờ không hợp lệ: " + s);
+    }
+  }
+
+  public List<ParsedTariffRow> validateAndParseTariffRows(List<com.courtly.dto.request.ZoneTariffRequest.TariffRowRequest> rawRows) {
+    require(rawRows != null && !rawRows.isEmpty(), "Danh sách khung giờ không được rỗng");
+    List<ParsedTariffRow> parsed = new ArrayList<>();
+    for (var r : rawRows) {
+      String dayType = oneOf(r.dayType(), "WEEKDAY", "WEEKEND");
+      LocalTime start = parseTime(r.start());
+      LocalTime end = parseTime(r.end());
+      BigDecimal price = positive(r.pricePerHour());
+
+      require(start.getSecond() == 0 && start.getMinute() % 30 == 0, "Giờ bắt đầu phải chia hết cho 30 phút (" + start + ")");
+      require(end.getSecond() == 0 && end.getMinute() % 30 == 0, "Giờ kết thúc phải chia hết cho 30 phút (" + end + ")");
+      require(end.isAfter(start), "Giờ kết thúc phải sau giờ bắt đầu (" + start + " -> " + end + ")");
+      require(!start.isBefore(LocalTime.of(6, 0)), "Giờ bắt đầu sớm nhất là 06:00 (" + start + ")");
+      require(!end.isAfter(LocalTime.of(23, 0)), "Giờ kết thúc muộn nhất là 23:00 (" + end + ")");
+
+      parsed.add(new ParsedTariffRow(dayType, start, end, price));
+    }
+
+    // Kiểm tra từng dayType: WEEKDAY và WEEKEND phải phủ kín 06:00 - 23:00 không chồng lấn
+    for (String dt : List.of("WEEKDAY", "WEEKEND")) {
+      List<ParsedTariffRow> group = parsed.stream()
+          .filter(r -> r.dayType().equals(dt))
+          .sorted(Comparator.comparing(ParsedTariffRow::start))
+          .toList();
+      require(!group.isEmpty(), "Thiếu khung giờ cho " + (dt.equals("WEEKDAY") ? "ngày thường (WEEKDAY)" : "cuối tuần (WEEKEND)"));
+      require(group.get(0).start().equals(LocalTime.of(6, 0)), dt + ": Khung giờ đầu tiên phải bắt đầu từ 06:00 (hiện là " + group.get(0).start() + ")");
+      require(group.get(group.size() - 1).end().equals(LocalTime.of(23, 0)), dt + ": Khung giờ cuối cùng phải kết thúc lúc 23:00 (hiện là " + group.get(group.size() - 1).end() + ")");
+
+      for (int i = 0; i < group.size() - 1; i++) {
+        ParsedTariffRow curr = group.get(i);
+        ParsedTariffRow next = group.get(i + 1);
+        require(curr.end().equals(next.start()),
+            dt + ": Khung giờ không liên tục hoặc bị chồng lấn giữa " + curr.start() + "-" + curr.end() + " và " + next.start() + "-" + next.end());
+      }
+    }
+
+    return parsed;
+  }
+
+  @Transactional
+  public int replaceZoneTariff(String zone, com.courtly.dto.request.ZoneTariffRequest request, Account actor) {
+    auth.admin(actor);
+    String cleanZone = oneOf(zone, "OUTDOOR", "INDOOR", "VIP");
+    LocalDate effectiveFrom = request.effectiveFrom() != null ? request.effectiveFrom() : LocalDate.now(ZONE);
+    require(!effectiveFrom.isBefore(LocalDate.now(ZONE)), "Ngày áp dụng phải từ hôm nay trở đi");
+
+    List<ParsedTariffRow> rows = validateAndParseTariffRows(request.rows());
+
+    List<Court> activeCourts = courts.findAll().stream()
+        .filter(c -> cleanZone.equalsIgnoreCase(c.getType()) && "ACTIVE".equalsIgnoreCase(c.getStatus()))
+        .toList();
+    require(!activeCourts.isEmpty(), "Không tìm thấy sân đang hoạt động trong khu " + cleanZone);
+
+    // 1. Xóa court_prices cũ của các sân ACTIVE trong khu
+    for (Court c : activeCourts) {
+      jdbc.update("DELETE FROM court_prices WHERE court_id = ?", c.getId());
+    }
+
+    // 2. Chèn court_prices mới
+    for (Court c : activeCourts) {
+      for (ParsedTariffRow r : rows) {
+        jdbc.update(
+            "INSERT INTO court_prices (id, court_id, day_type, start_time, end_time, price_per_hour) VALUES (gen_random_uuid(), ?, ?, ?, ?, ?)",
+            c.getId(), r.dayType(), r.start(), r.end(), r.pricePerHour());
+      }
+    }
+
+    // 3. Cập nhật court_schedules.price cho các slot AVAILABLE hoặc MAINTENANCE từ ngày effectiveFrom trở đi
+    int updatedSlots = jdbc.update(
+        """
+        UPDATE court_schedules cs
+        SET price = p.price_per_hour / 2
+        FROM court_prices p
+        JOIN courts c ON c.id = p.court_id
+        WHERE cs.court_id = c.id
+          AND c.type = ?
+          AND c.status = 'ACTIVE'
+          AND cs.schedule_date >= ?
+          AND cs.status IN ('AVAILABLE', 'MAINTENANCE')
+          AND p.day_type = CASE WHEN EXTRACT(isodow FROM cs.schedule_date) IN (6, 7) THEN 'WEEKEND' ELSE 'WEEKDAY' END
+          AND cs.start_time >= p.start_time
+          AND cs.start_time < p.end_time
+        """,
+        cleanZone, effectiveFrom);
+
+    audit.log("CẬP NHẬT BẢNG GIÁ", cleanZone + " từ " + effectiveFrom + ": " + rows.size() + " khung, cập nhật " + updatedSlots + " slot");
+    return updatedSlots;
   }
 }
