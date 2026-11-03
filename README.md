@@ -1,64 +1,57 @@
 # Courtly — Java Spring Boot MVC + ReactJS
 
-Mã nguồn Courtly chạy độc lập bằng **Java 17, Spring Boot 3.5.16, React 19.3, Vite 8.3.3 và PostgreSQL 16**. Backend là Java; không chạy Worker, D1, JavaScript engine hay Node.js để xử lý nghiệp vụ. Node.js chỉ dùng để phát triển/build React.
+Hệ thống quản lý CLB tennis 10 sân: mở bán sân và bảng giá, đặt sân và thanh toán cọc VietQR, check-in/check-out tại quầy, hội viên, voucher, giải đấu, trọng tài, đối soát và báo cáo doanh thu. Chạy bằng **Java 17, Spring Boot 3.5.16, React 19.3, Vite 8.3 và PostgreSQL 16**; Node.js chỉ dùng để build React.
 
-Logo gốc được giữ ở `frontend/public/favicon.svg`. Khu vực quản trị giữ sidebar, topbar và bố cục vận hành cũ. Phần khách hàng có giao diện riêng: tổng quan, sân/giờ trống, giải đấu, membership, thông tin CLB và menu tài khoản. Giao diện khách theo gói handoff nằm trong `frontend/src/guest/`, có VI/EN, footer dùng chung thông tin CLB và luồng thanh toán QR.
+Tài liệu nên đọc trước:
 
-**Dựng bản demo đầy đủ:** xem [database/README.md](database/README.md) để nạp 244 đơn và tài khoản demo. Hướng dẫn [thanh toán sandbox/VietQR/SePay](docs/PAYMENTS.md).
+- [Kịch bản demo Hội đồng](docs/HUONG_DAN_DEMO_HOI_DONG.md) — tài khoản, 17 đơn mẫu, cách reset dữ liệu.
+- [Tài liệu nghiệp vụ và yêu cầu hệ thống](TAI_LIEU_NGHIEP_VU_VA_YEU_CAU_HE_THONG_COURTLY.md).
+- [Kiến trúc](docs/ARCHITECTURE.md), [API](docs/API.md), [Database](docs/DATABASE.md), [Thanh toán](docs/PAYMENTS.md), [dữ liệu demo 2 tháng](database/README.md).
 
-## Chạy nhanh bằng Docker
+## Chạy demo bằng Docker
 
-Yêu cầu Docker Desktop/Docker Engine có Compose.
+Yêu cầu Docker Desktop đang chạy (Windows: mở Docker Desktop, chờ "Engine running").
 
-1. Clone repository, mở terminal trong thư mục `Tennis-Court-git`.
-2. Sao chép `.env.example` thành `.env`.
-3. Chạy:
+1. Sao chép `.env.example` thành `.env`, rồi đặt cho môi trường demo:
 
-```sh
-docker compose up --build
-```
+   ```dotenv
+   SEED_DEMO=true
+   DEMO_MODE=true
+   PAYMENT_MODE=DEMO
+   ```
 
-Mở **http://localhost:3000**. API chạy ở `http://localhost:8080/api`; PostgreSQL ở `localhost:5432`.
+   Điền `SMTP_PASSWORD` (mật khẩu ứng dụng Gmail) nếu muốn gửi email OTP thật; với `DEMO_MODE=true` mã OTP thử được trả trong phản hồi API. Muốn chatbot dùng Gemini, điền `VITE_GEMINI_API_KEY` trong `frontend/.env` trước khi build; không có key thì chatbot dùng bộ trả lời cục bộ.
 
-Tài khoản quản trị được thiết lập một lần bởi Flyway V4:
+2. Build và chạy:
 
-- Email: `admin@gmail.com`
-- Mật khẩu: `12345`
+   ```sh
+   docker compose up -d --build
+   ```
 
-Migration V4 tạo hoặc cập nhật `admin@gmail.com` thành `ADMIN`, trạng thái `ACTIVE`, lưu mật khẩu bằng BCrypt cost 12. Nếu tài khoản đã có, ID và hồ sơ được giữ nguyên; các phiên cũ bị thu hồi. Flyway chỉ áp dụng một lần nên không đặt lại mật khẩu mỗi lần khởi động.
+3. Mở **http://localhost:3000**. API ở `http://localhost:8081/api`, PostgreSQL ở `localhost:5433`.
 
-Khi cập nhật bản cũ, đặt `ADMIN_EMAIL=admin@gmail.com` trong `.env` để nhận diện đúng tài khoản chủ sân, sau đó chạy `docker compose up -d --build backend`. Không cần đặt `ADMIN_PASSWORD=12345`: cấu hình khởi tạo admin khác vẫn yêu cầu ít nhất 12 ký tự. `ADMIN_PASSWORD` mặc định để trống; chỉ dùng khi muốn tạo thêm admin theo email cấu hình chưa tồn tại. Đổi mật khẩu sau này qua hồ sơ tài khoản.
+4. Đăng nhập `admin@gmail.com` / `12345` (mật khẩu khởi tạo của database mới), vào **Hệ thống & module → Đặt lại dữ liệu mẫu Hội đồng**. Sau khi reset, các tài khoản mẫu đều dùng mật khẩu `123456`:
 
-Khách hàng chọn **Đăng nhập → Đăng ký** để tạo tài khoản. Các tài khoản danh bạ trong dữ liệu mẫu chưa có mật khẩu; quản trị viên có thể cấp mã kích hoạt từ màn Tài khoản.
+   | Vai trò | Email |
+   | --- | --- |
+   | ADMIN | `admin@gmail.com` |
+   | STAFF (lễ tân, thu ngân) | `staff@gmail.com` |
+   | Khách hội viên Plus | `hoangnam@gmail.com` |
+   | Khách thường | `khachmoi@gmail.com` |
 
-Database được lưu trong volume `postgres_data`. `docker compose down` dừng dịch vụ và giữ dữ liệu; chỉ dùng `docker compose down -v` khi chủ động muốn xóa database local.
+Reset xóa mọi đơn và tài khoản tự tạo, khôi phục 10 sân chuẩn, đưa chính sách về giữ chỗ 5 phút / cọc 50%, sinh lịch sân theo bảng giá ngày thường / cuối tuần và tạo 17 đơn mẫu bám theo ngày hiện tại. Reset chỉ hoạt động khi `DEMO_MODE=true`; có thể chạy từ terminal bằng `scripts/reset-showcase.bat` hoặc `python scripts/seed_showcase.py`.
+
+Cập nhật bản đang chạy: `git pull`, rồi `docker compose up -d --build`. Backend tự chạy migration Flyway; không nhập lại SQL và không xóa volume `postgres_data` (`docker compose down -v` sẽ xóa database).
 
 ## Chạy riêng bằng IDE
 
-Yêu cầu JDK 17+, Node.js 22.12+ hoặc 24, PostgreSQL 16, Maven Wrapper có trong source.
-
-Khởi động PostgreSQL:
-
-```sh
-docker compose up -d postgres
-```
-
-Backend, terminal thứ nhất, Linux/macOS:
-
-```sh
-cd backend
-ADMIN_EMAIL=admin@gmail.com ./mvnw spring-boot:run
-```
-
-Windows PowerShell:
+Yêu cầu JDK 17+, Node.js 22.12+, PostgreSQL 16 (có thể dùng `docker compose up -d postgres`).
 
 ```powershell
 cd backend
-$env:ADMIN_EMAIL="admin@gmail.com"
+$env:DB_URL="jdbc:postgresql://localhost:5433/courtly"; $env:SERVER_PORT="8081"; $env:SEED_DEMO="true"; $env:DEMO_MODE="true"
 .\mvnw.cmd spring-boot:run
 ```
-
-Frontend, terminal thứ hai:
 
 ```sh
 cd frontend
@@ -66,69 +59,44 @@ npm ci
 npm run dev
 ```
 
-Mở **http://localhost:5173**. Vite proxy `/api` tới Spring Boot 8080; không cần đổi URL trong component. Với IntelliJ/Eclipse, import `backend/pom.xml`, chọn JDK 17 và chạy `com.courtly.CourtlyApplication`; khai báo biến môi trường trong Run Configuration.
+Mở **http://localhost:5173**; Vite proxy `/api` tới `http://localhost:8081` (đổi bằng `API_PROXY_TARGET`).
 
-Các biến cấu hình:
-
-| Biến | Mặc định / ý nghĩa |
+| Biến | Ý nghĩa |
 | --- | --- |
-| `DB_URL` | `jdbc:postgresql://localhost:5432/courtly` |
-| `DB_USERNAME`, `DB_PASSWORD` | `courtly`, `courtly_local` |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Tạo admin nếu email chưa tồn tại; mật khẩu không để trống khi cần tạo admin mới |
-| `SEED_DEMO` | `true`; chỉ tạo dữ liệu sân/sản phẩm/giải khi database chưa có sân |
-| `FRONTEND_ORIGIN` | `http://localhost:5173`; Compose đặt thành `http://localhost:3000` |
-| `COOKIE_SECURE` | `false` khi chạy HTTP local; đặt `true` khi vận hành qua HTTPS |
-| `SERVER_PORT` | `8080` |
-| `API_PROXY_TARGET` | Frontend dev proxy mặc định `http://localhost:8080` |
+| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | Kết nối PostgreSQL |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Email chủ sân; `ADMIN_PASSWORD` để trống thì database mới dùng `12345` (chỉ ngoài production) |
+| `SEED_DEMO` | `true` để tạo 10 sân, nhân sự, trọng tài và giải mẫu khi database chưa có sân |
+| `DEMO_MODE` | `true` để bật reset dữ liệu mẫu, mã OTP thử và thanh toán mô phỏng; production luôn tắt |
+| `PAYMENT_MODE` | `DEMO`/`SANDBOX` (mô phỏng), `MANUAL`, `LIVE`/`SEPAY` (webhook ngân hàng thật) |
+| `SMTP_*` | Gmail SMTP gửi OTP đăng ký và quên mật khẩu |
+| `COOKIE_SECURE` | `true` khi chạy qua HTTPS |
 
-## Tổ chức theo MVC và các tầng Spring
+## Tổ chức mã nguồn
 
-React là **View**; Spring MVC cung cấp REST Controller và DTO. Nghiệp vụ nằm ở Service; Entity và Repository là tầng Model/lưu trữ. Không dùng JSP/Thymeleaf vì giao diện đã dùng React.
+React là View; Spring MVC cung cấp REST Controller; nghiệp vụ nằm ở Service; Entity và Repository là tầng Model. Mọi số tiền, quyền và xác nhận thanh toán do server quyết định.
 
 | Đường dẫn | Trách nhiệm |
 | --- | --- |
-| `backend/src/main/java/com/courtly/controller/` | Nhận HTTP, chuyển request tới service, trả JSON; chia theo tài khoản, đơn, tiền, danh mục, giải, nội dung, membership |
-| `.../service/` | Nghiệp vụ Java, phân quyền dữ liệu, transaction, snapshot tiền, lịch sử và hết hạn |
-| `.../repository/` | Spring Data JPA; truy vấn và khóa dữ liệu PostgreSQL |
-| `.../entity/` | Entity ánh xạ bảng; UUID, quan hệ, BigDecimal và `@Version` |
-| `.../dto/request/`, `.../dto/response/` | Request record có validation và response lỗi; view tổng hợp chỉ chọn trường được phép trả |
-| `.../config/` | Spring Security, CSRF, CORS, phân quyền API, khởi tạo dữ liệu |
-| `.../exception/` | BusinessException và xử lý lỗi HTTP thống nhất |
-| `.../util/` | Quy tắc dùng chung, tiền và múi giờ Việt Nam |
-| `backend/src/main/resources/db/migration/` | Flyway V1–V5, bảng, khóa, CHECK, index, trigger chống trùng |
-| `frontend/src/pages/` | Các màn hình React |
-| `frontend/src/components/` | Form, lịch chọn sân, modal, bảng và tóm tắt đơn dùng chung |
-| `frontend/src/hooks/` | Nạp/làm mới dữ liệu, quản lý trạng thái |
-| `frontend/src/services/api.js` | REST client, session cookie và CSRF token |
-| `frontend/src/styles.css` | CSS hiện có, gồm layout admin |
-| `frontend/src/guest/` | Giao diện khách theo handoff, VI/EN, đặt sân và QR |
-| `database/` | init, query và dữ liệu mẫu đầy đủ |
-| `docs/` | API, database, kiến trúc và kết quả kiểm thử |
-| `tests/` | Kiểm thử HTTP và render React |
+| `backend/.../controller/` | REST API theo nhóm: tài khoản, đơn, thanh toán, chuyển khoản, danh mục, giải, nội dung, membership |
+| `backend/.../service/` | Nghiệp vụ, phân quyền dữ liệu, transaction, tính tiền, reset demo |
+| `backend/.../repository/`, `entity/` | Spring Data JPA, khóa dòng chống đặt trùng |
+| `backend/.../config/` | Spring Security, CSRF, phân quyền API, khởi tạo dữ liệu, kiểm tra cấu hình production |
+| `backend/src/main/resources/db/migration/` | Flyway V1–V13 |
+| `frontend/src/guest/` | Giao diện khách VI/EN: tổng quan, bảng giá, đặt sân, QR, giải đấu, chatbot AI |
+| `frontend/src/pages/`, `components/` | Màn hình ADMIN/STAFF và khu tài khoản khách |
+| `database/` | `init.sql`, truy vấn mẫu và bộ dữ liệu demo 2 tháng |
+| `docs/` | Tài liệu kỹ thuật, kịch bản demo, báo cáo rà soát |
+| `tests/` | Kiểm thử đơn vị JS, API và trình duyệt |
 
-Ví dụ luồng tạo đơn: `BookingFlow.jsx → OrderController → OrderApplicationService → OrderService → Repository → PostgreSQL`. `PresentationService` tạo view có phân quyền để React đọc.
+## Chức năng chính
 
-## Chức năng trong source
-
-- Đăng ký/đăng nhập email và mật khẩu, session cookie HttpOnly, CSRF, phân quyền ADMIN/CUSTOMER ở backend; mật khẩu BCrypt. Đổi mật khẩu thu hồi phiên cũ; mã kích hoạt/đặt lại dùng một lần, hiệu lực 24 giờ, do quản trị viên cấp.
-- Khách xem sân/giá trước đăng nhập, chọn nhiều slot liên tiếp trên một sân, chọn trọng tài riêng từng slot, kiểm tra giá từ server và tạo giữ chỗ. Không thuê thiết bị online từ tài khoản khách.
-- Tài khoản gom hồ sơ, đơn có phân trang, lịch sử đặt sân, lịch sử thanh toán và membership. Khách chỉ nhận dữ liệu của mình từ API.
-- Giữ chỗ có hạn, thu cọc/thu thêm tại quầy, đổi/hủy lịch, nhận tiền đến muộn để đối soát, ghi nhận hoàn tiền, nhật ký và phiếu thu có snapshot. Các thao tác quan trọng có `requestId` chống ghi lặp.
-- POS/admin quản lý sân, bảng giá, đơn, nhân sự và lịch làm việc (dịch vụ đồ uống và thuê thiết bị đã được loại bỏ; dữ liệu cũ được giữ chỉ đọc để đối soát lịch sử). Check-out cho phép hoàn tất đơn còn nợ (hệ thống gắn nhãn công nợ nổi bật để thu hồi sau); tiền mặt được thu tại quầy, chuyển khoản thực hiện tự động qua VietQR.
-- Giải đơn/đôi/đội, đăng ký, thu phí riêng, nhánh loại trực tiếp với số đăng ký 2^n, xếp sân/trọng tài, kết quả và đưa người thắng tới vòng sau.
-- Giới thiệu, liên hệ, tin tức, feedback có quyền đồng ý công khai và quản trị duyệt/trả lời.
-- Membership: so sánh Guest/Club/Plus, đăng ký chờ xác nhận, quầy xác minh nhận đủ phí mới kích hoạt; gói hết hạn tự mất quyền lợi. Chỉ giảm tiền sân của giờ chơi nằm trong kỳ hội viên; giữ snapshot ưu đãi trên đơn. Không tự gia hạn. Giá gói mặc định từ bản mẫu: Club 249.000đ/30 ngày, Plus 499.000đ/30 ngày; admin có thể sửa/tạm dừng gói. Giá và điều kiện đã đăng ký không bị sửa theo danh mục mới.
-- Báo cáo, CSV, nhật ký và chính sách giữ cách tổ chức hiện có. Phí membership có phiếu thu riêng trong màn Membership và lịch sử thanh toán.
-
-Đơn khách hàng mới đặt cọc **50% tiền sân sau ưu đãi**, không gồm phí trọng tài. Đơn tạo tại quầy giữ quy tắc `depositPercent` trên tổng đơn. Lịch mới có bước 30 phút; lịch cũ đã được tham chiếu giữ ID, thời lượng và giá cũ.
-
-## Database và dữ liệu cũ
-
-Database nghiệp vụ được chuyển thành **21 bảng quan hệ**, thêm `audit_logs`, `club_settings` và `app_documents` cho các phần mở rộng. Không lưu toàn bộ sân/đơn/thanh toán vào một bản ghi JSON. `app_documents` chứa các tài liệu nội dung, mã kích hoạt đã băm, khóa idempotency và dữ liệu mở rộng membership; xem `docs/DATABASE.md`.
-
-Flyway tự tạo schema; Hibernate chỉ `ddl-auto=validate`. `database/init.sql` cũng chứa lịch sử Flyway đúng checksum để dựng database trống bằng SQL. Database có dữ liệu chỉ nâng cấp qua Flyway.
-
-**Gói này chuyển mã nguồn và cấu trúc hệ thống; chưa sao chép dữ liệu, mật khẩu hoặc phiên đăng nhập đang có trên website D1 vào PostgreSQL.** Website đang chạy chưa bị sửa/triển khai lại. Database local được khởi tạo độc lập. Không đưa `.env` thật, database dump hoặc secret của Site vào ZIP.
+- **Vai trò:** ADMIN (chủ sân), STAFF (lễ tân, thu ngân), CUSTOMER; khách vãng lai xem sân, giá, giải đấu.
+- **Mở bán:** 10 sân chia 3 khu (ngoài trời, trong nhà, VIP); trạng thái hoạt động / bảo trì / ngừng; bảng giá ngày thường / cuối tuần theo khung giờ; bảo trì từng khung giờ.
+- **Đặt sân:** đặt lẻ hoặc định kỳ 4/8/12 tuần, nhiều sân một đơn, thuê trọng tài; giữ chỗ 5 phút; chống đặt trùng bằng khóa dòng và ràng buộc database; cọc 50% qua VietQR hoặc tại quầy.
+- **Ưu đãi:** hội viên Club giảm 10% sân thường / 5% VIP, Plus 15% / 10%; voucher có giới hạn lượt.
+- **Vận hành:** check-in bằng QR, gia hạn giờ, thu tiền mặt, check-out khi đã thu đủ, phiếu thu K80/A4, đổi lịch có xem trước chênh lệch.
+- **Hủy và hoàn:** hủy từ 24 giờ trở lên trước giờ chơi hoàn 100% cọc, 12 đến dưới 24 giờ hoàn 50%, dưới 12 giờ không hoàn; khoản hoàn chờ Admin duyệt chi.
+- **Chăm sóc và báo cáo:** feedback 1–5 sao do Admin duyệt; đối soát ngoại lệ thanh toán; báo cáo doanh thu theo ngày/tháng/quý/năm, CSV và PDF.
 
 ## Build và kiểm thử
 
@@ -143,27 +111,22 @@ npm ci
 npm run build
 ```
 
-Khi backend/database thử nghiệm đang chạy, từ thư mục dự án:
-
 ```sh
-node tests/smoke-api.mjs
+node --test tests/booking-time.test.mjs tests/order-visits.test.mjs tests/pricing.test.mjs tests/report-period.test.mjs
 ```
 
-Có thể đặt `COURTLY_API_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`. Kịch bản tạo dữ liệu thử; chỉ chạy trên database phát triển riêng. Chi tiết kiểm tra đã chạy và giới hạn môi trường nằm ở `docs/TEST_RESULTS.md`.
+Các file `*.test.mjs` còn lại gọi backend thật và sửa dữ liệu (kể cả mật khẩu admin), chỉ chạy trên database riêng.
 
-## Phạm vi chưa kết nối
+Kiểm thử 4 luồng demo trên database demo đang chạy (script tự reset dữ liệu trước và sau khi chạy):
 
-Có ngân hàng mô phỏng SANDBOX và tích hợp nhận callback SePay khi cấu hình LIVE. Chưa thử chuyển tiền thật; cần tài khoản nhận, khóa webhook và URL HTTPS. Hoàn tiền thực tế vẫn do quầy xử lý. Chưa gửi email/SMS/OTP tự động, hóa đơn điện tử thuế, live score 15/30/40, bye/vòng bảng hoặc phân trang/tải lớn đầy đủ. Bảng module giữ mức hoàn thiện của ứng dụng hiện có, không phải cam kết đã triển khai đầy đủ mọi module production.
+```powershell
+$env:COURTLY_TEST_WRITE="1"; node tests/demo-flows-api.mjs
+```
 
-Khi triển khai độc lập cần một host chạy JVM/container và PostgreSQL. Frontend production được Nginx phục vụ và proxy `/api` sang backend trong Compose.
+Các script API khác trong `tests/` tạo dữ liệu thử; chỉ chạy trên database riêng, xem ghi chú đầu mỗi file.
 
-## Tài liệu chính thức
+## Giới hạn hiện tại
 
-- Spring Boot 3.5: https://docs.spring.io/spring-boot/3.5/
-- Spring MVC: https://docs.spring.io/spring-framework/reference/web/webmvc.html
-- Spring Security CSRF: https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html
-- Spring Data JPA: https://docs.spring.io/spring-data/jpa/reference/
-- React: https://react.dev/
-- PostgreSQL: https://www.postgresql.org/docs/16/
-
-ZIP chỉ chứa source, migration, asset, lockfile, Maven Wrapper và tài liệu. `target`, `node_modules`, `dist`, cache, log và cấu hình riêng của môi trường không được đóng gói; các lệnh trên tạo lại chúng.
+- Chưa thử chuyển tiền ngân hàng thật và triển khai production; demo dùng thanh toán mô phỏng.
+- Feedback chưa gắn với một đơn đã sử dụng; chỉ ADMIN duyệt và xem feedback.
+- Bundle JavaScript khoảng 1,2 MB (chưa chia nhỏ), chỉ ảnh hưởng lần tải đầu.

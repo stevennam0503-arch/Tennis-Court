@@ -15,7 +15,6 @@ export default function Pricing() {
   const [modalCell, setModalCell] = useState(null);
 
   const settings = data?.settings || {};
-  const policies = settings.policies || {};
 
   // Find representative court for the category (all courts in same category have identical uniform rate)
   const currentTab = TABS.find(z => z.id === selectedZone) || TABS[0];
@@ -49,7 +48,7 @@ export default function Pricing() {
     const dayMeta = WEEK_DAYS.find(d => d.key === dayKey);
     const isDiscount = dayData.type === 'flash';
     const origPrice = isDiscount ? Math.round(dayData.price / 0.75) : dayData.price;
-    const depositPercent = settings.depositPercent || 30;
+    const depositPercent = settings.depositPercent || 50;
     const depositPrice = Math.round((dayData.price * depositPercent) / 100);
 
     setModalCell({
@@ -287,7 +286,7 @@ export default function Pricing() {
               <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{t('Tiền cọc & Thanh toán')}</h3>
             </div>
             <p style={{ fontSize: 13, color: '#52655a', margin: '0 0 10px' }}>
-              {t('Đặt sân trực tuyến yêu cầu cọc')} <b>{settings.depositPercent || 30}%</b> {t('tiền sân sau khi trừ ưu đãi hội viên và voucher. Miễn cọc cho hội viên VIP.')}
+              {t('Đặt sân trực tuyến yêu cầu cọc')} <b>{settings.depositPercent || 50}%</b> {t('giá trị đơn sau khi trừ ưu đãi hội viên và voucher.')}
             </p>
             <p style={{ fontSize: 13, color: '#52655a', margin: 0 }}>
               {t('Thanh toán cọc nhanh qua mã VietQR tự động xác nhận trong 3 giây hoặc nộp tiền mặt tại quầy lễ tân.')}
@@ -298,13 +297,13 @@ export default function Pricing() {
           <article style={{ background: '#fffefa', border: '1px solid #cbd2c2', borderRadius: 8, padding: 22, lineHeight: 1.7 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: '#173c32' }}>
               <Clock size={18} color="#173c32" />
-              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{t('Thời hạn giữ chỗ 15 phút')}</h3>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{t('Thời hạn giữ chỗ')} {settings.holdMinutes || 5} {t('phút')}</h3>
             </div>
             <p style={{ fontSize: 13, color: '#52655a', margin: '0 0 10px' }}>
-              {t('Hệ thống giữ chỗ trong')} <b>{settings.holdMinutes || 15} {t('phút')}</b> {t('kể từ khi tạo đơn. Khung giờ được khóa độc quyền để không ai khác đặt trùng.')}
+              {t('Hệ thống giữ chỗ trong')} <b>{settings.holdMinutes || 5} {t('phút')}</b> {t('kể từ khi tạo đơn. Khung giờ được khóa độc quyền để không ai khác đặt trùng.')}
             </p>
             <p style={{ fontSize: 13, color: '#52655a', margin: 0 }}>
-              {t('Hết 15 phút đếm ngược nếu chưa hoàn tất tiền cọc, hệ thống tự động hủy đơn và giải phóng lịch cho khách khác.')}
+              {t('Hết thời gian giữ chỗ mà chưa hoàn tất tiền cọc, hệ thống tự động hủy đơn và giải phóng lịch cho khách khác.')}
             </p>
           </article>
 
@@ -315,7 +314,7 @@ export default function Pricing() {
               <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{t('Quy định Hủy / Đổi lịch')}</h3>
             </div>
             <p style={{ fontSize: 13, color: '#52655a', margin: '0 0 10px' }}>
-              {t('Hủy trước')} <b>{policies.cancelCutoffMinutes ? Math.round(policies.cancelCutoffMinutes / 60) : 24} {t('tiếng')}</b>: {t('Hoàn')} <b>{settings.cancelRefundPercent || 100}%</b> {t('tiền cọc vào ví hoàn của bạn. Hủy dưới 6 tiếng không hoàn cọc.')}
+              {t('Hủy từ 24 tiếng trở lên trước giờ chơi:')} <b>{t('hoàn 100% tiền cọc')}</b>. {t('Từ 12 đến dưới 24 tiếng:')} <b>{t('hoàn 50%')}</b>. {t('Dưới 12 tiếng:')} <b>{t('không hoàn cọc')}</b>. {t('Khoản hoàn được CLB chuyển lại sau khi đối soát.')}
             </p>
             <p style={{ fontSize: 13, color: '#52655a', margin: 0 }}>
               {t('Đổi lịch trước 24 tiếng hoàn toàn miễn phí. Hệ thống tự động bù hoặc hoàn chênh lệch giá giữa các khung giờ.')}

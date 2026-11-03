@@ -1,7 +1,7 @@
 # TÀI LIỆU NGHIỆP VỤ, QUY TRÌNH, CHÍNH SÁCH VÀ YÊU CẦU HỆ THỐNG COURTLY
-**Phiên bản:** 2.0.0 (Cập nhật toàn diện)  
+**Phiên bản:** 2.1.0 (đối chiếu với mã nguồn ngày 03/11/2026)  
 **Hệ thống:** Nền tảng Quản trị & Đặt sân Tennis Trực tuyến Courtly (Courtly Tennis Management Platform)  
-**Ngày cập nhật:** 27/10/2026  
+**Ngày cập nhật:** 03/11/2026  
 
 ---
 
@@ -52,7 +52,7 @@ Courtly là giải pháp chuyển đổi số toàn diện cho câu lạc bộ t
 ### 2.1. Ngăn xếp công nghệ (Technology Stack)
 - **Backend**: Java 17, Spring Boot 3.5.16 (Spring MVC, Spring Data JPA, Spring Security, Hibernate 6).
 - **Database**: PostgreSQL 16 (Hỗ trợ ACID, Advisory Locks `pg_advisory_xact_lock`, Locking Pessimistic `PESSIMISTIC_WRITE`).
-- **Frontend**: React 18, Vite 6, React Context State Management, Lucide Icons, QRCode SVG/Canvas.
+- **Frontend**: React 19.3, Vite 8.3, React Context State Management, Lucide Icons, QRCode SVG/Canvas.
 - **Cổng thanh toán**: Chuẩn VietQR (Napas 24/7), tích hợp Webhook ngân hàng (SePay / MB Bank) tự động kiểm tra chữ ký HMAC SHA256 và so khớp nội dung giao dịch.
 - **Đóng gói & Vận hành**: Docker & Docker Compose (`tennis-court-git-backend-1:8081`, `tennis-court-git-frontend-1:3000`, `tennis-court-git-postgres-1:5433`).
 
@@ -75,7 +75,7 @@ Courtly là giải pháp chuyển đổi số toàn diện cho câu lạc bộ t
 | Check-in khách vào sân & Check-out | ✗ | ✗ | ✓ | ✓ |
 | Thu tiền mặt tại quầy & In phiếu thu | ✗ | ✗ | ✓ | ✓ |
 | Chốt ca thu ngân cuối ngày & Bàn giao két | ✗ | ✗ | ✓ | ✓ |
-| Bảo trì khung giờ linh hoạt (Slot Maintenance) | ✗ | ✗ | ✗ | ✓ |
+| Bảo trì khung giờ linh hoạt (Slot Maintenance) | ✗ | ✗ | ✓ | ✓ |
 | Đổi lịch sân (Khách tự đổi / Quầy hỗ trợ) | ✗ | ✓ (≥24h) | ✓ | ✓ |
 | Hủy đơn đặt sân (Theo chính sách hoàn 3 mốc) | ✗ | ✓ | ✓ | ✓ |
 | Duyệt chi hoàn tiền về tài khoản ngân hàng | ✗ | ✗ | ✗ | ✓ |
@@ -96,9 +96,8 @@ Hệ thống Courtly quản lý sân theo 3 chuẩn phân loại thực tế:
 ### 4.2. Khung giờ hoạt động & Phân đoạn thời gian
 - **Giờ mở cửa**: Từ 06:00 đến 23:00 hàng ngày (17 tiếng vận hành mỗi sân).
 - **Độ dài khung giờ**: Mỗi slot kéo dài 30 phút hoặc 60 phút.
-- **Phân loại giờ**:
-  - *Giờ thường (Regular Hours)*: Khung giờ sáng (06:00 – 16:00) các ngày trong tuần.
-  - *Giờ vàng (Peak Hours / Prime Time)*: Khung giờ chiều tối (16:00 – 22:00) và toàn bộ các ngày Thứ Bảy, Chủ Nhật.
+- **Bảng giá**: mỗi sân có giá theo loại ngày (`WEEKDAY` thứ Hai – thứ Sáu, `WEEKEND` thứ Bảy – Chủ Nhật) và theo khung giờ trong ngày. Khung tối 17:00 – 22:00 là giờ cao điểm đắt nhất; cuối tuần cao hơn ngày thường cùng khung.
+- **Sinh lịch**: lịch 30 phút của từng ngày được sinh tự động khi có người xem hoặc đặt ngày đó, đơn giá mỗi slot = giá giờ của khung tương ứng / 2. Sân chưa có bảng giá dùng giá gốc của sân.
 
 ---
 
@@ -165,7 +164,7 @@ flowchart TD
    - Nếu quá thời gian đếm ngược mà ngân hàng chưa xác nhận tiền vào, hệ thống cảnh báo đơn đã hết hạn và tự động nhả slot sân cho người khác.
 3. **Khớp lệnh tự động qua Webhook**:
    - Khách chuyển khoản qua ứng dụng Mobile Banking bất kỳ.
-   - Ngân hàng gửi webhook báo có về endpoint `/api/transfers/webhook`.
+   - Ngân hàng gửi webhook báo có về endpoint `/api/webhooks/sepay`.
    - Backend xác thực chữ ký SHA256, tìm giao dịch tương ứng, cập nhật số tiền `paidAmount`, đổi trạng thái đơn sang `CONFIRMED` và chuyển toàn bộ slot sân sang `BOOKED`.
    - Màn hình khách hàng tự động chuyển sang trạng thái "GIAO DỊCH THÀNH CÔNG" ngay tức thì.
 
@@ -204,7 +203,7 @@ flowchart TD
    - Trong lúc khách đang chơi, nếu muốn đánh thêm 30p hoặc 60p, thu ngân bấm "⚡ Gia hạn giờ chơi".
    - Hệ thống tự động kiểm tra xem khung giờ liền kề tiếp theo của sân đó có bị ai đặt hay bảo trì không.
    - Nếu trống, hiển thị mức giá gia hạn (có áp dụng giảm giá hội viên nếu có). Thu ngân bấm duyệt, hệ thống cộng thêm slot vào đơn và tăng công nợ để thu nốt khi trả sân.
-3. **Check-out trả sân**: Khi hết giờ chơi, lễ tân bấm "Check-out & Hoàn tất". Hệ thống chuyển trạng thái đơn sang `COMPLETED`, ghi nhận `checkOutAt`.
+3. **Check-out trả sân**: Chỉ check-out được khi đơn đã thu đủ 100%; nếu còn thiếu, lễ tân thu nốt tại quầy trước. Khi hết giờ chơi, lễ tân bấm "Check-out & Hoàn tất". Hệ thống chuyển trạng thái đơn sang `COMPLETED`, ghi nhận `checkOutAt`.
 
 ---
 
@@ -312,7 +311,7 @@ Nhằm tạo điều kiện cho quản trị viên kiểm thử đăng ký lại
 
 ## 7. CHÍNH SÁCH VẬN HÀNH & KỶ LUẬT TÀI CHÍNH
 
-1. **Chính sách đặt cọc**: Mọi đơn đặt sân qua cổng trực tuyến bắt buộc phải đặt cọc tối thiểu **50% giá trị tiền sân**. Nếu không thanh toán trong vòng 5 phút, sân tự động giải phóng.
+1. **Chính sách đặt cọc**: Mọi đơn đặt sân trực tuyến phải cọc **50%**: khách thường cọc 50% giá trị đơn; hội viên cọc 50% tiền sân sau ưu đãi (phí trọng tài thu khi hoàn tất). Không thanh toán trong thời gian giữ chỗ (mặc định 5 phút) thì sân tự động được giải phóng.
 2. **Chính sách phân quyền thanh toán**:
    - Nhân viên lễ tân chỉ được thu tiền mặt (`CASH`).
    - Tiền chuyển khoản (`BANK_TRANSFER`) do ngân hàng đối soát tự động qua webhook Napas 24/7. Tuyệt đối không chấp nhận ảnh chụp màn hình chuyển khoản giả mạo mà không có biến động số dư thực tế.
@@ -336,14 +335,14 @@ Nhằm tạo điều kiện cho quản trị viên kiểm thử đăng ký lại
 - **FR-06 (Thanh toán cọc VietQR)**: Tự động sinh mã VietQR Napas 24/7 đúng số tiền cọc (50% tiền sân) kèm đồng hồ đếm ngược thời gian giữ chỗ.
 - **FR-07 (Khớp lệnh tự động)**: Lắng nghe webhook ngân hàng, xác thực chữ ký số và tự động xác nhận đơn (`CONFIRMED`) trong vòng dưới 3 giây từ khi có giao dịch.
 - **FR-08 (Vé điện tử)**: Cung cấp mã đơn và thông tin vé điện tử để khách xuất trình khi tới quầy lễ tân.
-- **FR-09 (Đổi lịch trực tuyến)**: Cho phép khách hàng tự đổi khung giờ thi đấu trước ít nhất 24 giờ nếu khung giờ mới còn trống, tự động tính chênh lệch bảng giá.
-- **FR-10 (Hủy đơn trực tuyến)**: Cho phép khách hàng yêu cầu hủy đơn, tự động áp dụng chính sách hoàn tiền theo 3 mốc thời gian ($\ge 24$h hoàn 100%, 12-24h hoàn 50%, < 12h hoàn 0%).
+- **FR-09 (Đổi lịch trực tuyến)**: Cho phép khách đổi khung giờ nếu khung giờ mới còn trống, có bước xem trước chênh lệch giá. Hạn đổi theo cấu hình CLB (mặc định 24 giờ trước giờ chơi); quyền đổi miễn phí của hội viên bắt buộc báo trước ít nhất 24 giờ.
+- **FR-10 (Hủy đơn trực tuyến)**: Cho phép khách hàng yêu cầu hủy đơn, tự động áp dụng chính sách hoàn tiền theo 3 mốc thời gian ($\ge 24$h hoàn 100%, 12-24h hoàn 50%, < 12h hoàn 0%). Khách tự hủy trực tuyến được đến hạn hủy cấu hình (mặc định demo: 60 phút trước giờ chơi); sau hạn đó cần liên hệ quầy.
 
 ### Phân hệ Lễ tân & Vận hành quầy
 - **FR-11 (Thu tiền mặt tại quầy)**: Lễ tân chọn đơn và ghi nhận số tiền mặt thực nhận từ khách; lưu vết chính xác tài khoản thu ngân thực hiện.
 - **FR-12 (In phiếu thu tại quầy)**: Tự động bật phiếu thu tiền mặt ngay sau khi xác nhận thanh toán thành công, hỗ trợ in ra máy in nhiệt.
 - **FR-13 (Check-in vào sân)**: Cho phép lễ tân quét mã hoặc tìm đơn để xác nhận khách đã có mặt và vào sân thi đấu (`CHECKED_IN`).
-- **FR-14 (Check-out hoàn tất)**: Kiểm tra tình trạng sân và bấm check-out (`COMPLETED`), tính toán công nợ còn lại để thu nốt tiền.
+- **FR-14 (Check-out hoàn tất)**: Chỉ cho check-out (`COMPLETED`) khi đơn đã thu đủ 100%; đơn quá giờ còn nợ được đánh dấu công nợ và khách bị chặn đặt đơn mới cho tới khi thanh toán.
 - **FR-15 (Gia hạn giờ chơi)**: Cho phép gia hạn thêm 30p hoặc 60p cho đơn đang chơi nếu khung giờ liền kề của sân đó còn trống.
 - **FR-16 (Xuất hóa đơn dịch vụ)**: Khởi tạo hóa đơn chi tiết từng dòng (sân, dịch vụ trọng tài) kèm mã số thuế CLB và hỗ trợ in/xuất PDF.
 - **FR-17 (Chốt ca thu ngân cuối ngày)**: Cho phép thu ngân tổng kết số tiền mặt đã thu, đối chiếu với số tiền mặt thực đếm trong két và lưu biên bản bàn giao ca.
@@ -376,7 +375,7 @@ Nhằm tạo điều kiện cho quản trị viên kiểm thử đăng ký lại
 ### 9.2. Bảo mật & Xác thực (Security & Compliance)
 - **TR-04 (Mã hóa mật khẩu)**: 100% mật khẩu người dùng phải được băm bằng thuật toán BCrypt với cost factor tối thiểu 10.
 - **TR-05 (Bảo mật OTP)**: Mã OTP xác thực qua email phải được băm HMAC SHA256 trước khi lưu vào CSDL; nội dung OTP nguyên văn không được xuất hiện trong log hoặc bản ghi tài liệu.
-- **TR-06 (Kiểm soát môi trường Production)**: Kích hoạt `ProductionSecurityValidator` khi khởi động; hệ thống tự động từ chối chạy nếu phát hiện mật khẩu mặc định, khóa JWT yếu (< 32 bytes) hoặc thiếu cấu hình SMTP.
+- **TR-06 (Kiểm soát môi trường Production)**: Kích hoạt `ProductionSecurityValidator` khi khởi động; hệ thống tự động từ chối chạy nếu phát hiện mật khẩu admin mặc định, chế độ demo/thanh toán mô phỏng hoặc thiếu cấu hình SMTP. Phiên đăng nhập dùng cookie HttpOnly, không dùng JWT.
 - **TR-07 (Chống tấn công CSRF / XSS / SQL Injection)**: Sử dụng Spring Security HeaderWriter, Prepared Statements của Hibernate, khử ký tự độc hại và cơ chế Sanitize dữ liệu trên giao diện React.
 - **TR-08 (Bảo vệ CSV Injection)**: Toàn bộ dữ liệu xuất ra CSV phải được escape các ký tự khởi đầu nguy hiểm (`=`, `+`, `-`, `@`).
 
@@ -384,7 +383,7 @@ Nhằm tạo điều kiện cho quản trị viên kiểm thử đăng ký lại
 - **TR-09 (Responsive đa nền tảng)**: Giao diện tối ưu hoàn hảo trên cả máy tính để bàn (Desktop), máy tính bảng (Tablet) và điện thoại thông minh (Mobile).
 - **TR-10 (Đa ngôn ngữ)**: Hỗ trợ chuyển đổi mượt mà giữa tiếng Việt và tiếng Anh (VI / EN) cho toàn bộ nhãn, thông báo và trạng thái hệ thống.
 - **TR-11 (Khả năng tương thích in ấn)**: Các modal phiếu thu và hóa đơn phải tích hợp CSS `@media print` để ẩn các nút điều hướng và canh lề chuẩn cho máy in nhiệt và máy in văn phòng.
-- **TR-12 (Cơ chế Dev OTP & Fallback SMTP linh hoạt)**: Khi chưa cấu hình mật khẩu SMTP ứng dụng Gmail (`SMTP_PASSWORD`), hệ thống tự động kích hoạt chế độ phát triển (Dev Mode): trả về `devCode` trên response API để giao diện tự động bật nút "Điền mã", đồng thời in mã OTP ra console backend. Khi xảy ra ngoại lệ gửi email, hệ thống tự động fallback in mã OTP ra log để ngăn chặn triệt để tình trạng thành viên mới kéo mã nguồn từ GitHub về bị chặn đăng ký/kích hoạt tài khoản bởi lỗi `MailAuthenticationException`.
+- **TR-12 (OTP ở môi trường demo)**: Chỉ khi `DEMO_MODE=true` và không chạy profile production, API mới trả `devCode` để giao diện tự điền mã khi demo. Ngoài demo, thiếu SMTP thì đăng ký và quên mật khẩu trả lỗi 503; mã OTP không bao giờ được trả trong API hay ghi ra log.
 
 ---
 **TÀI LIỆU NÀY LÀ CĂN CỨ NGHIỆP VỤ VÀ YÊU CẦU CHÍNH THỨC CỦA HỆ THỐNG COURTLY.**

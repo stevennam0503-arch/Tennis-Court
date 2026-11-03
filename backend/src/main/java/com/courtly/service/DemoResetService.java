@@ -102,7 +102,9 @@ public class DemoResetService {
             + "JOIN court_prices p ON p.court_id = ref.court_id "
             + "WHERE c.status = 'ACTIVE' AND NOT EXISTS (SELECT 1 FROM court_prices x WHERE x.court_id = c.id)");
     // Chính sách chuẩn của kịch bản demo: giữ chỗ 5 phút, cọc 50%
-    jdbc.execute("UPDATE club_settings SET hold_minutes = 5, deposit_percent = 50");
+    // Khách tự hủy được đến 60 phút trước giờ chơi (mức hoàn theo 3 mốc), tự đổi lịch phải trước 24 giờ
+    jdbc.execute("UPDATE club_settings SET hold_minutes = 5, deposit_percent = 50, cancel_refund_percent = 100, "
+        + "policies = (COALESCE(NULLIF(policies, ''), '{}')::jsonb || '{\"cancelCutoffMinutes\": 60, \"changeCutoffMinutes\": 1440}'::jsonb)::text");
 
     // Đảm bảo toàn bộ sân cùng 1 danh mục có giá chuẩn đồng nhất
     jdbc.execute("UPDATE courts SET base_price = 160000.00 WHERE type = 'OUTDOOR'");
