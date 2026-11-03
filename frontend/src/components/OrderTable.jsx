@@ -4,7 +4,7 @@ import { useCourtly } from '../context';
 import { money, slotLabel } from '../utils/format';
 
 export default function OrderTable({ orders }) {
-  const { data, show } = useCourtly();
+  const { data, show, isAdmin } = useCourtly();
   return (
     <Table headings={['Khách hàng', 'Lịch sân', 'Tổng tiền', 'Trạng thái', '']} empty={!orders.length}>
       {orders.map(o => {
@@ -69,9 +69,15 @@ export default function OrderTable({ orders }) {
                   </Button>
                 )}
                 {hasPending && (
-                  <Button className="sm" style={{ background: '#fff1f2', color: '#e11d48', borderColor: '#fecdd3' }} onClick={() => show({ type: 'refund', orderId: o.id })}>
-                    Hoàn tiền
-                  </Button>
+                  isAdmin ? (
+                    <Button className="sm" style={{ background: '#fff1f2', color: '#e11d48', borderColor: '#fecdd3' }} onClick={() => show({ type: 'refund', orderId: o.id })}>
+                      Hoàn tiền
+                    </Button>
+                  ) : (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '2px 6px', borderRadius: 4, border: '1px solid #fde68a' }}>
+                      Chờ Admin duyệt hoàn
+                    </span>
+                  )
                 )}
                 <Button className="sm" onClick={() => show({ type: 'order', id: o.id, visitDate: o.visitDate })}>
                   Chi tiết

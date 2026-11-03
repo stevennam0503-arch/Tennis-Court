@@ -75,6 +75,42 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
    const orders = club.data.orders || [];
    const curToday = today();
 
+   const pendingRefunds = orders.filter(o => {
+     const isCancelled = ['CANCELLED', 'EXPIRED'].includes(o.status);
+     const refunded = o.finance?.refunded || 0;
+     const expectedRefund = o.cancellationSettlement?.refundAmount || o.metadata?.cancellationSettlement?.refundAmount || 0;
+     const refundPending = o.finance?.refundPending || expectedRefund || 0;
+     return isCancelled && (refundPending > 0 || expectedRefund > 0) && refunded === 0;
+   }).length;
+
+   const now = new Date();
+   const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+   const urgentOperationsSet = new Set();
+   orders.forEach(o => {
+     if (['CANCELLED', 'EXPIRED'].includes(o.status)) return;
+     const due = (o.total || 0) - (o.paid || 0);
+     const slots = o.slots || [];
+     let maxEnd = '00:00';
+     for (const s of slots) {
+       const endStr = s.end ? s.end.slice(0, 5) : `${String(Math.floor(s.hour + (s.hours || 1))).padStart(2, '0')}:00`;
+       if (endStr > maxEnd) maxEnd = endStr;
+     }
+     const [h, m] = maxEnd.split(':').map(Number);
+     const endMinutes = (h || 0) * 60 + (m || 0);
+     const isSessionOverdue = o.date < curToday || (o.date === curToday && currentMinutes > endMinutes + 15);
+
+     if (o.status === 'CHECKED_IN' && isSessionOverdue) {
+       urgentOperationsSet.add(o.id);
+     }
+     if (due > 0 && (o.status === 'COMPLETED' || isSessionOverdue)) {
+       urgentOperationsSet.add(o.id);
+     }
+   });
+
+   const urgentOperationsCount = urgentOperationsSet.size;
+   const urgentCount = urgentOperationsCount + pendingRefunds;
+
    const cancelledNeedingAction = orders.filter(o => 
      ['CANCELLED', 'EXPIRED'].includes(o.status) && (
        (o.finance?.refundPending || 0) > 0 || 
@@ -96,14 +132,6 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
      return o.status === 'HOLDING' || (isToday && ['CONFIRMED', 'CANCELLED'].includes(o.status));
    }).length;
 
-   const pendingRefunds = orders.filter(o => {
-     const isCancelled = ['CANCELLED', 'EXPIRED'].includes(o.status);
-     const refunded = o.finance?.refunded || 0;
-     const expectedRefund = o.cancellationSettlement?.refundAmount || o.metadata?.cancellationSettlement?.refundAmount || 0;
-     const refundPending = o.finance?.refundPending || expectedRefund || 0;
-     return isCancelled && (refundPending > 0 || expectedRefund > 0) && refunded === 0;
-   }).length;
-
    const feedbackList = club.data.content?.feedback || [];
    const pendingFeedback = feedbackList.filter(f => !f.reply && !f.published).length;
    const totalAlerts = operationsCount + pendingRefunds + (holdingCount > 0 ? 1 : 0);
@@ -113,7 +141,10 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
      orders: newOrdersCount,
      payments: pendingRefunds,
      content: pendingFeedback,
-     totalAlerts
+     totalAlerts,
+     urgentCount,
+     urgentOperationsCount,
+     urgentPaymentsCount: pendingRefunds
    };
  }, [club.data]);
 
@@ -147,12 +178,11 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
  return <CourtlyContext.Provider value={{...club,user,isAdmin,isStaff,date,setDate,navigate,show:setDialog,notify}}><div className="layout"><aside className={`sidebar ${mobile?'open':''}`}><div className="brand"><img src="/favicon.svg" alt="" width="34" height="34"/><div>Courtly<em>TENNIS CLUB</em></div></div><nav className="nav" aria-label={isAdmin?'Quản trị':isStaff?'Staff':'Khách hàng'}>{menuGroups.map(group=><section className="nav-group" key={group.label}><div className="nav-caption">{group.label}</div>{group.ids.map(id=>{
   const [,Icon,label]=menu.find(x=>x[0]===id);
   const badge = badges[id] || 0;
-  const isOperations = id === 'operations';
+  const isUrgent = (id === 'payments' && badges.urgentPaymentsCount > 0) || (id === 'operations' && badges.urgentOperationsCount > 0);
   const isOrders = id === 'orders';
-  const isPayments = id === 'payments';
-  const badgeColor = isPayments || isOperations ? '#ef4444' : isOrders ? '#2563eb' : '#f59e0b';
-  const badgeBg = isPayments || isOperations ? '#fee2e2' : isOrders ? '#dbeafe' : '#fef3c7';
-  const badgeText = isPayments || isOperations ? '#b91c1c' : isOrders ? '#1d4ed8' : '#b45309';
+  const badgeColor = isUrgent ? '#ef4444' : isOrders ? '#2563eb' : '#64748b';
+  const badgeBg = isUrgent ? '#fee2e2' : isOrders ? '#dbeafe' : '#f1f5f9';
+  const badgeText = isUrgent ? '#b91c1c' : isOrders ? '#1d4ed8' : '#475569';
   return (
     <button
       key={id}
@@ -294,7 +324,7 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
       <LogOut size={14} /> Đăng xuất
     </button>
   </div>
-</div></aside><div className="content"><header className="topbar"><div className="tools"><button className="mobile-menu" aria-label="Mở menu" onClick={()=>setMobile(!mobile)}><Menu size={20}/></button><span className="crumb">Courtly <span className="muted"> / </span>{menu.find(x=>x[0]===safeRoute)?.[2]||'Thông báo'}</span></div><div className="right"><button className="btn sm" style={{background:'#e8f5e9',borderColor:'#a5d6a7',color:'#1b5e20',fontWeight:700,display:'inline-flex',alignItems:'center',gap:6,padding:'5px 12px'}} onClick={()=>setDialog({type:'auto-qr-checkin'})}><span>📷</span> Quét QR Check-in</button><span className="date-label meta">{dateLabel(today())}</span><span className={`chip ${isAdmin?'green':isStaff?'orange':'blue'}`}>{isAdmin?'Admin':isStaff?'Staff':'Khách hàng'}</span>{isAdmin&&<button aria-label="Thông báo" onClick={()=>navigate('notifications')} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Bell size={20}/>{(badges.totalAlerts || 0) > 0 && <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, background: '#ef4444', color: '#ffffff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #ffffff', lineHeight: 1 }}>{badges.totalAlerts > 99 ? '99+' : badges.totalAlerts}</span>}</button>}<button className="header-signout" onClick={onLogout} aria-label="Đăng xuất"><LogOut size={19}/></button></div></header><main className="main">{club.error&&<div className="error" role="alert">{club.error} <Button className="sm" onClick={()=>club.refresh().catch(()=>{})}>Thử lại</Button></div>}{club.loading?<div className="loading">Đang tải dữ liệu…</div>:club.data?(safeRoute.startsWith('profile')?<ProfilePage tab={safeRoute.split('-')[1]||'info'}/>:isInternal?<Page key={safeRoute}/>:<CustomerPage key={safeRoute} route={safeRoute}/>):<div className="empty">Không thể kết nối máy chủ. Vui lòng thử lại.</div>}</main></div></div>{club.data&&dialog&&(isInternal?<DialogHost key={`${dialog.type}-${dialog.id||dialog.collection||''}`} dialog={dialog} onClose={close}/>:<CustomerDialogs key={`${dialog.type}-${dialog.id||''}`} dialog={dialog} onClose={close}/>)}<div aria-live="polite">{toast&&<div className="toast">{toast}</div>}</div></CourtlyContext.Provider>;
+</div></aside><div className="content"><header className="topbar"><div className="tools"><button className="mobile-menu" aria-label="Mở menu" onClick={()=>setMobile(!mobile)}><Menu size={20}/></button><span className="crumb">Courtly <span className="muted"> / </span>{menu.find(x=>x[0]===safeRoute)?.[2]||'Thông báo'}</span></div><div className="right"><button className="btn sm" style={{background:'#e8f5e9',borderColor:'#a5d6a7',color:'#1b5e20',fontWeight:700,display:'inline-flex',alignItems:'center',gap:6,padding:'5px 12px'}} onClick={()=>setDialog({type:'auto-qr-checkin'})}><span>📷</span> Quét QR Check-in</button><span className="date-label meta">{dateLabel(today())}</span><span className={`chip ${isAdmin?'green':isStaff?'orange':'blue'}`}>{isAdmin?'Admin':isStaff?'Staff':'Khách hàng'}</span>{isAdmin&&<button aria-label="Thông báo" onClick={()=>navigate('notifications')} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Bell size={20}/>{badges.urgentCount > 0 ? <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, background: '#ef4444', color: '#ffffff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #ffffff', lineHeight: 1 }}>{badges.urgentCount > 99 ? '99+' : badges.urgentCount}</span> : (badges.totalAlerts || 0) > 0 ? <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, background: '#64748b', color: '#ffffff', fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #ffffff', lineHeight: 1 }}>{badges.totalAlerts > 99 ? '99+' : badges.totalAlerts}</span> : null}</button>}<button className="header-signout" onClick={onLogout} aria-label="Đăng xuất"><LogOut size={19}/></button></div></header><main className="main">{club.error&&<div className="error" role="alert">{club.error} <Button className="sm" onClick={()=>club.refresh().catch(()=>{})}>Thử lại</Button></div>}{club.loading?<div className="loading">Đang tải dữ liệu…</div>:club.data?(safeRoute.startsWith('profile')?<ProfilePage tab={safeRoute.split('-')[1]||'info'}/>:isInternal?<Page key={safeRoute}/>:<CustomerPage key={safeRoute} route={safeRoute}/>):<div className="empty">Không thể kết nối máy chủ. Vui lòng thử lại.</div>}</main></div></div>{club.data&&dialog&&(isInternal?<DialogHost key={`${dialog.type}-${dialog.id||dialog.collection||''}`} dialog={dialog} onClose={close}/>:<CustomerDialogs key={`${dialog.type}-${dialog.id||''}`} dialog={dialog} onClose={close}/>)}<div aria-live="polite">{toast&&<div className="toast">{toast}</div>}</div></CourtlyContext.Provider>;
 }
 export default function App(){
  const [session,setSession]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);

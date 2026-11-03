@@ -1,4 +1,5 @@
 import {editableVisit} from '../utils/order-visits.mjs';
+import {isOverdueDebt} from '../utils/order-timing.mjs';
 import React, {useState, useEffect, useRef} from 'react';
 import {ArrowUpRight, ArrowRight, Clock, UserRound, RotateCcw, Check, Plus, Tag} from 'lucide-react';
 import {api} from '../services/api';
@@ -29,11 +30,7 @@ export default function Booking() {
     if (!user || !data?.orders) return [];
     return data.orders.filter(o => {
       const isMine = o.accountId === user.id || o.email === user.email || o.phone === user.phone;
-      if (!isMine) return false;
-      const due = (o.total || 0) - (o.paid || 0);
-      if (due <= 0) return false;
-      const oDate = o.date || o.slots?.[0]?.scheduleDate || '';
-      return oDate < dateToday() || ['COMPLETED', 'CHECKED_IN'].includes(o.status);
+      return isMine && isOverdueDebt(o);
     });
   }, [user, data?.orders]);
 

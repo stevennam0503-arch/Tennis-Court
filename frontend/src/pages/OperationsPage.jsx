@@ -89,7 +89,7 @@ export function getOrderTiming(order, currentToday) {
 }
 
 export default function OperationsPage() {
-  const { data, show } = useCourtly();
+  const { data, show, isAdmin } = useCourtly();
   const currentToday = today();
 
   const [activeTab, setActiveTab] = useState('all');
@@ -521,7 +521,17 @@ export default function OperationsPage() {
                     <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>
                       {o.date.split('-').reverse().join('/')}
                     </span>
-                    <small style={{ color: '#64748b' }}>
+                    <small
+                      title={courtsSummary}
+                      style={{
+                        color: '#64748b',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        maxWidth: 220,
+                        display: 'block'
+                      }}
+                    >
                       {courtsSummary || 'Chưa có slot'}
                     </small>
                   </div>
@@ -660,6 +670,7 @@ export default function OperationsPage() {
                         const settlement = o.cancellationSettlement || o.metadata?.cancellationSettlement;
                         const refunded = o.finance?.refunded || 0;
                         const hasPending = (o.finance?.refundPending || settlement?.refundAmount || 0) > 0 && refunded === 0;
+                        const desc = settlement?.policyDescription || (o.metadata?.cancelReason ? `Lý do: ${o.metadata.cancelReason}` : '');
 
                         return (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -672,15 +683,26 @@ export default function OperationsPage() {
                               background: hasPending ? '#fef3c7' : '#fee2e2',
                               padding: '2px 8px',
                               borderRadius: 6,
-                              fontWeight: 700
+                              fontWeight: 700,
+                              whiteSpace: 'nowrap'
                             }}>
                               ❌ {hasPending ? `Khách hủy · Chờ hoàn ${money(settlement?.refundAmount || o.finance?.refundPending)}` : 'Đơn khách đã hủy'}
                             </span>
-                            {settlement?.policyDescription && (
-                              <small style={{ color: '#1e40af', fontSize: 11, fontWeight: 600 }}>{settlement.policyDescription}</small>
-                            )}
-                            {o.metadata?.cancelReason && (
-                              <small style={{ color: '#64748b', fontSize: 11 }}>Lý do: {o.metadata.cancelReason}</small>
+                            {desc && (
+                              <small
+                                title={`${settlement?.policyDescription || ''}${o.metadata?.cancelReason ? ' · Lý do: ' + o.metadata.cancelReason : ''}`}
+                                style={{
+                                  color: '#64748b',
+                                  fontSize: 11,
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  maxWidth: 240,
+                                  display: 'block'
+                                }}
+                              >
+                                {desc}
+                              </small>
                             )}
                           </div>
                         );
@@ -720,8 +742,20 @@ export default function OperationsPage() {
                     )}
 
                     {(o.staff || []).length > 0 && (
-                      <small style={{ color: '#6d28d9', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <Users size={12} />
+                      <small
+                        title={`Trọng tài: ${o.staff.map(st => st.name).join(', ')}`}
+                        style={{
+                          color: '#6d28d9',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          maxWidth: 240
+                        }}
+                      >
+                        <Users size={12} style={{ flexShrink: 0 }} />
                         Trọng tài: {o.staff.map(st => st.name).join(', ')}
                       </small>
                     )}
@@ -766,13 +800,19 @@ export default function OperationsPage() {
                     )}
 
                     {isCancelled && (o.finance?.refundPending > 0 || (o.cancellationSettlement?.refundAmount > 0 && !o.finance?.refunded)) && (
-                      <Button
-                        className="sm"
-                        style={{ background: '#fff1f2', color: '#e11d48', borderColor: '#fecdd3', whiteSpace: 'nowrap' }}
-                        onClick={() => show({ type: 'refund', orderId: o.id })}
-                      >
-                        Hoàn tiền
-                      </Button>
+                      isAdmin ? (
+                        <Button
+                          className="sm"
+                          style={{ background: '#fff1f2', color: '#e11d48', borderColor: '#fecdd3', whiteSpace: 'nowrap' }}
+                          onClick={() => show({ type: 'refund', orderId: o.id })}
+                        >
+                          Hoàn tiền
+                        </Button>
+                      ) : (
+                        <span style={{ fontSize: 11.5, fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '3px 8px', borderRadius: 4, border: '1px solid #fde68a', whiteSpace: 'nowrap' }}>
+                          Chờ Admin duyệt hoàn
+                        </span>
+                      )
                     )}
 
                     <Button 

@@ -24,7 +24,7 @@ export {resolveSlots};
 
 export const BookingDialog=BookingFlow;
 export function OrderDetail({id,onClose,visitDate}) {
-  const {data,show,mutate,notify}=useCourtly();
+  const {data,show,mutate,notify,isAdmin}=useCourtly();
   const o=data.orders.find(x=>x.id===id);
   if(!o) return null;
   const acc=data.accounts?.find(a=>a.id===o.accountId);
@@ -121,9 +121,15 @@ export function OrderDetail({id,onClose,visitDate}) {
               )}
             </div>
             {hasPending && (
-              <Button className="primary sm" style={{ background: '#e11d48', borderColor: '#be123c', color: '#fff' }} onClick={() => show({ type: 'refund', orderId: o.id })}>
-                💳 Thực hiện hoàn tiền ngay
-              </Button>
+              isAdmin ? (
+                <Button className="primary sm" style={{ background: '#e11d48', borderColor: '#be123c', color: '#fff' }} onClick={() => show({ type: 'refund', orderId: o.id })}>
+                  💳 Thực hiện hoàn tiền ngay
+                </Button>
+              ) : (
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '4px 8px', borderRadius: 4, border: '1px solid #fde68a' }}>
+                  Chờ Admin duyệt hoàn
+                </span>
+              )
             )}
           </div>
         </div>
@@ -313,7 +319,16 @@ export function PaymentDialog({id,registrationId,onClose}) {
 }
 
 export function RefundDialog({id, orderId, onClose}) {
-  const {data, mutate, notify} = useCourtly();
+  const {data, mutate, notify, isAdmin} = useCourtly();
+  if (!isAdmin) {
+    return (
+      <Modal title="Ghi nhận hoàn tiền" onClose={onClose}>
+        <div className="notice" style={{ background: '#fef2f2', borderColor: '#fecaca', color: '#b91c1c' }}>
+          Chỉ Quản trị viên (Admin) mới có quyền duyệt hoàn tiền.
+        </div>
+      </Modal>
+    );
+  }
   const order = orderId ? data.orders.find(o => o.id === orderId) : null;
   const p = id
     ? data.payments.find(p => p.id === id)
@@ -652,7 +667,7 @@ export function InvoiceDialog({id, onClose}) {
 }
 
 export function ExtendOrderDialog({id, onClose}) {
-  const {data, mutate, notify, show} = useCourtly();
+  const {data, mutate, notify, show, isAdmin} = useCourtly();
   const o = data.orders.find(x => x.id === id);
   const [loading, setLoading] = useState(true);
   const [extData, setExtData] = useState(null);
@@ -990,9 +1005,15 @@ export function CheckOutDialog({id, onClose}) {
 
         {excess > 0 && (
           <>
-            <Button className="primary" style={{ background: '#e11d48', borderColor: '#be123c' }} onClick={() => { onClose(); show({ type: 'refund', orderId: o.id }); }}>
-              💳 Hoàn trả tiền thừa ({money(excess)})
-            </Button>
+            {isAdmin ? (
+              <Button className="primary" style={{ background: '#e11d48', borderColor: '#be123c' }} onClick={() => { onClose(); show({ type: 'refund', orderId: o.id }); }}>
+                💳 Hoàn trả tiền thừa ({money(excess)})
+              </Button>
+            ) : (
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '6px 10px', borderRadius: 6, border: '1px solid #fde68a' }}>
+                Chờ Admin duyệt hoàn tiền thừa ({money(excess)})
+              </span>
+            )}
             <Button className="primary" disabled={submitting} onClick={handlePureCheckOut}>
               {submitting ? 'Đang check-out…' : 'Xác nhận Check-out'}
             </Button>

@@ -1,6 +1,6 @@
 import {orderOnDay} from '../utils/order-visits.mjs';
 import { hourLabel, slotHours } from '../utils/format';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Wallet, CalendarDays, Users, Grid2X2, Plus, RefreshCw, Wrench } from 'lucide-react';
 import { useCourtly } from '../context';
 import { Title, Stat, Panel, Button } from '../components/UI';
@@ -12,6 +12,12 @@ export default function CalendarPage() {
   const { data, date, setDate, show, refresh, notify } = useCourtly();
   const [selected, setSelected] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [zoneFilter, setZoneFilter] = useState('ALL');
+
+  const visibleCourts = useMemo(() => {
+    if (zoneFilter === 'ALL') return data.courts;
+    return data.courts.filter((c) => c.type === zoneFilter);
+  }, [data.courts, zoneFilter]);
 
   useEffect(() => setSelected([]), [date]);
 
@@ -118,35 +124,63 @@ export default function CalendarPage() {
         }
       >
         <div className="panel-body" style={{ paddingTop: 14, paddingBottom: 14 }}>
-          <div className="legend">
-            {[
-              ['#d9e6da', 'Còn trống'],
-              ['#83b599', 'Đã đặt'],
-              ['#ebc66c', 'Giữ chỗ'],
-              ['#b6a1d9', 'Thi đấu'],
-              ['#cfd5cf', 'Bảo trì'],
-            ].map(([color, text]) => (
-              <span key={text}>
-                <i style={{ background: color }} />
-                {text}
-              </span>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {[
+                { key: 'ALL', label: 'Tất cả khu' },
+                { key: 'OUTDOOR', label: 'Ngoài trời' },
+                { key: 'INDOOR', label: 'Trong nhà' },
+                { key: 'VIP', label: 'VIP' },
+              ].map((z) => {
+                const count = z.key === 'ALL' ? data.courts.length : data.courts.filter((c) => c.type === z.key).length;
+                const active = zoneFilter === z.key;
+                return (
+                  <button
+                    key={z.key}
+                    type="button"
+                    className={`btn sm ${active ? 'primary' : ''}`}
+                    style={{
+                      fontWeight: active ? 700 : 500,
+                      cursor: 'pointer',
+                      padding: '5px 12px',
+                    }}
+                    onClick={() => setZoneFilter(z.key)}
+                  >
+                    {z.label} ({count})
+                  </button>
+                );
+              })}
+            </div>
+            <div className="legend">
+              {[
+                ['#d9e6da', 'Còn trống'],
+                ['#83b599', 'Đã đặt'],
+                ['#ebc66c', 'Giữ chỗ'],
+                ['#b6a1d9', 'Thi đấu'],
+                ['#cfd5cf', 'Bảo trì'],
+              ].map(([color, text]) => (
+                <span key={text}>
+                  <i style={{ background: color }} />
+                  {text}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 
         <div className="schedule-scroll" style={{ maxHeight: 620 }}>
-          <div className="schedule" style={{ '--cols': Math.max(1, data.courts.length) }}>
-            <div className="court-head">Giờ</div>
-            {data.courts.map((c) => (
-              <div className="court-head" key={c.id}>
+          <div className="schedule" style={{ '--cols': Math.max(1, visibleCourts.length) }}>
+            <div className="court-head sticky-hour" style={{ position: 'sticky', top: 0, left: 0, zIndex: 6, background: '#fff', borderRight: '1px solid #eff2ef' }}>Giờ</div>
+            {visibleCourts.map((c) => (
+              <div className="court-head" key={c.id} style={{ position: 'sticky', top: 0, zIndex: 3, background: '#fff' }}>
                 {c.name}
                 <small>{labels[c.type]}</small>
               </div>
             ))}
             {[...new Set(data.schedules.map((s) => s.hour))].sort((a, b) => a - b).map((hour) => (
               <React.Fragment key={hour}>
-                <div className="time-cell">{hourLabel(hour)}</div>
-                {data.courts.map((c) => {
+                <div className="time-cell sticky-hour" style={{ position: 'sticky', left: 0, zIndex: 4, background: '#fff', borderRight: '1px solid #eff2ef' }}>{hourLabel(hour)}</div>
+                {visibleCourts.map((c) => {
                   const slot = data.schedules.find((s) => s.court === c.id && s.hour === hour);
                   const order = orders.find((o) => active(o) && o.slots.some((s) => !s.completed && s.id === slot?.id));
                   const match = data.matches.find(

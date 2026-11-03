@@ -6,7 +6,7 @@ import { money, labels, localDate, dateLabel } from '../utils/format';
 import { api } from '../services/api';
 
 export default function PaymentsPage() {
-  const { data, show, date, setDate } = useCourtly();
+  const { data, show, date, setDate, isAdmin } = useCourtly();
   const [tab, setTab] = useState('transactions');
   const [payConfig, setPayConfig] = useState(null);
   const [reconcile, setReconcile] = useState(null);
@@ -242,13 +242,15 @@ export default function PaymentsPage() {
                   <td>{labels[p.method] || p.method}</td>
                   <td className="name">{money(p.amount)}</td>
                   <td>
-                    <Button
-                      className="sm"
-                      disabled={p.refundable <= 0}
-                      onClick={() => show({ type: 'refund', id: p.id })}
-                    >
-                      Hoàn tiền
-                    </Button>
+                    {isAdmin && (
+                      <Button
+                        className="sm"
+                        disabled={p.refundable <= 0}
+                        onClick={() => show({ type: 'refund', id: p.id })}
+                      >
+                        Hoàn tiền
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -336,14 +338,31 @@ export default function PaymentsPage() {
                   </span>
                 </td>
                 <td>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <Button
-                      className="sm primary"
-                      style={{ background: '#e11d48', borderColor: '#be123c' }}
-                      onClick={() => show({ type: 'refund', orderId: o.id })}
-                    >
-                      Hoàn tiền ngay
-                    </Button>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    {isAdmin ? (
+                      <Button
+                        className="sm primary"
+                        style={{ background: '#e11d48', borderColor: '#be123c' }}
+                        onClick={() => show({ type: 'refund', orderId: o.id })}
+                      >
+                        Hoàn tiền ngay
+                      </Button>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: '#b45309',
+                          background: '#fef3c7',
+                          padding: '4px 8px',
+                          borderRadius: 4,
+                          border: '1px solid #fde68a',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        Chờ Admin duyệt hoàn
+                      </span>
+                    )}
                     <Button
                       className="sm"
                       onClick={() => show({ type: 'order', id: o.id, visitDate: o.visitDate })}

@@ -970,7 +970,7 @@
   "Tiết kiệm": "Save",
   "Giá áp dụng": "Applied Rate",
   "Tiền cọc giữ chỗ": "Reservation Deposit",
-  "Thời hạn giữ chỗ": "Hold Duration",
+  "Thời hạn giữ chỗ": "Reservation hold:",
   "Đếm ngược": "Countdown",
   "Chính sách hoàn tiền": "Refund Policy",
   "Hoàn 100% nếu hủy trước 24h": "100% refund if cancelled 24h in advance",
@@ -980,7 +980,6 @@
   "Đặt sân trực tuyến yêu cầu cọc": "Online booking requires a deposit of",
   "giá trị đơn sau khi trừ ưu đãi hội viên và voucher.": "of the order value after member discounts and vouchers.",
   "Thanh toán cọc nhanh qua mã VietQR tự động xác nhận trong 3 giây hoặc nộp tiền mặt tại quầy lễ tân.": "Pay deposit quickly via VietQR with 3-second auto-confirmation, or pay cash at reception.",
-  "Thời hạn giữ chỗ": "Reservation hold:",
   "Hệ thống giữ chỗ trong": "The system holds slots for",
   "kể từ khi tạo đơn. Khung giờ được khóa độc quyền để không ai khác đặt trùng.": "from order creation. The time slot is exclusively locked against double booking.",
   "Hết thời gian giữ chỗ mà chưa hoàn tất tiền cọc, hệ thống tự động hủy đơn và giải phóng lịch cho khách khác.": "If the deposit is not completed before the hold expires, the order is cancelled automatically and the slot is released.",
@@ -1203,5 +1202,9 @@
   "Cho phép hiển thị đánh giá công khai trên trang web của CLB": "Allow my review to be publicly visible on the club website",
   "Viết đánh giá trải nghiệm của bạn": "Share your review & feedback",
   "Chỉ số đánh giá cao": "Excellent Rating",
-  "lượt đánh giá": "reviews"
+  "lượt đánh giá": "reviews",
+  "thông báo khác": "other notices",
+  "+N thông báo khác": "+N other notices",
+  "Thu gọn": "Collapse",
+  "Tất cả thông báo": "All notices"
 }

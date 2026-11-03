@@ -79,3 +79,58 @@ export function getOrderTiming(order, currentToday) {
     };
   }
 }
+
+/**
+ * Kiểm tra xem đơn hàng có phải là nợ quá hạn bị chặn đặt sân hay không.
+ * Quy tắc nghiệp vụ (P1-a):
+ * - total - paid > 0
+ * - Không thuộc trạng thái CANCELLED, EXPIRED, HOLDING
+ * - Thỏa một trong hai:
+ *   1) status === 'COMPLETED' (đã hoàn tất mà còn thiếu tiền)
+ *   2) Thời điểm kết thúc buổi chơi cuối cùng (date + end, giờ VN) đã qua quá 15 phút ân hạn.
+ * Đơn CHECKED_IN hoặc CONFIRMED còn trong giờ chơi hoặc chưa tới giờ KHÔNG phải nợ quá hạn.
+ */
+export function isOverdueDebt(order, today, now) {
+  if (!order) return false;
+  const total = Number(order.total ?? order.totalAmount ?? 0);
+  const paid = Number(order.paid ?? order.paidAmount ?? 0);
+  if (total - paid <= 0) return false;
+
+  const status = order.status;
+  if (['CANCELLED', 'EXPIRED', 'HOLDING'].includes(status)) return false;
+  if (status === 'COMPLETED') return true;
+
+  // Thời điểm hiện tại (Việt Nam UTC+7)
+  const currentNow = now ? (now instanceof Date ? now : new Date(now)) : new Date();
+  const currentNowMs = currentNow.getTime();
+
+  // Xác định thời điểm kết thúc buổi chơi cuối cùng theo slots
+  const slots = order.slots || [];
+  let maxSlotEndMs = -Infinity;
+
+  if (slots.length > 0) {
+    for (const s of slots) {
+      const sDate = s.date || s.scheduleDate || order.date;
+      if (!sDate) continue;
+      const endStr = s.end
+        ? s.end.slice(0, 5)
+        : s.endTime
+        ? s.endTime.slice(0, 5)
+        : s.hour != null
+        ? `${String(Math.floor(s.hour + (s.hours || 1))).padStart(2, '0')}:${String(Math.round(((s.hour + (s.hours || 1)) % 1) * 60)).padStart(2, '0')}`
+        : '23:00';
+      const endMs = new Date(`${sDate}T${endStr.slice(0, 5)}:00+07:00`).getTime();
+      if (endMs > maxSlotEndMs) maxSlotEndMs = endMs;
+    }
+  }
+
+  if (maxSlotEndMs === -Infinity) {
+    const oDate = order.date;
+    if (!oDate) return false;
+    maxSlotEndMs = new Date(`${oDate}T23:00:00+07:00`).getTime();
+  }
+
+  // Quá hạn khi thời điểm hiện tại vượt qua thời điểm kết thúc + 15 phút ân hạn
+  const graceEndMs = maxSlotEndMs + 15 * 60 * 1000;
+  return currentNowMs > graceEndMs;
+}

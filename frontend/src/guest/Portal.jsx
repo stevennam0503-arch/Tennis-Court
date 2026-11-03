@@ -6,6 +6,8 @@ import {Header,Footer} from './Layout';
 import Overview from './Overview';
 import Booking from './Booking';
 import Pricing from './Pricing.jsx';
+import NoticeBar from './NoticeBar.jsx';
+import { isOverdueDebt } from '../utils/order-timing.mjs';
 import CashDesk from './CashDesk';
 import Tournaments,{EventDialog} from './Tournaments';
 import {News,Article,Contact,Feedback,Policies} from './Content';
@@ -180,11 +182,7 @@ export default function Portal({session,onSession,onLogout}){
     }
   };
 
-  useEffect(()=>{
-    if(route==='booking'&&!user){
-      login('login',{from:'booking'});
-    }
-  },[route,user]);
+// Auto-login on booking route removed (P2)
 
   const pay=(type,targetId,purpose='DEPOSIT',existing)=>{
     if(!user){login();return;}
@@ -235,12 +233,7 @@ export default function Portal({session,onSession,onLogout}){
 
   const overdueDebtOrder = useMemo(() => {
     if (!user) return null;
-    return myOrders.find(o => {
-      const due = (o.total || 0) - (o.paid || 0);
-      if (due <= 0) return false;
-      const oDate = o.date || o.slots?.[0]?.scheduleDate || '';
-      return oDate < dateToday() || ['COMPLETED', 'CHECKED_IN'].includes(o.status);
-    });
+    return myOrders.find(o => isOverdueDebt(o));
   }, [user, myOrders]);
 
   useEffect(() => {
@@ -294,336 +287,288 @@ export default function Portal({session,onSession,onLogout}){
 
   const tournamentBannerVisible = user && hasAnyBooking && !membershipBannerVisible && featuredTournament && !tourneyBannerDismissed;
 
+  const notices = useMemo(() => {
+    const list = [];
+
+    // Priority 1: Nợ quá hạn
+    if (overdueDebtOrder && !debtBannerDismissed) {
+      list.push({
+        key: 'debt',
+        icon: '🚨',
+        accent: '#fef08a',
+        bg: 'linear-gradient(90deg, #991b1b 0%, #b91c1c 60%, #7f1d1d 100%)',
+        borderBottom: '1px solid rgba(254, 202, 202, 0.4)',
+        title: t('Cảnh báo: Đơn quá hạn chưa thanh toán đủ tiền'),
+        badge: `${t('CÒN NỢ')}: ${money((overdueDebtOrder.total || 0) - (overdueDebtOrder.paid || 0))}`,
+        badgeBg: '#fef08a',
+        badgeColor: '#991b1b',
+        desc: `${t('Đơn')} #${overdueDebtOrder.id.slice(0, 8).toUpperCase()} (${overdueDebtOrder.date}) ${t('chưa tất toán. Theo chính sách CLB Courtly, quý khách vui lòng tất toán nợ cũ để được mở quyền đặt sân mới.')}`,
+        actions: (
+          <button
+            type="button"
+            onClick={() => setDialog({ kind: 'payment', order: overdueDebtOrder, intent: 'BALANCE' })}
+            style={{
+              background: '#fef08a',
+              color: '#991b1b',
+              border: 'none',
+              padding: '6px 14px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              whiteSpace: 'nowrap'
+            }}
+          >
+            💳 {t('Tất toán nợ ngay')}
+          </button>
+        ),
+        onDismiss: () => setDebtBannerDismissed(true)
+      });
+    }
+
+    // Priority 2: Đơn giữ chỗ chờ thanh toán cọc
+    if (pendingPaymentOrder && !paymentBannerDismissed) {
+      list.push({
+        key: 'pendingPayment',
+        icon: '⚠️',
+        accent: '#fef08a',
+        bg: 'linear-gradient(90deg, #7c2d12 0%, #9a3412 100%)',
+        title: t('Đơn giữ chỗ chờ thanh toán'),
+        badge: t('CẦN THU CỌC'),
+        badgeBg: '#ea580c',
+        badgeColor: '#ffffff',
+        desc: `${t('Đơn')} #${pendingPaymentOrder.id.slice(0, 8).toUpperCase()} · ${pendingPaymentOrder.date} · ${t('Còn cần thanh toán')}: ${money((pendingPaymentOrder.deposit || pendingPaymentOrder.total || 0) - (pendingPaymentOrder.paid || 0))}`,
+        actions: (
+          <button
+            type="button"
+            onClick={() => setDialog({ kind: 'payment', order: pendingPaymentOrder })}
+            style={{
+              background: '#fef08a',
+              color: '#7c2d12',
+              border: 'none',
+              padding: '6px 14px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            💳 {t('Thanh toán cọc ngay')}
+          </button>
+        ),
+        onDismiss: () => setPaymentBannerDismissed(true)
+      });
+    }
+
+    // Priority 3: Lịch thi đấu hôm nay
+    if (todayMatch && !bannerDismissed) {
+      const courtName = data?.courts?.find(c => c.id === todayMatch.slots?.[0]?.court)?.name || t('Sân Tennis');
+      const startH = todayMatch.slots?.[0]?.hour;
+      const endH = (todayMatch.slots?.at(-1)?.hour || 0) + 1;
+      list.push({
+        key: 'todayMatch',
+        icon: '🎾',
+        accent: '#def46a',
+        bg: 'linear-gradient(90deg, #173c32 0%, #1e4d40 100%)',
+        title: t('Nhắc lịch thi đấu hôm nay'),
+        badge: todayMatch.status === 'CHECKED_IN' ? t('● ĐANG TRÊN SÂN') : t('✓ SẴN SÀNG CHECK-IN'),
+        badgeBg: todayMatch.status === 'CHECKED_IN' ? '#2563eb' : '#15803d',
+        badgeColor: '#ffffff',
+        desc: `${courtName} · ⏰ ${startH}:00 – ${endH}:00 · ${t('Mã vé')}: CT-${todayMatch.id.slice(0, 8).toUpperCase()}`,
+        actions: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
+            <button
+              type="button"
+              onClick={() => setDialog({ kind: 'ticket', order: todayMatch })}
+              style={{
+                background: '#def46a',
+                color: '#173c32',
+                border: 'none',
+                padding: '6px 12px',
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              🎫 {t('Mở Vé QR Check-in')}
+            </button>
+            {todayMatch.status === 'CHECKED_IN' && (
+              <button
+                type="button"
+                onClick={() => setDialog({ kind: 'extend', order: todayMatch })}
+                style={{
+                  background: 'rgba(255,255,255,0.18)',
+                  color: '#ffffff',
+                  border: '1px solid rgba(255,255,255,0.35)',
+                  padding: '6px 10px',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                ⚡ {t('Gia hạn')}
+              </button>
+            )}
+          </div>
+        ),
+        onDismiss: () => setBannerDismissed(true)
+      });
+    }
+
+    // Priority 4: Gói hội viên
+    if (membershipBannerVisible && !pendingPaymentOrder) {
+      list.push({
+        key: 'membership',
+        icon: '👑',
+        accent: '#def46a',
+        bg: 'linear-gradient(90deg, #1e3a8a 0%, #172554 100%)',
+        borderBottom: '1px solid rgba(222, 244, 106, 0.3)',
+        title: t('Đặc quyền Hội viên Courtly Club'),
+        badge: t('TIẾT KIỆM ĐẾN 15%'),
+        badgeBg: '#3b82f6',
+        badgeColor: '#ffffff',
+        desc: t('Bạn đã thi đấu tại Courtly! Đăng ký hội viên để hưởng giảm giá sân, đặt trước 21 ngày và miễn phí đổi lịch.'),
+        actions: (
+          <button
+            type="button"
+            onClick={() => navigate('membership')}
+            style={{
+              background: '#def46a',
+              color: '#172554',
+              border: 'none',
+              padding: '6px 12px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            ⭐ {t('Xem gói Hội viên')}
+          </button>
+        ),
+        onDismiss: () => {
+          setMembershipBannerDismissed(true);
+          sessionStorage.setItem('courtly_membership_banner_dismissed', 'true');
+        }
+      });
+    }
+
+    // Priority 5: Voucher chào mừng
+    if (welcomeBannerVisible) {
+      list.push({
+        key: 'welcome',
+        icon: '🎁',
+        accent: '#def46a',
+        bg: 'linear-gradient(90deg, #13332b 0%, #1e4d40 60%, #163d33 100%)',
+        borderBottom: '1px solid rgba(222, 244, 106, 0.35)',
+        title: t('Ưu đãi chào mừng thành viên mới'),
+        badge: t('GIẢM 50.000₫'),
+        badgeBg: '#def46a',
+        badgeColor: '#173c32',
+        desc: `${t('Chào mừng')} ${user.name}! ${t('Tặng bạn Voucher')} WELCOME ${t('giảm 50k cho đơn đặt sân đầu tiên.')}`,
+        actions: (
+          <button
+            type="button"
+            onClick={() => {
+              setActiveVoucherCode('WELCOME');
+              setWelcomeBannerApplied(true);
+              setShowWelcomeBanner(false);
+              setWelcomeBannerDismissed(true);
+              try {
+                if (user?.id) localStorage.setItem(`courtly_welcome_dismissed_${user.id}`, 'true');
+              } catch {}
+              if (route !== 'booking') navigate('booking');
+              notify(t('Đã kích hoạt Voucher WELCOME (-50.000₫). Vui lòng chọn sân và khung giờ chơi!'));
+            }}
+            style={{
+              background: '#def46a',
+              color: '#173c32',
+              border: 'none',
+              padding: '6px 14px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <span>🎾</span> {welcomeBannerApplied ? t('✓ Đã áp dụng') : t('Áp dụng ngay')}
+          </button>
+        ),
+        onDismiss: () => {
+          setShowWelcomeBanner(false);
+          setWelcomeBannerDismissed(true);
+          try {
+            if (user?.id) localStorage.setItem(`courtly_welcome_dismissed_${user.id}`, 'true');
+          } catch {}
+        }
+      });
+    }
+
+    // Priority 6: Giải đấu đang mở
+    if (tournamentBannerVisible && !pendingPaymentOrder && featuredTournament) {
+      list.push({
+        key: 'tournament',
+        icon: '🏆',
+        accent: '#def46a',
+        bg: 'linear-gradient(90deg, #14532d 0%, #052e16 100%)',
+        borderBottom: '1px solid rgba(222, 244, 106, 0.3)',
+        title: t('Giải đấu đang mở đăng ký'),
+        badge: featuredTournament.name,
+        badgeBg: '#15803d',
+        badgeColor: '#ffffff',
+        desc: `${t('Khởi tranh')} ${featuredTournament.start} · ${t('Hạn đăng ký')}: ${featuredTournament.deadline} · ${money(featuredTournament.fee)}`,
+        actions: (
+          <button
+            type="button"
+            onClick={() => navigate('tournaments')}
+            style={{
+              background: '#def46a',
+              color: '#14532d',
+              border: 'none',
+              padding: '6px 12px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            🎾 {t('Đăng ký giải')}
+          </button>
+        ),
+        onDismiss: () => {
+          setTourneyBannerDismissed(true);
+          sessionStorage.setItem('courtly_tourney_banner_dismissed', 'true');
+        }
+      });
+    }
+
+    return list;
+  }, [
+    overdueDebtOrder, debtBannerDismissed, pendingPaymentOrder, paymentBannerDismissed,
+    todayMatch, bannerDismissed, membershipBannerVisible, welcomeBannerVisible,
+    tournamentBannerVisible, featuredTournament, welcomeBannerApplied, user, route, data?.courts, lang
+  ]);
+
   return (
     <GuestContext.Provider value={value}>
       <div id="courtly-balanced-amenities" lang={lang}>
         <Header/>
 
-        
-        {overdueDebtOrder && !debtBannerDismissed && (
-          <aside className="gx-debt-reminder-banner" style={{
-            background: 'linear-gradient(90deg, #991b1b 0%, #b91c1c 60%, #7f1d1d 100%)',
-            color: '#ffffff',
-            padding: '12px 24px',
-            boxShadow: '0 4px 16px rgba(153, 27, 27, 0.35)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 12,
-            position: 'sticky',
-            top: todayMatch ? 116 : 60,
-            zIndex: 91,
-            borderBottom: '1px solid rgba(254, 202, 202, 0.4)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <span style={{ fontSize: 24 }}>🚨</span>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <strong style={{ color: '#fef08a', fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-                    {t('Cảnh báo: Đơn quá hạn chưa thanh toán đủ tiền')}
-                  </strong>
-                  <span style={{ background: '#fef08a', color: '#991b1b', fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 10 }}>
-                    {t('CÒN NỢ')}: {money((overdueDebtOrder.total || 0) - (overdueDebtOrder.paid || 0))}
-                  </span>
-                </div>
-                <span style={{ fontSize: 13, color: '#fee2e2', display: 'block', marginTop: 3 }}>
-                  {t('Đơn')} #{overdueDebtOrder.id.slice(0, 8).toUpperCase()} ({overdueDebtOrder.date}) {t('chưa tất toán. Theo chính sách CLB Courtly, quý khách vui lòng tất toán nợ cũ để được mở quyền đặt sân mới.')}
-                </span>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button
-                type="button"
-                onClick={() => setDialog({ kind: 'payment', order: overdueDebtOrder, intent: 'BALANCE' })}
-                style={{
-                  background: '#fef08a',
-                  color: '#991b1b',
-                  border: 'none',
-                  padding: '7px 15px',
-                  borderRadius: 6,
-                  fontSize: 12.5,
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6
-                }}
-              >
-                💳 {t('Tất toán nợ ngay')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setDebtBannerDismissed(true)}
-                aria-label={t('Đóng thông báo')}
-                style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.7)', fontSize: 18, cursor: 'pointer', padding: '4px 8px' }}
-              >
-                ✕
-              </button>
-            </div>
-          </aside>
-        )}
-
-        {todayMatch && (
-          <aside className="gx-match-reminder-banner" style={{background:'linear-gradient(90deg, #173c32 0%, #1e4d40 100%)',color:'#ffffff',padding:'11px 24px',boxShadow:'0 4px 14px rgba(23,60,50,0.18)',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12,position:'sticky',top:60,zIndex:90}}>
-            <div style={{display:'flex',alignItems:'center',gap:12}}>
-              <span style={{fontSize:22}}>🎾</span>
-              <div>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <strong style={{color:'#def46a',fontSize:13,textTransform:'uppercase',letterSpacing:0.5}}>{t('Nhắc lịch thi đấu hôm nay')}</strong>
-                  <span style={{background:todayMatch.status==='CHECKED_IN'?'#2563eb':'#15803d',color:'#fff',fontSize:10.5,fontWeight:700,padding:'2px 8px',borderRadius:10}}>
-                    {todayMatch.status==='CHECKED_IN'?t('● ĐANG TRÊN SÂN'):t('✓ SẴN SÀNG CHECK-IN')}
-                  </span>
-                </div>
-                <span style={{fontSize:13,color:'#e2ebd9',display:'block',marginTop:2}}>
-                  {data?.courts?.find(c=>c.id===todayMatch.slots?.[0]?.court)?.name||t('Sân Tennis')} · ⏰ <b>{todayMatch.slots?.[0]?.hour}:00 – {(todayMatch.slots?.at(-1)?.hour||0)+1}:00</b> · {t('Mã vé')}: <b style={{color:'#def46a',fontFamily:'monospace'}}>CT-{todayMatch.id.slice(0,8).toUpperCase()}</b>
-                </span>
-              </div>
-            </div>
-            <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-              <button type="button" onClick={()=>setDialog({kind:'ticket',order:todayMatch})} style={{background:'#def46a',color:'#173c32',border:'none',padding:'7px 14px',borderRadius:6,fontSize:12.5,fontWeight:700,cursor:'pointer'}}>
-                🎫 {t('Mở Vé QR Check-in')}
-              </button>
-              {todayMatch.status==='CHECKED_IN' && (
-                <button type="button" onClick={()=>setDialog({kind:'extend',order:todayMatch})} style={{background:'rgba(255,255,255,0.18)',color:'#ffffff',border:'1px solid rgba(255,255,255,0.35)',padding:'7px 12px',borderRadius:6,fontSize:12.5,fontWeight:600,cursor:'pointer'}}>
-                  ⚡ {t('Gia hạn')}
-                </button>
-              )}
-              <button type="button" onClick={()=>setBannerDismissed(true)} aria-label="Đóng thông báo" style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.7)',fontSize:18,cursor:'pointer',padding:'4px 8px'}}>
-                ✕
-              </button>
-            </div>
-          </aside>
-        )}
-
-        {pendingPaymentOrder && (
-          <aside className="gx-payment-reminder-banner" style={{
-            background: 'linear-gradient(90deg, #7c2d12 0%, #9a3412 100%)',
-            color: '#ffffff',
-            padding: '11px 24px',
-            boxShadow: '0 4px 14px rgba(124, 45, 18, 0.25)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 12,
-            position: 'sticky',
-            top: todayMatch ? 116 : 60,
-            zIndex: 89
-          }}>
-            <div style={{display:'flex',alignItems:'center',gap:12}}>
-              <span style={{fontSize:22}}>⚠️</span>
-              <div>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <strong style={{color:'#fef08a',fontSize:13,textTransform:'uppercase',letterSpacing:0.5}}>
-                    {t('Đơn giữ chỗ chờ thanh toán')}
-                  </strong>
-                  <span style={{background:'#ea580c',color:'#fff',fontSize:10.5,fontWeight:700,padding:'2px 8px',borderRadius:10}}>
-                    {t('CẦN THU CỌC')}
-                  </span>
-                </div>
-                <span style={{fontSize:13,color:'#ffedd5',display:'block',marginTop:2}}>
-                  {t('Đơn')} #{pendingPaymentOrder.id.slice(0,8).toUpperCase()} · {pendingPaymentOrder.date} · {t('Còn cần thanh toán')}: <b style={{color:'#fef08a'}}>{money((pendingPaymentOrder.deposit || pendingPaymentOrder.total || 0) - (pendingPaymentOrder.paid || 0))}</b>
-                </span>
-              </div>
-            </div>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <button type="button" onClick={()=>setDialog({kind:'payment',order:pendingPaymentOrder})} style={{background:'#fef08a',color:'#7c2d12',border:'none',padding:'7px 14px',borderRadius:6,fontSize:12.5,fontWeight:700,cursor:'pointer'}}>
-                💳 {t('Thanh toán cọc ngay')}
-              </button>
-              <button type="button" onClick={()=>setPaymentBannerDismissed(true)} aria-label={t('Đóng thông báo')} style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.7)',fontSize:18,cursor:'pointer',padding:'4px 8px'}}>
-                ✕
-              </button>
-            </div>
-          </aside>
-        )}
-
-        {welcomeBannerVisible && (
-          <aside className="gx-welcome-voucher-banner" style={{
-            background: 'linear-gradient(90deg, #13332b 0%, #1e4d40 60%, #163d33 100%)',
-            color: '#ffffff',
-            padding: '12px 24px',
-            boxShadow: '0 4px 16px rgba(19, 51, 43, 0.25)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 12,
-            position: 'sticky',
-            top: todayMatch ? 116 : 60,
-            zIndex: 89,
-            borderBottom: '1px solid rgba(222, 244, 106, 0.35)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <span style={{ fontSize: 26, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}>🎁</span>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <strong style={{ color: '#def46a', fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-                    {t('Ưu đãi chào mừng thành viên mới')}
-                  </strong>
-                  <span style={{ background: '#def46a', color: '#173c32', fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 10 }}>
-                    {t('GIẢM 50.000₫')}
-                  </span>
-                </div>
-                <span style={{ fontSize: 13.5, color: '#e2ebd9', display: 'block', marginTop: 3 }}>
-                  {t('Chào mừng')} <b>{user.name}</b>! {t('Tặng bạn Voucher')} <b style={{
-                    background: 'rgba(255,255,255,0.15)',
-                    border: '1px dashed #def46a',
-                    padding: '2px 8px',
-                    borderRadius: 4,
-                    color: '#def46a',
-                    fontFamily: 'monospace',
-                    letterSpacing: 1
-                  }}>WELCOME</b> {t('giảm 50k cho đơn đặt sân đầu tiên.')}
-                </span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveVoucherCode('WELCOME');
-                  setWelcomeBannerApplied(true);
-                  setShowWelcomeBanner(false);
-                  setWelcomeBannerDismissed(true);
-                  try {
-                    if (user?.id) localStorage.setItem(`courtly_welcome_dismissed_${user.id}`, 'true');
-                  } catch {}
-                  if (route !== 'booking') {
-                    navigate('booking');
-                  }
-                  notify(t('Đã kích hoạt Voucher WELCOME (-50.000₫). Vui lòng chọn sân và khung giờ chơi!'));
-                }}
-                style={{
-                  background: '#def46a',
-                  color: '#173c32',
-                  border: 'none',
-                  padding: '8px 18px',
-                  borderRadius: 6,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                <span>🎾</span> {welcomeBannerApplied ? t('✓ Đã áp dụng') : t('Áp dụng ngay')}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowWelcomeBanner(false);
-                  setWelcomeBannerDismissed(true);
-                  try {
-                    if (user?.id) localStorage.setItem(`courtly_welcome_dismissed_${user.id}`, 'true');
-                  } catch {}
-                }}
-                aria-label={t('Đóng thông báo')}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'rgba(255,255,255,0.7)',
-                  fontSize: 18,
-                  cursor: 'pointer',
-                  padding: '4px 8px'
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          </aside>
-        )}
-
-        {membershipBannerVisible && !pendingPaymentOrder && (
-          <aside className="gx-membership-promo-banner" style={{
-            background: 'linear-gradient(90deg, #1e3a8a 0%, #172554 100%)',
-            color: '#ffffff',
-            padding: '11px 24px',
-            boxShadow: '0 4px 14px rgba(30, 58, 138, 0.2)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 12,
-            position: 'sticky',
-            top: todayMatch ? 116 : 60,
-            zIndex: 88,
-            borderBottom: '1px solid rgba(222, 244, 106, 0.3)'
-          }}>
-            <div style={{display:'flex',alignItems:'center',gap:12}}>
-              <span style={{fontSize:22}}>👑</span>
-              <div>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <strong style={{color:'#def46a',fontSize:13,textTransform:'uppercase',letterSpacing:0.5}}>
-                    {t('Đặc quyền Hội viên Courtly Club')}
-                  </strong>
-                  <span style={{background:'#3b82f6',color:'#fff',fontSize:10.5,fontWeight:700,padding:'2px 8px',borderRadius:10}}>
-                    {t('TIẾT KIỆM ĐẾN 15%')}
-                  </span>
-                </div>
-                <span style={{fontSize:13,color:'#dbeafe',display:'block',marginTop:2}}>
-                  {t('Bạn đã thi đấu tại Courtly! Đăng ký hội viên để hưởng giảm giá sân, đặt trước 21 ngày và miễn phí đổi lịch.')}
-                </span>
-              </div>
-            </div>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <button type="button" onClick={()=>navigate('membership')} style={{background:'#def46a',color:'#172554',border:'none',padding:'7px 14px',borderRadius:6,fontSize:12.5,fontWeight:700,cursor:'pointer'}}>
-                ⭐ {t('Xem gói Hội viên')}
-              </button>
-              <button type="button" onClick={()=>{setMembershipBannerDismissed(true);sessionStorage.setItem('courtly_membership_banner_dismissed','true');}} aria-label={t('Đóng thông báo')} style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.7)',fontSize:18,cursor:'pointer',padding:'4px 8px'}}>
-                ✕
-              </button>
-            </div>
-          </aside>
-        )}
-
-        {tournamentBannerVisible && !pendingPaymentOrder && (
-          <aside className="gx-tournament-promo-banner" style={{
-            background: 'linear-gradient(90deg, #14532d 0%, #052e16 100%)',
-            color: '#ffffff',
-            padding: '11px 24px',
-            boxShadow: '0 4px 14px rgba(20, 83, 45, 0.2)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 12,
-            position: 'sticky',
-            top: todayMatch ? 116 : 60,
-            zIndex: 88,
-            borderBottom: '1px solid rgba(222, 244, 106, 0.3)'
-          }}>
-            <div style={{display:'flex',alignItems:'center',gap:12}}>
-              <span style={{fontSize:22}}>🏆</span>
-              <div>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <strong style={{color:'#def46a',fontSize:13,textTransform:'uppercase',letterSpacing:0.5}}>
-                    {t('Giải đấu đang mở đăng ký')}
-                  </strong>
-                  <span style={{background:'#15803d',color:'#fff',fontSize:10.5,fontWeight:700,padding:'2px 8px',borderRadius:10}}>
-                    {featuredTournament.name}
-                  </span>
-                </div>
-                <span style={{fontSize:13,color:'#dcfce7',display:'block',marginTop:2}}>
-                  {t('Khởi tranh')} {featuredTournament.start} · {t('Hạn đăng ký')}: {featuredTournament.deadline} · {money(featuredTournament.fee)}
-                </span>
-              </div>
-            </div>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <button type="button" onClick={()=>navigate('tournaments')} style={{background:'#def46a',color:'#14532d',border:'none',padding:'7px 14px',borderRadius:6,fontSize:12.5,fontWeight:700,cursor:'pointer'}}>
-                🎾 {t('Đăng ký giải')}
-              </button>
-              <button type="button" onClick={()=>{setTourneyBannerDismissed(true);sessionStorage.setItem('courtly_tourney_banner_dismissed','true');}} aria-label={t('Đóng thông báo')} style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.7)',fontSize:18,cursor:'pointer',padding:'4px 8px'}}>
-                ✕
-              </button>
-            </div>
-          </aside>
-        )}
+        <NoticeBar notices={notices} t={t} />
 
         <main>
           {error && (
@@ -638,49 +583,7 @@ export default function Portal({session,onSession,onLogout}){
             <>
               {route==='about' && <Overview/>}
               {route==='pricing' && <Pricing/>}
-              {route==='booking' && !user ? (
-                <section className="ct-pad gx-login-required" style={{textAlign:'center',padding:'80px 24px',maxWidth:580,margin:'0 auto'}}>
-                  <div style={{width:64,height:64,borderRadius:'50%',background:'rgba(23,60,50,0.08)',color:'#173c32',display:'inline-flex',alignItems:'center',justifyContent:'center',marginBottom:20}}>
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  </div>
-                  <h1 style={{fontSize:26,fontWeight:700,color:'#173c32',marginBottom:12}}>
-                    {t('Đăng nhập để đặt sân trực tuyến')}
-                  </h1>
-                  <p style={{color:'#52655a',fontSize:15,lineHeight:1.6,marginBottom:18}}>
-                    {t('Để đảm bảo tính xác thực của lịch đặt và giữ chỗ sân theo thời gian thực, vui lòng đăng nhập hoặc tạo tài khoản Courtly trước khi chọn khung giờ.')}
-                  </p>
-                  <div style={{display:'inline-flex',alignItems:'center',gap:8,background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:8,padding:'8px 16px',marginBottom:24,fontSize:13.5,color:'#166534'}}>
-                    <span>🎁</span>
-                    <span>{t('Đăng ký tài khoản mới nhận ngay Voucher')} <b style={{background:'#def46a',padding:'2px 6px',borderRadius:4,color:'#173c32'}}>WELCOME 50.000₫</b></span>
-                  </div>
-                  <div style={{display:'flex',justifyContent:'center',gap:12,flexWrap:'wrap'}}>
-                    <Action onClick={()=>login('login', { from: 'booking' })} style={{padding:'12px 30px',fontSize:15}}>
-                      {t('Đăng nhập')}
-                    </Action>
-                    <button
-                      type="button"
-                      onClick={()=>login('register', { from: 'booking' })}
-                      style={{
-                        background:'#def46a',
-                        color:'#173c32',
-                        border:'none',
-                        borderRadius:8,
-                        padding:'12px 26px',
-                        fontSize:15,
-                        fontWeight:700,
-                        cursor:'pointer',
-                        display:'inline-flex',
-                        alignItems:'center',
-                        gap:6
-                      }}
-                    >
-                      <span>🎁</span> {t('Đăng ký nhận 50k')}
-                    </button>
-                  </div>
-                </section>
-              ) : (
-                <div hidden={route!=='booking'}><Booking/></div>
-              )}
+              <div hidden={route!=='booking'}><Booking/></div>
               {protectedRoute && !user ? (
                 <section className="ct-pad gx-login-required">
                   <h1>{t('Đăng nhập để xem tài khoản')}</h1>
