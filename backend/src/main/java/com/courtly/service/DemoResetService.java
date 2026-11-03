@@ -92,7 +92,7 @@ public class DemoResetService {
     jdbc.execute("DELETE FROM court_schedules WHERE extract(second from start_time) != 0 OR extract(minute from start_time) % 30 != 0 OR extract(second from end_time) != 0 OR extract(minute from end_time) % 30 != 0");
     jdbc.execute("UPDATE court_schedules SET status = 'AVAILABLE'");
 
-    // Đảm bảo 8 tài khoản hệ thống chuẩn luôn tồn tại
+    // Đảm bảo 8 tài khoản hệ thống chuẩn luôn tồn tại; mật khẩu đưa về 123456 để kịch bản demo luôn đăng nhập được
     String upsertAccountsSql = String.format(
         """
         INSERT INTO accounts (id, email, full_name, phone, role, status, password_hash, created_at, auth_version)
@@ -110,7 +110,7 @@ public class DemoResetService {
           phone = EXCLUDED.phone,
           role = EXCLUDED.role,
           status = EXCLUDED.status,
-          password_hash = COALESCE(accounts.password_hash, EXCLUDED.password_hash);
+          password_hash = EXCLUDED.password_hash;
         """,
         ADMIN_ID, BCRYPT_123456,
         STAFF_ID, BCRYPT_123456,
@@ -408,20 +408,22 @@ public class DemoResetService {
     jdbc.update("INSERT INTO payments (id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at) VALUES (?::uuid, ?::uuid, ?::uuid, 'DEPOSIT', 'BANK_TRANSFER', 300000.00, 'PAY-CANC-013', 'PAID', NOW() - interval '6 hours')", pay13Id, ord13Id, STAFF_ID);
     releaseCourtSlots(courtA03, todayStr, "11:00:00", "13:00:00", bkg13Id, todayStr + " 07:00:00+07");
 
-    // 14. ĐƠN 14: CANCELLED ĐÃ HOÀN TẤT (DONE) - Sân A03 2 ngày trước (Vũ Mai Phương)
+    // 14. ĐƠN 14: CANCELLED ĐÃ HOÀN TẤT (DONE) - Sân A03 2 ngày trước 18:00 (Vũ Mai Phương)
+    // Đặt từ hôm trước, hủy lúc 02:00 (16 tiếng trước giờ chơi) -> mốc 12h - 24h: hoàn 50% cọc, admin đã chi
     String ord14Id = "66666666-6666-6666-6666-111111111111";
     String bkg14Id = "66666666-6666-6666-6666-222222222222";
     String pay14Id = "66666666-6666-6666-6666-333333333333";
     String ref14Id = "66666666-6666-6666-6666-444444444444";
+    String meta14 = "{\"customerFlow\": true, \"refundPending\": 0, \"cancellationSettlement\": {\"refundEligible\": true, \"refundPercent\": 50, \"refundAmount\": 100000, \"retainedAmount\": 100000, \"reason\": \"Khách hủy trong khoảng 12h - 24h trước trận (hoàn 50% cọc, giữ lại 50%)\", \"cancelledAt\": \"" + twoDaysAgo.minusDays(1) + "T19:00:00Z\"}}";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Vũ Mai Phương [Đã hoàn xong]', '0903111222', 'CANCELLED', 400000.00, 200000.00, 60000.00, 'PARTIAL', (? || ' 09:00:00+07')::timestamptz, 0, '{\"customerFlow\": true}')",
-        ord14Id, PHUONG_ID, PHUONG_ID, twoDaysAgoStr
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Vũ Mai Phương [Đã hoàn xong]', '0903111222', 'CANCELLED', 400000.00, 200000.00, 100000.00, 'PARTIAL', (? || ' 09:00:00+07')::timestamptz - interval '1 day', 0, ?)",
+        ord14Id, PHUONG_ID, PHUONG_ID, twoDaysAgoStr, meta14
     );
-    jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'CANCELLED', (? || ' 09:00:00+07')::timestamptz)", bkg14Id, ord14Id, twoDaysAgoStr);
-    jdbc.update("INSERT INTO payments (id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at) VALUES (?::uuid, ?::uuid, ?::uuid, 'DEPOSIT', 'BANK_TRANSFER', 200000.00, 'PAY-CANC-014', 'PAID', (? || ' 09:10:00+07')::timestamptz)", pay14Id, ord14Id, STAFF_ID, twoDaysAgoStr);
-    jdbc.update("INSERT INTO refunds (id, payment_id, processed_by_account_id, amount, reason, status, refunded_at) VALUES (?::uuid, ?::uuid, ?::uuid, 140000.00, 'Khách hủy trước 24 giờ (đã hoàn 70%)', 'DONE', (? || ' 14:00:00+07')::timestamptz)", ref14Id, pay14Id, ADMIN_ID, twoDaysAgoStr);
-    releaseCourtSlots(courtA03, twoDaysAgoStr, "18:00:00", "20:00:00", bkg14Id, twoDaysAgoStr + " 14:00:00+07");
+    jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'CANCELLED', (? || ' 09:00:00+07')::timestamptz - interval '1 day')", bkg14Id, ord14Id, twoDaysAgoStr);
+    jdbc.update("INSERT INTO payments (id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at) VALUES (?::uuid, ?::uuid, ?::uuid, 'DEPOSIT', 'BANK_TRANSFER', 200000.00, 'PAY-CANC-014', 'PAID', (? || ' 09:10:00+07')::timestamptz - interval '1 day')", pay14Id, ord14Id, STAFF_ID, twoDaysAgoStr);
+    jdbc.update("INSERT INTO refunds (id, payment_id, processed_by_account_id, amount, reason, status, refunded_at) VALUES (?::uuid, ?::uuid, ?::uuid, 100000.00, 'Khách hủy trong khoảng 12h - 24h trước giờ chơi (hoàn 50% cọc)', 'DONE', (? || ' 14:00:00+07')::timestamptz)", ref14Id, pay14Id, ADMIN_ID, twoDaysAgoStr);
+    releaseCourtSlots(courtA03, twoDaysAgoStr, "18:00:00", "20:00:00", bkg14Id, twoDaysAgoStr + " 02:00:00+07");
 
     // -----------------------------------------------------------------------------------------
     // E. ĐƠN ĐỊNH KỲ (RECURRING), HOÀN TẤT CÓ HÓA ĐƠN & PHÂN CÔNG TRỌNG TÀI

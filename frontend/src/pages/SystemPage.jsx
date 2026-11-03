@@ -14,7 +14,7 @@ const SHOWCASE_ORDERS = [
   { code: 'CT-HOLD003', court: 'Sân V01', time: '08:00 – 10:00 Ngày mai', customer: 'Trần Hoàng Nam [Hội viên Plus]', status: 'HOLDING', desc: 'Đang giữ chỗ 5 phút. Dùng để demo Đồng hồ đếm ngược và Quét VietQR cọc tự động.' },
   { code: 'CT-RECUR04', court: 'Sân B02', time: '16:00 – 18:00 (4 tuần)', customer: 'Trần Hoàng Nam [Hội viên Plus]', status: 'CONFIRMED', desc: 'Đặt lịch định kỳ dài hạn 4 tuần liên tiếp với 8 slot được khóa tự động.' },
   { code: 'CT-DONE005', court: 'Sân A02', time: '17:00 – 19:00 Hôm qua', customer: 'Trần Hoàng Nam [Hội viên Plus]', status: 'COMPLETED', desc: 'Đã hoàn tất 100%. Dùng để demo Xem và In hóa đơn thanh toán VAT (INV-20261026-001).' },
-  { code: 'CT-CANC006', court: 'Sân A03', time: '18:00 – 20:00 2 ngày trước', customer: 'Trần Hoàng Nam [Hội viên Plus]', status: 'CANCELLED', desc: 'Đã hủy hợp lệ trước 24 giờ. Dùng để demo Chính sách tự động hoàn 70% tiền cọc (140k).' },
+  { code: 'CT-CANC006', court: 'Sân A03', time: '18:00 – 20:00 2 ngày trước', customer: 'Vũ Mai Phương', status: 'CANCELLED', desc: 'Hủy 16 tiếng trước giờ chơi (mốc 12h - 24h). Dùng để demo chính sách hoàn 50% tiền cọc (100k), đã chi hoàn.' },
   { code: 'CT-REF0007', court: 'Sân V02', time: '17:00 – 19:00 Hôm nay', customer: 'Lê Thu Hà', status: 'CONFIRMED', desc: 'Đơn có thuê Trọng tài TT Phạm Quốc Huy (250k/h). Dùng để demo Phân bổ nhân sự.' }
 ];
 
@@ -250,7 +250,7 @@ export default function SystemPage() {
             <div style={{ fontSize: 13, color: '#334155' }}>
               <div style={{ fontWeight: 600, marginBottom: 8 }}>Sau khi đặt lại, hệ thống sẽ chứa:</div>
               <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <li><b>7 đơn hàng mẫu chuẩn:</b> Check-in, Confirmed, Giữ chỗ 5p, Định kỳ 4 tuần, Hoàn tất có hóa đơn, Hủy hoàn 70%, Thuê trọng tài.</li>
+                <li><b>7 đơn hàng mẫu chuẩn:</b> Check-in, Confirmed, Giữ chỗ 5p, Định kỳ 4 tuần, Hoàn tất có hóa đơn, Hủy hoàn cọc theo 3 mốc (100% / 50% / 0%), Thuê trọng tài.</li>
                 <li><b>4 tài khoản hệ thống chuẩn:</b> <code>admin@gmail.com</code> (123456), <code>staff@gmail.com</code> (123456), <code>hoangnam@gmail.com</code> (123456), <code>khachmoi@gmail.com</code> (123456).</li>
                 <li><b>Tài khoản tự tạo:</b> Đã được xóa hoàn toàn và giải phóng email để bạn sẵn sàng đăng ký lại từ đầu!</li>
                 <li><b>Báo cáo tài chính:</b> 3 trụ cột (Tiền sân, Trọng tài, Giải đấu & Membership) khớp từng đồng.</li>

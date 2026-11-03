@@ -8,7 +8,7 @@ Tài liệu này được biên soạn để hỗ trợ nhóm trình diễn hệ
 Bất cứ khi nào nhóm tập dượt xong (làm bẩn hoặc lệch dữ liệu), hoặc khi đang bảo vệ mà thầy cô Hội đồng yêu cầu: *"Em thử tạo đơn / hủy đơn / đặt lịch xem"*, bạn có thể đưa toàn bộ hệ thống về trạng thái chuẩn chỉ từng con số bằng các cách:
 
 - **Cách 1 (Tuyệt vời nhất - Trực tiếp trên giao diện Admin):** 
-  - Đăng nhập tài khoản Admin (`admin@gmail.com` / `12345`).
+  - Đăng nhập tài khoản Admin (`admin@gmail.com` / `123456`; database mới chưa reset lần nào dùng `12345`).
   - Vào menu **Hệ thống & module** $\rightarrow$ Bấm nút **[ 🔄 Đặt lại dữ liệu mẫu Hội đồng ]** ở góc phải tiêu đề hoặc tại tab **"Dữ liệu mẫu Hội đồng"**.
   - Bấm **"Xác nhận đặt lại dữ liệu"** $\rightarrow$ Hệ thống tự động xóa sạch các đơn phát sinh và nạp lại chuẩn 100% trong 1 giây, không cần mở cmd/terminal.
 - **Cách 2 (Trên Windows qua file .bat):** Vào thư mục `scripts/`, nhấp đúp chuột vào file **`reset-showcase.bat`**.
@@ -24,13 +24,15 @@ Bất cứ khi nào nhóm tập dượt xong (làm bẩn hoặc lệch dữ li�
 
 ## 👥 2. DANH SÁCH TÀI KHOẢN TRÌNH DIỄN
 
+> Mỗi lần bấm reset, mật khẩu của các tài khoản mẫu dưới đây được đưa về `123456`. Luôn reset trước khi trình diễn.
+
 | Vai trò | Email đăng nhập | Mật khẩu | Ghi chú & Mục đích sử dụng |
 | :--- | :--- | :--- | :--- |
-| **Quản trị viên (Admin)** | `admin@gmail.com` | `12345` | Quản lý toàn bộ hệ thống: Sân, Nhân sự, Báo cáo tài chính, Giải đấu, Cấu hình. |
-| **Lễ tân / Thu ngân (Staff)** | `staff@gmail.com` | `12345` | Thao tác tại quầy: Quét QR Check-in, Check-out, Thu tiền mặt, Gia hạn sân. |
+| **Quản trị viên (Admin)** | `admin@gmail.com` | `123456` | Quản lý toàn bộ hệ thống: Sân, Nhân sự, Báo cáo tài chính, Giải đấu, Cấu hình. |
+| **Lễ tân / Thu ngân (Staff)** | `staff@gmail.com` | `123456` | Thao tác tại quầy: Quét QR Check-in, Check-out, Thu tiền mặt, Gia hạn sân. |
 | **Tài khoản tự tạo (Live Demo)** | Email bất kỳ (VD: `kietdlv@gmail.com`) | Bạn tự đặt khi tạo | **Tài khoản bạn tự tạo**: Sẽ được **tự động xóa sạch và giải phóng email hoàn toàn** mỗi khi bấm Reset, để bạn tự do biểu diễn quy trình đăng ký tài khoản mới từ đầu trước mặt Hội đồng! |
-| **Khách hàng VIP (Hội viên Plus)** | `hoangnam@gmail.com` | `1234567890123` | Khách mẫu sở hữu gói **Plus**: Giảm giá 15% tiền sân, chứa các đơn mẫu Checked-in, Confirmed, Định kỳ, Hoàn tất, Hủy. |
-| **Khách hàng mới** | `khachmoi@gmail.com` | `1234567890123` | Khách sở hữu đơn #CT-REF0007 (thuê trọng tài). |
+| **Khách hàng VIP (Hội viên Plus)** | `hoangnam@gmail.com` | `123456` | Khách mẫu sở hữu gói **Plus**: Giảm giá 15% tiền sân, chứa các đơn mẫu Checked-in, Confirmed, Định kỳ, Hoàn tất, Hủy. |
+| **Khách hàng mới** | `khachmoi@gmail.com` | `123456` | Khách sở hữu đơn #CT-REF0007 (thuê trọng tài). |
 
 ---
 
@@ -43,7 +45,7 @@ Bất cứ khi nào nhóm tập dượt xong (làm bẩn hoặc lệch dữ li�
 | **#CT-HOLD003** | `HOLDING` *(Giữ chỗ 5 phút)* | **Sân V01** *(VIP Lounge)*<br>Ngày mai (08:00 - 10:00) | Trần Hoàng Nam *(Hội viên Plus)* | **Demo Đồng hồ giữ chỗ & Thanh toán VietQR:**<br>1. Mở đơn $\rightarrow$ Thấy đồng hồ đếm ngược **5:00 phút** theo đúng chính sách CLB.<br>2. Quét mã QR chuyển khoản cọc $\rightarrow$ Đơn lập tức tự động chuyển sang `CONFIRMED`. |
 | **#CT-RECUR04** | `CONFIRMED` *(Định kỳ)* | **Sân B02**<br>Chủ nhật hàng tuần (x 4 tuần) | Trần Hoàng Nam *(Hội viên Plus)* | **Demo Đặt lịch dài hạn định kỳ 4 tuần:**<br>1. Mở chi tiết đơn $\rightarrow$ Thấy huy hiệu `🔄 Định kỳ 4 tuần`.<br>2. Khung giờ được giữ cố định trên 4 tuần liên tiếp, tiền cọc 50% tính chính xác trên toàn chuỗi tuần. |
 | **#CT-DONE005** | `COMPLETED` *(Đã hoàn tất)* | **Sân A02**<br>Hôm qua (17:00 - 19:00) | Trần Hoàng Nam *(Hội viên Plus)* | **Demo Phiếu thu & Hóa đơn điện tử:**<br>1. Mở đơn đã hoàn tất $\rightarrow$ Bấm **"Xem phiếu thu / Hóa đơn"**.<br>2. Xuất hiện hóa đơn điện tử Courtly với đầy đủ mã đơn, thông tin thanh toán, dấu mộc CLB và chữ ký. |
-| **#CT-CANC006** | `CANCELLED` *(Đã hủy)* | **Sân A03**<br>2 ngày trước | Trần Hoàng Nam *(Hội viên Plus)* | **Demo Chính sách Hoàn tiền & Minh bạch tài chính:**<br>1. Khách hủy lịch trước 24h $\rightarrow$ Hệ thống tự động hoàn 70% cọc (140.000đ) và giữ lại 30% phí (60.000đ).<br>2. Mở tab **Lịch sử thanh toán** $\rightarrow$ Thấy dòng hoàn tiền màu đỏ `−140.000đ` kèm badge `✓ Đã hoàn tiền` và lý do rõ ràng. |
+| **#CT-CANC006** | `CANCELLED` *(Đã hủy, đã hoàn)* | **Sân A03**<br>2 ngày trước (18:00 - 20:00) | Vũ Mai Phương | **Demo Chính sách hoàn cọc 3 mốc:**<br>1. Khách hủy lúc 02:00, tức 16 tiếng trước giờ chơi $\rightarrow$ thuộc mốc 12h - 24h: hoàn **50% cọc (100.000đ)**, CLB giữ 100.000đ.<br>2. Mở tab **Lịch sử thanh toán** $\rightarrow$ Thấy dòng hoàn tiền `−100.000đ` kèm badge `✓ Đã hoàn tiền` và lý do.<br>3. So sánh thêm: đơn của Lê Thu Hà hủy dưới 12h bị giữ 100% cọc; các đơn đang chờ hoàn (100% và 50%) nằm ở **Thu tiền & hoàn tiền**. |
 | **#CT-REF0007** | `CONFIRMED` *(Có trọng tài)* | **Sân V02**<br>Hôm nay (17:00 - 19:00) | Lê Thu Hà | **Demo Dịch vụ Trọng tài chuyên nghiệp:**<br>1. Phân công Trọng tài TT Phạm Quốc Huy (250.000đ/giờ).<br>2. Hệ thống khóa ca làm việc của trọng tài, tính tổng tiền gồm tiền sân + phí trọng tài. |
 
 ---
@@ -66,4 +68,4 @@ Bất cứ khi nào nhóm tập dượt xong (làm bẩn hoặc lệch dữ li�
   $\rightarrow$ **Trả lời:** Hệ thống áp dụng cơ chế khóa bi quan (**Pessimistic Write Lock**) trực tiếp tại tầng cơ sở dữ liệu (`SELECT ... FOR UPDATE`). Khi khách hàng chọn khung giờ, slot được lock lập tức trong transaction, nếu có người khác cùng bấm thì hệ thống sẽ nhận diện xung đột và từ chối an toàn.
 
 - **Hội đồng hỏi: *"Chính sách cọc và hủy lịch hoạt động ra sao?"***
-  $\rightarrow$ **Trả lời:** Khách hàng bắt buộc cọc tối thiểu **50% tiền sân** để giữ chỗ. Nếu hủy trước 24 giờ, hệ thống hoàn lại **70% tiền cọc**; nếu hủy sát giờ hoặc không đến sân, tiền cọc sẽ không được hoàn trả theo quy định CLB. Khoản hoàn được lưu vết đầy đủ trong Lịch sử thanh toán và Báo cáo đối soát.
+  $\rightarrow$ **Trả lời:** Khách hàng bắt buộc cọc tối thiểu **50% tiền sân** để giữ chỗ. Khi hủy, hệ thống tính số giờ còn lại đến giờ chơi: **từ 24 giờ trở lên hoàn 100% cọc**, **từ 12 đến dưới 24 giờ hoàn 50%**, **dưới 12 giờ không hoàn**. Khoản hoàn không tự chuyển mà vào danh sách chờ để Admin duyệt chi, được lưu vết trong Lịch sử thanh toán và Báo cáo đối soát.

@@ -50,12 +50,19 @@ def main():
         with opener.open(req) as resp:
             csrf = json.loads(resp.read().decode())
 
-        login_body = json.dumps({"email": "admin@gmail.com", "password": "123456"}).encode()
-        req = urllib.request.Request("http://localhost:8081/api/auth/login", data=login_body, headers={
-            "Content-Type": "application/json",
-            csrf["headerName"]: csrf["token"]
-        })
-        opener.open(req)
+        # Sau lần reset đầu tiên mật khẩu admin là 123456; database mới khởi tạo dùng 12345
+        for password in ("123456", "12345"):
+            login_body = json.dumps({"email": "admin@gmail.com", "password": password}).encode()
+            req = urllib.request.Request("http://localhost:8081/api/auth/login", data=login_body, headers={
+                "Content-Type": "application/json",
+                csrf["headerName"]: csrf["token"]
+            })
+            try:
+                opener.open(req)
+                break
+            except urllib.error.HTTPError:
+                if password == "12345":
+                    raise
 
         req = urllib.request.Request("http://localhost:8081/api/csrf")
         with opener.open(req) as resp:
