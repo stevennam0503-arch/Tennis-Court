@@ -28,4 +28,8 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
       @Param("channel") String channel,
       @Param("type") String type,
       @Param("status") String status);
+
+  long countByDedupeKeyStartingWith(String prefix);
+
+  long countByDedupeKeyStartingWithAndStatus(String prefix, String status);
 }

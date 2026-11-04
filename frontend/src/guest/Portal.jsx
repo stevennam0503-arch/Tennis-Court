@@ -50,6 +50,32 @@ const paths={about:'/',booking:'/dat-san',pricing:'/bang-gia',cashdesk:'/quay-th
 const initialRoute=()=>{ if(location.pathname==='/membership'||location.pathname==='/thanh-vien') return 'membership'; return Object.entries(paths).find(([,p])=>p===location.pathname)?.[0]||({orders:'orders',history:'history',payments:'payments','profile-orders':'orders','profile-history':'history','profile-payments':'payments','profile-membership':'membership',profile:'profile',tournaments:'tournaments'})[location.hash.slice(1)]||'about'; };
 
 export default function Portal({session,onSession,onLogout}){
+    const [activeCampaignBanners, setActiveCampaignBanners] = useState([]);
+  const [unsubscribeModalOpen, setUnsubscribeModalOpen] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/public/campaigns/active-banners')
+      .then(res => res.ok ? res.json() : [])
+      .then(data => { if (Array.isArray(data)) setActiveCampaignBanners(data); })
+      .catch(() => {});
+
+    if (location.pathname === '/huy-nhan-tin') {
+      const params = new URLSearchParams(location.search);
+      const token = params.get('token');
+      if (token) {
+        fetch('/api/public/campaigns/unsubscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token })
+        }).then(res => res.json()).then(() => {
+          setUnsubscribeModalOpen(true);
+        }).catch(() => {});
+      } else {
+        setUnsubscribeModalOpen(true);
+      }
+    }
+  }, []);
+
   const [lang,setLang]=useState(()=>localStorage.getItem('courtly-language')||'vi'),
         [route,setRoute]=useState(initialRoute),
         [date,setDate]=useState(dateToday),
