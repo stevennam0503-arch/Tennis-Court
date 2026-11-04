@@ -22,4 +22,5 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host ""
     Write-Host "[THAT BAI] Co loi xay ra trong qua trinh khoi phuc du lieu." -ForegroundColor Red
     Write-Host ""
+    exit 1
 }

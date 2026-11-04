@@ -2,6 +2,7 @@ package com.courtly.exception;
 
 import com.courtly.dto.response.ApiError;
 import java.time.Instant;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.*;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
   @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
@@ -68,6 +70,11 @@ public class GlobalExceptionHandler {
     PessimisticLockingFailureException.class
   })
   public ResponseEntity<ApiError> conflict(Exception e) {
+    if (e instanceof DataIntegrityViolationException dive) {
+      log.warn("Data integrity violation: {}", dive.getMostSpecificCause().getMessage());
+    } else {
+      log.warn("Conflict exception: {}", e.getMessage());
+    }
     return ResponseEntity.status(HttpStatus.CONFLICT)
         .body(
             new ApiError("Dữ liệu bị trùng hoặc vừa thay đổi. Tải lại và thử lại.", Instant.now()));
