@@ -18,6 +18,11 @@ const WEEKDAYS = [
   { id: '7', label: 'CN' }
 ];
 
+const toLocalISO = (d = new Date()) => {
+  const vnStr = d.toLocaleString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return vnStr.replace(', ', 'T').replace(' ', 'T');
+};
+
 export default function VouchersPage() {
   const { notify, isAdmin } = useCourtly();
   const [list, setList] = useState([]);
@@ -39,8 +44,8 @@ export default function VouchersPage() {
     value: 10,
     minOrder: 0,
     maxDiscount: '',
-    startsAt: new Date().toISOString().slice(0, 16),
-    expiresAt: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 16),
+    startsAt: toLocalISO(new Date()),
+    expiresAt: toLocalISO(new Date(Date.now() + 30 * 86400000)),
     usageLimit: 50,
     perUserLimit: 1,
     newUserOnly: false,

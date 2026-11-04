@@ -17,3 +17,27 @@ export const options = keys => keys.map(value => ({ value, label: labels[value] 
 export const hourLabel = h => `${String(Math.floor(h)).padStart(2,'0')}:${String(Math.round((h%1)*60)).padStart(2,'0')}`;
 export const slotLabel = s => `${s.start?.slice(0,5)||hourLabel(s.hour)}–${s.end?.slice(0,5)||hourLabel(s.hour+1)}`;
 export const slotHours = s => s.start&&s.end ? ((Number(s.end.slice(0,2))*60+Number(s.end.slice(3,5)))-(Number(s.start.slice(0,2))*60+Number(s.start.slice(3,5))))/60 : 1;
+
+export const groupStaff = staffList => {
+  if (!staffList || !staffList.length) return [];
+  const map = new Map();
+  for (const st of staffList) {
+    const key = st.staffId || st.name || 'staff';
+    const hrs = Number(st.hours || 1);
+    const rate = Number(st.rate || 0);
+    if (!map.has(key)) {
+      map.set(key, { key, id: st.id || key, name: st.name || 'Trọng tài', hours: hrs, rate, total: rate * hrs });
+    } else {
+      const existing = map.get(key);
+      existing.hours += hrs;
+      existing.total += rate * hrs;
+    }
+  }
+  return Array.from(map.values());
+};
+
+export const formatStaffSummary = staffList => {
+  const grouped = groupStaff(staffList);
+  if (!grouped.length) return '';
+  return grouped.map(st => `${st.name} · ${st.hours} giờ`).join(', ');
+};

@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useCourtly } from '../context';
 import { Title, Panel, Button, Chip, Table, OrderStatusChip } from '../components/UI';
-import { money, today, slotLabel, hourLabel } from '../utils/format';
+import { money, today, slotLabel, hourLabel, formatStaffSummary } from '../utils/format';
 
 export function getOrderTiming(order, currentToday) {
   if (!order) return { state: 'UNKNOWN' };
@@ -519,7 +519,10 @@ export default function OperationsPage() {
             const timing = getOrderTiming(o, currentToday);
             const isCancelled = ['CANCELLED', 'EXPIRED'].includes(o.status);
 
-            const courtsSummary = (o.slots || []).map(s => {
+            const viewingDate = o.date || currentToday;
+            const dateSlots = (o.slots || []).filter(s => !s.date || s.date === viewingDate);
+            const displaySlots = dateSlots.length > 0 ? dateSlots : (o.slots || []);
+            const courtsSummary = displaySlots.map(s => {
               const court = data.courts.find(c => c.id === s.court);
               return `${court ? court.name : 'Sân'} (${slotLabel(s)})`;
             }).join(', ');
@@ -777,7 +780,7 @@ export default function OperationsPage() {
 
                     {(o.staff || []).length > 0 && (
                       <small
-                        title={`Trọng tài: ${o.staff.map(st => st.name).join(', ')}`}
+                        title={`Trọng tài: ${formatStaffSummary(o.staff)}`}
                         style={{
                           color: '#6d28d9',
                           display: 'flex',
@@ -790,7 +793,7 @@ export default function OperationsPage() {
                         }}
                       >
                         <Users size={12} style={{ flexShrink: 0 }} />
-                        Trọng tài: {o.staff.map(st => st.name).join(', ')}
+                        Trọng tài: {formatStaffSummary(o.staff)}
                       </small>
                     )}
                   </div>

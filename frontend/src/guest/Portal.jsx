@@ -7,6 +7,7 @@ import Overview from './Overview';
 import Booking from './Booking';
 import Pricing from './Pricing.jsx';
 import NoticeBar from './NoticeBar.jsx';
+import { hourLabel, slotHours } from '../utils/format';
 import { isOverdueDebt } from '../utils/order-timing.mjs';
 import CashDesk from './CashDesk';
 import Tournaments,{EventDialog} from './Tournaments';
@@ -469,8 +470,11 @@ export default function Portal({session,onSession,onLogout}){
     // Priority 3: Lịch thi đấu hôm nay
     if (todayMatch && !bannerDismissed) {
       const courtName = data?.courts?.find(c => c.id === todayMatch.slots?.[0]?.court)?.name || t('Sân Tennis');
-      const startH = todayMatch.slots?.[0]?.hour;
-      const endH = (todayMatch.slots?.at(-1)?.hour || 0) + 1;
+      const firstSlot = todayMatch.slots?.[0];
+      const lastSlot = todayMatch.slots?.at(-1);
+      const startStr = firstSlot?.start?.slice(0, 5) || (firstSlot ? hourLabel(firstSlot.hour) : '08:00');
+      const endStr = lastSlot?.end?.slice(0, 5) || (lastSlot ? hourLabel(lastSlot.hour + slotHours(lastSlot)) : '09:00');
+
       list.push({
         key: 'todayMatch',
         icon: '🎾',
@@ -480,7 +484,7 @@ export default function Portal({session,onSession,onLogout}){
         badge: todayMatch.status === 'CHECKED_IN' ? t('● ĐANG TRÊN SÂN') : t('✓ SẴN SÀNG CHECK-IN'),
         badgeBg: todayMatch.status === 'CHECKED_IN' ? '#2563eb' : '#15803d',
         badgeColor: '#ffffff',
-        desc: `${courtName} · ⏰ ${startH}:00 – ${endH}:00 · ${t('Mã vé')}: CT-${todayMatch.id.slice(0, 8).toUpperCase()}`,
+        desc: `${courtName} · ⏰ ${startStr} – ${endStr} · ${t('Mã vé')}: CT-${todayMatch.id.slice(0, 8).toUpperCase()}`,
         actions: (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
             <button

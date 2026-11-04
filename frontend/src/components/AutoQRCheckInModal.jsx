@@ -421,9 +421,15 @@ export default function AutoQRCheckInModal({ onClose }) {
                   <div className="aqr-success-icon">
                     <CheckCircle2 size={36} />
                   </div>
-                  <h3 className="aqr-success-title">CHECK-IN TỰ ĐỘNG THÀNH CÔNG!</h3>
+                  <h3 className="aqr-success-title">
+                    {lastScannedResult.isException || lastScannedResult.reason || lastScannedResult.order?.checkInReason
+                      ? 'ĐÃ CHECK-IN NGOẠI LỆ'
+                      : 'CHECK-IN TỰ ĐỘNG THÀNH CÔNG!'}
+                  </h3>
                   <p style={{ margin: 0, color: '#166534', fontSize: 13.5 }}>
-                    Hệ thống đã tự động xác thực vé và ghi nhận khách vào sân.
+                    {lastScannedResult.isException || lastScannedResult.reason || lastScannedResult.order?.checkInReason
+                      ? `Lý do: ${lastScannedResult.reason || lastScannedResult.order?.checkInReason} · Người duyệt: ${lastScannedResult.approvedBy || data?.viewer?.name || 'Nhân viên lễ tân'}`
+                      : 'Hệ thống đã tự động xác thực vé và ghi nhận khách vào sân.'}
                   </p>
 
                   <div className="aqr-success-order-box">
@@ -614,7 +620,10 @@ export default function AutoQRCheckInModal({ onClose }) {
                           notify(`✅ Check-in ngoại lệ thành công: ${lastScannedResult.order.name}`);
                           setLastScannedResult({
                             type: 'SUCCESS',
-                            order: { ...lastScannedResult.order, status: 'CHECKED_IN', checkInAt: new Date().toISOString() },
+                            isException: true,
+                            reason: exceptionReason.trim(),
+                            approvedBy: data?.viewer?.name || 'Nhân viên lễ tân',
+                            order: { ...lastScannedResult.order, status: 'CHECKED_IN', checkInAt: new Date().toISOString(), checkInReason: exceptionReason.trim() },
                             msg: `Check-in ngoại lệ thành công! (Lý do: ${exceptionReason.trim()})`
                           });
                         } catch (err) {

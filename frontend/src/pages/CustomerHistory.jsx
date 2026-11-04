@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Search, Calendar, Filter, ArrowDownLeft, Arr
 import { useCourtly } from '../context';
 import { Title, Panel, Button, Chip, Table, Tabs } from '../components/UI';
 import OrderActions, { canRent } from '../components/OrderActions';
-import { money, labels, localDate, slotLabel } from '../utils/format';
+import { money, labels, localDate, slotLabel, groupStaff, formatStaffSummary } from '../utils/format';
 
 const dateLabel = d => d?.split('-').reverse().join('/');
 const timeLabel = d => d ? new Date(d).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '—';
@@ -708,12 +708,12 @@ export function MyServices() {
               <Chip status={o.status} />
             </div>
             <p className="subtitle">
-              {o.slots && o.slots.length > 0 ? o.slots.map(s => `${data.courts.find(c => c.id === s.court)?.name || 'Sân'} ${slotLabel(s)}`).join(' / ') : (o.total || o.subtotal ? `Lịch sử đặt sân · ${money(o.total || o.subtotal)}` : 'Sân tennis')}
+              {o.slots && o.slots.length > 0 ? (o.slots.filter(s => !s.date || s.date === o.date).length > 0 ? o.slots.filter(s => !s.date || s.date === o.date) : o.slots).map(s => `${data.courts.find(c => c.id === s.court)?.name || 'Sân'} ${slotLabel(s)}`).join(' / ') : (o.total || o.subtotal ? `Lịch sử đặt sân · ${money(o.total || o.subtotal)}` : 'Sân tennis')}
             </p>
-            {(o.staff || []).map(st => (
-              <div className="order-line" key={st.id}>
+            {groupStaff(o.staff).map(st => (
+              <div className="order-line" key={st.key || st.id}>
                 <span>{st.name} · {st.hours} giờ</span>
-                <b>{money((st.rate || 0) * (st.hours || 1))}</b>
+                <b>{money(st.total != null ? st.total : (st.rate || 0) * (st.hours || 1))}</b>
               </div>
             ))}
             <OrderActions order={o} />

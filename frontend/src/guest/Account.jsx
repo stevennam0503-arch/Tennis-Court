@@ -5,7 +5,7 @@ import QRCode from 'qrcode';
 import {api} from '../services/api';
 
 import {useGuest,Action,State,Empty,money,time,hourLabel,dateToday,requestId} from './context';
-import {labels} from '../utils/format';
+import {labels, formatStaffSummary} from '../utils/format';
 
 
 
@@ -1393,7 +1393,7 @@ export function Orders({history=false}){
 
                     <span>👨‍⚖️ {t('Trọng tài')}:</span>
 
-                    <b>{refStaff.name}</b>
+                    <b>{formatStaffSummary(o.staff) || refStaff.name}</b>
 
                   </div>
 

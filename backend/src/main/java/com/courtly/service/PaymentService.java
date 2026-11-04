@@ -314,8 +314,10 @@ public class PaymentService {
     return map(
         "overpayments", overpayments,
         "pendingRefunds", pendingRefunds,
+        "cancelledWithBalance", pendingRefunds,
         "latePayments", latePayments,
-        "count", overpayments.size() + pendingRefunds.size() + latePayments.size()
+        "unmatchedTransfers", List.of(),
+        "count", overpayments.size() + pendingRefunds.size()
     );
   }
 }
