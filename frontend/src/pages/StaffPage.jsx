@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { UserCheck, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, Award } from 'lucide-react';
+import { UserCheck, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, ChevronDown, Award } from 'lucide-react';
 import { useCourtly } from '../context';
 import { Title, Panel, Table, Chip, Button, Tabs, Stat } from '../components/UI';
 import { money, labels, hourLabel } from '../utils/format';
 import { StaffPhoto } from '../components/StaffPhoto';
 
 export default function StaffPage() {
-  const { data, show } = useCourtly();
+  const { data, mutate, notify, show } = useCourtly();
+  const [expandedShiftId, setExpandedShiftId] = useState(null);
   const [tab, setTab] = useState('staff');
   const [staffTypeFilter, setStaffTypeFilter] = useState('ALL');
   const [staffQuery, setStaffQuery] = useState('');
@@ -37,22 +38,80 @@ export default function StaffPage() {
     });
   }, [data.staff, staffTypeFilter, staffQuery]);
 
-  // Filtered schedules
-  const filteredSchedules = useMemo(() => {
-    return data.staffSchedules.filter((s) => {
+  // Group contiguous slots into shifts
+  const allShifts = useMemo(() => {
+    if (!data.staffSchedules || !data.staffSchedules.length) return [];
+    const sorted = [...data.staffSchedules].sort((a, b) =>
+      (a.staff || '').localeCompare(b.staff || '') ||
+      (b.date || '').localeCompare(a.date || '') ||
+      Number(a.start) - Number(b.start)
+    );
+    const shifts = [];
+    let cur = null;
+    for (const slot of sorted) {
+      const isContiguous = cur &&
+        cur.staff === slot.staff &&
+        cur.date === slot.date &&
+        Math.abs(cur.end - Number(slot.start)) < 0.01;
+      if (isContiguous) {
+        cur.end = Number(slot.end);
+        cur.slots.push(slot);
+        if (slot.status === 'AVAILABLE') cur.availableCount++;
+        else cur.bookedCount++;
+      } else {
+        if (cur) shifts.push(cur);
+        cur = {
+          id: slot.id,
+          staff: slot.staff,
+          date: slot.date,
+          start: Number(slot.start),
+          end: Number(slot.end),
+          slots: [slot],
+          availableCount: slot.status === 'AVAILABLE' ? 1 : 0,
+          bookedCount: slot.status !== 'AVAILABLE' ? 1 : 0
+        };
+      }
+    }
+    if (cur) shifts.push(cur);
+    return shifts;
+  }, [data.staffSchedules]);
+
+  // Filtered shifts
+  const filteredShifts = useMemo(() => {
+    return allShifts.filter((s) => {
       if (scheduleStaffFilter !== 'ALL' && s.staff !== scheduleStaffFilter) return false;
       if (scheduleDateFilter && s.date !== scheduleDateFilter) return false;
       return true;
     }).sort((a, b) => (b.date || '').localeCompare(a.date || '') || a.start - b.start);
-  }, [data.staffSchedules, scheduleStaffFilter, scheduleDateFilter]);
+  }, [allShifts, scheduleStaffFilter, scheduleDateFilter]);
 
-  // Paginated schedules
-  const totalSchedulePages = Math.max(1, Math.ceil(filteredSchedules.length / schedulePageSize));
+  // Paginated shifts
+  const totalSchedulePages = Math.max(1, Math.ceil(filteredShifts.length / schedulePageSize));
   const currentSchedulePage = Math.min(schedulePage, totalSchedulePages);
-  const paginatedSchedules = useMemo(() => {
+  const paginatedShifts = useMemo(() => {
     const start = (currentSchedulePage - 1) * schedulePageSize;
-    return filteredSchedules.slice(start, start + schedulePageSize);
-  }, [filteredSchedules, currentSchedulePage, schedulePageSize]);
+    return filteredShifts.slice(start, start + schedulePageSize);
+  }, [filteredShifts, currentSchedulePage, schedulePageSize]);
+
+  const handleDeleteShift = async (s) => {
+    const available = s.slots.filter(sl => sl.status === 'AVAILABLE');
+    const booked = s.slots.filter(sl => sl.status !== 'AVAILABLE');
+    if (available.length === 0) {
+      notify(`Toàn bộ ${booked.length} slot trong ca đều đã có đơn đặt, không thể xóa.`);
+      return;
+    }
+    if (!window.confirm(`Xác nhận xóa ${available.length} slot trống trong ca này?${booked.length > 0 ? ` (${booked.length} slot đã có đơn sẽ được giữ lại)` : ''}`)) return;
+    try {
+      await Promise.all(available.map(sl => mutate(`/catalog/staff-schedules/${sl.id}`, {}, 'DELETE')));
+      if (booked.length > 0) {
+        notify(`Đã xóa ${available.length} slot trống trong ca. Giữ lại ${booked.length} slot đã có đơn đặt.`);
+      } else {
+        notify(`Đã xóa thành công ca làm việc (${available.length} slot).`);
+      }
+    } catch (err) {
+      notify(err.message || 'Lỗi khi xóa ca');
+    }
+  };
 
   return (
     <>
@@ -70,7 +129,7 @@ export default function StaffPage() {
       <Tabs
         options={[
           ['staff', `Đội ngũ nhân sự (${data.staff.length})`],
-          ['schedules', `Lịch làm việc (${data.staffSchedules.length})`],
+          ['schedules', `Lịch làm việc (${allShifts.length})`],
           ['payroll', 'Tổng hợp công'],
         ]}
         value={tab}
@@ -158,7 +217,7 @@ export default function StaffPage() {
 
       {tab === 'schedules' && (
         <Panel
-          title={`Lịch làm việc nhân sự (${filteredSchedules.length})`}
+          title={`Lịch làm việc nhân sự (${filteredShifts.length} ca)`}
           action={
             <div className="tools" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <select
@@ -201,33 +260,117 @@ export default function StaffPage() {
             </div>
           }
         >
-          <Table headings={['Nhân sự', 'Ngày', 'Thời gian', 'Trạng thái', 'Thao tác']} empty={!paginatedSchedules.length}>
-            {paginatedSchedules.map((s) => {
+          <Table headings={['Nhân sự', 'Ngày', 'Khung giờ ca', 'Tình trạng slot', 'Thao tác']} empty={!paginatedShifts.length}>
+            {paginatedShifts.map((s) => {
               const staffMember = data.staff.find((p) => p.id === s.staff);
+              const isExpanded = expandedShiftId === s.id;
               return (
-                <tr key={s.id}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <StaffPhoto staff={staffMember} size={30} showBadge={false} />
-                      <div>
-                        <b>{staffMember?.name}</b>
-                        <small style={{ color: '#64748b' }}>{labels[staffMember?.type] || ''}</small>
+                <React.Fragment key={s.id}>
+                  <tr
+                    style={{ cursor: 'pointer', background: isExpanded ? '#f8fafc' : undefined }}
+                    onClick={() => setExpandedShiftId(prev => prev === s.id ? null : s.id)}
+                  >
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <ChevronDown size={16} color="#64748b" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                        <StaffPhoto staff={staffMember} size={30} showBadge={false} />
+                        <div>
+                          <b>{staffMember?.name}</b>
+                          <small style={{ color: '#64748b', display: 'block' }}>{labels[staffMember?.type] || ''}</small>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td>{s.date}</td>
-                  <td style={{ fontWeight: 600 }}>{hourLabel(s.start)} – {hourLabel(s.end)}</td>
-                  <td><Chip status={s.status} /></td>
-                  <td>
-                    <Button
-                      className="sm"
-                      disabled={s.status !== 'AVAILABLE'}
-                      onClick={() => show({ type: 'entity', collection: 'staff-schedules', row: s })}
-                    >
-                      Sửa
-                    </Button>
-                  </td>
-                </tr>
+                    </td>
+                    <td>{s.date}</td>
+                    <td style={{ fontWeight: 600, color: '#173c32' }}>{hourLabel(s.start)} – {hourLabel(s.end)}</td>
+                    <td>
+                      {s.bookedCount === 0 ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700 }}>
+                          Còn trống {s.slots.length}/{s.slots.length} slot
+                        </span>
+                      ) : s.availableCount === 0 ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', background: '#fee2e2', color: '#b91c1c', padding: '3px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700 }}>
+                          Đã đặt kín ({s.slots.length} slot)
+                        </span>
+                      ) : (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', background: '#fef3c7', color: '#b45309', padding: '3px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700 }}>
+                          Còn trống {s.availableCount}/{s.slots.length} slot ({s.bookedCount} đã đặt)
+                        </span>
+                      )}
+                    </td>
+                    <td onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <Button
+                          className="sm"
+                          onClick={() => show({
+                            type: 'entity',
+                            collection: 'staff-schedules',
+                            row: { id: s.id, staff: s.staff, date: s.date, start: s.start, end: s.end, _shift: s }
+                          })}
+                        >
+                          Sửa ca
+                        </Button>
+                        <Button
+                          className="sm"
+                          disabled={s.availableCount === 0}
+                          onClick={() => handleDeleteShift(s)}
+                          style={{ color: '#dc2626' }}
+                        >
+                          Xóa ca
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+
+                  {isExpanded && (
+                    <tr style={{ background: '#f8fafc' }}>
+                      <td colSpan={5} style={{ padding: '12px 24px', borderTop: 'none', borderBottom: '2px solid #e2e8f0' }}>
+                        <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', padding: 12 }}>
+                          <h4 style={{ margin: '0 0 10px', fontSize: 13, color: '#334155', fontWeight: 700 }}>
+                            Chi tiết {s.slots.length} slot 30 phút trong ca ({s.date} • {hourLabel(s.start)}–{hourLabel(s.end)}):
+                          </h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 8 }}>
+                            {s.slots.map(sl => {
+                              const order = (data.orders || []).find(o =>
+                                o.staff?.some(st =>
+                                  st.staffScheduleId === sl.id ||
+                                  (st.staffId === sl.staff && String(st.date || o.date).slice(0, 10) === sl.date && Math.abs(st.hour - sl.start) < 0.01)
+                                )
+                              );
+                              const court = order?.slots?.[0]?.court ? data.courts.find(c => c.id === order.slots[0].court) : null;
+                              return (
+                                <div
+                                  key={sl.id}
+                                  style={{
+                                    border: '1px solid ' + (sl.status === 'AVAILABLE' ? '#bbf7d0' : '#fecaca'),
+                                    background: sl.status === 'AVAILABLE' ? '#f0fdf4' : '#fef2f2',
+                                    borderRadius: 6,
+                                    padding: '8px 10px',
+                                    fontSize: 12
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, marginBottom: 2 }}>
+                                    <span>{hourLabel(sl.start)} – {hourLabel(sl.end)}</span>
+                                    <span style={{ color: sl.status === 'AVAILABLE' ? '#15803d' : '#b91c1c' }}>
+                                      {sl.status === 'AVAILABLE' ? 'Còn trống' : 'Đã đặt'}
+                                    </span>
+                                  </div>
+                                  {order ? (
+                                    <div style={{ color: '#64748b', fontSize: 11 }}>
+                                      <span>Đơn: <b>CT-{order.id.slice(0, 8).toUpperCase()}</b></span>
+                                      <span style={{ display: 'block' }}>Khách: {order.name} {court ? `· ${court.name}` : ''}</span>
+                                    </div>
+                                  ) : (
+                                    <div style={{ color: '#94a3b8', fontSize: 11 }}>Chưa có đơn đặt</div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               );
             })}
           </Table>
@@ -246,7 +389,7 @@ export default function StaffPage() {
               }}
             >
               <span>
-                Hiển thị <b>{(currentSchedulePage - 1) * schedulePageSize + 1}</b> – <b>{Math.min(currentSchedulePage * schedulePageSize, filteredSchedules.length)}</b> trong số <b>{filteredSchedules.length}</b> lịch làm việc
+                Hiển thị <b>{(currentSchedulePage - 1) * schedulePageSize + 1}</b> – <b>{Math.min(currentSchedulePage * schedulePageSize, filteredSchedules.length)}</b> trong số <b>{filteredShifts.length}</b> ca làm việc
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Button

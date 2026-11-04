@@ -683,6 +683,8 @@ public class OverviewService {
                         x.getCourtSchedule() == null,
                         "scheduleId",
                         x.getCourtSchedule() == null ? null : x.getCourtSchedule().getId(),
+                        "staffScheduleId",
+                        x.getStaffSchedule().getId(),
                         "court",
                         x.getCourtSchedule() == null
                             ? null

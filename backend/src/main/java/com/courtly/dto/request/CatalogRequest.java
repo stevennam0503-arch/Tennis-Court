@@ -27,4 +27,19 @@ public record CatalogRequest(
     String address,
     String amenities,
     String imageUrl,
-    Boolean imageIsIllustration) {}
+    Boolean imageIsIllustration,
+    Boolean skipOverlaps) {
+
+  public CatalogRequest(
+      String name, String type, String status, java.math.BigDecimal price, Integer stock,
+      String email, String phone, String role, java.math.BigDecimal rate, java.util.UUID court,
+      String dayType, Double start, Double end, java.util.UUID staff, java.time.LocalDate date,
+      String format, java.time.LocalDate startDate, java.time.LocalDate endDate,
+      java.time.LocalDate deadline, String location, java.math.BigDecimal fee, Integer max,
+      String description, String address, String amenities, String imageUrl,
+      Boolean imageIsIllustration) {
+    this(name, type, status, price, stock, email, phone, role, rate, court, dayType, start, end,
+        staff, date, format, startDate, endDate, deadline, location, fee, max, description,
+        address, amenities, imageUrl, imageIsIllustration, null);
+  }
+}

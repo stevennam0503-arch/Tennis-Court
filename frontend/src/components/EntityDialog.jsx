@@ -1,7 +1,7 @@
 import React from 'react';
 import { FormDialog } from './UI';
 import { useCourtly } from '../context';
-import { options, today } from '../utils/format';
+import { options, today, hourLabel } from '../utils/format';
 
 export function getNextCourtName(type, courts = [], excludeCourtId = null) {
   const prefix = type === 'VIP' ? 'V' : type === 'INDOOR' ? 'B' : 'A';
@@ -85,7 +85,45 @@ export default function EntityDialog({ collection, row = {}, onClose }) {
   if (collection === 'prices') { fields=[s('court','Sân',choose(data.courts)),s('dayType','Loại ngày',options(['WEEKDAY','WEEKEND'])),f('start','Giờ bắt đầu','number',{min:6,max:22.5,step:0.5}),f('end','Giờ kết thúc','number',{min:6.5,max:23,step:0.5}),f('price','Giá / giờ (₫)','number',{min:1,full:true})]; defaults={court:data.courts[0]?.id,dayType:'WEEKDAY',start:6,end:17,price:180000}; }
   if (collection === 'accounts') { fields=[f('name','Họ tên'),f('email','Email đăng nhập','email',{readOnly:!!row.loginLinked}),f('phone','Điện thoại','tel'),s('role','Quyền truy cập',options(['CUSTOMER','STAFF','ADMIN']),{disabled:!!row.isOwner}),s('status','Trạng thái',options(['ACTIVE','LOCKED']),{disabled:!!row.isOwner})]; defaults={role:'CUSTOMER',status:'ACTIVE'}; }
   if (collection === 'staff') { fields=[f('name','Họ tên'),s('type','Vị trí',options(['REFEREE','COACH','BALL_BOY'])),f('phone','Điện thoại','tel'),f('rate','Đơn giá / giờ (₫)','number',{min:1}),status]; defaults={type:'REFEREE',rate:120000,status:'ACTIVE'}; }
-  if (collection === 'staff-schedules') { fields=[s('staff','Nhân sự',choose(data.staff)),f('date','Ngày làm việc','date'),f('start','Giờ bắt đầu','number',{min:6,max:22.5,step:0.5}),f('end','Giờ kết thúc','number',{min:6.5,max:23,step:0.5})]; defaults={staff:data.staff[0]?.id,date,start:6,end:23}; }
+  if (collection === 'staff-schedules') {
+    const activeStaff = (data.staff || []).filter(p => p.status === 'ACTIVE' && !p.name?.toLowerCase().includes('test'));
+    const timeOptions = [];
+    for (let m = 6 * 60; m <= 23 * 60; m += 30) {
+      const h = m / 60;
+      timeOptions.push({ value: h, label: hourLabel(h) });
+    }
+    const currentHour = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' })).getHours();
+    let defStart = 14;
+    let defEnd = 23;
+    let defDate = today();
+    if (currentHour < 6) {
+      defStart = 6;
+      defEnd = 14;
+    } else if (currentHour < 14) {
+      defStart = 14;
+      defEnd = 23;
+    } else if (currentHour < 22) {
+      defStart = Math.min(22, Math.ceil(currentHour + 0.5));
+      defEnd = 23;
+    } else {
+      const tomorrowDate = new Date(Date.now() + 864e5).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+      defDate = tomorrowDate;
+      defStart = 6;
+      defEnd = 14;
+    }
+    fields = [
+      s('staff', 'Nhân sự', choose(activeStaff)),
+      f('date', 'Ngày làm việc', 'date', { min: today() }),
+      s('start', 'Giờ bắt đầu', timeOptions),
+      s('end', 'Giờ kết thúc', timeOptions)
+    ];
+    defaults = {
+      staff: activeStaff[0]?.id,
+      date: defDate,
+      start: defStart,
+      end: defEnd
+    };
+  }
   if (collection === 'tournaments') { fields=[f('name','Tên giải','text',{full:true}),s('format','Thể thức',options(['SINGLES','DOUBLES','TEAM'])),s('status','Trạng thái',options(['DRAFT','OPEN','CLOSED','ONGOING','FINISHED','CANCELLED'])),f('startDate','Ngày bắt đầu','date'),f('endDate','Ngày kết thúc','date'),f('deadline','Hạn đăng ký','date'),f('location','Địa điểm'),f('fee','Phí đăng ký (₫)','number',{min:0}),f('max','Số đăng ký tối đa','number',{min:2,max:1024})]; defaults={format:'DOUBLES',status:'OPEN',startDate:row.start||today(),endDate:row.end||today(),deadline:today(),location:'CLB Courtly',fee:300000,max:16}; }
 
   const handleDelete = async () => {
@@ -135,8 +173,47 @@ export default function EntityDialog({ collection, row = {}, onClose }) {
         throw new Error(`Tên sân "${enteredName}" đã tồn tại. Vui lòng chọn tên khác.`);
       }
     }
+    if (collection === 'staff-schedules' && row._shift) {
+      const newStart = Number(values.start);
+      const newEnd = Number(values.end);
+      if (newStart >= newEnd) {
+        throw new Error('Giờ kết thúc phải sau giờ bắt đầu');
+      }
+      const cutSlots = row._shift.slots.filter(s => Number(s.start) < newStart || Number(s.end) > newEnd);
+      const bookedCut = cutSlots.filter(s => s.status !== 'AVAILABLE');
+      if (bookedCut.length > 0) {
+        const first = bookedCut[0];
+        const ord = (data.orders || []).find(o => o.staff?.some(st => st.staffScheduleId === first.id || (st.staffId === row._shift.staff && String(st.date || o.date).slice(0, 10) === row._shift.date && Math.abs(st.hour - first.start) < 0.01)));
+        const orderInfo = ord ? `đơn #${ord.id.slice(0, 8).toUpperCase()} (${ord.name})` : 'đơn đặt sân';
+        throw new Error(`Không thể thu hẹp ca: slot ${hourLabel(first.start)}–${hourLabel(first.end)} đang được sử dụng bởi ${orderInfo}. Vui lòng dời hoặc hủy đơn trước.`);
+      }
+      for (const cs of cutSlots) {
+        await mutate(`/catalog/staff-schedules/${cs.id}`, {}, 'DELETE');
+      }
+      if (newStart < row._shift.start) {
+        await mutate('/catalog/staff-schedules', {
+          staff: values.staff,
+          date: values.date,
+          start: newStart,
+          end: row._shift.start
+        }, 'POST');
+      }
+      if (newEnd > row._shift.end) {
+        await mutate('/catalog/staff-schedules', {
+          staff: values.staff,
+          date: values.date,
+          start: row._shift.end,
+          end: newEnd
+        }, 'POST');
+      }
+      notify('Đã cập nhật ca làm việc!');
+      onClose();
+      return;
+    }
+
     // Send only the catalog DTO fields, never view-only ids or calculated columns.
     const body=Object.fromEntries(fields.map(f=>[f.name,values[f.name]]));
+    if (values.skipOverlaps) body.skipOverlaps = true;
     if(collection==='courts') {
       const courtType = values.type || row.type || 'OUTDOOR';
       body.price = getCategoryPrice(courtType);

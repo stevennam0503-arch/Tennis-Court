@@ -79,6 +79,7 @@ public class DemoResetService {
     jdbc.execute("DELETE FROM voucher_redemptions");
     jdbc.execute("DELETE FROM booking_staff");
     jdbc.execute("DELETE FROM booking_slots");
+    jdbc.execute("DELETE FROM staff_schedules");
     jdbc.execute("DELETE FROM order_products");
     jdbc.execute("DELETE FROM drinks");
     jdbc.execute("DELETE FROM rental_items");
@@ -142,6 +143,7 @@ public class DemoResetService {
     }
     // Slot vừa sinh qua JPA phải được ghi xuống trước khi các truy vấn JDBC bên dưới gắn chúng vào đơn
     courtSchedules.flush();
+    seedRefereeSchedules(today);
 
     // Lấy ID các sân
     UUID courtA01 = getCourtIdByName("Sân A01");
@@ -157,7 +159,10 @@ public class DemoResetService {
 
     // Lấy trọng tài
     UUID refereeId = getRefereeStaffId();
-    BigDecimal refereeRate = BigDecimal.valueOf(250000.00);
+    BigDecimal refereeRate = jdbc.queryForObject(
+        "SELECT COALESCE(hourly_rate, 250000) FROM staff WHERE id = ?", BigDecimal.class, refereeId
+    );
+    if (refereeRate == null) refereeRate = BigDecimal.valueOf(250000.00);
 
     // Lấy giải đấu
     UUID tournId = getOrOpenTournamentId();
@@ -774,6 +779,47 @@ public class DemoResetService {
       jdbc.update(
           "UPDATE orders SET subtotal = ?, total_amount = ?, deposit_required = ?, paid_amount = ?, payment_status = ?, metadata = ? WHERE id = ?",
           total, total, deposit, paid, status, documents.encode(meta), id);
+    }
+  }
+
+  private void seedRefereeSchedules(LocalDate today) {
+    List<Map<String, Object>> referees = jdbc.queryForList(
+        "SELECT id, full_name, hourly_rate FROM staff WHERE type = 'REFEREE' AND status = 'ACTIVE' AND full_name NOT LIKE '%test%' ORDER BY full_name"
+    );
+    if (referees.size() < 4) return;
+
+    UUID mRef1 = (UUID) referees.get(0).get("id");
+    UUID mRef2 = (UUID) referees.get(1).get("id");
+    UUID aRef1 = (UUID) referees.get(2).get("id");
+    UUID aRef2 = (UUID) referees.get(3).get("id");
+
+    for (int dayOffset = 0; dayOffset < 7; dayOffset++) {
+      LocalDate d = today.plusDays(dayOffset);
+      String dStr = d.toString();
+
+      // Morning shift: 06:00 to 14:00 (for 2 referees)
+      for (UUID refId : List.of(mRef1, mRef2)) {
+        for (int min = 6 * 60; min < 14 * 60; min += 30) {
+          LocalTime start = LocalTime.of(min / 60, min % 60);
+          LocalTime end = LocalTime.of((min + 30) / 60, (min + 30) % 60);
+          jdbc.update(
+              "INSERT INTO staff_schedules (id, staff_id, work_date, start_time, end_time, status, version) VALUES (gen_random_uuid(), ?, ?::date, ?::time, ?::time, 'AVAILABLE', 0)",
+              refId, dStr, start, end
+          );
+        }
+      }
+
+      // Afternoon/evening shift: 14:00 to 23:00 (for 2 referees)
+      for (UUID refId : List.of(aRef1, aRef2)) {
+        for (int min = 14 * 60; min < 23 * 60; min += 30) {
+          LocalTime start = LocalTime.of(min / 60, min % 60);
+          LocalTime end = LocalTime.of((min + 30) / 60, (min + 30) % 60);
+          jdbc.update(
+              "INSERT INTO staff_schedules (id, staff_id, work_date, start_time, end_time, status, version) VALUES (gen_random_uuid(), ?, ?::date, ?::time, ?::time, 'AVAILABLE', 0)",
+              refId, dStr, start, end
+          );
+        }
+      }
     }
   }
 

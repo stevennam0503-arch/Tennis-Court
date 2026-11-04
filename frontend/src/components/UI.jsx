@@ -133,6 +133,28 @@ export function FormDialog({ title, fields, initial = {}, onSubmit, onClose, chi
     {children}<form id="dialog-form" onSubmit={submit}><div className="form-grid">{fields.map(f => {
       const choices = typeof f.options === 'function' ? f.options(values) : f.options;
       return <div key={f.name} className={`field ${f.full ? 'full' : ''}`}><label htmlFor={`field-${f.name}`}>{f.label}</label>{choices ? <select id={`field-${f.name}`} disabled={f.disabled} required={f.required !== false} value={values[f.name] ?? ''} onChange={e => change(f.name,e.target.value)}>{choices.map(x => <option key={x.value} value={x.value}>{x.label}</option>)}</select> : f.type === 'textarea' ? <textarea id={`field-${f.name}`} value={values[f.name] ?? ''} required={f.required !== false} onChange={e => change(f.name,e.target.value)}/> : <input id={`field-${f.name}`} readOnly={f.readOnly} disabled={f.disabled} title={f.title} type={f.type || 'text'} value={values[f.name] ?? ''} min={f.min} max={f.max} maxLength={f.maxLength || 255} step={f.type === 'number' ? (f.step || 1) : undefined} required={f.required !== false} style={f.readOnly ? { background: '#f8fafc', color: '#1e293b', cursor: 'not-allowed', borderColor: '#cbd5e1', fontWeight: 600 } : undefined} onChange={e => change(f.name,f.type === 'number' && e.target.value !== '' ? Number(e.target.value) : e.target.value)}/>}</div>;
-    })}</div></form>{error && <div className="error" role="alert">{error}</div>}
+    })}</div></form>{error && <div className="error" role="alert" style={{ marginTop: 12 }}>
+      <p style={{ margin: 0 }}>{error}</p>
+      {error.includes('trùng') && (
+        <button
+          type="button"
+          className="btn sm"
+          style={{ marginTop: 8, background: '#166534', color: '#fff', borderColor: '#166534', fontWeight: 600 }}
+          onClick={async () => {
+            setSaving(true);
+            setError('');
+            try {
+              await onSubmit({ ...values, skipOverlaps: true });
+            } catch (err) {
+              setError(err.message);
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
+          ⚡ Chỉ tạo phần chưa trùng
+        </button>
+      )}
+    </div>}
   </Modal>;
 }

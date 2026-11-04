@@ -60,6 +60,7 @@ public class CatalogService {
     switch (collection) {
       case "accounts" -> { deleteAccount(id, actor); return "DELETED"; }
       case "courts" -> { return deleteCourt(id, actor); }
+      case "staff-schedules" -> { return deleteStaffSchedule(id, actor); }
       default -> throw new BusinessException("Danh mục không hỗ trợ xóa");
     }
   }
@@ -90,6 +91,15 @@ public class CatalogService {
             + String.join("; ", upcoming.subList(0, Math.min(3, upcoming.size())))
             + (upcoming.size() > 3 ? "; …" : "")
             + "). Đổi lịch sang sân khác hoặc hủy và hoàn tiền trước.");
+  }
+
+  private String deleteStaffSchedule(UUID id, Account actor) {
+    auth.admin(actor);
+    StaffSchedule s = staffSchedules.findForUpdate(id)
+        .orElseThrow(() -> new BusinessException("Lịch không tồn tại"));
+    require("AVAILABLE".equals(s.getStatus()), "Không thể xóa slot đã được phân công hoặc đang có đơn đặt");
+    staffSchedules.delete(s);
+    return "DELETED";
   }
 
   private String deleteCourt(UUID id, Account actor) {
@@ -432,6 +442,16 @@ public class CatalogService {
             .findForUpdate(r.staff())
             .orElseThrow(() -> new BusinessException("Nhân sự không tồn tại"));
     require("ACTIVE".equals(person.getStatus()), "Nhân sự không hoạt động");
+
+    LocalDate today = LocalDate.now(ZONE);
+    LocalTime now = LocalTime.now(ZONE);
+    if (r.date().isBefore(today)) {
+      throw new BusinessException("Không tạo được ca đã qua (hiện là " + now.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")) + ")");
+    }
+    if (r.date().isEqual(today) && clock(r.start()).isBefore(now)) {
+      throw new BusinessException("Không tạo được ca đã qua (hiện là " + now.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")) + ")");
+    }
+
     if (id != null) {
       StaffSchedule s =
           staffSchedules
@@ -445,6 +465,48 @@ public class CatalogService {
       s.setEndTime(clock(r.end()));
       return s.getId();
     }
+
+    List<StaffSchedule> existing = staffSchedules.findByStaffIdAndWorkDate(person.getId(), r.date());
+    LocalTime reqStart = clock(r.start());
+    LocalTime reqEnd = clock(r.end());
+    List<StaffSchedule> overlapping = existing.stream().filter(ex ->
+      reqStart.isBefore(ex.getEndTime()) && reqEnd.isAfter(ex.getStartTime())
+    ).sorted(Comparator.comparing(StaffSchedule::getStartTime)).toList();
+
+    if (!overlapping.isEmpty()) {
+      if (Boolean.TRUE.equals(r.skipOverlaps())) {
+        Set<LocalTime> existingStarts = existing.stream().map(StaffSchedule::getStartTime).collect(java.util.stream.Collectors.toSet());
+        UUID firstCreated = null;
+        for (int minute = (int)(r.start() * 60); minute < r.end() * 60; minute += 30) {
+          LocalTime slotStart = LocalTime.of(minute / 60, minute % 60);
+          if (existingStarts.contains(slotStart)) continue;
+          StaffSchedule s = new StaffSchedule();
+          s.setStaff(person);
+          s.setWorkDate(r.date());
+          s.setStartTime(slotStart);
+          s.setEndTime(LocalTime.of((minute + 30) / 60, (minute + 30) % 60));
+          staffSchedules.save(s);
+          if (firstCreated == null) firstCreated = s.getId();
+        }
+        if (firstCreated == null) {
+          throw new BusinessException("Toàn bộ khung giờ đã trùng với ca hiện có của nhân sự");
+        }
+        return firstCreated;
+      }
+
+      LocalTime overlapStart = overlapping.get(0).getStartTime();
+      LocalTime overlapEnd = overlapping.get(overlapping.size() - 1).getEndTime();
+      LocalTime shiftStart = existing.stream().map(StaffSchedule::getStartTime).min(Comparator.naturalOrder()).orElse(overlapStart);
+      LocalTime shiftEnd = existing.stream().map(StaffSchedule::getEndTime).max(Comparator.naturalOrder()).orElse(overlapEnd);
+
+      String dateStr = r.date().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM"));
+      String msg = person.getFullName() + " đã có ca "
+          + shiftStart.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")) + "–" + shiftEnd.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+          + " ngày " + dateStr + ", trùng "
+          + overlapStart.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")) + "–" + overlapEnd.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));
+      throw new BusinessException(msg);
+    }
+
     UUID first = null;
     for (int minute = (int)(r.start() * 60); minute < r.end() * 60; minute += 30) {
       StaffSchedule s = new StaffSchedule();
