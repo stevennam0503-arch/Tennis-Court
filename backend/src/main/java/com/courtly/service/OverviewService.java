@@ -533,14 +533,15 @@ public class OverviewService {
   }
 
   public Map<String, Object> order(CustomerOrder o) {
-    Booking b = bookings.findByOrderId(o.getId()).stream().findFirst().orElseThrow();
-    var slots = orderSlots(bookingSlots.findByBookingId(b.getId()));
+    Optional<Booking> optB = bookings.findByOrderId(o.getId()).stream().findFirst();
+    Booking b = optB.orElse(null);
+    var slots = b != null ? orderSlots(bookingSlots.findByBookingId(b.getId())) : List.<BookingSlot>of();
     return buildOrderMap(
         o,
         b,
         slots,
         products.findByOrderId(o.getId()),
-        bookingStaff.findByBookingId(b.getId()));
+        b != null ? bookingStaff.findByBookingId(b.getId()) : List.of());
   }
 
   public Map<String, Object> order(
@@ -550,17 +551,14 @@ public class OverviewService {
       Map<UUID, List<OrderProduct>> productsByOrder,
       Map<UUID, List<BookingStaff>> staffByBooking) {
     List<Booking> bList = bookingsByOrder.getOrDefault(o.getId(), List.of());
-    if (bList.isEmpty()) {
-      return order(o);
-    }
-    Booking b = bList.get(0);
-    var slots = orderSlots(slotsByBooking.getOrDefault(b.getId(), List.of()));
+    Booking b = bList.isEmpty() ? null : bList.get(0);
+    var slots = b != null ? orderSlots(slotsByBooking.getOrDefault(b.getId(), List.of())) : List.<BookingSlot>of();
     return buildOrderMap(
         o,
         b,
         slots,
         productsByOrder.getOrDefault(o.getId(), List.of()),
-        staffByBooking.getOrDefault(b.getId(), List.of()));
+        b != null ? staffByBooking.getOrDefault(b.getId(), List.of()) : List.of());
   }
 
   private Map<String, Object> buildOrderMap(
@@ -590,7 +588,7 @@ public class OverviewService {
         "id",
         o.getId(),
         "bookingId",
-        b.getId(),
+        b != null ? b.getId() : null,
         "name",
         o.getCustomerName(),
         "phone",
@@ -612,9 +610,9 @@ public class OverviewService {
         "holdUntil",
         o.getHoldExpiresAt(),
         "checkInAt",
-        b.getCheckInAt(),
+        b != null ? b.getCheckInAt() : null,
         "checkOutAt",
-        b.getCheckOutAt(),
+        b != null ? b.getCheckOutAt() : null,
         "invoice",
         o.getInvoiceNumber(),
         "issuedAt",

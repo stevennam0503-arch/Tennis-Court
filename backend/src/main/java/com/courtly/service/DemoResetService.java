@@ -561,6 +561,11 @@ public class DemoResetService {
           "VALUES (?::uuid, ?::uuid, ?::uuid, 'Khách demo Kiệt', '+84769496289', 'COMPLETED', ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
           pastOrdId, KIET_ID, KIET_ID, kietSpends[i], kietSpends[i], kietMonths[i]
       );
+      jdbc.update(
+          "INSERT INTO bookings (id, order_id, status, check_in_at, check_out_at, created_at) " +
+          "VALUES (gen_random_uuid(), ?::uuid, 'COMPLETED', NOW() - (? || ' months')::interval, NOW() - (? || ' months')::interval + interval '2 hours', NOW() - (? || ' months')::interval)",
+          pastOrdId, kietMonths[i], kietMonths[i], kietMonths[i]
+      );
       String expClause = (i == 4) ? "NOW() + interval '20 days'" : "NOW() + interval '10 months'";
       jdbc.update(
           "INSERT INTO loyalty_ledger (id, account_id, type, points, spend_amount, order_id, expires_at, note, created_at) " +
@@ -581,6 +586,11 @@ public class DemoResetService {
           pastOrdId, DEMO_HOIVIEN_ID, DEMO_HOIVIEN_ID, khoaSpends[i], khoaSpends[i], khoaMonths[i]
       );
       jdbc.update(
+          "INSERT INTO bookings (id, order_id, status, check_in_at, check_out_at, created_at) " +
+          "VALUES (gen_random_uuid(), ?::uuid, 'COMPLETED', NOW() - (? || ' months')::interval, NOW() - (? || ' months')::interval + interval '2 hours', NOW() - (? || ' months')::interval)",
+          pastOrdId, khoaMonths[i], khoaMonths[i], khoaMonths[i]
+      );
+      jdbc.update(
           "INSERT INTO loyalty_ledger (id, account_id, type, points, spend_amount, order_id, expires_at, note, created_at) " +
           "VALUES (gen_random_uuid(), ?::uuid, 'EARN', ?, ?, ?::uuid, NOW() + interval '10 months', ?, NOW() - (? || ' months')::interval)",
           DEMO_HOIVIEN_ID, khoaPoints[i], khoaSpends[i], pastOrdId, "Tích điểm đơn quá khứ " + pastOrdId.substring(0, 8), khoaMonths[i]
@@ -597,6 +607,11 @@ public class DemoResetService {
           "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
           "VALUES (?::uuid, ?::uuid, ?::uuid, 'Phạm Thu Trang (Demo khách)', '0911000002', 'COMPLETED', ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
           pastOrdId, DEMO_KHACH_ID, DEMO_KHACH_ID, trangSpends[i], trangSpends[i], trangMonths[i]
+      );
+      jdbc.update(
+          "INSERT INTO bookings (id, order_id, status, check_in_at, check_out_at, created_at) " +
+          "VALUES (gen_random_uuid(), ?::uuid, 'COMPLETED', NOW() - (? || ' months')::interval, NOW() - (? || ' months')::interval + interval '2 hours', NOW() - (? || ' months')::interval)",
+          pastOrdId, trangMonths[i], trangMonths[i], trangMonths[i]
       );
       jdbc.update(
           "INSERT INTO loyalty_ledger (id, account_id, type, points, spend_amount, order_id, expires_at, note, created_at) " +
