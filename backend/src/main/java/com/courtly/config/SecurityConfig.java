@@ -51,6 +51,7 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.POST, "/api/catalog/schedules/maintenance").hasAnyRole("ADMIN", "STAFF")
                     // Feedback & Đánh giá: ADMIN và STAFF
                     .requestMatchers(HttpMethod.GET, "/api/content").hasAnyRole("ADMIN", "STAFF")
+                    .requestMatchers(HttpMethod.GET, "/api/content/feedback/compensation-templates").hasAnyRole("ADMIN", "STAFF")
                     .requestMatchers(HttpMethod.POST, "/api/content/feedback/*/assign").hasAnyRole("ADMIN", "STAFF")
                     .requestMatchers(HttpMethod.POST, "/api/content/feedback/*/resolve").hasAnyRole("ADMIN", "STAFF")
                     .requestMatchers(HttpMethod.POST, "/api/content/feedback/*/compensate").hasAnyRole("ADMIN", "STAFF")

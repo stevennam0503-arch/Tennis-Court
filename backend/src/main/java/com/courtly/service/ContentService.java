@@ -10,8 +10,10 @@ import java.time.Instant;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -409,9 +411,135 @@ public class ContentService {
     return f;
   }
 
+  public record CompensationTemplate(
+      String code,
+      String title,
+      String description,
+      String type,
+      Number value,
+      Number minOrder,
+      Number maxDiscount,
+      int days,
+      Set<String> allowedRoles
+  ) {}
+
+  public static final List<CompensationTemplate> COMPENSATION_TEMPLATES = List.of(
+      new CompensationTemplate(
+          "APOLOGY_50K",
+          "Xin lỗi nhẹ (50.000₫)",
+          "Giảm 50.000₫ cho đơn từ 100.000₫, hiệu lực 30 ngày",
+          "FIXED",
+          50000,
+          100000,
+          null,
+          30,
+          Set.of("ADMIN", "STAFF")
+      ),
+      new CompensationTemplate(
+          "SERVICE_20",
+          "Bù dịch vụ (20% max 100k)",
+          "Giảm 20% tối đa 100.000₫ cho đơn từ 100.000₫, hiệu lực 30 ngày",
+          "PERCENT",
+          20,
+          100000,
+          100000,
+          30,
+          Set.of("ADMIN", "STAFF")
+      ),
+      new CompensationTemplate(
+          "FREE_COURT_1H",
+          "1 giờ sân miễn phí",
+          "Giảm 100% (tối đa 350.000₫), hiệu lực 60 ngày. (Chỉ ADMIN)",
+          "PERCENT",
+          100,
+          0,
+          350000,
+          60,
+          Set.of("ADMIN")
+      )
+  );
+
+  public List<Map<String, Object>> getCompensationTemplates(Account actor) {
+    if (actor == null) return List.of();
+    String role = actor.getRole();
+    return COMPENSATION_TEMPLATES.stream()
+        .filter(t -> t.allowedRoles().contains(role))
+        .map(t -> {
+          Map<String, Object> m = new LinkedHashMap<>();
+          m.put("code", t.code());
+          m.put("id", t.code());
+          m.put("title", t.title());
+          m.put("description", t.description());
+          m.put("desc", t.description());
+          m.put("type", t.type());
+          m.put("value", t.value());
+          m.put("minOrder", t.minOrder());
+          m.put("maxDiscount", t.maxDiscount());
+          m.put("days", t.days());
+          return m;
+        })
+        .toList();
+  }
+
   public Map<String, Object> compensateFeedback(String id, Map<String, Object> body, Account actor) {
     if (!Set.of("ADMIN", "STAFF").contains(actor.getRole())) {
       throw new BusinessException("Chỉ Quản trị viên và Nhân viên mới có quyền tặng voucher bồi thường");
+    }
+
+    String templateCode = body != null && body.get("templateCode") != null ? String.valueOf(body.get("templateCode")).trim() : "";
+    if (templateCode.isBlank()) {
+      throw new BusinessException("Mã mẫu voucher bù không hợp lệ");
+    }
+
+    Map<String, Object> template = new HashMap<>();
+
+    if ("CUSTOM".equalsIgnoreCase(templateCode)) {
+      if (!"ADMIN".equals(actor.getRole())) {
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mẫu tuỳ chỉnh chỉ dành cho Quản trị viên");
+      }
+      String reason = body.get("reason") != null ? String.valueOf(body.get("reason")).trim() : "";
+      if (reason.length() < 10) {
+        throw new BusinessException("Lý do bù tuỳ chỉnh phải có ít nhất 10 ký tự");
+      }
+      String customType = "PERCENT".equalsIgnoreCase(String.valueOf(body.get("type"))) ? "PERCENT" : "FIXED";
+      Object customValObj = body.get("value");
+      require(customValObj != null, "Giá trị giảm không được để trống");
+      Number customVal = (Number) customValObj;
+      require(customVal.doubleValue() > 0, "Giá trị giảm phải lớn hơn 0");
+      Number minOrder = body.get("minOrder") instanceof Number ? (Number) body.get("minOrder") : 0;
+      Number maxDiscount = body.get("maxDiscount") instanceof Number ? (Number) body.get("maxDiscount") : null;
+      int days = body.get("days") instanceof Number ? ((Number) body.get("days")).intValue() : 30;
+
+      template.put("type", customType);
+      template.put("value", customVal);
+      template.put("minOrder", minOrder);
+      if (maxDiscount != null) template.put("maxDiscount", maxDiscount);
+      template.put("startsAt", Instant.now().toString());
+      template.put("expiresAt", Instant.now().plus(java.time.Duration.ofDays(days)).toString());
+      template.put("description", "Quà xin lỗi dịch vụ: " + reason);
+
+      auditService.log("CUSTOM_COMPENSATION", "Admin " + actor.getFullName() + " tặng voucher tuỳ chỉnh (" + customType + " " + customVal + "): " + reason);
+    } else {
+      CompensationTemplate tpl = COMPENSATION_TEMPLATES.stream()
+          .filter(t -> t.code().equalsIgnoreCase(templateCode))
+          .findFirst()
+          .orElse(null);
+      if (tpl == null) {
+        throw new BusinessException("Mã mẫu voucher bù không hợp lệ");
+      }
+      if (!tpl.allowedRoles().contains(actor.getRole())) {
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mẫu này cần quản trị viên");
+      }
+
+      template.put("type", tpl.type());
+      template.put("value", tpl.value());
+      template.put("minOrder", tpl.minOrder());
+      if (tpl.maxDiscount() != null) {
+        template.put("maxDiscount", tpl.maxDiscount());
+      }
+      template.put("startsAt", Instant.now().toString());
+      template.put("expiresAt", Instant.now().plus(java.time.Duration.ofDays(tpl.days())).toString());
+      template.put("description", "Quà xin lỗi dịch vụ: " + tpl.title());
     }
 
     var docRow = docs.lock("feedback:" + id);
@@ -434,16 +562,6 @@ public class ContentService {
       try {
         orderId = UUID.fromString(String.valueOf(f.get("orderId")));
       } catch (Exception ignored) {}
-    }
-
-    Map<String, Object> template = new HashMap<>(body);
-    if (!template.containsKey("type")) template.put("type", "FIXED");
-    if (!template.containsKey("value")) template.put("value", 50000);
-    if (!template.containsKey("minOrder")) template.put("minOrder", 100000);
-    if (!template.containsKey("startsAt")) template.put("startsAt", Instant.now().toString());
-    if (!template.containsKey("expiresAt")) template.put("expiresAt", Instant.now().plus(java.time.Duration.ofDays(30)).toString());
-    if (!template.containsKey("description")) {
-      template.put("description", "Quà xin lỗi dịch vụ cho buổi chơi " + (f.get("visitDate") != null ? f.get("visitDate") : ""));
     }
 
     var voucher = vouchers.createCompensationVoucher(targetAccountId, orderId, id, template, actor);

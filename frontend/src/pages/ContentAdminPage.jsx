@@ -41,39 +41,6 @@ const photoPresets = [
   { label: 'Tập luyện / Đôi nam', url: '/guest/doubles.webp' }
 ];
 
-const RECOVERY_TEMPLATES = [
-  {
-    id: 'MILD',
-    title: 'Xin lỗi nhẹ (50.000₫)',
-    type: 'FIXED',
-    value: 50000,
-    minOrder: 100000,
-    maxDiscount: null,
-    days: 30,
-    desc: 'Giảm 50.000₫ cho đơn từ 100.000₫, hiệu lực 30 ngày'
-  },
-  {
-    id: 'STANDARD',
-    title: 'Bù dịch vụ (20% max 100k)',
-    type: 'PERCENT',
-    value: 20,
-    minOrder: 100000,
-    maxDiscount: 100000,
-    days: 30,
-    desc: 'Giảm 20% tối đa 100.000₫ cho đơn từ 100.000₫, hiệu lực 30 ngày'
-  },
-  {
-    id: 'SEVERE',
-    title: 'Bù nghiêm trọng (100% 1h sân)',
-    type: 'PERCENT',
-    value: 100,
-    minOrder: 0,
-    maxDiscount: 350000,
-    days: 60,
-    desc: 'Giảm 100% (tối đa 350.000₫), hiệu lực 60 ngày. (ADMIN phê duyệt)'
-  }
-];
-
 export default function ContentAdminPage() {
   const { user, isAdmin, isStaff, notify } = useCourtly();
   const [data, setData] = useState(null);
@@ -86,14 +53,24 @@ export default function ContentAdminPage() {
   const [filter, setFilter] = useState('ALL');
 
   // Compensation state in modal
-  const [selectedTemplate, setSelectedTemplate] = useState('STANDARD');
+  const [compensationTemplates, setCompensationTemplates] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState('APOLOGY_50K');
   const [customCompensation, setCustomCompensation] = useState(null);
   const [internalResolution, setInternalResolution] = useState('');
   const [rootCause, setRootCause] = useState('Mặt sân');
 
   const load = async () => {
-    const d = await api('/content');
+    const [d, tpls] = await Promise.all([
+      api('/content'),
+      api('/content/feedback/compensation-templates').catch(() => [])
+    ]);
     setData(d);
+    if (Array.isArray(tpls)) {
+      setCompensationTemplates(tpls);
+      if (tpls.length > 0 && !selectedTemplate) {
+        setSelectedTemplate(tpls[0].code);
+      }
+    }
     return d;
   };
 
@@ -131,14 +108,8 @@ export default function ContentAdminPage() {
 
   const handleCompensate = async (feedbackId) => {
     try {
-      const tpl = RECOVERY_TEMPLATES.find(t => t.id === selectedTemplate) || RECOVERY_TEMPLATES[1];
-      const payload = {
-        type: tpl.type,
-        value: tpl.value,
-        minOrder: tpl.minOrder,
-        maxDiscount: tpl.maxDiscount,
-        description: `Quà xin lỗi dịch vụ: ${tpl.title}`
-      };
+      const templateCode = selectedTemplate || compensationTemplates[0]?.code || 'APOLOGY_50K';
+      const payload = { templateCode };
       const res = await api(`/content/feedback/${feedbackId}/compensate`, 'POST', payload);
       notify(`Đã tặng voucher ${res.code} cho khách hàng (trạng thái: ${res.status})!`);
       setReview(prev => ({
@@ -347,7 +318,7 @@ export default function ContentAdminPage() {
                             setError('');
                             setReview({ ...f });
                             setInternalResolution(f.resolution || '');
-                            setSelectedTemplate('STANDARD');
+                            setSelectedTemplate(compensationTemplates[0]?.code || 'APOLOGY_50K');
                           }}
                           style={isLow && f.handlingStatus !== 'RESOLVED' ? { background: '#d97706', color: '#fff' } : undefined}
                         >
@@ -500,34 +471,32 @@ export default function ContentAdminPage() {
                 {!(review.compensationVoucherCode || review.compensationVoucherId) ? (
                   <div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-                      {RECOVERY_TEMPLATES.map(t => {
-                        const isAvailable = isAdmin || t.id !== 'FREE_COURT';
+                      {compensationTemplates.map(t => {
+                        const isSelected = (selectedTemplate || compensationTemplates[0]?.code) === (t.code || t.id);
                         return (
                           <button
-                            key={t.id}
+                            key={t.code || t.id}
                             type="button"
-                            disabled={!isAvailable}
-                            onClick={() => setSelectedTemplate(t.id)}
+                            onClick={() => setSelectedTemplate(t.code || t.id)}
                             style={{
                               padding: '6px 12px',
                               borderRadius: 6,
                               fontSize: 12,
                               fontWeight: 600,
                               border: '1px solid',
-                              borderColor: selectedTemplate === t.id ? '#059669' : '#cbd5e1',
-                              background: selectedTemplate === t.id ? '#ecfdf5' : isAvailable ? '#fff' : '#f1f5f9',
-                              color: selectedTemplate === t.id ? '#065f46' : isAvailable ? '#334155' : '#94a3b8',
-                              cursor: isAvailable ? 'pointer' : 'not-allowed',
-                              opacity: isAvailable ? 1 : 0.6
+                              borderColor: isSelected ? '#059669' : '#cbd5e1',
+                              background: isSelected ? '#ecfdf5' : '#fff',
+                              color: isSelected ? '#065f46' : '#334155',
+                              cursor: 'pointer'
                             }}
                           >
-                            {t.title} {!isAvailable && '(Admin)'}
+                            {t.title}
                           </button>
                         );
                       })}
                     </div>
                     <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
-                      Mô tả: {RECOVERY_TEMPLATES.find(t => t.id === selectedTemplate)?.desc}
+                      Mô tả: {compensationTemplates.find(t => (t.code || t.id) === (selectedTemplate || compensationTemplates[0]?.code))?.description || compensationTemplates.find(t => (t.code || t.id) === (selectedTemplate || compensationTemplates[0]?.code))?.desc || ''}
                     </div>
                     <Button
                       onClick={() => handleCompensate(review.id)}

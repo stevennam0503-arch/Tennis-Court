@@ -33,6 +33,11 @@ public class ContentController {
     return content.listEligibleOrders(auth.current(r));
   }
 
+  @GetMapping("/content/feedback/compensation-templates")
+  public List<Map<String, Object>> compensationTemplates(HttpServletRequest r) {
+    return content.getCompensationTemplates(auth.current(r));
+  }
+
   @PostMapping("/content/feedback/{id}/assign")
   public Map<String, Object> assignFeedback(@PathVariable String id, HttpServletRequest r) {
     return content.assignFeedback(id, auth.current(r));
