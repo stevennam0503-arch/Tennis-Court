@@ -127,7 +127,13 @@ export default function Booking() {
         recurringWeeks: recurringWeeks > 1 ? recurringWeeks : undefined,
         ...(moveOrder ? {excludeId: moveOrder.id} : {})
       })
-        .then(x => { if (live) { setOptions(x); setError(''); } })
+        .then(x => {
+          if (live) {
+            setOptions(x);
+            setError('');
+            if (x.voucherBenefit) setAppliedVoucher(x.voucherBenefit);
+          }
+        })
         .catch(e => { if (live) setError(e.message); });
     }
     return () => { live = false; };
@@ -218,7 +224,7 @@ export default function Booking() {
     setVoucherBusy(true);
     setVoucherError('');
     try {
-      const res = await api('/public/vouchers/validate', 'POST', { code, amount: gross, accountId: user?.id || null });
+      const res = await api('/public/vouchers/validate', 'POST', { code, amount: baseCourtNet, accountId: user?.id || null });
       setAppliedVoucher(res);
       setVoucherInput(code);
     } catch (e) {
@@ -234,24 +240,24 @@ export default function Booking() {
     setVoucherError('');
   };
 
-  // Re-evaluate available public vouchers whenever total gross changes
+  // Re-evaluate available public vouchers whenever total baseCourtNet changes
   useEffect(() => {
-    if (gross > 0) {
-      api('/public/vouchers/evaluate', 'POST', { amount: gross, accountId: user?.id || null })
+    if (baseCourtNet > 0) {
+      api('/public/vouchers/evaluate', 'POST', { amount: baseCourtNet, accountId: user?.id || null })
         .then(res => {
           if (Array.isArray(res)) setPublicVouchers(res);
         })
         .catch(() => {});
     }
-  }, [gross, user?.id]);
+  }, [baseCourtNet, user?.id]);
 
   useEffect(() => {
     if (!appliedVoucher) return;
-    if (appliedVoucher.minOrder && gross > 0 && gross < appliedVoucher.minOrder) {
+    if (appliedVoucher.minOrder && baseCourtNet > 0 && baseCourtNet < appliedVoucher.minOrder) {
       setAppliedVoucher(null);
       setVoucherError(`${t('Voucher')} ${appliedVoucher.code} ${t('đã tự động gỡ: Cần đơn tối thiểu')} ${money(appliedVoucher.minOrder)}.`);
     }
-  }, [gross]);
+  }, [baseCourtNet]);
 
   useEffect(() => {
     if (activeVoucherCode) {
