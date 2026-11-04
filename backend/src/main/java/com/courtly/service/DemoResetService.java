@@ -499,32 +499,44 @@ public class DemoResetService {
 
     // 1. Cập nhật hạng, điểm, chi tiêu, ngày sinh, mã giới thiệu cho các tài khoản
     // Kiệt (Grand Slam, 21.500.000₫ spend, 2.400 điểm, sinh ngày 15 tháng sau)
-    LocalDate kietBday = today.plusMonths(1).withDayOfMonth(15);
+    LocalDate kietBday = LocalDate.of(1998, today.plusMonths(1).getMonthValue(), 15);
     jdbc.update(
         "UPDATE accounts SET tier = 'GRAND_SLAM', tier_since = NOW() - interval '45 days', tier_expires_at = NOW() + interval '320 days', " +
-        "lifetime_spend = 21500000.00, points_balance = 2400, birth_date = ?::date, referral_code = 'KIET888' WHERE id = ?::uuid",
+        "lifetime_spend = 21500000.00, points_balance = 2400, birth_date = ?::date, referral_code = 'KIET888', " +
+        "phone_verified_at = NOW() - interval '45 days', email_verified_at = NOW() - interval '45 days', " +
+        "marketing_consent = true, marketing_consent_at = NOW() - interval '45 days' " +
+        "WHERE id = ?::uuid",
         kietBday.toString(), KIET_ID
     );
 
     // Nguyễn Minh Khoa - demo.hoivien (Masters, 19.800.000₫ spend, 1.500 điểm, sinh 20/03)
     jdbc.update(
         "UPDATE accounts SET tier = 'MASTERS', tier_since = NOW() - interval '60 days', tier_expires_at = NOW() + interval '305 days', " +
-        "lifetime_spend = 19800000.00, points_balance = 1500, birth_date = '1993-03-20'::date, referral_code = 'KHOA999' WHERE id = ?::uuid",
+        "lifetime_spend = 19800000.00, points_balance = 1500, birth_date = '1993-03-20'::date, referral_code = 'KHOA999', " +
+        "phone_verified_at = NOW() - interval '60 days', email_verified_at = NOW() - interval '60 days', " +
+        "marketing_consent = true, marketing_consent_at = NOW() - interval '60 days' " +
+        "WHERE id = ?::uuid",
         DEMO_HOIVIEN_ID
     );
 
     // Phạm Thu Trang - demo.khach (Challenger, 3.400.000₫ spend, 420 điểm, sinh tháng hiện tại ngày 10)
-    LocalDate trangBday = today.withDayOfMonth(10);
+    LocalDate trangBday = LocalDate.of(1996, today.getMonthValue(), 10);
     jdbc.update(
         "UPDATE accounts SET tier = 'CHALLENGER', tier_since = NOW() - interval '30 days', tier_expires_at = NOW() + interval '335 days', " +
-        "lifetime_spend = 3400000.00, points_balance = 420, birth_date = ?::date, referral_code = 'TRANG777' WHERE id = ?::uuid",
+        "lifetime_spend = 3400000.00, points_balance = 420, birth_date = ?::date, referral_code = 'TRANG777', " +
+        "phone_verified_at = NOW() - interval '30 days', email_verified_at = NOW() - interval '30 days', " +
+        "marketing_consent = true, marketing_consent_at = NOW() - interval '30 days' " +
+        "WHERE id = ?::uuid",
         trangBday.toString(), DEMO_KHACH_ID
     );
 
     // Phương Mai - phuongmaiphanqn3 (Rookie, 0₫ spend, 0 điểm)
     jdbc.update(
         "UPDATE accounts SET tier = 'ROOKIE', tier_since = NOW(), tier_expires_at = NOW() + interval '365 days', " +
-        "lifetime_spend = 0.00, points_balance = 0, referral_code = 'MAI666' WHERE id = ?::uuid",
+        "lifetime_spend = 0.00, points_balance = 0, birth_date = '1999-11-20'::date, referral_code = 'MAI666', " +
+        "phone_verified_at = NOW() - interval '1 day', email_verified_at = NOW() - interval '1 day', " +
+        "marketing_consent = true, marketing_consent_at = NOW() - interval '1 day' " +
+        "WHERE id = ?::uuid",
         PHUONG_MAI_ID
     );
 
@@ -552,7 +564,7 @@ public class DemoResetService {
     // 3. Đơn quá khứ (2-11 tháng trước) & Sổ điểm (loyalty_ledger)
     // Tài khoản Kiệt: 5 đơn = 21.500.000₫, 2.400 điểm (có 300 điểm hết hạn trong 20 ngày)
     BigDecimal[] kietSpends = { new BigDecimal("4500000"), new BigDecimal("4000000"), new BigDecimal("4500000"), new BigDecimal("4500000"), new BigDecimal("4000000") };
-    int[] kietPoints = { 500, 450, 500, 500, 450 }; // Tổng 2400 điểm
+    int[] kietPoints = { 300, 250, 300, 300, 250 }; // Tổng EARN: 1400 điểm
     int[] kietMonths = { 10, 8, 6, 4, 2 };
     for (int i = 0; i < kietSpends.length; i++) {
       String pastOrdId = UUID.randomUUID().toString();
@@ -573,6 +585,12 @@ public class DemoResetService {
           KIET_ID, kietPoints[i], kietSpends[i], pastOrdId, "Tích điểm đơn quá khứ " + pastOrdId.substring(0, 8), kietMonths[i]
       );
     }
+    // Ledger thưởng thăng hạng Grand Slam 45 ngày trước (+1000 điểm)
+    jdbc.update(
+        "INSERT INTO loyalty_ledger (id, account_id, type, points, spend_amount, expires_at, note, created_at) " +
+        "VALUES (gen_random_uuid(), ?::uuid, 'TIER_GIFT', 1000, 0, NOW() + interval '320 days', 'Thưởng thăng hạng Grand Slam', NOW() - interval '45 days')",
+        KIET_ID
+    );
 
     // Tài khoản Nguyễn Minh Khoa (demo.hoivien): 5 đơn = 19.800.000₫, 1.500 điểm
     BigDecimal[] khoaSpends = { new BigDecimal("4000000"), new BigDecimal("4000000"), new BigDecimal("4000000"), new BigDecimal("4000000"), new BigDecimal("3800000") };
@@ -624,8 +642,8 @@ public class DemoResetService {
     // Voucher 300.000₫ thăng hạng Grand Slam của Kiệt
     jdbc.update(
         "INSERT INTO vouchers (id, code, type, value, min_order, max_discount, starts_at, expires_at, usage_limit, used_count, per_user_limit, enabled, member_only, new_user_only, description, status, assigned_account_id, source) " +
-        "VALUES (gen_random_uuid(), 'TIER-GS-300K', 'FIXED', 300000.00, 0, 300000.00, NOW() - interval '45 days', NOW() + interval '60 days', 1, 0, 1, true, false, false, 'Quà thăng hạng Grand Slam (giảm 300.000₫)', 'ACTIVE', ?::uuid, 'TIER_GIFT') " +
-        "ON CONFLICT (code) DO UPDATE SET assigned_account_id = EXCLUDED.assigned_account_id, enabled = true, used_count = 0",
+        "VALUES (gen_random_uuid(), 'TIER-GS-300K', 'FIXED', 300000.00, 0, 300000.00, NOW() - interval '45 days', NOW() - interval '45 days' + interval '60 days', 1, 0, 1, true, false, false, 'Quà thăng hạng Grand Slam (giảm 300.000₫)', 'ACTIVE', ?::uuid, 'TIER_GIFT') " +
+        "ON CONFLICT (code) DO UPDATE SET assigned_account_id = EXCLUDED.assigned_account_id, enabled = true, used_count = 0, starts_at = EXCLUDED.starts_at, expires_at = EXCLUDED.expires_at, status = 'ACTIVE'",
         KIET_ID
     );
 
@@ -633,7 +651,7 @@ public class DemoResetService {
     jdbc.update(
         "INSERT INTO vouchers (id, code, type, value, min_order, max_discount, starts_at, expires_at, usage_limit, used_count, per_user_limit, enabled, member_only, new_user_only, description, status, assigned_account_id, source) " +
         "VALUES (gen_random_uuid(), 'BDAY-CHALLENGER-60K', 'FIXED', 60000.00, 0, 60000.00, date_trunc('month', NOW()), (date_trunc('month', NOW()) + interval '1 month - 1 second'), 1, 0, 1, true, false, false, 'Voucher sinh nhật hạng Challenger (giảm 60.000₫)', 'ACTIVE', ?::uuid, 'BIRTHDAY') " +
-        "ON CONFLICT (code) DO UPDATE SET assigned_account_id = EXCLUDED.assigned_account_id, enabled = true, used_count = 0",
+        "ON CONFLICT (code) DO UPDATE SET assigned_account_id = EXCLUDED.assigned_account_id, enabled = true, used_count = 0, starts_at = EXCLUDED.starts_at, expires_at = EXCLUDED.expires_at, status = 'ACTIVE'",
         DEMO_KHACH_ID
     );
 
@@ -641,7 +659,7 @@ public class DemoResetService {
     jdbc.update(
         "INSERT INTO vouchers (id, code, type, value, min_order, max_discount, starts_at, expires_at, usage_limit, used_count, per_user_limit, enabled, member_only, new_user_only, description, status, assigned_account_id, source) " +
         "VALUES (gen_random_uuid(), 'WELCOME-50K', 'FIXED', 50000.00, 0, 50000.00, NOW() - interval '1 day', NOW() + interval '30 days', 1, 0, 1, true, false, false, 'Voucher chào mừng thành viên mới (giảm 50.000₫)', 'ACTIVE', ?::uuid, 'TIER_GIFT') " +
-        "ON CONFLICT (code) DO UPDATE SET assigned_account_id = EXCLUDED.assigned_account_id, enabled = true, used_count = 0",
+        "ON CONFLICT (code) DO UPDATE SET assigned_account_id = EXCLUDED.assigned_account_id, enabled = true, used_count = 0, starts_at = EXCLUDED.starts_at, expires_at = EXCLUDED.expires_at, status = 'ACTIVE'",
         PHUONG_MAI_ID
     );
 
