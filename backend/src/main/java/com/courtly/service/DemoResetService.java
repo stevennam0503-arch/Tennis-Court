@@ -37,6 +37,8 @@ public class DemoResetService {
   private static final String DUC_ID = "77777777-4444-4444-4444-444444444444";
   private static final String PHUONG_ID = "88888888-4444-4444-4444-444444444444";
   private static final String LONG_ID = "99999999-4444-4444-4444-444444444444";
+  public static final String DEMO_HOIVIEN_ID = "11111111-2222-3333-4444-555555555501";
+  public static final String DEMO_KHACH_ID = "11111111-2222-3333-4444-555555555502";
 
   private static final String BCRYPT_123456 = "$2a$12$UUtz0fA3mVVqyAxke7itjuFI22Q62Kl0DN2ythRJEJc6xub.js6le";
 
@@ -89,7 +91,7 @@ public class DemoResetService {
     demoBaseline.restoreBaseline();
 
     // Xóa các tài khoản tạm / phát sinh kiểm thử, giữ lại bộ 8 tài khoản chuẩn
-    jdbc.execute("DELETE FROM accounts WHERE email NOT IN ('admin@gmail.com', 'staff@gmail.com', 'hoangnam@gmail.com', 'khachmoi@gmail.com', 'thao.le@gmail.com', 'minhduc@gmail.com', 'phuong.vu@gmail.com', 'hoanglong@gmail.com')");
+    jdbc.execute("DELETE FROM accounts WHERE email NOT IN ('admin@gmail.com', 'staff@gmail.com', 'hoangnam@gmail.com', 'khachmoi@gmail.com', 'thao.le@gmail.com', 'minhduc@gmail.com', 'phuong.vu@gmail.com', 'hoanglong@gmail.com', 'demo.hoivien@gmail.com', 'demo.khach@gmail.com')");
 
     // Đưa toàn bộ slot về AVAILABLE và dọn dẹp các slot bất thường nếu có
     jdbc.execute("DELETE FROM court_schedules WHERE extract(second from start_time) != 0 OR extract(minute from start_time) % 30 != 0 OR extract(second from end_time) != 0 OR extract(minute from end_time) % 30 != 0");
@@ -107,7 +109,9 @@ public class DemoResetService {
           ('%s', 'thao.le@gmail.com', 'Lê Thị Thảo', '0913555777', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'minhduc@gmail.com', 'Phạm Minh Đức', '0988666555', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'phuong.vu@gmail.com', 'Vũ Mai Phương', '0903111222', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'hoanglong@gmail.com', 'Đặng Hoàng Long', '0938444333', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0)
+          ('%s', 'hoanglong@gmail.com', 'Đặng Hoàng Long', '0938444333', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'demo.hoivien@gmail.com', 'Nguyễn Minh Khoa (Demo hội viên)', '0911000001', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'demo.khach@gmail.com', 'Phạm Thu Trang (Demo khách)', '0911000002', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0)
         ON CONFLICT (id) DO UPDATE SET 
           full_name = EXCLUDED.full_name,
           phone = EXCLUDED.phone,
@@ -122,7 +126,9 @@ public class DemoResetService {
         THAO_ID, BCRYPT_123456,
         DUC_ID, BCRYPT_123456,
         PHUONG_ID, BCRYPT_123456,
-        LONG_ID, BCRYPT_123456
+        LONG_ID, BCRYPT_123456,
+        DEMO_HOIVIEN_ID, BCRYPT_123456,
+        DEMO_KHACH_ID, BCRYPT_123456
     );
     jdbc.execute(upsertAccountsSql);
 
@@ -510,6 +516,23 @@ public class DemoResetService {
     );
     jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "membership:" + THAO_ID, memThaoDocJson);
     jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "membership-payment:" + memThaoPayId, memThaoPayDocJson);
+
+    // Membership Plus ACTIVE cho Nguyễn Minh Khoa (Demo hội viên)
+    String memKhoaId = UUID.randomUUID().toString();
+    String memKhoaPayId = UUID.randomUUID().toString();
+    String memKhoaStart = today.minusDays(30).atStartOfDay(ZONE).toInstant().toString();
+    String memKhoaEnd = today.plusDays(335).atTime(23, 59, 59).atZone(ZONE).toInstant().toString();
+
+    String memKhoaDocJson = String.format(
+        "{\"id\": \"%s\", \"accountId\": \"%s\", \"planId\": \"plus\", \"planName\": \"Plus\", \"startsAt\": \"%s\", \"endsAt\": \"%s\", \"status\": \"ACTIVE\", \"discountPercent\": 15, \"vipDiscountPercent\": 10, \"price\": 499000, \"rescheduleUsage\": 0}",
+        memKhoaId, DEMO_HOIVIEN_ID, memKhoaStart, memKhoaEnd
+    );
+    String memKhoaPayDocJson = String.format(
+        "{\"id\": \"%s\", \"membershipId\": \"%s\", \"accountId\": \"%s\", \"planId\": \"plus\", \"planName\": \"Plus\", \"amount\": 499000, \"createdAt\": \"%sT08:00:00Z\", \"status\": \"PAID\", \"method\": \"BANK_TRANSFER\", \"transactionCode\": \"MEM-PLUS-DEMO\"}",
+        memKhoaPayId, memKhoaId, DEMO_HOIVIEN_ID, today.minusDays(30).toString()
+    );
+    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "membership:" + DEMO_HOIVIEN_ID, memKhoaDocJson);
+    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "membership-payment:" + memKhoaPayId, memKhoaPayDocJson);
 
     // 3. Membership Request PENDING cho Lê Thu Hà (Khách mới chờ duyệt thanh toán)
     String reqHaDocJson = String.format(
