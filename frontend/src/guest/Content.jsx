@@ -68,7 +68,7 @@ export function ArticleReader({ article: a, onBack, onSelectArticle, allArticles
         return [
           'The annual tennis tournament at Courtly Tennis Club officially opens its most competitive registration phase of the year, bringing together over 32 standout amateur and semi-pro players from clubs across the region.',
           'Matches are professionally organized in a single-elimination (Knock-out) format across 4 indoor courts in Zone B. Featuring ATP Tour-standard Pro-Cushion cushioned surfaces and anti-glare 500 Lux LED lighting, athletes enjoy ideal playing conditions rain or shine.',
-          'This year’s prize pool features honorary championship trophies, commemorative medals, sponsor awards, and a 1-year Member Plus package at Courtly.',
+          'This year’s prize pool features honorary championship trophies, commemorative medals, sponsor awards, and a 1-year Grand Slam VIP membership package at Courtly.',
           'All matches are officiated by certified Vietnam Tennis Federation umpires, ensuring fairness, precision, and peak sportsmanship throughout.'
         ];
       }
@@ -92,7 +92,7 @@ export function ArticleReader({ article: a, onBack, onSelectArticle, allArticles
       return [
         'Giải quần vợt thường niên tại Cụm sân Courtly Tennis Club chính thức bước vào giai đoạn đăng ký tranh tài sôi nổi nhất trong năm. Sự kiện quy tụ hơn 32 tay vợt phong trào và bán chuyên xuất sắc từ khắp các câu lạc bộ trong khu vực.',
         'Hệ thống thi đấu được tổ chức chuyên nghiệp theo thể thức loại trực tiếp (Knock-out) tại 4 sân trong nhà Khu B. Với mặt sân đệm Pro-Cushion đạt chuẩn ATP Tour cùng hệ thống đèn LED 500 Lux chống chói, các vận động viên sẽ có điều kiện thi đấu lý tưởng nhất bất kể thời tiết nắng mưa.',
-        'Cơ cấu giải thưởng năm nay bao gồm Cúp vàng danh dự, huy chương lưu niệm cùng các phần thưởng giá trị từ nhà tài trợ và gói hội viên Member Plus 1 năm tại CLB Courtly.',
+        'Cơ cấu giải thưởng năm nay bao gồm Cúp vàng danh dự, huy chương lưu niệm cùng các phần thưởng giá trị từ nhà tài trợ và gói đặc quyền hạng Grand Slam VIP 1 năm tại CLB Courtly.',
         'Các trận đấu sẽ được điều hành bởi đội ngũ trọng tài đạt chuẩn Liên đoàn Quần vợt Việt Nam, đảm bảo tính công bằng, chuẩn xác và tinh thần thể thao cao thượng xuyên suốt giải đấu.'
       ];
     }
@@ -598,7 +598,7 @@ export function News() {
       },
       {
         id: 'news-membership',
-        title: 'Courtly Club ra mắt đặc quyền Hội viên Member Plus mùa giải mới',
+        title: 'Courtly Club ra mắt đặc quyền hạng Grand Slam VIP mùa giải mới',
         category: 'CLUB',
         publishedAt: '2026-10-22',
         excerpt: 'Trải nghiệm phòng chờ VIP Lounge thương gia, ưu tiên đặt sân trước 21 ngày và miễn phí đổi lịch thi đấu.',

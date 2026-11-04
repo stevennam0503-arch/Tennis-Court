@@ -379,12 +379,12 @@ export default function AutoQRCheckInModal({ onClose }) {
                   </p>
                   <div className="aqr-success-order-box" style={{ background: '#fff', border: '1px solid #fde68a' }}>
                     <div className="aqr-info-row">
-                      <span style={{ color: '#64748b' }}>Hội viên:</span>
+                      <span style={{ color: '#64748b' }}>Khách hàng:</span>
                       <strong style={{ fontSize: 16, color: '#173c32' }}>{lastScannedResult.vipData?.customerName}</strong>
                     </div>
                     <div className="aqr-info-row">
-                      <span style={{ color: '#64748b' }}>Hạng đặc quyền:</span>
-                      <b style={{ color: '#b45309', background: '#fef3c7', padding: '2px 8px', borderRadius: 12 }}>👑 GRAND SLAM</b>
+                      <span style={{ color: '#64748b' }}>Hạng:</span>
+                      <b style={{ color: '#b45309', background: '#fef3c7', padding: '2px 8px', borderRadius: 12 }}>👑 GRAND SLAM (VIP)</b>
                     </div>
                     <div className="aqr-info-row">
                       <span style={{ color: '#64748b' }}>Mã thẻ VIP:</span>
@@ -439,6 +439,18 @@ export default function AutoQRCheckInModal({ onClose }) {
                       <span style={{ color: '#64748b' }}>Số điện thoại:</span>
                       <b>{lastScannedResult.order.phone || 'Không có'}</b>
                     </div>
+                    {(() => {
+                      const tier = lastScannedResult.order.customerTier || data.accounts?.find(a => a.id === lastScannedResult.order.accountId || a.phone === lastScannedResult.order.phone)?.tier;
+                      if (!tier) return null;
+                      return (
+                        <div className="aqr-info-row">
+                          <span style={{ color: '#64748b' }}>Hạng:</span>
+                          <b style={{ color: tier === 'GRAND_SLAM' ? '#b45309' : '#166534', background: tier === 'GRAND_SLAM' ? '#fef3c7' : '#f0fdf4', padding: '2px 8px', borderRadius: 12 }}>
+                            {tier === 'GRAND_SLAM' ? '👑 GRAND SLAM (VIP)' : tier}
+                          </b>
+                        </div>
+                      );
+                    })()}
                     <div className="aqr-info-row">
                       <span style={{ color: '#64748b' }}>Lịch thi đấu:</span>
                       <b>

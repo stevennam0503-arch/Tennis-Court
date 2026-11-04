@@ -454,7 +454,7 @@ public class OrderApplicationService {
 
   private void customerDeposit(CustomerOrder o) {
     var meta = docs.decode(o.getMetadata());
-    var benefit = (Map<String,Object>) meta.get("membershipBenefit");
+    var benefit = (Map<String,Object>) (meta.get("tierBenefit") != null ? meta.get("tierBenefit") : meta.get("membershipBenefit"));
     var net = benefit == null ? o.getTotalAmount() : PresentationService.decimal(benefit.get("net"));
     var voucher = (Map<String,Object>) meta.get("voucherBenefit");
     if (voucher != null && benefit != null) {

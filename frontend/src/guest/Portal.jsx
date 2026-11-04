@@ -47,7 +47,7 @@ function Modal({children,onClose,title,hideClose}){
 }
 
 const paths={about:'/',booking:'/dat-san',pricing:'/bang-gia',cashdesk:'/quay-thu',news:'/tin-tuc',contact:'/lien-he',feedback:'/feedback',tournaments:'/giai-dau',membership:'/thanh-vien',orders:'/tai-khoan/don',history:'/tai-khoan/lich',payments:'/tai-khoan/thanh-toan',profile:'/tai-khoan',policies:'/chinh-sach'};
-const initialRoute=()=>{ if(location.pathname==='/membership'||location.pathname==='/thanh-vien') return 'membership'; return Object.entries(paths).find(([,p])=>p===location.pathname)?.[0]||({orders:'orders',history:'history',payments:'payments','profile-orders':'orders','profile-history':'history','profile-payments':'payments','profile-membership':'membership',profile:'profile',tournaments:'tournaments'})[location.hash.slice(1)]||'about'; };
+const initialRoute=()=>{ if(location.pathname==='/membership'){ window.history.replaceState({}, '', '/thanh-vien'); return 'membership'; } if(location.pathname==='/thanh-vien') return 'membership'; return Object.entries(paths).find(([,p])=>p===location.pathname)?.[0]||({orders:'orders',history:'history',payments:'payments','profile-orders':'orders','profile-history':'history','profile-payments':'payments','profile-membership':'membership',profile:'profile',tournaments:'tournaments'})[location.hash.slice(1)]||'about'; };
 
 export default function Portal({session,onSession,onLogout}){
     const [activeCampaignBanners, setActiveCampaignBanners] = useState([]);

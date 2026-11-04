@@ -244,7 +244,8 @@ public class OrderService {
 
     var metadata = documents.decode(o.getMetadata());
 
-    if (Boolean.TRUE.equals(metadata.get("customerFlow")) && metadata.get("membershipBenefit") instanceof Map<?,?> benefit) {
+    Object tierBenefit = metadata.get("tierBenefit") != null ? metadata.get("tierBenefit") : metadata.get("membershipBenefit");
+    if (Boolean.TRUE.equals(metadata.get("customerFlow")) && tierBenefit instanceof Map<?,?> benefit) {
 
       var net = PresentationService.decimal(benefit.get("net"));
 
@@ -278,7 +279,8 @@ public class OrderService {
     }
     BigDecimal courtTotal = selected.stream().map(CourtSchedule::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
     var extra = documents.decode(o.getMetadata());
-    BigDecimal courtNet = OrderTotalsService.voucherBase(courtTotal, extra.get("membershipBenefit"));
+    Object tierBenefitPoints = extra.get("tierBenefit") != null ? extra.get("tierBenefit") : extra.get("membershipBenefit");
+    BigDecimal courtNet = OrderTotalsService.voucherBase(courtTotal, tierBenefitPoints);
     if (extra.get("voucherBenefit") instanceof Map<?, ?> voucher) {
       courtNet = courtNet.subtract(PresentationService.decimal(voucher.get("discount"))).max(BigDecimal.ZERO);
     }
@@ -306,7 +308,8 @@ public class OrderService {
 
     var extra = documents.decode(o.getMetadata());
 
-    BigDecimal discountable = OrderTotalsService.voucherBase(courtTotal, extra.get("membershipBenefit"));
+    Object tierBenefitVoucher = extra.get("tierBenefit") != null ? extra.get("tierBenefit") : extra.get("membershipBenefit");
+    BigDecimal discountable = OrderTotalsService.voucherBase(courtTotal, tierBenefitVoucher);
 
     UUID accountId = o.getCustomerAccount() != null ? o.getCustomerAccount().getId() : null;
 
@@ -384,9 +387,9 @@ public class OrderService {
 
     BigDecimal discounts = BigDecimal.ZERO;
 
-    for (var key : List.of("membershipBenefit", "voucherBenefit"))
-
-      if (meta.get(key) instanceof Map<?, ?> benefit) discounts = discounts.add(PresentationService.decimal(benefit.get("discount")));
+    Object tbForCalc = meta.get("tierBenefit") != null ? meta.get("tierBenefit") : meta.get("membershipBenefit");
+    if (tbForCalc instanceof Map<?, ?> benefit) discounts = discounts.add(PresentationService.decimal(benefit.get("discount")));
+    if (meta.get("voucherBenefit") instanceof Map<?, ?> benefit) discounts = discounts.add(PresentationService.decimal(benefit.get("discount")));
 
     if (gross.signum() > 0) completed = completed.subtract(discounts.multiply(completed).divide(gross, 2, RoundingMode.HALF_UP)).max(BigDecimal.ZERO);
 
@@ -1222,13 +1225,10 @@ public class OrderService {
 
     var extra = documents.decode(o.getMetadata());
 
-    extra.put(
-
-        "membershipBenefit",
-
-        membership.quote(
-
-            o.getCustomerAccount() == null ? null : o.getCustomerAccount().getId(), selected));
+    var quoteRes = membership.quote(
+            o.getCustomerAccount() == null ? null : o.getCustomerAccount().getId(), selected);
+    extra.put("tierBenefit", quoteRes);
+    extra.put("membershipBenefit", quoteRes);
 
     o.setMetadata(documents.encode(extra));
 

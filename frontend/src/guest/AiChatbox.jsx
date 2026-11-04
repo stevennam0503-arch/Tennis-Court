@@ -79,9 +79,13 @@ const COURTLY_RULES_VI = `
   + Phòng tắm nước nóng lạnh cao cấp, khăn tắm sạch sẽ miễn phí.
   + Tủ khóa đồ cá nhân (locker) an toàn.
   + Có sẵn vợt tập cho mượn và máy căng cước vợt điện tử Yonex chính xác cao tại quầy.
-- Gói Hội viên (Membership):
-  + Gói Club: 249.000đ / 30 ngày (Giảm 10% tiền sân thường, 5% sân VIP, đặt trước 14 ngày, 1 lượt đổi lịch).
-  + Gói Member Plus: 499.000đ / 30 ngày (Giảm 15% tiền sân thường, 10% sân VIP, phòng chờ VIP Lounge, đặt trước 21 ngày, miễn phí gửi xe).
+- Hạng thành viên & Khách hàng thân thiết (Loyalty Tiers):
+  + Tự động xét hạng dựa trên tổng chi tiêu 12 tháng trượt:
+    * Rookie (0₫): Tích điểm 1đ/10k, voucher chào mừng 50k, voucher sinh nhật 30k.
+    * Challenger (3.000.000₫): Giảm 3% tiền sân, tích điểm ×1,2, đặt trước 10 ngày, 1 lượt đổi lịch/tháng, quà thăng hạng 200 điểm, voucher sinh nhật 60k.
+    * Masters (8.000.000₫): Giảm 5% tiền sân, tích điểm ×1,5, đặt trước 14 ngày, 2 lượt đổi lịch/tháng, quà thăng hạng 500 điểm, voucher sinh nhật 120k.
+    * Grand Slam (20.000.000₫): Giảm 8% tiền sân, tích điểm ×2,0, đặt trước 21 ngày, 4 lượt đổi lịch/tháng, quà thăng hạng 1.000 điểm + voucher 300k + thẻ VIP Lounge, voucher sinh nhật 250k.
+  + Dùng điểm: 1 điểm = 100₫ trừ trực tiếp vào tiền sân (tối đa 50% tiền sân còn lại) hoặc đổi voucher dịch vụ (gia hạn, 1h sân giờ vàng, 1h trọng tài).
 `;
 
 const COURTLY_RULES_EN = `
@@ -97,9 +101,13 @@ const COURTLY_RULES_EN = `
   + Premium hot/cold shower rooms, clean towels provided.
   + Secure personal lockers.
   + Training rackets available to borrow and high-precision Yonex electronic stringing machine at reception.
-- Membership Plans:
-  + Club Member: 249,000 VND / 30 days (10% discount on standard courts, 5% on VIP, 14-day advance booking).
-  + Member Plus: 499,000 VND / 30 days (15% discount on standard courts, 10% on VIP, VIP Lounge access, 21-day advance booking).
+- Loyalty Membership Tiers:
+  + Automatic progression based on 12-month rolling spend:
+    * Rookie (0 VND): Earn 1 pt / 10k VND, 50k welcome gift, 30k birthday voucher.
+    * Challenger (3,000,000 VND): 3% court discount, 1.2x points, 10-day advance booking, 1 free reschedule/month, 200 upgrade pts, 60k birthday voucher.
+    * Masters (8,000,000 VND): 5% court discount, 1.5x points, 14-day advance booking, 2 free reschedules/month, 500 upgrade pts, 120k birthday voucher.
+    * Grand Slam (20,000,000 VND): 8% court discount, 2.0x points, 21-day advance booking, 4 free reschedules/month, 1,000 upgrade pts + 300k voucher + VIP Lounge card, 250k birthday voucher.
+  + Points: 1 pt = 100 VND discount on court fees (up to 50% of net court total) or redeem service vouchers.
 `;
 
 const BUILTIN_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
@@ -188,8 +196,8 @@ export default function AiChatbox() {
       id: 'welcome',
       role: 'assistant',
       text: isEn
-        ? 'Hello! I am Courtly Tennis Assistant 🎾.\nI can assist you with court rates, schedule availability, referee booking, QR check-in, and membership plans. How can I help you today?'
-        : 'Xin chào! Tôi là Trợ lý AI của CLB Quần vợt Courtly 🎾.\nTôi có thể hỗ trợ bạn tức thì về bảng giá 10 sân, lịch trống, dịch vụ trọng tài, check-in mã QR hoặc chính sách hội viên. Bạn cần tìm hiểu thông tin gì hôm nay?'
+        ? 'Hello! I am Courtly Tennis Assistant 🎾.\nI can assist you with court rates, schedule availability, referee booking, QR check-in, and loyalty tier benefits and point rewards. How can I help you today?'
+        : 'Xin chào! Tôi là Trợ lý AI của CLB Quần vợt Courtly 🎾.\nTôi có thể hỗ trợ bạn tức thì về bảng giá 10 sân, lịch trống, dịch vụ trọng tài, check-in mã QR hoặc chính sách hạng thành viên & điểm thưởng. Bạn cần tìm hiểu thông tin gì hôm nay?'
     }
   ]);
 
@@ -270,7 +278,7 @@ What specific topic would you like to explore?`;
 • **Zone A (Outdoor):** ${zRateEn('OUTDOOR')}
 • **Zone B (Covered Indoor):** ${zRateEn('INDOOR')}
 • **Zone V (VIP Clubhouse):** ${zRateEn('VIP')}
-*(Club members get 10% off; Member Plus get 15% off).*`;
+*(Challenger tier gets 3% off, Masters gets 5% off, Grand Slam gets 8% off).*`;
     }
 
     if (
@@ -321,18 +329,24 @@ What specific topic would you like to explore?`;
 
     if (
       raw.includes('member') ||
+      raw.includes('tier') ||
+      raw.includes('loyalty') ||
+      raw.includes('point') ||
       raw.includes('subscription') ||
       raw.includes('plan') ||
       raw.includes('vip')
     ) {
-      return `👑 **Membership Plans:**
-• **Club (249,000đ / 30 days):** 10% off court rates, 14-day advance booking.
-• **Member Plus (499,000đ / 30 days):** 15% off, VIP Lounge access, 21-day advance booking.`;
+      return `👑 **Courtly Loyalty Membership Tiers:**
+• **Rookie (0đ spend):** 1 pt / 10k VND, 50k welcome gift, 30k birthday voucher.
+• **Challenger (from 3Mđ/12m):** 3% court discount, 1.2x points, 200 upgrade pts, 60k birthday voucher.
+• **Masters (from 8Mđ/12m):** 5% court discount, 1.5x points, 500 upgrade pts, 120k birthday voucher.
+• **Grand Slam (from 20Mđ/12m):** 8% court discount, 2.0x points, 1,000 upgrade pts + 300k voucher + VIP Lounge card, 250k birthday voucher.
+*(Points: 1 pt = 100đ discount on court fees up to 50% or redeem reward vouchers).*`;
     }
 
     return `Thank you for reaching out! 🎾
 Courtly Tennis Club operates 10 ATP courts daily from **06:00 to 23:00**.
-Ask me about court pricing, indoor weather guarantee, referee booking, or membership benefits!`;
+Ask me about court pricing, indoor weather guarantee, referee booking, or loyalty tier benefits!`;
   };
 
   // Compact, conversational Vietnamese fallback matcher
@@ -362,7 +376,7 @@ Tôi có thể hỗ trợ nhanh cho bạn về:
 • **Bảng giá 10 sân ATP** (từ 120.000đ – 400.000đ/h)
 • **Đặt sân & cọc VietQR 30%–50%**
 • **Vé QR Check-in & Chính sách hủy hoàn cọc**
-• **Thuê trọng tài (150k/h) & Gói Hội viên giảm đến 15%**
+• **Thuê trọng tài (150k/h) & 4 Hạng thành viên giảm đến 8%**
 
 Bạn cần tìm hiểu thông tin cụ thể nào, hãy nhắn cho tôi nhé!`;
     }
@@ -410,12 +424,20 @@ Bạn cần tìm hiểu thông tin cụ thể nào, hãy nhắn cho tôi nhé!`;
     if (
       norm.includes('hoi vien') ||
       norm.includes('membership') ||
-      norm.includes('member plus') ||
-      norm.includes('goi club')
+      norm.includes('hang') ||
+      norm.includes('diem') ||
+      norm.includes('loyalty') ||
+      norm.includes('rookie') ||
+      norm.includes('challenger') ||
+      norm.includes('masters') ||
+      norm.includes('grand slam')
     ) {
-      return `👑 **Gói Hội viên Courtly:**
-• **Club (249.000đ / 30 ngày):** Giảm 10% tiền sân, đặt trước 14 ngày.
-• **Member Plus (499.000đ / 30 ngày):** Giảm 15% tiền sân, phòng chờ VIP Lounge, đặt trước 21 ngày.`;
+      return `👑 **4 Hạng thành viên Courtly (xét theo chi tiêu 12 tháng trượt):**
+• **Rookie (từ 0₫):** Tích điểm 1đ/10k, voucher chào mừng 50k, voucher sinh nhật 30k.
+• **Challenger (từ 3.000.000₫):** Giảm 3% tiền sân, tích điểm ×1,2, đặt trước 10 ngày, quà 200 điểm, voucher sinh nhật 60k.
+• **Masters (từ 8.000.000₫):** Giảm 5% tiền sân, tích điểm ×1,5, đặt trước 14 ngày, quà 500 điểm, voucher sinh nhật 120k.
+• **Grand Slam (từ 20.000.000₫):** Giảm 8% tiền sân, tích điểm ×2,0, đặt trước 21 ngày, quà 1.000 điểm + voucher 300k + thẻ VIP Lounge, voucher sinh nhật 250k.
+*(Dùng điểm: 1 điểm = 100₫ trừ tiền sân tối đa 50% hoặc đổi voucher dịch vụ).*`;
     }
 
     if (
@@ -452,12 +474,12 @@ Bạn cần tìm hiểu thông tin cụ thể nào, hãy nhắn cho tôi nhé!`;
 • **Khu A (Ngoài trời):** ${zRateVi('OUTDOOR')}
 • **Khu B (Trong nhà mái che):** ${zRateVi('INDOOR')}
 • **Khu V (VIP Clubhouse):** ${zRateVi('VIP')}
-*(Hội viên Club giảm 10%, Member Plus giảm 15%).*`;
+*(Hạng thành viên Challenger giảm 3%, Masters giảm 5%, Grand Slam giảm 8%).*`;
     }
 
     return `Cảm ơn bạn đã liên hệ! 🎾
 CLB Quần vợt Courtly có **10 sân tiêu chuẩn ATP**, mở cửa hàng ngày từ **06:00 đến 23:00**.
-Bạn có thể hỏi tôi về bảng giá sân, dịch vụ trọng tài, check-in QR hoặc các gói hội viên!`;
+Bạn có thể hỏi tôi về bảng giá sân, dịch vụ trọng tài, check-in QR hoặc quyền lợi các hạng thành viên!`;
   };
 
   const getLocalResponse = (q) => {
@@ -584,7 +606,7 @@ ${COURTLY_RULES_VI}`;
         '🌧️ Indoor Zone B for rainy days?',
         '👨‍⚖️ Referee service & Booking?',
         '🎫 How to check in with QR code?',
-        '⭐ Membership plans & benefits?',
+        '⭐ Loyalty tier benefits & points?',
         '💸 Cancellation & Refund policy?'
       ]
     : [
@@ -592,7 +614,7 @@ ${COURTLY_RULES_VI}`;
         '🌧️ Sân trong nhà Khu B khi trời mưa?',
         '👨‍⚖️ Phí thuê trọng tài & cách đặt?',
         '🎫 Hướng dẫn check-in bằng mã QR?',
-        '⭐ Quyền lợi các gói Hội viên Club?',
+        '⭐ Quyền lợi các hạng thành viên?',
         '💸 Chính sách hủy sân & hoàn tiền cọc?'
       ];
 

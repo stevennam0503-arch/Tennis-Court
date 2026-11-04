@@ -276,6 +276,7 @@ public class BookingSupportService {
     next.put("date", opt.get("date"));
     next.put("staff", staffView);
     next.put("total", total);
+    next.put("tierBenefit", benefit);
     next.put("membershipBenefit", benefit);
     next.put("voucherBenefit", voucher);
     next.put(

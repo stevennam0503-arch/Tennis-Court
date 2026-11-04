@@ -20,8 +20,6 @@ import PublicPage from './pages/PublicPage';
 
 import {PublicHeader,PublicFooter} from './components/PublicLayout';
 
-import MembershipPage from './pages/MembershipPage';
-
 import LoyaltyAdminPage from './pages/LoyaltyAdminPage';
 
 import InformationPage from './pages/InformationPage';
@@ -127,7 +125,7 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
 
   if(pending.type==='navigate'){navigate(pending.route==='payments'&&isAdmin?'payment-history':pending.route);}
 
-  else if(pending.type==='membership'){navigate(isAdmin?'membership':'profile-membership');}
+  else if(pending.type==='membership'){navigate('loyalty');}
 
   else if(isInternal){notify(`Đã đăng nhập ${isAdmin?'quản trị':'staff'}. Bạn có thể xử lý lịch và đơn tại đây.`);}
 

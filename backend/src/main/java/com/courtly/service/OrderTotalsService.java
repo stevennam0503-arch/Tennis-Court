@@ -104,7 +104,8 @@ public class OrderTotalsService {
 
       var extra = documents.decode(order.getMetadata());
 
-      sum = discountedTotal(sum, extra.get("membershipBenefit"), extra.get("voucherBenefit"));
+      Object tierBenefit = extra.get("tierBenefit") != null ? extra.get("tierBenefit") : extra.get("membershipBenefit");
+      sum = discountedTotal(sum, tierBenefit, extra.get("voucherBenefit"));
 
     }
 

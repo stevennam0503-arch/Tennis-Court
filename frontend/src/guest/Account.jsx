@@ -827,7 +827,7 @@ export function ExtendCourtDialog({order, onClose}) {
 
           <div style={{fontSize: 24, marginBottom: 8}}>🎾</div>
 
-          {t('Đang kiểm tra tính khả dụng của sân và ưu đãi hội viên…')}
+          {t('Đang kiểm tra tính khả dụng của sân và ưu đãi hạng thành viên…')}
 
         </div>
 

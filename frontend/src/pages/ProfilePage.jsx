@@ -166,8 +166,6 @@ export default function ProfilePage({tab='info',initialPlan}){
  mine.payments=data.payments.filter(p=>ids.has(p.orderId)||regs.has(p.registrationId));
  const payments=new Set(mine.payments.map(p=>p.id));
  mine.refunds=data.refunds.filter(r=>payments.has(r.paymentId));
- mine.memberships=(data.memberships||[]).filter(m=>m.accountId===user.accountId);
- mine.membershipPayments=(data.membershipPayments||[]).filter(m=>m.accountId===user.accountId);
  const ctx=useCourtly();
  return (
   <>
