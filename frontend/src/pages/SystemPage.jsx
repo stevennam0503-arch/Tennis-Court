@@ -156,10 +156,10 @@ export default function SystemPage() {
 
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>
-                <UserCheck size={18} style={{ color: '#16a34a' }} /> Hội viên VIP Plus (Trần Hoàng Nam)
+                <UserCheck size={18} style={{ color: '#16a34a' }} /> Khách hàng VIP (Trần Hoàng Nam)
               </div>
               <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
-                Gói Plus có hiệu lực 60 ngày, giảm tự động 15% tiền sân khi đặt lịch (đã ghi nhận doanh thu membership 499.000₫).
+                Tài khoản Masters giảm tự động 5% tiền sân khi đặt lịch.
               </p>
             </div>
 

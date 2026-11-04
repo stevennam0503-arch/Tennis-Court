@@ -25,7 +25,7 @@ class RecurringBookingTest {
   private SettingsService settings;
   private OrderTotalsService totals;
   private DocumentService documents;
-  private MembershipService membership;
+  private TierPricingService membership;
   private VoucherService vouchers;
   private OrderService orderService;
 
@@ -40,7 +40,7 @@ class RecurringBookingTest {
     settings = mock(SettingsService.class);
     totals = mock(OrderTotalsService.class);
     documents = mock(DocumentService.class);
-    membership = mock(MembershipService.class);
+    membership = mock(TierPricingService.class);
     vouchers = mock(VoucherService.class);
 
     ClubSettings cs = new ClubSettings();

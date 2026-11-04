@@ -31,7 +31,7 @@ class VoucherManagementTest {
   @Mock
   private CustomerOrderRepository orders;
   @Mock
-  private MembershipService memberships;
+  private TierPricingService memberships;
   @Mock
   private AuditService auditService;
 

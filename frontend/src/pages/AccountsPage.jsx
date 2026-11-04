@@ -101,7 +101,7 @@ export default function AccountsPage() {
       {/* Quick Summary Stats */}
       <div className="stats">
         <Stat title="Tổng tài khoản" value={counts.all} note="Toàn bộ hệ thống" icon={Users} />
-        <Stat title="Khách hàng" value={counts.CUSTOMER} note="Khách đặt sân & hội viên" icon={UserCheck} />
+        <Stat title="Khách hàng" value={counts.CUSTOMER} note="Khách đặt sân & thành viên" icon={UserCheck} />
         <Stat title="Nhân sự / Staff" value={counts.STAFF} note="Thu ngân & điều hành sân" icon={Shield} />
         <Stat title="Quản trị viên" value={counts.ADMIN} note="Chủ sân & Admin quản trị" icon={Lock} />
       </div>

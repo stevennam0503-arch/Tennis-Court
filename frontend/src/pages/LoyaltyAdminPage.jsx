@@ -161,7 +161,7 @@ export default function LoyaltyAdminPage() {
               </span>
             </div>
             <div style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', marginTop: 8 }}>
-              {stats[key] || 0} <span style={{ fontSize: 13, fontWeight: 500, color: '#64748b' }}>hội viên</span>
+              {stats[key] || 0} <span style={{ fontSize: 13, fontWeight: 500, color: '#64748b' }}>thành viên</span>
             </div>
           </div>
         ))}
@@ -184,7 +184,7 @@ export default function LoyaltyAdminPage() {
           }}
         >
           <Users size={16} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
-          Danh sách hội viên ({filteredMembers.length})
+          Danh sách thành viên ({filteredMembers.length})
         </button>
 
         <button
@@ -268,7 +268,7 @@ export default function LoyaltyAdminPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5, textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: 12, textTransform: 'uppercase' }}>
-                  <th style={{ padding: '12px 16px' }}>Hội viên</th>
+                  <th style={{ padding: '12px 16px' }}>Thành viên</th>
                   <th style={{ padding: '12px 16px' }}>Hạng hiện tại</th>
                   <th style={{ padding: '12px 16px' }}>Chi tiêu 12T</th>
                   <th style={{ padding: '12px 16px' }}>Điểm thưởng</th>
@@ -281,7 +281,7 @@ export default function LoyaltyAdminPage() {
                 {filteredMembers.length === 0 ? (
                   <tr>
                     <td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#94a3b8' }}>
-                      Không tìm thấy hội viên nào phù hợp bộ lọc.
+                      Không tìm thấy thành viên nào phù hợp bộ lọc.
                     </td>
                   </tr>
                 ) : (

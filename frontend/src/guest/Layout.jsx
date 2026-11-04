@@ -168,9 +168,9 @@ export function CustomerNotifications() {
         id: `membership-active-${data.membership.id || 'current'}`,
         type: 'membership',
         icon: '👑',
-        title: t('Hội viên CLB Courtly'),
-        description: `${t('Bạn đang sở hữu gói')} ${data.membership.planName || t('Hội viên')}. ${t('Tận hưởng ưu đãi giảm giá và ưu tiên giữ chỗ.')}`,
-        actionLabel: t('Xem thẻ hội viên'),
+        title: t('Thành viên CLB Courtly'),
+        description: `${t('Bạn đang sở hữu gói')} ${data.membership.planName || t('Thành viên')}. ${t('Tận hưởng ưu đãi giảm giá và ưu tiên giữ chỗ.')}`,
+        actionLabel: t('Xem thẻ thành viên'),
         action: () => navigate('membership'),
         urgent: false
       });
@@ -462,7 +462,7 @@ export function Footer(){
   const servicesLinks=[
     ['booking','Đặt sân trực tuyến'],
     ['pricing','Bảng giá & Khung giờ'],
-    ['membership','Gói hội viên (Membership)'],
+    ['membership','Gói thành viên (Membership)'],
     ['tournaments','Giải đấu & Sự kiện'],
   ];
   const exploreLinks=[

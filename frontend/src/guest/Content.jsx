@@ -99,7 +99,7 @@ export function ArticleReader({ article: a, onBack, onSelectArticle, allArticles
 
     if (a.title?.includes('Bảo dưỡng') || a.title?.includes('Khu B') || a.category === 'FACILITY') {
       return [
-        'Nhằm mang lại trải nghiệm thi đấu mượt mà và an toàn tối đa cho quý hội viên, Ban Quản Lý Cụm sân Courtly Tennis Club vừa hoàn tất đợt đại tu, bảo dưỡng định kỳ toàn diện cụm 4 sân trong nhà Khu B (B01 – B04).',
+        'Nhằm mang lại trải nghiệm thi đấu mượt mà và an toàn tối đa cho quý thành viên, Ban Quản Lý Cụm sân Courtly Tennis Club vừa hoàn tất đợt đại tu, bảo dưỡng định kỳ toàn diện cụm 4 sân trong nhà Khu B (B01 – B04).',
         'Điểm nhấn trong đợt nâng cấp lần này là công nghệ sơn phủ 8 lớp giảm chấn Pro-Cushion thế hệ mới. Lớp đệm cao su vi sinh giúp hấp thụ xung lực khi người chơi bật nhảy và đổi hướng đột ngột, giảm tải áp lực lên khớp gối và cổ chân đến 28% so với mặt sân cứng thông thường.',
         'Bên cạnh đó, hệ thống quạt thông gió công nghiệp đối lưu và cụm đèn LED chuyên dụng 500 Lux đã được cân chỉnh góc chiếu hoàn hảo, loại bỏ hoàn toàn hiện tượng lóa mắt khi thực hiện các cú smash trên không.',
         'Courtly luôn tâm niệm rằng: Mỗi phút giây bạn cầm vợt trên sân phải là một trải nghiệm trọn vẹn, thăng hoa và tràn đầy năng lượng tích cực.'
@@ -929,7 +929,7 @@ const INITIAL_SHOWCASE_FEEDBACKS = [
   {
     id: 'fb-1',
     userName: 'Trần Hoàng Nam',
-    userRole: 'Hội viên Club Plus',
+    userRole: 'Thành viên Club Plus',
     userInitials: 'HN',
     avatarBg: '#047857',
     rating: 5,
@@ -965,7 +965,7 @@ const INITIAL_SHOWCASE_FEEDBACKS = [
   {
     id: 'fb-3',
     userName: 'Đặng Hoàng Long',
-    userRole: 'Hội viên VIP',
+    userRole: 'Thành viên VIP',
     userInitials: 'HL',
     avatarBg: '#1e3a8a',
     rating: 5,
@@ -983,7 +983,7 @@ const INITIAL_SHOWCASE_FEEDBACKS = [
   {
     id: 'fb-4',
     userName: 'Kiệt Nguyễn',
-    userRole: 'Hội viên mới',
+    userRole: 'Thành viên mới',
     userInitials: 'KN',
     avatarBg: '#15803d',
     rating: 5,
@@ -1019,7 +1019,7 @@ const INITIAL_SHOWCASE_FEEDBACKS = [
   {
     id: 'fb-6',
     userName: 'Phan Thu Trang',
-    userRole: 'Hội viên Club',
+    userRole: 'Thành viên Club',
     userInitials: 'TT',
     avatarBg: '#7c3aed',
     rating: 5,
@@ -1037,7 +1037,7 @@ const INITIAL_SHOWCASE_FEEDBACKS = [
   {
     id: 'fb-7',
     userName: 'Bùi Anh Khoa',
-    userRole: 'Hội viên mới',
+    userRole: 'Thành viên mới',
     userInitials: 'AK',
     avatarBg: '#c026d3',
     rating: 5,
@@ -1073,7 +1073,7 @@ const INITIAL_SHOWCASE_FEEDBACKS = [
   {
     id: 'fb-9',
     userName: 'Hoàng Gia Bảo',
-    userRole: 'Hội viên Club',
+    userRole: 'Thành viên Club',
     userInitials: 'GB',
     avatarBg: '#ea580c',
     rating: 4,
@@ -1085,7 +1085,7 @@ const INITIAL_SHOWCASE_FEEDBACKS = [
       adminName: 'Ban Quản Lý Courtly Club',
       adminRole: 'Phản hồi chính thức',
       date: '3 tuần trước',
-      message: 'Dạ cảm ơn anh Bảo! Để giữ giờ vàng dễ hơn, anh có thể đăng ký gói Hội viên để được quyền đặt trước đến 14 - 21 ngày so với khách thông thường nhé ạ!'
+      message: 'Dạ cảm ơn anh Bảo! Để giữ giờ vàng dễ hơn, anh có thể đăng ký gói Thành viên để được quyền đặt trước đến 14 - 21 ngày so với khách thông thường nhé ạ!'
     }
   },
   {
@@ -1127,7 +1127,7 @@ const INITIAL_SHOWCASE_FEEDBACKS = [
   {
     id: 'fb-12',
     userName: 'Trịnh Hải Yến',
-    userRole: 'Hội viên mới',
+    userRole: 'Thành viên mới',
     userInitials: 'HY',
     avatarBg: '#4f46e5',
     rating: 3,
@@ -1218,7 +1218,7 @@ export function Feedback() {
 
       const newReview = {
         id: 'local-' + Date.now(),
-        userName: user.name || 'Hội viên Courtly',
+        userName: user.name || 'Thành viên Courtly',
         userRole: user.role === 'CUSTOMER' ? 'Khách hàng thân thiết' : 'Thành viên',
         userInitials: (user.name || 'U').slice(0, 2).toUpperCase(),
         avatarBg: '#173c32',
@@ -1253,7 +1253,7 @@ export function Feedback() {
   // Combine local submissions + server feedbacks + seed showcase feedbacks
   const serverFeedbacks = (content.feedback || []).map(f => ({
     id: f.id,
-    userName: f.displayName || 'Hội viên ẩn danh',
+    userName: f.displayName || 'Thành viên ẩn danh',
     userRole: 'Khách hàng đã trải nghiệm',
     userInitials: (f.displayName || 'HV').slice(0, 2).toUpperCase(),
     avatarBg: '#334155',
@@ -1471,7 +1471,7 @@ export function Feedback() {
               </strong>
               <span style={{ fontSize: 12, color: user ? '#15803d' : '#64748b', fontWeight: user ? 600 : 400 }}>
                 {user ? (
-                  '✓ Tài khoản hội viên đã xác thực'
+                  '✓ Tài khoản thành viên đã xác thực'
                 ) : (
                   <span>
                     Chưa đăng nhập ·{' '}
@@ -2202,7 +2202,7 @@ export function Policies() {
         </h1>
         <p style={{ color: '#52655a', fontSize: 14, margin: 0 }}>
           {t(
-            'Văn bản quy định chuẩn mực dịch vụ, bảo vệ quyền lợi hội viên, an toàn sân đấu và bảo mật thông tin cá nhân theo quy định pháp luật.'
+            'Văn bản quy định chuẩn mực dịch vụ, bảo vệ quyền lợi thành viên, an toàn sân đấu và bảo mật thông tin cá nhân theo quy định pháp luật.'
           )}
         </p>
       </div>

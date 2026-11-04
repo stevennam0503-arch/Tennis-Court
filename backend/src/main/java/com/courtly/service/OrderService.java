@@ -61,7 +61,7 @@ public class OrderService {
 
   private final DocumentService documents;
 
-  private final MembershipService membership;
+  private final TierPricingService tierPricing;
 
   private final VoucherService vouchers;
   private final LoyaltyService loyaltyService;
@@ -1225,10 +1225,12 @@ public class OrderService {
 
     var extra = documents.decode(o.getMetadata());
 
-    var quoteRes = membership.quote(
+    var quoteRes = tierPricing.quote(
             o.getCustomerAccount() == null ? null : o.getCustomerAccount().getId(), selected);
     extra.put("tierBenefit", quoteRes);
     extra.put("membershipBenefit", quoteRes);
+    BigDecimal discount = PresentationService.decimal(quoteRes.get("discount"));
+    o.setTierDiscount(discount != null ? discount : BigDecimal.ZERO);
 
     o.setMetadata(documents.encode(extra));
 

@@ -32,7 +32,7 @@ const icons = {
 const FEATURED_TESTIMONIALS = [
   {
     name: 'Trần Hoàng Nam',
-    role: 'Hội viên Club Plus',
+    role: 'Thành viên Club Plus',
     initials: 'HN',
     bg: '#047857',
     stars: 5,
@@ -52,7 +52,7 @@ const FEATURED_TESTIMONIALS = [
   },
   {
     name: 'Đặng Hoàng Long',
-    role: 'Hội viên VIP',
+    role: 'Thành viên VIP',
     initials: 'HL',
     bg: '#1e3a8a',
     stars: 5,

@@ -131,6 +131,44 @@ class LoyaltyServiceTest {
   }
 
   @Test
+  void testReverseOrderPoints_CalledTwice_OnlyReversesOnce() {
+    Account acc = new Account();
+    acc.setId(UUID.randomUUID());
+    acc.setEmail("test@courtly.com");
+    acc.setPointsBalance(500);
+    acc.setLifetimeSpend(new BigDecimal("5000000"));
+
+    CustomerOrder order = new CustomerOrder();
+    order.setId(UUID.randomUUID());
+    order.setCustomerAccount(acc);
+
+    LoyaltyLedger earn = new LoyaltyLedger();
+    earn.setType("EARN");
+    earn.setPoints(45);
+    earn.setSpendAmount(new BigDecimal("300000"));
+
+    when(accounts.findById(acc.getId())).thenReturn(Optional.of(acc));
+    when(ledger.findByTypeAndOrderId("EARN", order.getId())).thenReturn(Optional.of(earn));
+
+    // Lan goi dau tien: chua co reversal
+    when(ledger.findByOrderId(order.getId())).thenReturn(Collections.emptyList());
+    loyaltyService.reverseOrderPoints(order);
+    assertEquals(455, acc.getPointsBalance());
+
+    // Lan goi thu hai: da ton tai reversal am
+    LoyaltyLedger existingReversal = new LoyaltyLedger();
+    existingReversal.setType("REVERSAL");
+    existingReversal.setPoints(-45);
+    when(ledger.findByOrderId(order.getId())).thenReturn(List.of(existingReversal));
+    loyaltyService.reverseOrderPoints(order);
+
+    // Diem khong bi tru lan hai
+    assertEquals(455, acc.getPointsBalance());
+    verify(ledger, times(1)).save(argThat(l -> "REVERSAL".equals(l.getType()) && l.getPoints() == -45));
+  }
+
+
+  @Test
   void testCheckTierUpgradeInstant() {
     Account acc = new Account();
     acc.setId(UUID.randomUUID());

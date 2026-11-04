@@ -263,7 +263,7 @@ export default function Pricing() {
             <span>{t('Bấm trực tiếp vào ô giá bất kỳ để xem tiền cọc 30% và chuyển sang đặt lịch.')}</span>
           </div>
           <div style={{ fontWeight: 700, color: '#173c32' }}>
-            {t('Hội viên Courtly')}: <span style={{ color: '#15803d' }}>{t('Giảm thêm từ 10% – 20% trên giá niêm yết')}</span>
+            {t('Thành viên Courtly')}: <span style={{ color: '#15803d' }}>{t('Giảm thêm từ 10% – 20% trên giá niêm yết')}</span>
           </div>
         </div>
       </div>
@@ -286,7 +286,7 @@ export default function Pricing() {
               <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{t('Tiền cọc & Thanh toán')}</h3>
             </div>
             <p style={{ fontSize: 13, color: '#52655a', margin: '0 0 10px' }}>
-              {t('Đặt sân trực tuyến yêu cầu cọc')} <b>{settings.depositPercent || 50}%</b> {t('giá trị đơn sau khi trừ ưu đãi hội viên và voucher.')}
+              {t('Đặt sân trực tuyến yêu cầu cọc')} <b>{settings.depositPercent || 50}%</b> {t('giá trị đơn sau khi trừ ưu đãi thành viên và voucher.')}
             </p>
             <p style={{ fontSize: 13, color: '#52655a', margin: 0 }}>
               {t('Thanh toán cọc nhanh qua mã VietQR tự động xác nhận trong 3 giây hoặc nộp tiền mặt tại quầy lễ tân.')}

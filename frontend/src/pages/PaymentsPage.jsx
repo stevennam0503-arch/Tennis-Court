@@ -461,7 +461,7 @@ export default function PaymentsPage() {
 
         <Stat title="Tổng đã hoàn" value={money(refund)} note={periodLabel} icon={RefreshCw} />
 
-        <Stat title="Thu phí hội viên" value={money(memTotal)} note={periodLabel} icon={Users} />
+        <Stat title="Thu phí thành viên" value={money(memTotal)} note={periodLabel} icon={Users} />
 
         <Stat title="Thu ròng" value={money(netRevenue)} note={periodLabel} icon={ChartColumn} />
 
@@ -547,7 +547,7 @@ export default function PaymentsPage() {
 
                 <option value="BANK_TRANSFER">Chuyển khoản (VietQR)</option>
 
-                <option value="MEMBERSHIP">Phí hội viên</option>
+                <option value="MEMBERSHIP">Phí thành viên</option>
 
               </select>
 
@@ -647,7 +647,7 @@ export default function PaymentsPage() {
 
                         ? `Gói ${p.planName}`
 
-                        : 'Hội viên'
+                        : 'Thành viên'
 
                       : (p.orderId || p.registrationId || '').slice(0, 8)}
 
@@ -1085,7 +1085,7 @@ export default function PaymentsPage() {
 
             <div className="notice" style={{ marginTop: 16 }}>
 
-              Báo cáo đối chiếu tổng hợp doanh thu theo ngày (đã bao gồm tiền mặt & chuyển khoản sân bãi, giải đấu và hội viên).
+              Báo cáo đối chiếu tổng hợp doanh thu theo ngày (đã bao gồm tiền mặt & chuyển khoản sân bãi, giải đấu và thành viên).
 
             </div>
 

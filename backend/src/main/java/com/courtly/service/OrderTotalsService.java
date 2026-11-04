@@ -105,6 +105,10 @@ public class OrderTotalsService {
       var extra = documents.decode(order.getMetadata());
 
       Object tierBenefit = extra.get("tierBenefit") != null ? extra.get("tierBenefit") : extra.get("membershipBenefit");
+      if (tierBenefit instanceof java.util.Map<?, ?> m) {
+        BigDecimal discount = PresentationService.decimal(m.get("discount"));
+        order.setTierDiscount(discount != null ? discount : BigDecimal.ZERO);
+      }
       sum = discountedTotal(sum, tierBenefit, extra.get("voucherBenefit"));
 
     }

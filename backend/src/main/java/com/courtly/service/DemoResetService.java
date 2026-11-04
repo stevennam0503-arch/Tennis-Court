@@ -97,33 +97,25 @@ public class DemoResetService {
     jdbc.execute("DELETE FROM app_documents WHERE document_key LIKE 'feedback:%' OR document_key LIKE 'compensation:%'");
     jdbc.execute("DELETE FROM tournament_registrations");
     jdbc.execute("DELETE FROM notifications");
+    jdbc.execute("DELETE FROM tournaments");
+    jdbc.execute("DELETE FROM accounts");
 
-    // 2. Khôi phục các bảng danh mục theo ảnh chụp chuẩn baseline
-    demoBaseline.restoreBaseline();
-
-    // Xóa các tài khoản tạm / phát sinh kiểm thử, giữ lại bộ tài khoản chuẩn
-    jdbc.execute("DELETE FROM accounts WHERE email NOT IN ('admin@gmail.com', 'staff@gmail.com', 'hoangnam@gmail.com', 'khachmoi@gmail.com', 'thao.le@gmail.com', 'minhduc@gmail.com', 'phuong.vu@gmail.com', 'hoanglong@gmail.com', 'demo.hoivien@gmail.com', 'demo.khach@gmail.com', 'kietdlv@gmail.com', 'phuongmaiphanqn3@gmail.com')");
-
-    // Đưa toàn bộ slot về AVAILABLE và dọn dẹp các slot bất thường nếu có
-    jdbc.execute("DELETE FROM court_schedules WHERE extract(second from start_time) != 0 OR extract(minute from start_time) % 30 != 0 OR extract(second from end_time) != 0 OR extract(minute from end_time) % 30 != 0");
-    jdbc.execute("UPDATE court_schedules SET status = 'AVAILABLE'");
-
-    // Đảm bảo các tài khoản hệ thống chuẩn luôn tồn tại; mật khẩu đưa về 123456 để kịch bản demo luôn đăng nhập được
+    // Đảm bảo các tài khoản hệ thống chuẩn luôn tồn tại với đúng ID trước khi nạp baseline (tránh lỗi FK giải đấu)
     String upsertAccountsSql = String.format(
         """
         INSERT INTO accounts (id, email, full_name, phone, role, status, password_hash, created_at, auth_version)
         VALUES 
           ('%s', 'admin@gmail.com', 'Quản trị Courtly', '+84909999999', 'ADMIN', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'staff@gmail.com', 'Lễ tân Courtly (Staff)', '+84908888888', 'STAFF', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'hoangnam@gmail.com', 'Trần Hoàng Nam [Hội viên Plus]', '+84912345678', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'hoangnam@gmail.com', 'Trần Hoàng Nam', '+84912345678', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'khachmoi@gmail.com', 'Lê Thu Hà (Khách mới)', '+84987654321', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'thao.le@gmail.com', 'Lê Thị Thảo', '+84913555777', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'minhduc@gmail.com', 'Phạm Minh Đức', '+84988666555', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'phuong.vu@gmail.com', 'Vũ Mai Phương', '+84903111222', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'hoanglong@gmail.com', 'Đặng Hoàng Long', '+84938444333', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'demo.hoivien@gmail.com', 'Nguyễn Minh Khoa (Demo hội viên)', '+84911000001', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'demo.khach@gmail.com', 'Phạm Thu Trang (Demo khách)', '+84911000002', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'kietdlv@gmail.com', 'Khách demo Kiệt', '+84769496289', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'demo.hoivien@gmail.com', 'Nguyễn Minh Khoa', '+84911000001', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'demo.khach@gmail.com', 'Phạm Thu Trang', '+84911000002', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'kietdlv@gmail.com', 'Nguyễn Tuấn Kiệt', '+84769496289', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'phuongmaiphanqn3@gmail.com', 'Khách demo Phương Mai', '+84377035664', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0)
         ON CONFLICT (id) DO UPDATE SET 
           email = EXCLUDED.email,
@@ -147,6 +139,13 @@ public class DemoResetService {
         PHUONG_MAI_ID, BCRYPT_123456
     );
     jdbc.execute(upsertAccountsSql);
+
+    // 2. Khôi phục các bảng danh mục theo ảnh chụp chuẩn baseline
+    demoBaseline.restoreBaseline();
+
+    // Đưa toàn bộ slot về AVAILABLE và dọn dẹp các slot bất thường nếu có
+    jdbc.execute("DELETE FROM court_schedules WHERE extract(second from start_time) != 0 OR extract(minute from start_time) % 30 != 0 OR extract(second from end_time) != 0 OR extract(minute from end_time) % 30 != 0");
+    jdbc.execute("UPDATE court_schedules SET status = 'AVAILABLE'");
 
 
     // 4. Sinh lại court_schedules 30 phút (06:00 - 23:00) theo bảng giá hiện hành (ngày thường / cuối tuần).
@@ -212,11 +211,11 @@ public class DemoResetService {
     String ord1Id = "11111111-1111-1111-1111-111111111111";
     String bkg1Id = "11111111-1111-1111-1111-222222222222";
     String pay1Id = "11111111-1111-1111-1111-333333333333";
-    // Số tiền của mọi đơn được tính lại từ giá slot ở reconcileSeededOrders(); ở đây chỉ ghi mức ưu đãi hội viên
+    // Số tiền của mọi đơn được tính lại từ giá slot ở reconcileSeededOrders(); ở đây chỉ ghi mức giảm theo hạng
     String meta1 = "{\"customerFlow\": true, \"membershipBenefit\": {\"planName\": \"Plus\", \"discountPercent\": 15}}";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam [Hội viên Plus]', '+84912345678', 'CHECKED_IN', 340000.00, 170000.00, 170000.00, 'PARTIAL', NOW() - interval '2 hours', 0, ?)",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam', '+84912345678', 'CHECKED_IN', 340000.00, 170000.00, 170000.00, 'PARTIAL', NOW() - interval '2 hours', 0, ?)",
         ord1Id, NAM_ID, NAM_ID, meta1
     );
     jdbc.update(
@@ -449,7 +448,7 @@ public class DemoResetService {
     );
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam [Hội viên Plus]', '+84912345678', 'CONFIRMED', 2040000.00, 1020000.00, 1020000.00, 'PARTIAL', NOW() - interval '1 day', 0, ?)",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam', '+84912345678', 'CONFIRMED', 2040000.00, 1020000.00, 1020000.00, 'PARTIAL', NOW() - interval '1 day', 0, ?)",
         ord15Id, NAM_ID, NAM_ID, meta15
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'CONFIRMED', NOW() - interval '1 day')", bkg15Id, ord15Id);
@@ -499,7 +498,7 @@ public class DemoResetService {
         // -----------------------------------------------------------------------------------------
     // F. HẠNG THÀNH VIÊN & ĐIỂM THƯỞNG (LOYALTY TIERS & REWARD POINTS)
     // -----------------------------------------------------------------------------------------
-    // Xóa cache tài liệu hội viên cũ khỏi app_documents & làm sạch bảng loyalty
+    // Xóa cache tài liệu thành viên cũ khỏi app_documents & làm sạch bảng loyalty
     jdbc.execute("DELETE FROM app_documents WHERE document_key LIKE 'membership:%' OR document_key LIKE 'membership-payment:%' OR document_key LIKE 'request:membership:%' OR document_key LIKE 'membership-plan:%'");
     jdbc.execute("DELETE FROM lounge_visits");
     jdbc.execute("DELETE FROM vip_cards");
@@ -578,7 +577,7 @@ public class DemoResetService {
       String pastOrdId = UUID.randomUUID().toString();
       jdbc.update(
           "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Khách demo Kiệt', '+84769496289', 'COMPLETED', ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
+          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Nguyễn Tuấn Kiệt', '+84769496289', 'COMPLETED', ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
           pastOrdId, KIET_ID, KIET_ID, kietSpends[i], kietSpends[i], kietMonths[i]
       );
       jdbc.update(
@@ -608,7 +607,7 @@ public class DemoResetService {
       String pastOrdId = UUID.randomUUID().toString();
       jdbc.update(
           "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Nguyễn Minh Khoa (Demo hội viên)', '+84911000001', 'COMPLETED', ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
+          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Nguyễn Minh Khoa', '+84911000001', 'COMPLETED', ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
           pastOrdId, DEMO_HOIVIEN_ID, DEMO_HOIVIEN_ID, khoaSpends[i], khoaSpends[i], khoaMonths[i]
       );
       jdbc.update(
@@ -631,7 +630,7 @@ public class DemoResetService {
       String pastOrdId = UUID.randomUUID().toString();
       jdbc.update(
           "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Phạm Thu Trang (Demo khách)', '+84911000002', 'COMPLETED', ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
+          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Phạm Thu Trang', '+84911000002', 'COMPLETED', ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
           pastOrdId, DEMO_KHACH_ID, DEMO_KHACH_ID, trangSpends[i], trangSpends[i], trangMonths[i]
       );
       jdbc.update(
@@ -836,7 +835,7 @@ public class DemoResetService {
   }
 
   /**
-   * Tính lại tiền của mọi đơn mẫu từ giá slot đã ghi, phí trọng tài và mức ưu đãi hội viên, để tổng tiền,
+   * Tính lại tiền của mọi đơn mẫu từ giá slot đã ghi, phí trọng tài và mức giảm theo hạng, để tổng tiền,
    * cọc 50%, chứng từ thu và khoản hoàn luôn khớp bảng giá hiện hành. Kịch bản thanh toán của đơn được giữ:
    * chưa thu, đã cọc, hoặc đã thu đủ.
    */
@@ -866,7 +865,7 @@ public class DemoResetService {
         meta.put("membershipBenefit", benefit);
       }
       BigDecimal total = court.add(referee).subtract(discount);
-      // Cùng quy tắc với OrderApplicationService.customerDeposit: hội viên cọc 50% tiền sân sau ưu đãi
+      // Cùng quy tắc với OrderApplicationService.customerDeposit: giảm theo hạng cọc 50% tiền sân sau ưu đãi
       BigDecimal deposit = (member ? court.subtract(discount) : total).multiply(new BigDecimal("0.5")).setScale(0, RoundingMode.HALF_UP);
 
       if (meta.get("extensionHistory") instanceof List<?> history && !history.isEmpty()) {
@@ -907,8 +906,8 @@ public class DemoResetService {
       BigDecimal paid = collected.subtract(refunded);
       String status = paid.signum() == 0 ? "UNPAID" : paid.compareTo(total) >= 0 ? "PAID" : "PARTIAL";
       jdbc.update(
-          "UPDATE orders SET subtotal = ?, total_amount = ?, deposit_required = ?, paid_amount = ?, payment_status = ?, metadata = ? WHERE id = ?",
-          total, total, deposit, paid, status, documents.encode(meta), id);
+          "UPDATE orders SET subtotal = ?, total_amount = ?, deposit_required = ?, paid_amount = ?, payment_status = ?, metadata = ?, tier_discount = ? WHERE id = ?",
+          total, total, deposit, paid, status, documents.encode(meta), discount, id);
     }
   }
 

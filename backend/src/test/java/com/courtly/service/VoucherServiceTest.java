@@ -21,7 +21,7 @@ class VoucherServiceTest {
   private VoucherRepository vouchers;
   private VoucherRedemptionRepository redemptions;
   private CustomerOrderRepository orders;
-  private MembershipService memberships;
+  private TierPricingService memberships;
   private AccountRepository accounts;
   private AuditService auditService;
   private VoucherService service;
@@ -31,7 +31,7 @@ class VoucherServiceTest {
     vouchers = mock(VoucherRepository.class);
     redemptions = mock(VoucherRedemptionRepository.class);
     orders = mock(CustomerOrderRepository.class);
-    memberships = mock(MembershipService.class);
+    memberships = mock(TierPricingService.class);
     accounts = mock(AccountRepository.class);
     auditService = mock(AuditService.class);
     service = new VoucherService(vouchers, redemptions, orders, accounts, auditService);

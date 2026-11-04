@@ -27,7 +27,7 @@ public class OrderApplicationService {
   private final jakarta.validation.Validator validator;
   private final SettingsService settings;
   private final AccountRepository accounts;
-  private final MembershipService memberships;
+  private final TierPricingService tierPricing;
   private final CourtScheduleRepository schedules;
   private final AuditService audit;
 
@@ -47,7 +47,7 @@ public class OrderApplicationService {
                 r.accountId() == null || r.accountId().equals(a.getId()),
                 "Chỉ được đặt cho tài khoản của mình");
             service.continuous(support.selected(r.scheduleIds()));
-            memberships.checkWindow(a.getId(), support.selected(r.scheduleIds()));
+            tierPricing.checkWindow(a.getId(), support.selected(r.scheduleIds()));
             effective =
                 new BookingRequest(
                     a.getFullName(),
@@ -201,7 +201,7 @@ public class OrderApplicationService {
           support.owns(a, id);
           var o = service.lock(id);
           customerPolicy(a, o, "change");
-          if (!Set.of("ADMIN", "STAFF").contains(a.getRole())) memberships.checkWindow(a.getId(), support.selected(ids(b.get("scheduleIds"))));
+          if (!Set.of("ADMIN", "STAFF").contains(a.getRole())) tierPricing.checkWindow(a.getId(), support.selected(ids(b.get("scheduleIds"))));
           if (Set.of("ADMIN", "STAFF").contains(a.getRole())) text((String) b.get("reason"), "Lý do đổi lịch");
           var old = views.order(o);
           var r =
@@ -215,7 +215,7 @@ public class OrderApplicationService {
             require(PresentationService.decimal(((Map<?, ?>) preview.get("next")).get("total"))
                 .compareTo(PresentationService.decimal(b.get("expectedTotal"))) == 0,
                 "Giá đã thay đổi; vui lòng xem trước lịch mới lại");
-          if (!Set.of("ADMIN", "STAFF").contains(a.getRole()) && "CONFIRMED".equals(o.getStatus())) memberships.consumeChange(a.getId(), service.allocated(service.booking(o)).stream().filter(slot -> slot.getScheduleDate().equals(service.visitDate(o, null))).toList(), support.selected(r.scheduleIds()));
+          if (!Set.of("ADMIN", "STAFF").contains(a.getRole()) && "CONFIRMED".equals(o.getStatus())) tierPricing.consumeChange(a.getId(), service.allocated(service.booking(o)).stream().filter(slot -> slot.getScheduleDate().equals(service.visitDate(o, null))).toList(), support.selected(r.scheduleIds()));
           service.move(id, r);
           if (b.get("expectedTotal") != null)
             require(o.getTotalAmount().compareTo(PresentationService.decimal(b.get("expectedTotal"))) == 0,
@@ -415,7 +415,7 @@ public class OrderApplicationService {
     boolean slot2Available = nextSlot2 != null && "AVAILABLE".equals(nextSlot2.getStatus());
 
     UUID accountId = o.getCustomerAccount() == null ? null : o.getCustomerAccount().getId();
-    var quote1 = memberships.quote(accountId, List.of(nextSlot1));
+    var quote1 = tierPricing.quote(accountId, List.of(nextSlot1));
     var opt1 = map(
         "duration", 30,
         "scheduleIds", List.of(nextSlot1.getId()),
@@ -430,7 +430,7 @@ public class OrderApplicationService {
     optionsList.add(opt1);
 
     if (slot2Available) {
-      var quote2 = memberships.quote(accountId, List.of(nextSlot1, nextSlot2));
+      var quote2 = tierPricing.quote(accountId, List.of(nextSlot1, nextSlot2));
       var opt2 = map(
           "duration", 60,
           "scheduleIds", List.of(nextSlot1.getId(), nextSlot2.getId()),

@@ -346,7 +346,7 @@ export function MyPayments() {
             { id: 'DEPOSIT', label: 'Tiền cọc' },
             { id: 'BALANCE', label: 'Thanh toán đơn' },
             { id: 'REFUND', label: 'Hoàn tiền' },
-            { id: 'OTHER', label: 'Giải & Hội viên' }
+            { id: 'OTHER', label: 'Giải & Thành viên' }
           ].map(k => (
             <button
               key={k.id}
@@ -391,7 +391,7 @@ export function MyPayments() {
             <option value="ALL">Tất cả phương thức</option>
             <option value="CASH">Tiền mặt</option>
             <option value="BANK_TRANSFER">Chuyển khoản VietQR</option>
-            <option value="MEMBERSHIP">Hội viên</option>
+            <option value="MEMBERSHIP">Thành viên</option>
           </select>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -490,7 +490,7 @@ export function MyPayments() {
                     background: '#dcfce7',
                     color: '#15803d'
                   }}>
-                    <ArrowUpRight size={13} /> Phí hội viên
+                    <ArrowUpRight size={13} /> Phí thành viên
                   </span>
                 ) : p.type === 'TOURNAMENT_FEE' ? (
                   <span style={{

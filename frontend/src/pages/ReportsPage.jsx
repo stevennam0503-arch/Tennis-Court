@@ -222,7 +222,7 @@ export default function ReportsPage() {
 
     { name: 'Phí giải đấu', value: tournamentValue, color: '#8b5cf6' },
 
-    { name: 'Gói hội viên', value: membershipValue, color: '#3b82f6' },
+    { name: 'Gói thành viên', value: membershipValue, color: '#3b82f6' },
 
     ...(legacyValue ? [{ name: 'Khoản dịch vụ cũ', value: legacyValue, color: '#94a3b8' }] : [])
 
@@ -673,7 +673,7 @@ export default function ReportsPage() {
 
       ['2. Dịch vụ trọng tài', staffValue],
 
-      ['3. Phí giải đấu & Phí hội viên', netTournamentCash + netMembershipCash],
+      ['3. Phí giải đấu & Phí thành viên', netTournamentCash + netMembershipCash],
 
       ['Trừ: Khoản hoàn tiền', refundsInPeriod.reduce((a, r) => a + r.amount, 0)],
 
@@ -905,7 +905,7 @@ export default function ReportsPage() {
 
         <Stat
 
-          title="Thu giải & Hội viên"
+          title="Thu giải & Thành viên"
 
           value={money(netTournamentCash + netMembershipCash)}
 
@@ -1606,7 +1606,7 @@ export default function ReportsPage() {
         <div className="panel-body" style={{ padding: '16px 20px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 20 }}>
             <div style={{ background: '#f8fafc', padding: 14, borderRadius: 10, border: '1px solid #e2e8f0' }}>
-              <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>TỔNG HỘI VIÊN THEO HẠNG</span>
+              <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>TỔNG THÀNH VIÊN THEO HẠNG</span>
               <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 12, background: '#f1f5f9', padding: '2px 8px', borderRadius: 12 }}>🎾 Rookie: <b>{loyaltyReport?.tierCounts?.ROOKIE || 0}</b></span>
                 <span style={{ fontSize: 12, background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: 12 }}>⭐ Challenger: <b>{loyaltyReport?.tierCounts?.CHALLENGER || 0}</b></span>

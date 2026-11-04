@@ -216,7 +216,7 @@ export default function AiChatbox() {
             role: 'assistant',
             text: isEn
               ? 'Hello! I am Courtly Tennis Assistant 🎾.\nI can assist you with court rates, schedule availability, referee booking, QR check-in, and membership plans. How can I help you today?'
-              : 'Xin chào! Tôi là Trợ lý AI của CLB Quần vợt Courtly 🎾.\nTôi có thể hỗ trợ bạn tức thì về bảng giá 10 sân, lịch trống, dịch vụ trọng tài, check-in mã QR hoặc chính sách hội viên. Bạn cần tìm hiểu thông tin gì hôm nay?'
+              : 'Xin chào! Tôi là Trợ lý AI của CLB Quần vợt Courtly 🎾.\nTôi có thể hỗ trợ bạn tức thì về bảng giá 10 sân, lịch trống, dịch vụ trọng tài, check-in mã QR hoặc chính sách thành viên. Bạn cần tìm hiểu thông tin gì hôm nay?'
           }
         ];
       }
@@ -422,7 +422,7 @@ Bạn cần tìm hiểu thông tin cụ thể nào, hãy nhắn cho tôi nhé!`;
     }
 
     if (
-      norm.includes('hoi vien') ||
+      norm.includes('thanh vien') ||
       norm.includes('membership') ||
       norm.includes('hang') ||
       norm.includes('diem') ||

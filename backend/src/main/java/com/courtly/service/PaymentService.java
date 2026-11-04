@@ -59,7 +59,7 @@ public class PaymentService {
       require(
           documents.list("membership-payment:").stream()
               .noneMatch(p -> request.transactionCode().equals(p.get("transactionCode"))),
-          "Mã giao dịch đã dùng cho phí hội viên");
+          "Mã giao dịch đã dùng cho phí thành viên");
     var existing = payments.findByTransactionCode(request.transactionCode());
     if (existing.isPresent()) {
       Payment old = existing.get();

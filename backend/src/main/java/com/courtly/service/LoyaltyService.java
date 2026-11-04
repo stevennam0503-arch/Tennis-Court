@@ -180,6 +180,12 @@ public class LoyaltyService {
     var earnEntry = ledger.findByTypeAndOrderId("EARN", order.getId());
     if (earnEntry.isEmpty()) return;
 
+    // Chặn trừ điểm hai lần nếu đã có REVERSAL âm cho đơn này
+    List<LoyaltyLedger> existingReversals = ledger.findByOrderId(order.getId());
+    if (existingReversals.stream().anyMatch(e -> "REVERSAL".equals(e.getType()) && e.getPoints() != null && e.getPoints() < 0)) {
+      return;
+    }
+
     int earned = earnEntry.get().getPoints();
     BigDecimal spend = earnEntry.get().getSpendAmount();
 
