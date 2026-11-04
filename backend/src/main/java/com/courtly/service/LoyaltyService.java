@@ -161,7 +161,8 @@ public class LoyaltyService {
       auditService.log("EARN_POINTS", "Tích " + pointsEarned + " điểm cho tài khoản " + account.getEmail() + " từ đơn " + order.getId());
 
       // Xét thăng hạng ngay
-      checkTierUpgrade(account, newSpend);
+      BigDecimal spend12m = rolling12MonthSpend(account.getId());
+      checkTierUpgrade(account, spend12m);
     }
 
     return pointsEarned;
@@ -201,6 +202,13 @@ public class LoyaltyService {
   }
 
   // =========================================================================
+  public BigDecimal rolling12MonthSpend(UUID accountId) {
+    if (accountId == null) return BigDecimal.ZERO;
+    Instant since = now().minus(Duration.ofDays(365));
+    BigDecimal sum = ledger.sumSpendByAccountIdSince(accountId, since);
+    return sum != null && sum.compareTo(BigDecimal.ZERO) > 0 ? sum : BigDecimal.ZERO;
+  }
+
   // 3. XÉT HẠNG & NÂNG HẠNG TỨC THÌ (TIER UPGRADE)
   // =========================================================================
 
@@ -414,6 +422,7 @@ public class LoyaltyService {
     Account acc = accounts.findById(accountId).orElseThrow(() -> new BusinessException("Không tìm thấy tài khoản"));
     String tier = acc.getTier() != null ? acc.getTier().toUpperCase(Locale.ROOT) : "ROOKIE";
     BigDecimal spend = acc.getLifetimeSpend() != null ? acc.getLifetimeSpend() : BigDecimal.ZERO;
+    BigDecimal spend12m = rolling12MonthSpend(accountId);
 
     String nextTier = switch (tier) {
       case "ROOKIE" -> "CHALLENGER";
@@ -422,7 +431,7 @@ public class LoyaltyService {
       default -> null;
     };
     BigDecimal nextThreshold = nextTier != null ? getTierSpendThreshold(nextTier) : BigDecimal.ZERO;
-    BigDecimal needed = nextTier != null ? nextThreshold.subtract(spend).max(BigDecimal.ZERO) : BigDecimal.ZERO;
+    BigDecimal needed = nextTier != null ? nextThreshold.subtract(spend12m).max(BigDecimal.ZERO) : BigDecimal.ZERO;
 
     // Lấy thẻ VIP nếu có
     var vipCard = vipCards.findFirstByAccountIdAndStatusOrderByIssuedAtDesc(accountId, "ACTIVE").orElse(null);
@@ -443,6 +452,7 @@ public class LoyaltyService {
         "tierExpiresAt", acc.getTierExpiresAt(),
         "pointsBalance", acc.getPointsBalance() != null ? acc.getPointsBalance() : 0,
         "lifetimeSpend", spend,
+        "spend12m", spend12m,
         "discountPercent", getTierDiscountPercent(tier),
         "pointMultiplier", getTierMultiplier(tier),
         "bookingWindowDays", getBookingWindowDays(tier),
@@ -465,24 +475,38 @@ public class LoyaltyService {
     Instant current = now();
     LocalDate todayDate = nowZoned().toLocalDate();
 
-    // 1. Xét hạ hạng khi quá hạn tierExpiresAt
+    // 1. Xét hạ hạng khi quá hạn tierExpiresAt hoặc cảnh báo trước 30 ngày
     List<Account> allAccounts = accounts.findAll();
     for (Account a : allAccounts) {
-      if (a.getTierExpiresAt() != null && a.getTierExpiresAt().isBefore(current)) {
-        String currentTier = a.getTier() != null ? a.getTier().toUpperCase(Locale.ROOT) : "ROOKIE";
-        if (!"ROOKIE".equals(currentTier)) {
-          // Hạ đúng 1 bậc
-          String newTier = switch (currentTier) {
-            case "GRAND_SLAM" -> "MASTERS";
-            case "MASTERS" -> "CHALLENGER";
-            default -> "ROOKIE";
-          };
-          a.setTier(newTier);
-          a.setTierSince(current);
-          a.setTierExpiresAt(current.plus(Duration.ofDays(365)));
-          accounts.save(a);
-
-          auditService.log("TIER_DOWNGRADE", "Hạ hạng từ " + currentTier + " xuống " + newTier + " cho tài khoản " + a.getEmail());
+      if (a.getTierExpiresAt() != null) {
+        if (a.getTierExpiresAt().isBefore(current)) {
+          String currentTier = a.getTier() != null ? a.getTier().toUpperCase(Locale.ROOT) : "ROOKIE";
+          BigDecimal spend12m = rolling12MonthSpend(a.getId());
+          if (spend12m.compareTo(getTierSpendThreshold(currentTier)) >= 0) {
+            a.setTierSince(current);
+            a.setTierExpiresAt(current.plus(Duration.ofDays(365)));
+            accounts.save(a);
+            auditService.log("TIER_MAINTAINED", "Duy trì hạng " + currentTier + " cho tài khoản " + a.getEmail());
+          } else if (!"ROOKIE".equals(currentTier)) {
+            String newTier = switch (currentTier) {
+              case "GRAND_SLAM" -> "MASTERS";
+              case "MASTERS" -> "CHALLENGER";
+              default -> "ROOKIE";
+            };
+            a.setTier(newTier);
+            a.setTierSince(current);
+            a.setTierExpiresAt(current.plus(Duration.ofDays(365)));
+            accounts.save(a);
+            auditService.log("TIER_DOWNGRADE", "Hạ hạng từ " + currentTier + " xuống " + newTier + " cho tài khoản " + a.getEmail());
+          }
+        } else {
+          long daysLeft = Duration.between(current, a.getTierExpiresAt()).toDays();
+          if (daysLeft <= 30 && daysLeft > 0 && !"ROOKIE".equals(a.getTier())) {
+            String dedupe = "TIER_EXPIRY_WARN:" + a.getId() + ":" + a.getTier() + ":" + todayDate.toString().substring(0, 7);
+            String warnMsg = "Hạng " + a.getTier() + " của bạn sẽ hết hạn sau " + daysLeft + " ngày. Tiếp tục chi tiêu để giữ hạng!";
+            notificationService.enqueue(a.getId(), null, null, "TIER_EXPIRY_WARN", "IN_APP", null,
+                "⚠️ Sắp hết hạn hạng thành viên", warnMsg, current, dedupe);
+          }
         }
       }
     }

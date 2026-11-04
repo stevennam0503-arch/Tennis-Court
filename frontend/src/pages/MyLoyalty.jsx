@@ -65,7 +65,7 @@ export default function MyLoyalty() {
 
   const currentTier = data.tier || 'ROOKIE';
   const meta = TIER_META[currentTier] || TIER_META.ROOKIE;
-  const spend = data.spend12Month || 0;
+  const spend = data.spend12m != null ? data.spend12m : (data.spend12Month || 0);
   const nextTarget = meta.target;
   const progressPct = meta.next ? Math.min(100, Math.round((spend / nextTarget) * 100)) : 100;
   const needed = meta.next ? Math.max(0, nextTarget - spend) : 0;

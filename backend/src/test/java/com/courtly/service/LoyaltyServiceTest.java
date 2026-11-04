@@ -163,4 +163,41 @@ class LoyaltyServiceTest {
     assertEquals("MASTERS", acc.getTier());
     assertTrue(acc.getTierExpiresAt().isAfter(testNow));
   }
+
+  @Test
+  void testRolling12MonthSpendExcludes13MonthsAgo() {
+    Instant fixedNow = Instant.parse("2026-11-04T12:00:00Z");
+    loyaltyService.setClock(Clock.fixed(fixedNow, ZONE));
+
+    UUID accId = UUID.randomUUID();
+    Instant cutoff = fixedNow.minus(Duration.ofDays(365));
+
+    when(ledger.sumSpendByAccountIdSince(eq(accId), eq(cutoff))).thenReturn(new BigDecimal("19800000"));
+
+    BigDecimal spend12m = loyaltyService.rolling12MonthSpend(accId);
+    assertEquals(new BigDecimal("19800000"), spend12m);
+    verify(ledger).sumSpendByAccountIdSince(eq(accId), eq(cutoff));
+  }
+
+  @Test
+  void testCustomerWith19M8And235kUpgradesToGrandSlam() {
+    Account acc = new Account();
+    acc.setId(UUID.randomUUID());
+    acc.setEmail("hoivien@courtly.com");
+    acc.setTier("MASTERS");
+    acc.setPointsBalance(1000);
+
+    when(vipCards.findByCode(anyString())).thenReturn(Optional.empty());
+    when(vipCards.save(any(VipCard.class))).thenAnswer(i -> i.getArgument(0));
+
+    // 19.8M + 235k = 20.035.000đ >= 20.000.000đ -> Grand Slam!
+    BigDecimal total12m = new BigDecimal("19800000").add(new BigDecimal("235000"));
+    loyaltyService.checkTierUpgrade(acc, total12m);
+
+    assertEquals("GRAND_SLAM", acc.getTier());
+    assertEquals(2000, acc.getPointsBalance()); // +1000 tier gift points
+    verify(vipCards).save(any(VipCard.class));
+    verify(voucherService).createCompensationVoucher(eq(acc.getId()), isNull(), isNull(), anyMap(), eq(acc));
+  }
+
 }

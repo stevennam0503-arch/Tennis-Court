@@ -17,4 +17,7 @@ public interface LoyaltyLedgerRepository extends JpaRepository<LoyaltyLedger, UU
 
   @Query("SELECT COALESCE(SUM(l.points), 0) FROM LoyaltyLedger l WHERE l.account.id = :accountId")
   int sumPointsByAccountId(@Param("accountId") UUID accountId);
+
+  @Query("SELECT COALESCE(SUM(l.spendAmount), 0) FROM LoyaltyLedger l WHERE l.account.id = :accountId AND l.createdAt >= :since AND l.type IN ('EARN', 'REVERSAL')")
+  java.math.BigDecimal sumSpendByAccountIdSince(@Param("accountId") UUID accountId, @Param("since") java.time.Instant since);
 }
