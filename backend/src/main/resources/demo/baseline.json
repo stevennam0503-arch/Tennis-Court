@@ -828,15 +828,6 @@
         "status": "ACTIVE"
       },
       {
-        "id": "ab64fc1f-8e1c-4be2-a288-6925e5773360",
-        "full_name": "Non-billable test staff",
-        "phone": "0900000099",
-        "type": "COACH",
-        "level": null,
-        "hourly_rate": 100000.0,
-        "status": "ACTIVE"
-      },
-      {
         "id": "cba30784-00ef-e384-5def-91250a5e9d8d",
         "full_name": "TT Vũ Thanh Bình",
         "phone": "0912555666",
