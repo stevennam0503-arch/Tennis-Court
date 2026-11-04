@@ -3,6 +3,9 @@ package com.courtly.service;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.courtly.dto.VoucherOrderContext;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import com.courtly.entity.CustomerOrder;
 import com.courtly.entity.Voucher;
 import com.courtly.entity.VoucherRedemption;
@@ -260,5 +263,85 @@ class VoucherServiceTest {
     assertThrows(BusinessException.class, () -> service.previewRestore("LIMIT", order, new BigDecimal("200000")));
     assertThrows(BusinessException.class, () -> service.restore("LIMIT", order, new BigDecimal("200000")));
     verify(redemptions, never()).save(any());
+  }
+
+  @Test
+  void timeConditionPassesWhenSlotsWithinWindowAndFailsWhenSlotExceeds() {
+    Voucher v = createVoucher("GOLDEN1H", "FIXED", new BigDecimal("50000"), BigDecimal.ZERO, null);
+    v.setValidFromTime(LocalTime.of(10, 0));
+    v.setValidToTime(LocalTime.of(15, 0));
+    when(vouchers.findByCodeIgnoreCase("GOLDEN1H")).thenReturn(Optional.of(v));
+
+    UUID accId = UUID.randomUUID();
+
+    // Pass case: slot 10:00 to 12:00
+    var passSlot = new VoucherOrderContext.SlotItem(LocalDate.of(2026, 11, 10), LocalTime.of(10, 0), LocalTime.of(12, 0), "OUTDOOR");
+    var passCtx = new VoucherOrderContext(new BigDecimal("200000"), accId, List.of(passSlot));
+    var res = service.calculate("GOLDEN1H", new BigDecimal("200000"), accId, passCtx);
+    assertNotNull(res);
+    assertEquals("GOLDEN1H", res.get("code"));
+
+    // Fail case: slot 15:00 to 16:00 (lech 1 gio)
+    var failSlot = new VoucherOrderContext.SlotItem(LocalDate.of(2026, 11, 10), LocalTime.of(15, 0), LocalTime.of(16, 0), "OUTDOOR");
+    var failCtx = new VoucherOrderContext(new BigDecimal("200000"), accId, List.of(failSlot));
+    var ex = assertThrows(BusinessException.class, () -> service.calculate("GOLDEN1H", new BigDecimal("200000"), accId, failCtx));
+    assertTrue(ex.getMessage().contains("Chỉ áp dụng khung 10:00–15:00"));
+  }
+
+  @Test
+  void zoneConditionPassesWhenMatchingAndFailsWhenDifferentZone() {
+    Voucher v = createVoucher("OUTDOORONLY", "FIXED", new BigDecimal("50000"), BigDecimal.ZERO, null);
+    v.setZone("OUTDOOR");
+    when(vouchers.findByCodeIgnoreCase("OUTDOORONLY")).thenReturn(Optional.of(v));
+
+    UUID accId = UUID.randomUUID();
+
+    // Pass case: slot is OUTDOOR
+    var passSlot = new VoucherOrderContext.SlotItem(LocalDate.of(2026, 11, 10), LocalTime.of(8, 0), LocalTime.of(9, 0), "OUTDOOR");
+    var passCtx = new VoucherOrderContext(new BigDecimal("200000"), accId, List.of(passSlot));
+    var res = service.calculate("OUTDOORONLY", new BigDecimal("200000"), accId, passCtx);
+    assertNotNull(res);
+    assertEquals("OUTDOORONLY", res.get("code"));
+
+    // Fail case: slot is INDOOR
+    var failSlot = new VoucherOrderContext.SlotItem(LocalDate.of(2026, 11, 10), LocalTime.of(8, 0), LocalTime.of(9, 0), "INDOOR");
+    var failCtx = new VoucherOrderContext(new BigDecimal("200000"), accId, List.of(failSlot));
+    var ex = assertThrows(BusinessException.class, () -> service.calculate("OUTDOORONLY", new BigDecimal("200000"), accId, failCtx));
+    assertTrue(ex.getMessage().contains("Chỉ áp dụng sân ngoài trời"));
+  }
+
+  @Test
+  void weekdayConditionPassesWhenWeekdayMatchesAndFailsOnWeekend() {
+    Voucher v = createVoucher("WEEKDAYONLY", "FIXED", new BigDecimal("50000"), BigDecimal.ZERO, null);
+    v.setValidWeekdays("1,2,3,4,5");
+    when(vouchers.findByCodeIgnoreCase("WEEKDAYONLY")).thenReturn(Optional.of(v));
+
+    UUID accId = UUID.randomUUID();
+
+    // Pass case: Wednesday 2026-11-11 (dow = 3)
+    var passSlot = new VoucherOrderContext.SlotItem(LocalDate.of(2026, 11, 11), LocalTime.of(8, 0), LocalTime.of(9, 0), "OUTDOOR");
+    var passCtx = new VoucherOrderContext(new BigDecimal("200000"), accId, List.of(passSlot));
+    var res = service.calculate("WEEKDAYONLY", new BigDecimal("200000"), accId, passCtx);
+    assertNotNull(res);
+    assertEquals("WEEKDAYONLY", res.get("code"));
+
+    // Fail case: Saturday 2026-11-14 (dow = 6)
+    var failSlot = new VoucherOrderContext.SlotItem(LocalDate.of(2026, 11, 14), LocalTime.of(8, 0), LocalTime.of(9, 0), "OUTDOOR");
+    var failCtx = new VoucherOrderContext(new BigDecimal("200000"), accId, List.of(failSlot));
+    var ex = assertThrows(BusinessException.class, () -> service.calculate("WEEKDAYONLY", new BigDecimal("200000"), accId, failCtx));
+    assertTrue(ex.getMessage().contains("Chỉ áp dụng Thứ 2–Thứ 6"));
+  }
+
+  @Test
+  void assignedAccountConditionRejectsDifferentAccount() {
+    Voucher v = createVoucher("PERSONAL", "FIXED", new BigDecimal("50000"), BigDecimal.ZERO, null);
+    UUID ownerId = UUID.randomUUID();
+    v.setAssignedAccountId(ownerId);
+    when(vouchers.findByCodeIgnoreCase("PERSONAL")).thenReturn(Optional.of(v));
+
+    UUID otherId = UUID.randomUUID();
+    var ctx = new VoucherOrderContext(new BigDecimal("200000"), otherId, List.of());
+    var ex = assertThrows(BusinessException.class, () -> service.calculate("PERSONAL", new BigDecimal("200000"), otherId, ctx));
+    assertTrue(ex.getMessage().contains("Voucher dành riêng cho tài khoản khác"));
   }
 }

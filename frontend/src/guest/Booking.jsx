@@ -596,7 +596,21 @@ export default function Booking() {
 
     try {
 
-      const res = await api('/public/vouchers/validate', 'POST', { code, amount: baseCourtNet, accountId: user?.id || null });
+      const slotsPayload = allChosen.map(s => {
+        const c = data?.courts?.find(item => item.id === (s.courtId || s.court || courtId));
+        return {
+          date: s.scheduleDate || s.date || date,
+          startTime: typeof s.start === 'number' ? clock(s.start) : (s.start || s.startTime),
+          endTime: typeof s.end === 'number' ? clock(s.end) : (s.end || s.endTime),
+          zone: c?.type || preferredZone || 'OUTDOOR'
+        };
+      });
+      const res = await api('/public/vouchers/validate', 'POST', {
+        code,
+        amount: baseCourtNet,
+        accountId: user?.id || null,
+        slots: slotsPayload
+      });
 
       setAppliedVoucher(res);
 
@@ -634,7 +648,20 @@ export default function Booking() {
 
     if (baseCourtNet > 0) {
 
-      api('/public/vouchers/evaluate', 'POST', { amount: baseCourtNet, accountId: user?.id || null })
+      const evalSlots = allChosen.map(s => {
+        const c = data?.courts?.find(item => item.id === (s.courtId || s.court || courtId));
+        return {
+          date: s.scheduleDate || s.date || date,
+          startTime: typeof s.start === 'number' ? clock(s.start) : (s.start || s.startTime),
+          endTime: typeof s.end === 'number' ? clock(s.end) : (s.end || s.endTime),
+          zone: c?.type || preferredZone || 'OUTDOOR'
+        };
+      });
+      api('/public/vouchers/evaluate', 'POST', {
+        amount: baseCourtNet,
+        accountId: user?.id || null,
+        slots: evalSlots
+      })
 
         .then(res => {
 

@@ -4,6 +4,7 @@ import static com.courtly.util.Rules.map;
 
 import com.courtly.entity.Account;
 import com.courtly.entity.CustomerOrder;
+import com.courtly.dto.VoucherOrderContext;
 import com.courtly.entity.Voucher;
 import com.courtly.entity.VoucherRedemption;
 import com.courtly.exception.BusinessException;
@@ -63,6 +64,12 @@ public class VoucherService {
 
   @Transactional(readOnly = true)
   public List<Map<String, Object>> evaluateAll(BigDecimal totalAmount, UUID accountId) {
+    return evaluateAll(totalAmount, accountId, null);
+  }
+
+  @Transactional(readOnly = true)
+  public List<Map<String, Object>> evaluateAll(BigDecimal totalAmount, UUID accountId, VoucherOrderContext ctx) {
+    VoucherOrderContext effectiveCtx = ctx != null ? ctx : new VoucherOrderContext(totalAmount, accountId, List.of());
     Instant now = Instant.now();
     BigDecimal total = totalAmount != null ? totalAmount : BigDecimal.ZERO;
 
@@ -92,6 +99,12 @@ public class VoucherService {
 
       boolean applicable = true;
       String reason = null;
+
+      String condErr = checkConditionError(v, effectiveCtx);
+      if (condErr != null) {
+        applicable = false;
+        reason = condErr;
+      }
 
       if (v.getUsageLimit() != null && v.getUsedCount() >= v.getUsageLimit()) {
         applicable = false;
@@ -175,6 +188,11 @@ public class VoucherService {
 
   @Transactional(readOnly = true)
   public Map<String, Object> calculate(String rawCode, BigDecimal totalAmount, UUID accountId) {
+    return calculate(rawCode, totalAmount, accountId, null);
+  }
+
+  @Transactional(readOnly = true)
+  public Map<String, Object> calculate(String rawCode, BigDecimal totalAmount, UUID accountId, VoucherOrderContext ctx) {
     if (rawCode == null || rawCode.isBlank()) {
       return null;
     }
@@ -182,7 +200,8 @@ public class VoucherService {
     Voucher v = vouchers.findByCodeIgnoreCase(code).orElseThrow(
         () -> new BusinessException("Mã voucher '" + rawCode + "' không tồn tại hoặc đã hết hạn"));
 
-    validateVoucherRules(v, totalAmount, accountId, null);
+    VoucherOrderContext effectiveCtx = ctx != null ? ctx : new VoucherOrderContext(totalAmount, accountId, List.of());
+    validateVoucherRules(v, totalAmount, accountId, null, effectiveCtx);
     BigDecimal discount = computeDiscount(v, totalAmount);
 
     return map(
@@ -198,6 +217,11 @@ public class VoucherService {
 
   @Transactional
   public Map<String, Object> redeem(String rawCode, CustomerOrder order, BigDecimal totalAmount, UUID accountId) {
+    return redeem(rawCode, order, totalAmount, accountId, (VoucherOrderContext) null);
+  }
+
+  @Transactional
+  public Map<String, Object> redeem(String rawCode, CustomerOrder order, BigDecimal totalAmount, UUID accountId, VoucherOrderContext ctx) {
     if (rawCode == null || rawCode.isBlank()) {
       return null;
     }
@@ -206,7 +230,8 @@ public class VoucherService {
         () -> new BusinessException("Mã voucher '" + rawCode + "' không tồn tại hoặc đã hết hạn"));
 
     UUID currentOrderId = order != null ? order.getId() : null;
-    validateVoucherRules(v, totalAmount, accountId, currentOrderId);
+    VoucherOrderContext effectiveCtx = ctx != null ? ctx : new VoucherOrderContext(totalAmount, accountId, List.of());
+    validateVoucherRules(v, totalAmount, accountId, currentOrderId, effectiveCtx);
     BigDecimal discount = computeDiscount(v, totalAmount);
 
     v.setUsedCount(v.getUsedCount() + 1);
@@ -243,7 +268,7 @@ public class VoucherService {
     var voucher = vouchers.findByCodeIgnoreCase(code).orElseThrow(
         () -> new BusinessException("Voucher cũ không còn tồn tại; không thể khôi phục ưu đãi"));
     validateVoucherRules(voucher, gross,
-        order.getCustomerAccount() == null ? null : order.getCustomerAccount().getId(), order.getId());
+        order.getCustomerAccount() == null ? null : order.getCustomerAccount().getId(), order.getId(), null);
     return benefit(voucher, computeDiscount(voucher, gross));
   }
 
@@ -270,7 +295,112 @@ public class VoucherService {
     });
   }
 
-  private void validateVoucherRules(Voucher v, BigDecimal totalAmount, UUID accountId, UUID excludeOrderId) {
+
+  public String checkConditionError(Voucher v, VoucherOrderContext ctx) {
+    if (ctx == null) return null;
+
+    // 1. Đối tượng: nếu voucher cá nhân (assigned_account_id khác null) -> chỉ chính tài khoản đó được dùng
+    if (v.getAssignedAccountId() != null) {
+      if (ctx.accountId() == null || !ctx.accountId().equals(v.getAssignedAccountId())) {
+        return "Voucher dành riêng cho tài khoản khác";
+      }
+    }
+
+    // 2. Khung giờ: mọi slot trong đơn phải nằm trọn trong [valid_from_time, valid_to_time]
+    if (v.getValidFromTime() != null || v.getValidToTime() != null) {
+      if (ctx.slots() != null && !ctx.slots().isEmpty()) {
+        for (VoucherOrderContext.SlotItem slot : ctx.slots()) {
+          boolean violated = false;
+          if (v.getValidFromTime() != null && slot.startTime() != null && slot.startTime().isBefore(v.getValidFromTime())) {
+            violated = true;
+          }
+          if (v.getValidToTime() != null && slot.endTime() != null && slot.endTime().isAfter(v.getValidToTime())) {
+            violated = true;
+          }
+          if (violated) {
+            String fromStr = v.getValidFromTime() != null ? String.format("%02d:%02d", v.getValidFromTime().getHour(), v.getValidFromTime().getMinute()) : "00:00";
+            String toStr = v.getValidToTime() != null ? String.format("%02d:%02d", v.getValidToTime().getHour(), v.getValidToTime().getMinute()) : "24:00";
+            return "Chỉ áp dụng khung " + fromStr + "–" + toStr;
+          }
+        }
+      }
+    }
+
+    // 3. Khu sân: sân đặt phải thuộc v.zone (INDOOR / OUTDOOR / VIP / ALL). Nếu đơn có nhiều sân khác khu -> từ chối
+    if (v.getZone() != null && !v.getZone().isBlank() && !"ALL".equalsIgnoreCase(v.getZone().trim())) {
+      String targetZone = v.getZone().trim().toUpperCase(Locale.ROOT);
+      String zoneLabel = switch (targetZone) {
+        case "OUTDOOR" -> "sân ngoài trời";
+        case "INDOOR" -> "sân trong nhà";
+        case "VIP" -> "sân VIP";
+        default -> "khu " + targetZone;
+      };
+      if (ctx.slots() != null && !ctx.slots().isEmpty()) {
+        Set<String> zonesInOrder = new HashSet<>();
+        for (VoucherOrderContext.SlotItem slot : ctx.slots()) {
+          if (slot.zone() != null && !slot.zone().isBlank()) {
+            zonesInOrder.add(slot.zone().trim().toUpperCase(Locale.ROOT));
+          }
+        }
+        if (zonesInOrder.size() > 1) {
+          return "Chỉ áp dụng " + zoneLabel;
+        }
+        for (VoucherOrderContext.SlotItem slot : ctx.slots()) {
+          if (slot.zone() != null && !slot.zone().isBlank()) {
+            if (!targetZone.equalsIgnoreCase(slot.zone().trim())) {
+              return "Chỉ áp dụng " + zoneLabel;
+            }
+          }
+        }
+      }
+    }
+
+    // 4. Ngày trong tuần: thứ của order.date phải nằm trong valid_weekdays (1..7, 1=Thứ 2 theo ISO)
+    if (v.getValidWeekdays() != null && !v.getValidWeekdays().isBlank()) {
+      Set<Integer> allowedDays = new HashSet<>();
+      for (String part : v.getValidWeekdays().split("[,;\\s]+")) {
+        try {
+          if (!part.isBlank()) allowedDays.add(Integer.parseInt(part.trim()));
+        } catch (NumberFormatException ignored) {}
+      }
+      if (!allowedDays.isEmpty() && ctx.slots() != null && !ctx.slots().isEmpty()) {
+        for (VoucherOrderContext.SlotItem slot : ctx.slots()) {
+          if (slot.date() != null) {
+            int dow = slot.date().getDayOfWeek().getValue();
+            if (!allowedDays.contains(dow)) {
+              if (allowedDays.containsAll(Set.of(1, 2, 3, 4, 5)) && allowedDays.size() == 5) {
+                return "Chỉ áp dụng Thứ 2–Thứ 6";
+              } else if (allowedDays.containsAll(Set.of(6, 7)) && allowedDays.size() == 2) {
+                return "Chỉ áp dụng Thứ 7–Chủ nhật";
+              } else {
+                return "Chỉ áp dụng Thứ 2–Thứ 6";
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  public void validateConditions(Voucher v, VoucherOrderContext ctx) {
+    String err = checkConditionError(v, ctx);
+    if (err != null) {
+      throw new BusinessException(err);
+    }
+  }
+
+  public void validateConditionsForCode(String code, VoucherOrderContext ctx) {
+    if (code == null || code.isBlank()) return;
+    Voucher v = vouchers.findByCodeIgnoreCase(code.trim()).orElse(null);
+    if (v != null) {
+      validateConditions(v, ctx);
+    }
+  }
+
+  private void validateVoucherRules(Voucher v, BigDecimal totalAmount, UUID accountId, UUID excludeOrderId, VoucherOrderContext ctx) {
+    validateConditions(v, ctx != null ? ctx : new VoucherOrderContext(totalAmount, accountId, List.of()));
     if (!"ACTIVE".equals(v.getStatus()) && !Boolean.TRUE.equals(v.getEnabled())) {
       throw new BusinessException("Mã voucher '" + v.getCode() + "' hiện đang tạm khóa hoặc đã kết thúc");
     }

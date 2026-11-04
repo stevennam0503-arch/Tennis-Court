@@ -6,6 +6,7 @@ import static com.courtly.util.Rules.*;
 
 
 
+import com.courtly.dto.VoucherOrderContext;
 import com.courtly.dto.request.*;
 
 import com.courtly.entity.*;
@@ -313,7 +314,8 @@ public class OrderService {
 
     UUID accountId = o.getCustomerAccount() != null ? o.getCustomerAccount().getId() : null;
 
-    var voucherBenefit = vouchers.redeem(voucherCode, o, discountable, accountId);
+    VoucherOrderContext ctx = VoucherOrderContext.fromSchedules(selected, accountId, discountable);
+    var voucherBenefit = vouchers.redeem(voucherCode, o, discountable, accountId, ctx);
 
     if (voucherBenefit != null) {
 
@@ -744,6 +746,15 @@ public class OrderService {
 
 
     List<CourtSchedule> allSlots = pricedSlots(b);
+
+    // Validate that existing voucher conditions are still satisfied by all slots (including extension)
+    var existingMeta = documents.decode(order.getMetadata());
+    if (existingMeta.get("voucherBenefit") instanceof Map<?, ?> vb && vb.get("code") != null) {
+      String vCode = vb.get("code").toString();
+      UUID accId = order.getCustomerAccount() != null ? order.getCustomerAccount().getId() : null;
+      VoucherOrderContext extCtx = VoucherOrderContext.fromSchedules(allSlots, accId, order.getTotalAmount());
+      vouchers.validateConditionsForCode(vCode, extCtx);
+    }
 
     quote(order, allSlots);
 

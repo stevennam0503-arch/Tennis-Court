@@ -1,5 +1,6 @@
 package com.courtly.controller;
 
+import com.courtly.dto.VoucherOrderContext;
 import com.courtly.dto.request.BookingRequest;
 import com.courtly.service.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -71,7 +72,8 @@ public class OrderController {
     if (accountId == null) {
       accountId = auth.optCurrent(r).map(com.courtly.entity.Account::getId).orElse(null);
     }
-    return vouchers.calculate(code, amount, accountId);
+    VoucherOrderContext ctx = VoucherOrderContext.fromMap(body, accountId, amount);
+    return vouchers.calculate(code, amount, accountId, ctx);
   }
 
   @GetMapping("/orders/{id}/extension-options")
