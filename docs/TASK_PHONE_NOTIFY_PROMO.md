@@ -440,7 +440,7 @@
 | Tài khoản | Hạng | Chi tiêu 12 tháng | Điểm | Ngày sinh | Mục đích demo |
 |---|---|---|---|---|---|
 | `kietdlv@gmail.com` | **Grand Slam** (đạt 45 ngày trước) | 21.500.000₫ | 2.400 (có 300 điểm hết hạn trong 20 ngày) | ngày 15 của tháng sau | Thẻ VIP Lounge, voucher 300.000₫ chưa dùng, đổi điểm trừ tiền sân |
-| `demo.hoivien@gmail.com` | **Masters** | 19.800.000₫ | 1.500 | tháng 3 | **Lên hạng trực tiếp khi demo:** thiếu 200.000₫. Đặt 1 giờ sân tối khu A (300.000₫ − 5% = 285.000₫; kể cả dùng 500 điểm vẫn thực thu 235.000₫) rồi check-out là thành Grand Slam |
+| `demo.hoivien@gmail.com` | **Masters** | 19.900.000₫ | 1.500 | tháng 3 | **Lên hạng trực tiếp khi demo:** thiếu 100.000₫. Đặt 1 giờ sân tối khu A (260.000₫ − 5% = 247.000₫; kể cả dùng 500 điểm vẫn thực thu 197.000₫) rồi check-out là thành Grand Slam |
 | `demo.khach@gmail.com` | **Challenger** | 3.400.000₫ | 420 | **tháng hiện tại** | Đã có voucher sinh nhật 60.000₫ chưa dùng |
 | `phuongmaiphanqn3@gmail.com` | **Rookie** | 0₫ | 0 | không nhập | Khách mới: voucher chào mừng 50.000₫, tích điểm đơn đầu tiên |
 
@@ -451,8 +451,8 @@
 
 **Kiểm tra:**
 - `demo.hoivien`:
-  - đặt A01 1 giờ tối ngày thường (300.000₫) → khối tiền hiện "Ưu đãi hạng Masters (−5%) −15.000₫";
-  - dùng 500 điểm (−50.000₫) → tổng 235.000₫, cọc 50% là 117.500₫;
+  - đặt A01 1 giờ tối ngày thường (260.000₫) → khối tiền hiện "Ưu đãi hạng Masters (−5%) −13.000₫";
+  - dùng 500 điểm (−50.000₫) → tổng 197.000₫, cọc 50% là 98.500₫;
   - check-out thu đủ → điểm cộng theo hệ số ×1,5 trên số thực thu;
   - lên **Grand Slam** ngay → nhận 1.000 điểm, voucher 300.000₫, thẻ VIP;
   - nhận email `TIER_UP` (nếu email trong allowlist).

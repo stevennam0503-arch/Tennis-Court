@@ -520,7 +520,7 @@ public class DemoResetService {
     // Nguyễn Minh Khoa - demo.hoivien (Masters, 19.800.000₫ spend, 1.500 điểm, sinh 20/03)
     jdbc.update(
         "UPDATE accounts SET tier = 'MASTERS', tier_since = NOW() - interval '60 days', tier_expires_at = NOW() + interval '305 days', " +
-        "lifetime_spend = 19800000.00, points_balance = 1500, birth_date = '1993-03-20'::date, referral_code = 'KHOA999', " +
+        "lifetime_spend = 19900000.00, points_balance = 1500, birth_date = '1993-03-20'::date, referral_code = 'KHOA999', " +
         "phone_verified_at = NOW() - interval '60 days', email_verified_at = NOW() - interval '60 days', " +
         "marketing_consent = true, marketing_consent_at = NOW() - interval '60 days' " +
         "WHERE id = ?::uuid",
@@ -600,8 +600,8 @@ public class DemoResetService {
         KIET_ID
     );
 
-    // Tài khoản Nguyễn Minh Khoa (demo.hoivien): 5 đơn = 19.800.000₫, 1.500 điểm
-    BigDecimal[] khoaSpends = { new BigDecimal("4000000"), new BigDecimal("4000000"), new BigDecimal("4000000"), new BigDecimal("4000000"), new BigDecimal("3800000") };
+    // Tài khoản Nguyễn Minh Khoa (demo.hoivien): 5 đơn = 19.900.000₫, 1.500 điểm
+    BigDecimal[] khoaSpends = { new BigDecimal("4000000"), new BigDecimal("4000000"), new BigDecimal("4000000"), new BigDecimal("4000000"), new BigDecimal("3900000") };
     int[] khoaPoints = { 300, 300, 300, 300, 300 }; // Tổng 1500 điểm
     int[] khoaMonths = { 10, 8, 6, 4, 2 };
     for (int i = 0; i < khoaSpends.length; i++) {
