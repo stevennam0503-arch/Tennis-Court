@@ -4,6 +4,7 @@ import {
   Clock, ShieldCheck, ArrowUpRight, Plus, Minus, History, CheckCircle2, AlertCircle
 } from 'lucide-react';
 import { useCourtly } from '../context';
+import { api } from '../services/api';
 import { Title, Button, Modal, Chip } from '../components/UI';
 import { money } from '../utils/format';
 
@@ -35,11 +36,8 @@ export default function LoyaltyAdminPage() {
   const fetchMembers = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/loyalty/members');
-      if (res.ok) {
-        const data = await res.json();
-        setMembers(data);
-      }
+      const data = await api('/admin/loyalty/members');
+      if (data) setMembers(data);
     } catch (err) {
       console.error('Lỗi tải danh sách thành viên:', err);
     } finally {
@@ -49,11 +47,8 @@ export default function LoyaltyAdminPage() {
 
   const fetchLoungeVisits = async () => {
     try {
-      const res = await fetch('/api/admin/loyalty/lounge-visits');
-      if (res.ok) {
-        const data = await res.json();
-        setLoungeVisits(data);
-      }
+      const data = await api('/admin/loyalty/lounge-visits');
+      if (data) setLoungeVisits(data);
     } catch (err) {
       console.error('Lỗi tải lịch sử phòng chờ:', err);
     }
@@ -76,26 +71,18 @@ export default function LoyaltyAdminPage() {
 
     try {
       setSubmitting(true);
-      const res = await fetch('/api/admin/loyalty/adjust-points', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountId: adjustingMember.id,
-          points: pts,
-          reason: adjustReason.trim()
-        })
+      await api('/admin/loyalty/adjust-points', 'POST', {
+        accountId: adjustingMember.id,
+        points: pts,
+        reason: adjustReason.trim()
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Không thể điều chỉnh điểm');
-      }
       notify(`Đã ${pts > 0 ? 'cộng' : 'trừ'} ${Math.abs(pts)} điểm cho ${adjustingMember.name}`);
       setAdjustingMember(null);
       setAdjustReason('');
       setAdjustPoints(100);
       fetchMembers();
     } catch (err) {
-      alert(err.message);
+      notify(err.message);
     } finally {
       setSubmitting(false);
     }

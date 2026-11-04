@@ -54,8 +54,7 @@ export default function Portal({session,onSession,onLogout}){
   const [unsubscribeModalOpen, setUnsubscribeModalOpen] = useState(false);
 
   useEffect(() => {
-    fetch('/api/public/campaigns/active-banners')
-      .then(res => res.ok ? res.json() : [])
+    api('/public/campaigns/active-banners')
       .then(data => { if (Array.isArray(data)) setActiveCampaignBanners(data); })
       .catch(() => {});
 
@@ -63,13 +62,9 @@ export default function Portal({session,onSession,onLogout}){
       const params = new URLSearchParams(location.search);
       const token = params.get('token');
       if (token) {
-        fetch('/api/public/campaigns/unsubscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token })
-        }).then(res => res.json()).then(() => {
-          setUnsubscribeModalOpen(true);
-        }).catch(() => {});
+        api('/public/campaigns/unsubscribe', 'POST', { token })
+          .then(() => setUnsubscribeModalOpen(true))
+          .catch(() => {});
       } else {
         setUnsubscribeModalOpen(true);
       }

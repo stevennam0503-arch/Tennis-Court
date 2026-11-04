@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import jsQR from 'jsqr';
 import { Camera, Upload, Keyboard, CheckCircle2, AlertTriangle, Clock, RefreshCw, X, Sparkles, Volume2, ArrowRight } from 'lucide-react';
 import { useCourtly } from '../context';
+import { api } from '../services/api';
 import { money, today, slotLabel, hourLabel } from '../utils/format';
 import './AutoQRCheckInModal.css';
 
@@ -95,12 +96,7 @@ export default function AutoQRCheckInModal({ onClose }) {
     const cleanStr = String(payload).trim().toUpperCase();
     if (cleanStr.startsWith('VIP-')) {
       try {
-        const res = await fetch('/api/loyalty/vip-lounge/scan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: cleanStr })
-        });
-        const json = await res.json();
+        const json = await api('/loyalty/vip-lounge/scan', 'POST', { code: cleanStr });
         if (json.valid) {
           playSuccessSound();
           notify(`✅ VIP Lounge: Mời ${json.customerName} vào phòng chờ`);

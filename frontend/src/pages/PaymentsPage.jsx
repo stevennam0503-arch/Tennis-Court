@@ -103,12 +103,8 @@ export default function PaymentsPage() {
 
   useEffect(() => {
 
-    fetch('/api/public/payment-config')
-
-      .then((r) => (r.ok ? r.json() : null))
-
+    api('/public/payment-config')
       .then((d) => d && setPayConfig(d))
-
       .catch(() => {});
 
   }, []);

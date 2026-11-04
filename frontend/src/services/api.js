@@ -33,8 +33,10 @@ async function csrfToken(force = false, retries = 2) {
 }
 
 export async function api(path, method = 'GET', body, isRetry = false) {
+  const cleanPath = path.startsWith('/api/') ? path.slice(4) : path;
   const token = !['GET', 'HEAD', 'OPTIONS'].includes(method) ? await csrfToken(isRetry) : null;
-  const response = await fetch(`${base}${path}`, {
+  const targetPath = `${base}${cleanPath}`;
+  const response = await fetch(targetPath, {
     method,
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json', ...(token ? { [token.headerName]: token.token } : {}) },

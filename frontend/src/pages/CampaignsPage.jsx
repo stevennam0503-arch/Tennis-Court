@@ -4,6 +4,7 @@ import {
   Square, BarChart2, ShieldCheck, Mail, MessageSquare, Image, Sparkles
 } from 'lucide-react';
 import { useCourtly } from '../context';
+import { api } from '../services/api';
 import { Title, Button, Modal, Chip } from '../components/UI';
 import { money } from '../utils/format';
 
@@ -47,11 +48,8 @@ export default function CampaignsPage() {
   const fetchCampaigns = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/admin/campaigns');
-      if (res.ok) {
-        const data = await res.json();
-        setCampaigns(data);
-      }
+      const data = await api('/admin/campaigns');
+      if (data) setCampaigns(data);
     } catch (err) {
       console.error('Lỗi tải danh sách chiến dịch:', err);
     } finally {
@@ -76,15 +74,7 @@ export default function CampaignsPage() {
         ...formData,
         status: directRun && isAdmin ? 'RUNNING' : 'DRAFT'
       };
-      const res = await fetch('/api/admin/campaigns', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Không thể tạo chiến dịch');
-      }
+      await api('/admin/campaigns', 'POST', payload);
       notify(`Đã tạo chiến dịch "${formData.name}" thành công`);
       setShowCreateModal(false);
       setFormData({
@@ -101,7 +91,7 @@ export default function CampaignsPage() {
       });
       fetchCampaigns();
     } catch (err) {
-      alert(err.message);
+      notify(err.message);
     } finally {
       setSubmitting(false);
     }
@@ -109,43 +99,31 @@ export default function CampaignsPage() {
 
   const handleSubmitForApproval = async (id) => {
     try {
-      const res = await fetch(`/api/admin/campaigns/${id}/submit`, { method: 'POST' });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Không thể gửi duyệt chiến dịch');
-      }
+      await api(`/admin/campaigns/${id}/submit`, 'POST');
       notify('Đã gửi chiến dịch cho Quản trị viên duyệt');
       fetchCampaigns();
     } catch (err) {
-      alert(err.message);
+      notify(err.message);
     }
   };
 
   const handleApproveAndRun = async (id) => {
     try {
-      const res = await fetch(`/api/admin/campaigns/${id}/approve`, { method: 'POST' });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Không thể phê duyệt chiến dịch');
-      }
+      await api(`/admin/campaigns/${id}/approve`, 'POST');
       notify('Đã phê duyệt và khởi chạy chiến dịch!');
       fetchCampaigns();
     } catch (err) {
-      alert(err.message);
+      notify(err.message);
     }
   };
 
   const handlePause = async (id) => {
     try {
-      const res = await fetch(`/api/admin/campaigns/${id}/pause`, { method: 'POST' });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Không thể tạm dừng chiến dịch');
-      }
+      await api(`/admin/campaigns/${id}/pause`, 'POST');
       notify('Đã tạm dừng chiến dịch');
       fetchCampaigns();
     } catch (err) {
-      alert(err.message);
+      notify(err.message);
     }
   };
 
@@ -154,15 +132,11 @@ export default function CampaignsPage() {
       return;
     }
     try {
-      const res = await fetch(`/api/admin/campaigns/${id}/end`, { method: 'POST' });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Không thể kết thúc chiến dịch');
-      }
+      await api(`/admin/campaigns/${id}/end`, 'POST');
       notify('Đã kết thúc chiến dịch');
       fetchCampaigns();
     } catch (err) {
-      alert(err.message);
+      notify(err.message);
     }
   };
 
@@ -171,11 +145,8 @@ export default function CampaignsPage() {
     setStatsData(null);
     setStatsLoading(true);
     try {
-      const res = await fetch(`/api/admin/campaigns/${campaign.id}/stats`);
-      if (res.ok) {
-        const data = await res.json();
-        setStatsData(data);
-      }
+      const data = await api(`/admin/campaigns/${campaign.id}/stats`);
+      if (data) setStatsData(data);
     } catch (err) {
       console.error('Lỗi tải thống kê chiến dịch:', err);
     } finally {

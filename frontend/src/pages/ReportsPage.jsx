@@ -9,6 +9,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Wallet, Trophy, Check, Calendar, TrendingUp, Download, PieChart, BarChart3, Clock, Sparkles, Printer } from 'lucide-react';
 
 import { useCourtly } from '../context';
+import { api } from '../services/api';
 
 import { Title, Stat, Panel, Button, Table, Chip } from '../components/UI';
 
@@ -233,8 +234,7 @@ export default function ReportsPage() {
   const [loyaltyReport, setLoyaltyReport] = useState(null);
 
   useEffect(() => {
-    fetch(`/api/admin/loyalty/report?startDate=${startDate}&endDate=${endDate}`)
-      .then(res => res.ok ? res.json() : null)
+    api(`/admin/loyalty/report?startDate=${startDate}&endDate=${endDate}`)
       .then(data => { if (data) setLoyaltyReport(data); })
       .catch(() => {});
   }, [startDate, endDate]);

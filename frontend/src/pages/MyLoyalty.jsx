@@ -5,6 +5,7 @@ import {
   Clock, CheckCircle2, ChevronRight, Copy, Check, Info
 } from 'lucide-react';
 import { useCourtly } from '../context';
+import { api } from '../services/api';
 import { money } from '../utils/format';
 
 const TIER_META = {
@@ -28,12 +29,9 @@ export default function MyLoyalty() {
     const fetchLoyalty = async () => {
       try {
         setLoading(true);
-        const res = await fetch('/api/loyalty/my');
-        if (res.ok) {
-          const json = await res.json();
+        const json = await api('/loyalty/my');
+        if (json) {
           setData(json);
-
-          // If member has active VIP card, generate QR code
           if (json.vipCard && json.vipCard.code) {
             QRCode.toDataURL(json.vipCard.code, {
               width: 220,
@@ -42,11 +40,8 @@ export default function MyLoyalty() {
             }).then(setVipQrUrl).catch(() => {});
           }
         }
-        const rRes = await fetch('/api/loyalty/rewards');
-        if (rRes.ok) {
-          const rJson = await rRes.json();
-          setRewards(rJson);
-        }
+        const rJson = await api('/loyalty/rewards');
+        if (rJson) setRewards(rJson);
       } catch (err) {
         console.error('Lỗi tải thông tin hạng & điểm:', err);
       } finally {
@@ -61,20 +56,10 @@ export default function MyLoyalty() {
     setRedeemBusy(true);
     setRedeemMsg('');
     try {
-      const res = await fetch(`/api/loyalty/rewards/${rewardCode}/redeem`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const resJson = await res.json();
-      if (!res.ok) {
-        throw new Error(resJson.message || 'Đổi quà thất bại');
-      }
+      const resJson = await api(`/loyalty/rewards/${rewardCode}/redeem`, 'POST');
       setRedeemMsg(`🎉 Đổi thành công! Mã voucher: ${resJson.voucherCode} (Đã trừ ${resJson.pointsSpent} điểm)`);
-      // Refresh loyalty summary
-      const lRes = await fetch('/api/loyalty/my');
-      if (lRes.ok) {
-        setData(await lRes.json());
-      }
+      const lJson = await api('/loyalty/my');
+      if (lJson) setData(lJson);
     } catch (err) {
       setRedeemMsg(`⚠️ ${err.message}`);
     } finally {
