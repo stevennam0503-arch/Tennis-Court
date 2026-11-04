@@ -1,11 +1,27 @@
 package com.courtly.service;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
+import com.courtly.entity.Account;
+import com.courtly.entity.AppDocument;
+import com.courtly.entity.Voucher;
 import com.courtly.exception.BusinessException;
+import com.courtly.repository.AccountRepository;
+import com.courtly.repository.VoucherRepository;
+import com.courtly.service.sms.SmsService;
 import com.courtly.util.PhoneUtils;
+import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 
 public class PhoneAuthServiceTest {
 
@@ -34,42 +50,75 @@ public class PhoneAuthServiceTest {
     assertEquals("0769 496 289", PhoneUtils.formatDisplay("+84769496289"));
     assertEquals("0377 035 664", PhoneUtils.formatDisplay("+84377035664"));
   }
-  @Test
-  @DisplayName("Phát voucher chào mừng 50k idempotent theo số điện thoại")
-  void testIssueWelcomeVoucherIfEligible() {
-    var accounts = org.mockito.Mockito.mock(com.courtly.repository.AccountRepository.class);
-    var encoder = org.mockito.Mockito.mock(org.springframework.security.crypto.password.PasswordEncoder.class);
-    var contexts = org.mockito.Mockito.mock(org.springframework.security.web.context.HttpSessionSecurityContextRepository.class);
-    var documents = org.mockito.Mockito.mock(com.courtly.service.DocumentService.class);
-    var emails = org.mockito.Mockito.mock(com.courtly.service.EmailService.class);
-    var smsService = org.mockito.Mockito.mock(com.courtly.service.sms.SmsService.class);
-    var demo = org.mockito.Mockito.mock(com.courtly.service.DemoAccessPolicy.class);
-    var vouchers = org.mockito.Mockito.mock(com.courtly.repository.VoucherRepository.class);
-    var notificationService = org.mockito.Mockito.mock(com.courtly.service.NotificationService.class);
 
-    var authService = new com.courtly.service.AuthService(
+  @Test
+  @DisplayName("Phát voucher chào mừng 50k: phát 1 lần cho số mới, không phát lại khi xóa tài khoản đăng ký lại")
+  void testIssueWelcomeVoucherIfEligible() {
+    var accounts = mock(AccountRepository.class);
+    var encoder = mock(PasswordEncoder.class);
+    var contexts = mock(HttpSessionSecurityContextRepository.class);
+    var documents = mock(DocumentService.class);
+    var emails = mock(EmailService.class);
+    var smsService = mock(SmsService.class);
+    var demo = mock(DemoAccessPolicy.class);
+    var vouchers = mock(VoucherRepository.class);
+    var notificationService = mock(NotificationService.class);
+
+    var authService = new AuthService(
         accounts, encoder, contexts, documents, emails, smsService, demo, vouchers, notificationService
     );
 
-    var acc = new com.courtly.entity.Account();
-    acc.setId(java.util.UUID.randomUUID());
+    var acc = new Account();
+    acc.setId(UUID.randomUUID());
     acc.setPhone("+84988111222");
 
-    org.mockito.Mockito.when(documents.lock("welcome:phone:+84988111222")).thenReturn(null);
-    org.mockito.Mockito.when(vouchers.findByAssignedAccountId(acc.getId())).thenReturn(java.util.List.of());
-    org.mockito.Mockito.when(vouchers.save(org.mockito.ArgumentMatchers.any(com.courtly.entity.Voucher.class))).thenAnswer(i -> i.getArgument(0));
+    String docKey = "welcome:phone:+84988111222";
+    when(documents.read(any(AppDocument.class))).thenAnswer(inv -> {
+      AppDocument doc = inv.getArgument(0);
+      if (doc == null || doc.getData() == null || doc.getData().isBlank() || "{}".equals(doc.getData())) {
+        return java.util.Collections.emptyMap();
+      }
+      return java.util.Collections.singletonMap("voucherCode", "WELCOME-OLD");
+    });
 
-    // First issue -> creates voucher & records document
+    // DocumentService.lock() returns a new AppDocument(key) with empty JSON data "{}" when key does not exist yet
+    AppDocument uncommittedDoc = new AppDocument(docKey);
+    when(documents.lock(docKey)).thenReturn(uncommittedDoc);
+    when(vouchers.findByAssignedAccountId(acc.getId())).thenReturn(List.of());
+    when(vouchers.save(any(Voucher.class))).thenAnswer(i -> i.getArgument(0));
+
+    // 1. Lần đăng ký đầu tiên: phát đúng 1 voucher WELCOME-XXXX 50.000₫ hạn 30 ngày
     authService.issueWelcomeVoucherIfEligible(acc, "0988111222");
-    org.mockito.Mockito.verify(vouchers, org.mockito.Mockito.times(1)).save(org.mockito.ArgumentMatchers.any(com.courtly.entity.Voucher.class));
-    org.mockito.Mockito.verify(documents, org.mockito.Mockito.times(1)).put(
-        org.mockito.ArgumentMatchers.eq("welcome:phone:+84988111222"),
-        org.mockito.ArgumentMatchers.any()
+
+    ArgumentCaptor<Voucher> voucherCaptor = ArgumentCaptor.forClass(Voucher.class);
+    verify(vouchers, times(1)).save(voucherCaptor.capture());
+    Voucher issuedVoucher = voucherCaptor.getValue();
+    assertTrue(issuedVoucher.getCode().startsWith("WELCOME-"), "Mã voucher phải bắt đầu bằng WELCOME-");
+    assertEquals(new BigDecimal("50000"), issuedVoucher.getValue());
+    assertEquals("ACTIVE", issuedVoucher.getStatus());
+    assertEquals("TIER_GIFT", issuedVoucher.getSource());
+    assertTrue(issuedVoucher.getExpiresAt().isAfter(Instant.now().plus(Duration.ofDays(29))));
+
+    verify(documents, times(1)).put(eq(docKey), any());
+    verify(notificationService, times(1)).enqueue(
+        eq(acc.getId()), isNull(), isNull(), eq("WELCOME_GIFT"), eq("IN_APP"), isNull(),
+        contains("Chào mừng"), contains("50.000"), any(), any()
     );
 
-    // Second issue with existing document -> idempotent, does not issue again
-    org.mockito.Mockito.when(documents.lock("welcome:phone:+84988111222")).thenReturn(new com.courtly.entity.AppDocument());
-    authService.issueWelcomeVoucherIfEligible(acc, "0988111222");
-    org.mockito.Mockito.verify(vouchers, org.mockito.Mockito.times(1)).save(org.mockito.ArgumentMatchers.any(com.courtly.entity.Voucher.class)); // still 1
+    // 2. Kịch bản: Xoá tài khoản cũ, đăng ký tài khoản mới với cùng số điện thoại
+    Account reRegisteredAcc = new Account();
+    reRegisteredAcc.setId(UUID.randomUUID());
+    reRegisteredAcc.setPhone("+84988111222");
+
+    // Khi đã phát, DocumentService.lock() trả về AppDocument có data != null
+    AppDocument existingCommittedDoc = new AppDocument(docKey);
+    existingCommittedDoc.setData("{\"voucherCode\":\"" + issuedVoucher.getCode() + "\"}");
+    when(documents.lock(docKey)).thenReturn(existingCommittedDoc);
+    when(vouchers.findByAssignedAccountId(reRegisteredAcc.getId())).thenReturn(List.of());
+
+    authService.issueWelcomeVoucherIfEligible(reRegisteredAcc, "0988111222");
+
+    // Vẫn chỉ có đúng 1 voucher được save (không phát thêm voucher cho tài khoản đăng ký lại)
+    verify(vouchers, times(1)).save(any(Voucher.class));
   }
 }

@@ -363,7 +363,7 @@ public class AuthService {
     // Idempotent: 1 voucher per phone across all accounts (even deleted/re-registered)
     String docKey = "welcome:phone:" + e164;
     var existingDoc = documents.lock(docKey);
-    if (existingDoc != null) {
+    if (existingDoc != null && !documents.read(existingDoc).isEmpty()) {
       return;
     }
 
