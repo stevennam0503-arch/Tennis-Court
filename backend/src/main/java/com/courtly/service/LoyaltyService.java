@@ -29,6 +29,7 @@ public class LoyaltyService {
   private final VoucherRepository vouchers;
   private final NotificationService notificationService;
   private final AuditService auditService;
+  private final DocumentService documents;
 
   private static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
   private Clock clock = Clock.system(ZONE);
@@ -304,16 +305,35 @@ public class LoyaltyService {
       case "MASTERS" -> addBonusPoints(account, 500, "Quà thăng hạng Masters");
       case "GRAND_SLAM" -> {
         addBonusPoints(account, 1000, "Quà thăng hạng Grand Slam");
-        // Phát voucher 300.000₫ hạn 60 ngày
-        Map<String, Object> vTpl = Map.of(
-            "type", "FIXED",
-            "value", 300000,
-            "minOrder", 0,
-            "description", "Quà thăng hạng Grand Slam (giảm 300.000₫ tiền sân)",
-            "startsAt", now().toString(),
-            "expiresAt", now().plus(Duration.ofDays(60)).toString()
-        );
-        voucherService.createCompensationVoucher(account.getId(), null, null, vTpl, account);
+
+        // Idempotent lock per (account, tier, tier_since)
+        String tierSinceStr = account.getTierSince() != null ? account.getTierSince().toString() : "init";
+        String lockKey = "tier-gift:" + account.getId() + ":GRAND_SLAM:" + tierSinceStr;
+        var doc = documents.lock(lockKey);
+        if (doc == null || documents.read(doc).isEmpty()) {
+          VoucherService.IssueSpec spec = new VoucherService.IssueSpec(
+              "GS",
+              "TIER_GIFT",
+              "FIXED",
+              new BigDecimal("300000"),
+              null,
+              BigDecimal.ZERO,
+              now(),
+              now().plus(Duration.ofDays(60)),
+              "Quà thăng hạng Grand Slam (giảm 300.000₫ tiền sân)",
+              null,
+              null
+          );
+          Voucher v = voucherService.issuePersonalVoucher(account.getId(), spec);
+          documents.put(lockKey, Map.of(
+              "accountId", account.getId().toString(),
+              "tier", "GRAND_SLAM",
+              "tierSince", tierSinceStr,
+              "voucherCode", v != null ? v.getCode() : "",
+              "issuedAt", now().toString()
+          ));
+        }
+
         // Phát thẻ VIP Lounge
         issueVipCard(account);
       }
@@ -702,16 +722,32 @@ public class LoyaltyService {
     LocalDate endOfMonth = todayDate.withDayOfMonth(todayDate.lengthOfMonth());
     Instant expiry = endOfMonth.atTime(23, 59, 59).atZone(ZONE).toInstant();
 
-    Map<String, Object> template = Map.of(
-        "type", "FIXED",
-        "value", amount,
-        "minOrder", 0,
-        "description", "Voucher chúc mừng sinh nhật tháng " + todayDate.getMonthValue() + " hạng " + tier,
-        "startsAt", now().toString(),
-        "expiresAt", expiry.toString()
-    );
+    String bdayLockKey = "birthday-voucher:" + a.getId() + ":" + todayDate.getYear();
+    var doc = documents.lock(bdayLockKey);
+    if (doc != null && !documents.read(doc).isEmpty()) {
+      return; // Đã phát voucher sinh nhật năm nay
+    }
 
-    var v = voucherService.createCompensationVoucher(a.getId(), null, null, template, a);
+    VoucherService.IssueSpec spec = new VoucherService.IssueSpec(
+        "BDAY",
+        "BIRTHDAY",
+        "FIXED",
+        BigDecimal.valueOf(amount),
+        null,
+        BigDecimal.ZERO,
+        now(),
+        expiry,
+        "Voucher chúc mừng sinh nhật tháng " + todayDate.getMonthValue() + " hạng " + tier,
+        null,
+        null
+    );
+    var v = voucherService.issuePersonalVoucher(a.getId(), spec);
+    documents.put(bdayLockKey, Map.of(
+        "accountId", a.getId().toString(),
+        "year", todayDate.getYear(),
+        "voucherCode", v != null ? v.getCode() : "",
+        "issuedAt", now().toString()
+    ));
 
     String dedupe = "BIRTHDAY_VOUCHER:" + a.getId() + ":" + todayDate.getYear() + "-" + todayDate.getMonthValue();
     String msg = "Chúc mừng sinh nhật! Courtly tặng bạn voucher " + String.format("%,d₫", amount) + " mã " + v.getCode() + " áp dụng trong tháng này.";

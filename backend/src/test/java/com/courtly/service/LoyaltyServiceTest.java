@@ -11,6 +11,7 @@ import java.time.*;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class LoyaltyServiceTest {
 
@@ -22,6 +23,7 @@ class LoyaltyServiceTest {
   private VoucherRepository vouchers;
   private NotificationService notificationService;
   private AuditService auditService;
+  private DocumentService documents;
   private LoyaltyService loyaltyService;
 
   private final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
@@ -36,6 +38,12 @@ class LoyaltyServiceTest {
     vouchers = mock(VoucherRepository.class);
     notificationService = mock(NotificationService.class);
     auditService = mock(AuditService.class);
+    documents = mock(DocumentService.class);
+
+    Voucher defaultVoucher = new Voucher();
+    defaultVoucher.setCode("GS-TEST");
+    defaultVoucher.setSource("TIER_GIFT");
+    when(voucherService.issuePersonalVoucher(any(), any())).thenReturn(defaultVoucher);
 
     loyaltyService = new LoyaltyService(
         accounts,
@@ -45,7 +53,8 @@ class LoyaltyServiceTest {
         voucherService,
         vouchers,
         notificationService,
-        auditService
+        auditService,
+        documents
     );
   }
 
@@ -141,7 +150,7 @@ class LoyaltyServiceTest {
     // Received 1000 bonus points
     assertEquals(2500, acc.getPointsBalance());
     verify(vipCards, times(1)).save(any(VipCard.class));
-    verify(voucherService, times(1)).createCompensationVoucher(eq(acc.getId()), isNull(), isNull(), anyMap(), eq(acc));
+    verify(voucherService, times(1)).issuePersonalVoucher(eq(acc.getId()), any(VoucherService.IssueSpec.class));
   }
 
   @Test
@@ -200,7 +209,7 @@ class LoyaltyServiceTest {
     assertEquals("GRAND_SLAM", acc.getTier());
     assertEquals(2000, acc.getPointsBalance()); // +1000 tier gift points
     verify(vipCards).save(any(VipCard.class));
-    verify(voucherService).createCompensationVoucher(eq(acc.getId()), isNull(), isNull(), anyMap(), eq(acc));
+    verify(voucherService).issuePersonalVoucher(eq(acc.getId()), any(VoucherService.IssueSpec.class));
   }
 
   @Test
@@ -275,5 +284,86 @@ class LoyaltyServiceTest {
     assertEquals(700, acc.getPointsBalance());
     assertEquals(700, res.get("pointsBalance"));
     assertTrue(String.valueOf(res.get("voucherCode")).startsWith("RWD-EXT30-"));
+  }
+  @Test
+  void testGrandSlamUpgradeIssuesGsVoucherWithTierGiftSource() {
+    UUID accountId = UUID.randomUUID();
+    Account acc = new Account();
+    acc.setId(accountId);
+    acc.setEmail("grand.slam@test.com");
+    acc.setTier("MASTERS");
+    acc.setLifetimeSpend(new BigDecimal("19900000"));
+
+    when(accounts.findById(accountId)).thenReturn(Optional.of(acc));
+    when(vipCards.findByCode(anyString())).thenReturn(Optional.empty());
+    when(ledger.sumSpendByAccountIdSince(eq(accountId), any(Instant.class))).thenReturn(new BigDecimal("20100000"));
+
+    when(documents.lock(contains("tier-gift:"))).thenReturn(new AppDocument("tier-gift"));
+    when(documents.read(any(AppDocument.class))).thenReturn(Collections.emptyMap());
+
+    Voucher gsVoucher = new Voucher();
+    gsVoucher.setCode("GS-TEST");
+    gsVoucher.setSource("TIER_GIFT");
+    when(voucherService.issuePersonalVoucher(eq(accountId), any(VoucherService.IssueSpec.class))).thenReturn(gsVoucher);
+    when(vipCards.save(any(VipCard.class))).thenAnswer(i -> i.getArgument(0));
+
+    // Order checkout exceeds 20.000.000₫ -> upgrades to GRAND_SLAM
+    CustomerOrder order = new CustomerOrder();
+    order.setId(UUID.randomUUID());
+    order.setCustomerAccount(acc);
+    order.setTotalAmount(new BigDecimal("200000"));
+    order.setPaidAmount(new BigDecimal("200000"));
+    order.setPaymentStatus("PAID");
+
+    loyaltyService.earnOrderPoints(order, false);
+
+    assertEquals("GRAND_SLAM", acc.getTier());
+    ArgumentCaptor<VoucherService.IssueSpec> specCaptor = ArgumentCaptor.forClass(VoucherService.IssueSpec.class);
+    verify(voucherService, times(1)).issuePersonalVoucher(eq(accountId), specCaptor.capture());
+    VoucherService.IssueSpec spec = specCaptor.getValue();
+    assertEquals("GS", spec.prefix());
+    assertEquals("TIER_GIFT", spec.source());
+    assertEquals(new BigDecimal("300000"), spec.value());
+  }
+
+  @Test
+  void testBirthdayVoucherIssuesBdayVoucherWithBirthdaySource() {
+    UUID accountId = UUID.randomUUID();
+    Account acc = new Account();
+    acc.setId(accountId);
+    acc.setEmail("birthday@test.com");
+    acc.setTier("GRAND_SLAM");
+    acc.setBirthDate(LocalDate.of(1995, 5, 15));
+
+    // Mock clock on May 1st
+    Clock clockMay1 = Clock.fixed(
+        LocalDate.of(2026, 5, 1).atStartOfDay(ZoneId.of("Asia/Ho_Chi_Minh")).toInstant(),
+        ZoneId.of("Asia/Ho_Chi_Minh")
+    );
+    loyaltyService.setClock(clockMay1);
+
+    when(accounts.findAll()).thenReturn(List.of(acc));
+    when(documents.lock(contains("birthday-voucher:"))).thenReturn(new AppDocument("bday-lock"));
+    when(documents.read(any(AppDocument.class))).thenReturn(Collections.emptyMap());
+
+    Voucher bdayVoucher = new Voucher();
+    bdayVoucher.setCode("BDAY-TEST");
+    bdayVoucher.setSource("BIRTHDAY");
+    when(voucherService.issuePersonalVoucher(eq(accountId), any(VoucherService.IssueSpec.class))).thenReturn(bdayVoucher);
+
+    // Run daily scheduled job
+    loyaltyService.dailyLoyaltyMaintenance();
+
+    ArgumentCaptor<VoucherService.IssueSpec> specCaptor = ArgumentCaptor.forClass(VoucherService.IssueSpec.class);
+    verify(voucherService, times(1)).issuePersonalVoucher(eq(accountId), specCaptor.capture());
+    VoucherService.IssueSpec spec = specCaptor.getValue();
+    assertEquals("BDAY", spec.prefix());
+    assertEquals("BIRTHDAY", spec.source());
+    assertEquals(new BigDecimal("250000"), spec.value());
+
+    // Run 2nd time: document already committed -> no new voucher
+    when(documents.read(any(AppDocument.class))).thenReturn(Map.of("voucherCode", "BDAY-TEST"));
+    loyaltyService.dailyLoyaltyMaintenance();
+    verify(voucherService, times(1)).issuePersonalVoucher(eq(accountId), any()); // still 1
   }
 }

@@ -11,11 +11,15 @@ public class AuditService {
   private final AuditLogRepository repository;
 
   public void log(String action, String detail) {
-    AuditLog log = new AuditLog();
     var actor =
         org.springframework.security.core.context.SecurityContextHolder.getContext()
             .getAuthentication();
-    log.setActor(actor == null ? "Hệ thống" : actor.getName());
+    log(action, detail, actor == null ? "Hệ thống" : actor.getName());
+  }
+
+  public void log(String action, String detail, String customActor) {
+    AuditLog log = new AuditLog();
+    log.setActor(customActor != null ? customActor : "SYSTEM");
     log.setAction(action);
     log.setDetail(detail);
     repository.save(log);

@@ -554,6 +554,56 @@ public class VoucherService {
     return vouchers.save(v);
   }
 
+  public record IssueSpec(
+      String prefix,
+      String source,
+      String type,
+      BigDecimal value,
+      BigDecimal maxDiscount,
+      BigDecimal minOrder,
+      Instant startsAt,
+      Instant expiresAt,
+      String description,
+      UUID orderId,
+      String feedbackId
+  ) {}
+
+  @Transactional
+  public Voucher issuePersonalVoucher(UUID accountId, IssueSpec spec) {
+    String prefix = (spec.prefix() != null && !spec.prefix().isBlank())
+        ? spec.prefix().trim().toUpperCase(Locale.ROOT)
+        : "VCH";
+    String suffix = randomSuffix(4);
+    String code = prefix + "-" + suffix;
+    while (vouchers.findByCodeIgnoreCase(code).isPresent()) {
+      suffix = randomSuffix(4);
+      code = prefix + "-" + suffix;
+    }
+
+    Voucher v = new Voucher();
+    v.setCode(code);
+    v.setType(spec.type() != null ? spec.type().toUpperCase(Locale.ROOT) : "FIXED");
+    v.setValue(spec.value() != null ? spec.value() : BigDecimal.ZERO);
+    v.setMinOrder(spec.minOrder() != null ? spec.minOrder() : BigDecimal.ZERO);
+    v.setMaxDiscount(spec.maxDiscount());
+    v.setStartsAt(spec.startsAt() != null ? spec.startsAt() : Instant.now());
+    v.setExpiresAt(spec.expiresAt() != null ? spec.expiresAt() : Instant.now().plus(Duration.ofDays(30)));
+    v.setUsageLimit(1);
+    v.setUsedCount(0);
+    v.setPerUserLimit(1);
+    v.setNewUserOnly(false);
+    v.setEnabled(true);
+    v.setStatus("ACTIVE");
+    v.setSource(spec.source() != null ? spec.source() : "TIER_GIFT");
+    v.setAssignedAccountId(accountId);
+    v.setDescription(spec.description());
+    v.setCreatedBy(null);
+    Voucher saved = vouchers.save(v);
+
+    auditService.log("ISSUE_PERSONAL_VOUCHER", "Phát voucher cá nhân " + code + " cho tài khoản " + accountId + " nguồn " + v.getSource(), "SYSTEM");
+    return saved;
+  }
+
   @Transactional
   public Voucher createCompensationVoucher(UUID targetAccountId, UUID orderId, String feedbackId, Map<String, Object> template, Account actor) {
     String suffix = randomSuffix(4);
