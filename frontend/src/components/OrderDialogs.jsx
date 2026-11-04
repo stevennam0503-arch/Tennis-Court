@@ -31,13 +31,13 @@ export function OrderDetail({id,onClose,visitDate}) {
   const doAction=async (op,body={})=>{try{await mutate(`/orders/${id}/${op}`,body);notify('Đã cập nhật đơn');}catch(e){notify(e.message);}};
 
   return <Modal title={`Chi tiết đơn đặt sân #${o.id.slice(0,8)}`} onClose={onClose} wide footer={<>
-    {o.status==='HOLDING'&&<Button className="lime" onClick={()=>show({type:'payment',id})}>Thu cọc tại quầy ({money(o.deposit)})</Button>}
+    {o.status==='HOLDING'&&<Button className="lime" onClick={()=>show({type:'payment',id,mode:'DEPOSIT'})}>Thu cọc tại quầy ({money(o.deposit)})</Button>}
     {o.status==='CONFIRMED'&&<Button className="primary" onClick={()=>show({type:'check-in',id,visitDate})}>Thực hiện Check-in vào sân</Button>}
     {o.status==='CHECKED_IN'&&<Button className="primary" onClick={()=>show({type:'check-out',id:o.id})}>🏁 Check-out & Hoàn tất</Button>}
     {o.status==='CHECKED_IN'&&<Button onClick={()=>show({type:'extend-order',id})}>⚡ Gia hạn giờ chơi</Button>}
     {['HOLDING','CONFIRMED'].includes(o.status)&&<Button onClick={()=>show({type:'move',id})}>🔄 Đổi lịch sân</Button>}
     {['CONFIRMED','HOLDING','CHECKED_IN'].includes(o.status)&&<Button onClick={async()=>{try{await api('/admin/orders/'+id+'/send-reminder','POST');notify('Đã gửi thông báo nhắc lịch tới khách qua Email & SMS!');}catch(e){notify('Lỗi gửi nhắc: '+e.message);}}}>🔔 Gửi nhắc ngay</Button>}
-    {active(o)&&o.paid<o.total&&o.status!=='HOLDING'&&<Button className="lime" onClick={()=>show({type:'payment',id})}>Thu nốt tiền ({money(o.total-o.paid)})</Button>}
+    {active(o)&&o.paid<o.total&&o.status!=='HOLDING'&&<Button className="lime" onClick={()=>show({type:'payment',id,mode:'BALANCE'})}>Thu nốt tiền ({money(o.total-o.paid)})</Button>}
     {!['HOLDING','CANCELLED','EXPIRED'].includes(o.status)&&<Button onClick={async()=>{await doAction('invoice');show({type:'invoice',id});}}>In phiếu thu</Button>}
     <Button onClick={onClose}>Đóng</Button>
   </>}>
@@ -282,41 +282,191 @@ export function OrderActionDialog({type,id,onClose}) {
   if(type==='move')return <MoveDialog id={id} onClose={onClose}/>;
   return null;
 }
-export function PaymentDialog({id,registrationId,onClose}) {
-  const {data,mutate,notify}=useCourtly();
-  const orders=data.orders.filter(o=>(active(o)||o.status==='COMPLETED'||o.id===id)&&o.paid<o.total);
-  const order=data.orders.find(o=>o.id===id)||orders[0];
-  const reg=data.registrations.find(r=>r.id===registrationId);
-  const due=reg?data.tournaments.find(t=>t.id===reg.tournamentId).fee-reg.paid:order?order.total-order.paid:0;
-  const targetId=reg?reg.id:order?.id;
-  const refCode = 'CASH-' + (targetId ? targetId.replace(/-/g,'').substring(0,8).toUpperCase() : '') + '-' + Date.now().toString(36).toUpperCase();
+export function PaymentDialog({id, registrationId, mode, onClose}) {
+  const {data, mutate, notify} = useCourtly();
+  const orders = data.orders.filter(o => (active(o) || o.status === 'COMPLETED' || o.id === id) && o.paid < o.total);
+  const order = data.orders.find(o => o.id === id) || orders[0];
+  const reg = data.registrations?.find(r => r.id === registrationId);
 
-  return <FormDialog
-    title="Ghi nhận thu tiền mặt tại quầy"
-    submitText="Xác nhận đã nhận tiền mặt"
-    initial={{orderId:reg?null:order?.id,amount:due,method:'CASH',transactionCode:refCode||crypto.randomUUID()}}
-    fields={[
-      ...(!reg?[{name:'orderId',label:'Đơn đặt sân',full:true,options:orders.map(o=>({value:o.id,label:`${o.name} • còn ${money(o.total-o.paid)}`}))}]:[]),
-      {name:'amount',label:'Số tiền mặt (đ)',type:'number',min:1},
-      {name:'reason',label:'Lý do (bắt buộc với tiền đến muộn)',required:false,full:true}
-    ]}
-    onChange={(v,name)=>{
-      const o=data.orders.find(o=>o.id===v.orderId);
-      return name==='orderId'&&o?{...v,amount:o.total-o.paid}:v;
-    }}
-    onClose={onClose}
-    onSubmit={async v=>{
-      await mutate('/payments',{...v,method:'CASH',orderId:reg?null:v.orderId,registrationId:registrationId||null});
+  const [selectedOrderId, setSelectedOrderId] = useState(order?.id || '');
+  const currentOrder = data.orders.find(o => o.id === selectedOrderId) || order;
+
+  const total = currentOrder?.total || 0;
+  const paid = currentOrder?.paid || 0;
+  const depositReq = currentOrder?.deposit != null ? currentOrder.deposit : (currentOrder?.depositRequired || 0);
+  const depositDue = Math.max(0, depositReq - paid);
+  const balanceDue = Math.max(0, total - paid);
+  const regDue = reg ? ((data.tournaments?.find(t => t.id === reg.tournamentId)?.fee || 0) - reg.paid) : 0;
+
+  const defaultAmount = reg ? regDue : (mode === 'DEPOSIT' || (!mode && currentOrder?.status === 'HOLDING'))
+    ? (depositDue > 0 ? depositDue : balanceDue)
+    : balanceDue;
+
+  const [amount, setAmount] = useState(defaultAmount);
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (currentOrder && !reg) {
+      const curTot = currentOrder.total || 0;
+      const curPd = currentOrder.paid || 0;
+      const curDep = currentOrder.deposit != null ? currentOrder.deposit : (currentOrder.depositRequired || 0);
+      const curDepDue = Math.max(0, curDep - curPd);
+      const curBalDue = Math.max(0, curTot - curPd);
+      if (mode === 'DEPOSIT' || (!mode && currentOrder.status === 'HOLDING')) {
+        setAmount(curDepDue > 0 ? curDepDue : curBalDue);
+      } else {
+        setAmount(curBalDue);
+      }
+    }
+  }, [selectedOrderId]);
+
+  const targetId = reg ? reg.id : currentOrder?.id;
+  const refCode = 'CASH-' + (targetId ? targetId.replace(/-/g, '').substring(0, 8).toUpperCase() : '') + '-' + Date.now().toString(36).toUpperCase();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+    const numAmount = Number(amount);
+    if (!numAmount || numAmount <= 0) {
+      setError('Vui lòng nhập số tiền hợp lệ (> 0đ)');
+      return;
+    }
+    setSubmitting(true);
+    setError('');
+    try {
+      await mutate('/payments', {
+        orderId: reg ? null : selectedOrderId,
+        registrationId: registrationId || null,
+        amount: numAmount,
+        method: 'CASH',
+        transactionCode: refCode,
+        reason: reason || undefined
+      });
       notify('Đã ghi nhận thu tiền mặt thành công');
       onClose();
-    }}
-  >
-    {reg&&<div className="notice" style={{marginBottom:15}}>Phí giải • {reg.name} • cần {money(due)}</div>}
+    } catch (err) {
+      setError(err.message || 'Lỗi khi ghi nhận thu tiền');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-    <div className="notice" style={{marginBottom:14}}>
-      Nhận đủ tiền mặt từ khách tại quầy trước khi bấm [Xác nhận đã nhận tiền mặt]. Khách muốn chuyển khoản vui lòng quét mã VietQR trên đơn đặt sân hoặc hồ sơ cá nhân.
-    </div>
-  </FormDialog>;
+  return (
+    <Modal
+      title="Ghi nhận thu tiền mặt tại quầy"
+      onClose={onClose}
+      footer={<>
+        <Button onClick={onClose} disabled={submitting}>Đóng</Button>
+        <button
+          type="submit"
+          form="cash-payment-form"
+          className="btn primary"
+          disabled={submitting}
+        >
+          {submitting ? 'Đang lưu…' : 'Xác nhận đã nhận tiền mặt'}
+        </button>
+      </>}
+    >
+      {reg && <div className="notice" style={{ marginBottom: 15 }}>Phí giải • {reg.name} • cần {money(regDue)}</div>}
+
+      <div className="notice" style={{ marginBottom: 14 }}>
+        Nhận đủ tiền mặt từ khách tại quầy trước khi bấm [Xác nhận đã nhận tiền mặt]. Khách muốn chuyển khoản vui lòng quét mã VietQR trên đơn đặt sân hoặc hồ sơ cá nhân.
+      </div>
+
+      <form id="cash-payment-form" onSubmit={handleSubmit}>
+        <div className="form-grid">
+          {!reg && (
+            <div className="field full">
+              <label htmlFor="field-orderId">Đơn đặt sân</label>
+              <select
+                id="field-orderId"
+                value={selectedOrderId}
+                onChange={e => setSelectedOrderId(e.target.value)}
+              >
+                {orders.map(o => (
+                  <option key={o.id} value={o.id}>
+                    {o.name || ('#' + o.id.slice(0, 8))} • còn {money(o.total - o.paid)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="field full">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <label htmlFor="field-amount" style={{ margin: 0 }}>Số tiền mặt (đ)</label>
+              {!reg && currentOrder && (
+                <div style={{ display: 'inline-flex', gap: 6 }}>
+                  {depositDue > 0 && (
+                    <button
+                      type="button"
+                      className="btn sm"
+                      onClick={() => setAmount(depositDue)}
+                      style={{
+                        background: amount === depositDue ? '#173c32' : '#f1f5f9',
+                        color: amount === depositDue ? '#def46a' : '#1e293b',
+                        borderColor: amount === depositDue ? '#173c32' : '#cbd5e1',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Cọc 50%: {money(depositDue)}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn sm"
+                    onClick={() => setAmount(balanceDue)}
+                    style={{
+                      background: amount === balanceDue ? '#173c32' : '#f1f5f9',
+                      color: amount === balanceDue ? '#def46a' : '#1e293b',
+                      borderColor: amount === balanceDue ? '#173c32' : '#cbd5e1',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: '3px 8px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cả đơn: {money(balanceDue)}
+                  </button>
+                </div>
+              )}
+            </div>
+            <input
+              id="field-amount"
+              type="number"
+              min={1}
+              required
+              value={amount ?? ''}
+              onChange={e => setAmount(e.target.value !== '' ? Number(e.target.value) : '')}
+            />
+          </div>
+
+          <div className="field full">
+            <label htmlFor="field-reason">Lý do (bắt buộc với tiền đến muộn)</label>
+            <input
+              id="field-reason"
+              type="text"
+              maxLength={255}
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              placeholder="VD: Thu cọc tại quầy, thu nốt tiền sân khi vào chơi..."
+            />
+          </div>
+        </div>
+
+        {error && (
+          <div className="error" role="alert" style={{ marginTop: 12 }}>
+            <p style={{ margin: 0 }}>{error}</p>
+          </div>
+        )}
+      </form>
+    </Modal>
+  );
 }
 
 export function RefundDialog({id, orderId, onClose}) {
