@@ -105,16 +105,16 @@ public class DemoResetService {
         """
         INSERT INTO accounts (id, email, full_name, phone, role, status, password_hash, created_at, auth_version)
         VALUES 
-          ('%s', 'admin@gmail.com', 'Quản trị Courtly', '0909999999', 'ADMIN', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'staff@gmail.com', 'Lễ tân Courtly (Staff)', '0908888888', 'STAFF', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'hoangnam@gmail.com', 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'khachmoi@gmail.com', 'Lê Thu Hà (Khách mới)', '0987654321', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'thao.le@gmail.com', 'Lê Thị Thảo', '0913555777', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'minhduc@gmail.com', 'Phạm Minh Đức', '0988666555', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'phuong.vu@gmail.com', 'Vũ Mai Phương', '0903111222', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'hoanglong@gmail.com', 'Đặng Hoàng Long', '0938444333', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'demo.hoivien@gmail.com', 'Nguyễn Minh Khoa (Demo hội viên)', '0911000001', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'demo.khach@gmail.com', 'Phạm Thu Trang (Demo khách)', '0911000002', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'admin@gmail.com', 'Quản trị Courtly', '+84909999999', 'ADMIN', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'staff@gmail.com', 'Lễ tân Courtly (Staff)', '+84908888888', 'STAFF', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'hoangnam@gmail.com', 'Trần Hoàng Nam [Hội viên Plus]', '+84912345678', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'khachmoi@gmail.com', 'Lê Thu Hà (Khách mới)', '+84987654321', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'thao.le@gmail.com', 'Lê Thị Thảo', '+84913555777', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'minhduc@gmail.com', 'Phạm Minh Đức', '+84988666555', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'phuong.vu@gmail.com', 'Vũ Mai Phương', '+84903111222', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'hoanglong@gmail.com', 'Đặng Hoàng Long', '+84938444333', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'demo.hoivien@gmail.com', 'Nguyễn Minh Khoa (Demo hội viên)', '+84911000001', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'demo.khach@gmail.com', 'Phạm Thu Trang (Demo khách)', '+84911000002', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'kietdlv@gmail.com', 'Khách demo Kiệt', '+84769496289', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'phuongmaiphanqn3@gmail.com', 'Khách demo Phương Mai', '+84377035664', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0)
         ON CONFLICT (id) DO UPDATE SET 
@@ -208,7 +208,7 @@ public class DemoResetService {
     String meta1 = "{\"customerFlow\": true, \"membershipBenefit\": {\"planName\": \"Plus\", \"discountPercent\": 15}}";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CHECKED_IN', 340000.00, 170000.00, 170000.00, 'PARTIAL', NOW() - interval '2 hours', 0, ?)",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam [Hội viên Plus]', '+84912345678', 'CHECKED_IN', 340000.00, 170000.00, 170000.00, 'PARTIAL', NOW() - interval '2 hours', 0, ?)",
         ord1Id, NAM_ID, NAM_ID, meta1
     );
     jdbc.update(
@@ -227,7 +227,7 @@ public class DemoResetService {
     String pay2ExpId = "12121212-1212-1212-1212-333333333333";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Lê Thị Thảo [Sắp hết giờ]', '0913555777', 'CHECKED_IN', 300000.00, 150000.00, 150000.00, 'PARTIAL', NOW() - interval '50 minutes', 0, '{\"customerFlow\": true, \"membershipBenefit\": {\"planName\": \"Club\", \"discountPercent\": 10}}')",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Lê Thị Thảo [Sắp hết giờ]', '+84913555777', 'CHECKED_IN', 300000.00, 150000.00, 150000.00, 'PARTIAL', NOW() - interval '50 minutes', 0, '{\"customerFlow\": true, \"membershipBenefit\": {\"planName\": \"Club\", \"discountPercent\": 10}}')",
         ord2ExpId, THAO_ID, THAO_ID
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, check_in_at, created_at) VALUES (?::uuid, ?::uuid, 'CHECKED_IN', NOW() - interval '50 minutes', NOW() - interval '50 minutes')", bkg2ExpId, ord2ExpId);
@@ -240,7 +240,7 @@ public class DemoResetService {
     String pay3GraceId = "13131313-1313-1313-1313-333333333333";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Đặng Hoàng Long [Ân hạn 15p]', '0938444333', 'CHECKED_IN', 450000.00, 200000.00, 200000.00, 'PARTIAL', NOW() - interval '65 minutes', 0, '{\"customerFlow\": true}')",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Đặng Hoàng Long [Ân hạn 15p]', '+84938444333', 'CHECKED_IN', 450000.00, 200000.00, 200000.00, 'PARTIAL', NOW() - interval '65 minutes', 0, '{\"customerFlow\": true}')",
         ord3GraceId, LONG_ID, LONG_ID
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, check_in_at, created_at) VALUES (?::uuid, ?::uuid, 'CHECKED_IN', NOW() - interval '65 minutes', NOW() - interval '65 minutes')", bkg3GraceId, ord3GraceId);
@@ -258,7 +258,7 @@ public class DemoResetService {
     String metaExt = "{\"customerFlow\": true, \"membershipBenefit\": {\"planName\": \"Plus\", \"discountPercent\": 10}, \"extensionHistory\": [{\"minutes\": 30, \"fee\": 0, \"extendedAt\": \"" + extendedAt + "\"}], \"totalExtensionMinutes\": 30, \"totalExtensionFee\": 0}";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam [Đã gia hạn +30p]', '0912345678', 'CHECKED_IN', 750000.00, 300000.00, 300000.00, 'PARTIAL', NOW() - interval '3 hours', 0, ?)",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam [Đã gia hạn +30p]', '+84912345678', 'CHECKED_IN', 750000.00, 300000.00, 300000.00, 'PARTIAL', NOW() - interval '3 hours', 0, ?)",
         ord4ExtId, NAM_ID, NAM_ID, metaExt
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, check_in_at, created_at) VALUES (?::uuid, ?::uuid, 'CHECKED_IN', NOW() - interval '60 minutes', NOW() - interval '3 hours')", bkg4ExtId, ord4ExtId);
@@ -275,7 +275,7 @@ public class DemoResetService {
     String pay5Id = "22222222-2222-2222-2222-333333333333";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Lê Thu Hà (Khách mới)', '0987654321', 'CONFIRMED', 600000.00, 300000.00, 300000.00, 'PARTIAL', NOW() - interval '4 hours', 0, '{\"customerFlow\": true}')",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Lê Thu Hà (Khách mới)', '+84987654321', 'CONFIRMED', 600000.00, 300000.00, 300000.00, 'PARTIAL', NOW() - interval '4 hours', 0, '{\"customerFlow\": true}')",
         ord5Id, HA_ID, HA_ID
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'CONFIRMED', NOW() - interval '4 hours')", bkg5Id, ord5Id);
@@ -288,7 +288,7 @@ public class DemoResetService {
     String pay6Id = "26262626-2626-2626-2626-333333333333";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Phạm Minh Đức', '0988666555', 'CONFIRMED', 400000.00, 400000.00, 400000.00, 'PAID', NOW() - interval '1 hour', 0, '{\"customerFlow\": true}')",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Phạm Minh Đức', '+84988666555', 'CONFIRMED', 400000.00, 400000.00, 400000.00, 'PAID', NOW() - interval '1 hour', 0, '{\"customerFlow\": true}')",
         ord6Id, DUC_ID, DUC_ID
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'CONFIRMED', NOW() - interval '1 hour')", bkg6Id, ord6Id);
@@ -300,7 +300,7 @@ public class DemoResetService {
     String bkg7Id = "33333333-3333-3333-3333-222222222222";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, hold_expires_at, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, NULL, ?::uuid, 'Nguyễn Văn Tuấn (Khách lẻ tại quầy)', '0977222333', 'HOLDING', NOW() + interval '5 minutes', 1000000.00, 500000.00, 0.00, 'UNPAID', NOW(), 0, '{\"customerFlow\": false, \"source\": \"COUNTER\"}')",
+        "VALUES (?::uuid, NULL, ?::uuid, 'Nguyễn Văn Tuấn (Khách lẻ tại quầy)', '+84977222333', 'HOLDING', NOW() + interval '5 minutes', 1000000.00, 500000.00, 0.00, 'UNPAID', NOW(), 0, '{\"customerFlow\": false, \"source\": \"COUNTER\"}')",
         ord7Id, STAFF_ID
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'HOLDING', NOW())", bkg7Id, ord7Id);
@@ -317,7 +317,7 @@ public class DemoResetService {
     String pay8Id = "81818181-8181-8181-8181-333333333333";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Lê Thị Thảo [Chưa thu tiền]', '0913555777', 'CHECKED_IN', 600000.00, 300000.00, 300000.00, 'PARTIAL', (? || ' 15:30:00+07')::timestamptz, 0, '{\"customerFlow\": true, \"membershipBenefit\": {\"planName\": \"Club\", \"discountPercent\": 10}}')",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Lê Thị Thảo [Chưa thu tiền]', '+84913555777', 'CHECKED_IN', 600000.00, 300000.00, 300000.00, 'PARTIAL', (? || ' 15:30:00+07')::timestamptz, 0, '{\"customerFlow\": true, \"membershipBenefit\": {\"planName\": \"Club\", \"discountPercent\": 10}}')",
         ord8Id, THAO_ID, THAO_ID, twoDaysAgoStr
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, check_in_at, created_at) VALUES (?::uuid, ?::uuid, 'CHECKED_IN', (? || ' 15:55:00+07')::timestamptz, (? || ' 15:30:00+07')::timestamptz)", bkg8Id, ord8Id, twoDaysAgoStr, twoDaysAgoStr);
@@ -331,7 +331,7 @@ public class DemoResetService {
     String pay9Id = "82828282-8282-8282-8282-333333333333";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Đặng Hoàng Long [Nợ phí trọng tài]', '0938444333', 'CHECKED_IN', 1500000.00, 500000.00, 500000.00, 'PARTIAL', (? || ' 16:00:00+07')::timestamptz, 0, '{\"customerFlow\": true}')",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Đặng Hoàng Long [Nợ phí trọng tài]', '+84938444333', 'CHECKED_IN', 1500000.00, 500000.00, 500000.00, 'PARTIAL', (? || ' 16:00:00+07')::timestamptz, 0, '{\"customerFlow\": true}')",
         ord9Id, LONG_ID, LONG_ID, yesterdayStr
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, check_in_at, created_at) VALUES (?::uuid, ?::uuid, 'CHECKED_IN', (? || ' 16:50:00+07')::timestamptz, (? || ' 16:00:00+07')::timestamptz)", bkg9Id, ord9Id, yesterdayStr, yesterdayStr);
@@ -347,7 +347,7 @@ public class DemoResetService {
     String pay10_2 = "83838383-8383-8383-8383-333333333332";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Phạm Minh Đức [Chờ check-out]', '0988666555', 'CHECKED_IN', 400000.00, 200000.00, 400000.00, 'PAID', (? || ' 17:00:00+07')::timestamptz, 0, '{\"customerFlow\": true}')",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Phạm Minh Đức [Chờ check-out]', '+84988666555', 'CHECKED_IN', 400000.00, 200000.00, 400000.00, 'PAID', (? || ' 17:00:00+07')::timestamptz, 0, '{\"customerFlow\": true}')",
         ord10Id, DUC_ID, DUC_ID, twoDaysAgoStr
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, check_in_at, created_at) VALUES (?::uuid, ?::uuid, 'CHECKED_IN', (? || ' 17:55:00+07')::timestamptz, (? || ' 17:00:00+07')::timestamptz)", bkg10Id, ord10Id, twoDaysAgoStr, twoDaysAgoStr);
@@ -373,7 +373,7 @@ public class DemoResetService {
     String meta11 = "{\"customerFlow\": true, \"refundPending\": 250000, \"financialReview\": \"REFUND_PENDING\", \"cancellationSettlement\": {\"refundEligible\": true, \"refundPercent\": 100, \"refundAmount\": 250000, \"retainedAmount\": 0, \"reason\": \"Khách hủy trước 24 giờ (được hoàn 100% tiền cọc)\", \"cancelledAt\": \"" + todayStr + "T01:00:00Z\"}}";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Vũ Mai Phương [Chờ hoàn 100% cọc]', '0903111222', 'CANCELLED', 500000.00, 250000.00, 250000.00, 'PAID', NOW() - interval '1 day', 0, ?)",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Vũ Mai Phương [Chờ hoàn 100% cọc]', '+84903111222', 'CANCELLED', 500000.00, 250000.00, 250000.00, 'PAID', NOW() - interval '1 day', 0, ?)",
         ord11Id, PHUONG_ID, PHUONG_ID, meta11
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'CANCELLED', NOW() - interval '1 day')", bkg11Id, ord11Id);
@@ -388,7 +388,7 @@ public class DemoResetService {
     String meta12 = "{\"customerFlow\": true, \"refundPending\": 200000, \"financialReview\": \"REFUND_PENDING\", \"cancellationSettlement\": {\"refundEligible\": true, \"refundPercent\": 50, \"refundAmount\": 200000, \"retainedAmount\": 200000, \"reason\": \"Khách hủy trong khoảng 12h - 24h trước trận (hoàn 50% cọc, giữ lại 50%)\", \"cancelledAt\": \"" + yesterdayStr + "T23:30:00Z\"}}";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Đặng Hoàng Long [Hoàn 50% cọc]', '0938444333', 'CANCELLED', 800000.00, 400000.00, 400000.00, 'PAID', NOW() - interval '18 hours', 0, ?)",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Đặng Hoàng Long [Hoàn 50% cọc]', '+84938444333', 'CANCELLED', 800000.00, 400000.00, 400000.00, 'PAID', NOW() - interval '18 hours', 0, ?)",
         ord12Id, LONG_ID, LONG_ID, meta12
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'CANCELLED', NOW() - interval '18 hours')", bkg12Id, ord12Id);
@@ -403,7 +403,7 @@ public class DemoResetService {
     String meta13 = "{\"customerFlow\": true, \"refundPending\": 0, \"cancellationSettlement\": {\"refundEligible\": false, \"refundPercent\": 0, \"refundAmount\": 0, \"retainedAmount\": 300000, \"reason\": \"Khách hủy dưới 12h trước giờ chơi (không đủ điều kiện hoàn cọc theo Quy chế CLB)\", \"cancelledAt\": \"" + todayStr + "T02:00:00Z\"}}";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Lê Thu Hà [Giữ 100% cọc hủy muộn]', '0987654321', 'CANCELLED', 600000.00, 300000.00, 300000.00, 'PAID', (? || ' 07:30:00+07')::timestamptz, 0, ?)",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Lê Thu Hà [Giữ 100% cọc hủy muộn]', '+84987654321', 'CANCELLED', 600000.00, 300000.00, 300000.00, 'PAID', (? || ' 07:30:00+07')::timestamptz, 0, ?)",
         ord13Id, HA_ID, HA_ID, todayStr, meta13
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'CANCELLED', (? || ' 07:30:00+07')::timestamptz)", bkg13Id, ord13Id, todayStr);
@@ -419,7 +419,7 @@ public class DemoResetService {
     String meta14 = "{\"customerFlow\": true, \"refundPending\": 0, \"cancellationSettlement\": {\"refundEligible\": true, \"refundPercent\": 50, \"refundAmount\": 100000, \"retainedAmount\": 100000, \"reason\": \"Khách hủy trong khoảng 12h - 24h trước trận (hoàn 50% cọc, giữ lại 50%)\", \"cancelledAt\": \"" + twoDaysAgo.minusDays(1) + "T19:00:00Z\"}}";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Vũ Mai Phương [Đã hoàn xong]', '0903111222', 'CANCELLED', 400000.00, 200000.00, 100000.00, 'PARTIAL', (? || ' 09:00:00+07')::timestamptz - interval '1 day', 0, ?)",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Vũ Mai Phương [Đã hoàn xong]', '+84903111222', 'CANCELLED', 400000.00, 200000.00, 100000.00, 'PARTIAL', (? || ' 09:00:00+07')::timestamptz - interval '1 day', 0, ?)",
         ord14Id, PHUONG_ID, PHUONG_ID, twoDaysAgoStr, meta14
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'CANCELLED', (? || ' 09:00:00+07')::timestamptz - interval '1 day')", bkg14Id, ord14Id, twoDaysAgoStr);
@@ -441,7 +441,7 @@ public class DemoResetService {
     );
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam [Hội viên Plus]', '0912345678', 'CONFIRMED', 2040000.00, 1020000.00, 1020000.00, 'PARTIAL', NOW() - interval '1 day', 0, ?)",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Trần Hoàng Nam [Hội viên Plus]', '+84912345678', 'CONFIRMED', 2040000.00, 1020000.00, 1020000.00, 'PARTIAL', NOW() - interval '1 day', 0, ?)",
         ord15Id, NAM_ID, NAM_ID, meta15
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'CONFIRMED', NOW() - interval '1 day')", bkg15Id, ord15Id);
@@ -458,7 +458,7 @@ public class DemoResetService {
     String pay16_2 = "55555555-5555-5555-5555-333333333332";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, invoice_number, issued_at, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Phạm Minh Đức', '0988666555', 'COMPLETED', 400000.00, 200000.00, 400000.00, 'PAID', ?, (? || ' 19:05:00+07')::timestamptz, (? || ' 10:00:00+07')::timestamptz, 0, '{\"customerFlow\": true}')",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Phạm Minh Đức', '+84988666555', 'COMPLETED', 400000.00, 200000.00, 400000.00, 'PAID', ?, (? || ' 19:05:00+07')::timestamptz, (? || ' 10:00:00+07')::timestamptz, 0, '{\"customerFlow\": true}')",
         ord16Id, DUC_ID, DUC_ID, "INV-" + yesterdayStr.replace("-", "") + "-001", yesterdayStr, yesterdayStr
     );
     jdbc.update(
@@ -481,7 +481,7 @@ public class DemoResetService {
     String pay17Id = "77777777-7777-7777-7777-333333333333";
     jdbc.update(
         "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Đặng Hoàng Long [Thuê trọng tài]', '0938444333', 'CONFIRMED', 1500000.00, 500000.00, 500000.00, 'PARTIAL', NOW() - interval '6 hours', 0, '{\"customerFlow\": true}')",
+        "VALUES (?::uuid, ?::uuid, ?::uuid, 'Đặng Hoàng Long [Thuê trọng tài]', '+84938444333', 'CONFIRMED', 1500000.00, 500000.00, 500000.00, 'PARTIAL', NOW() - interval '6 hours', 0, '{\"customerFlow\": true}')",
         ord17Id, LONG_ID, LONG_ID
     );
     jdbc.update("INSERT INTO bookings (id, order_id, status, created_at) VALUES (?::uuid, ?::uuid, 'CONFIRMED', NOW() - interval '6 hours')", bkg17Id, ord17Id);
@@ -582,7 +582,7 @@ public class DemoResetService {
       String pastOrdId = UUID.randomUUID().toString();
       jdbc.update(
           "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Nguyễn Minh Khoa (Demo hội viên)', '0911000001', 'COMPLETED', ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
+          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Nguyễn Minh Khoa (Demo hội viên)', '+84911000001', 'COMPLETED', ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
           pastOrdId, DEMO_HOIVIEN_ID, DEMO_HOIVIEN_ID, khoaSpends[i], khoaSpends[i], khoaMonths[i]
       );
       jdbc.update(
@@ -605,7 +605,7 @@ public class DemoResetService {
       String pastOrdId = UUID.randomUUID().toString();
       jdbc.update(
           "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Phạm Thu Trang (Demo khách)', '0911000002', 'COMPLETED', ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
+          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Phạm Thu Trang (Demo khách)', '+84911000002', 'COMPLETED', ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
           pastOrdId, DEMO_KHACH_ID, DEMO_KHACH_ID, trangSpends[i], trangSpends[i], trangMonths[i]
       );
       jdbc.update(

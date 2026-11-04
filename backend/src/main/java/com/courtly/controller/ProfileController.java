@@ -4,6 +4,7 @@ import static com.courtly.util.Rules.*;
 
 import com.courtly.repository.AccountRepository;
 import com.courtly.service.AuthService;
+import com.courtly.util.PhoneUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -26,9 +27,16 @@ public class ProfileController {
         b.keySet().stream().allMatch(k -> Set.of("name", "phone").contains(k)),
         "Chỉ được sửa họ tên và điện thoại");
     a.setFullName(text((String) b.get("name"), "Họ tên"));
-    String phone = String.valueOf(b.getOrDefault("phone", ""));
-    require(phone.length() <= 30 && phone.matches("[+\\d\\s().-]*"), "Số điện thoại không hợp lệ");
-    a.setPhone(phone);
+    String phone = String.valueOf(b.getOrDefault("phone", "")).trim();
+    if (!phone.isBlank()) {
+      String norm = PhoneUtils.normalizeE164(phone);
+      if (!norm.equals(a.getPhone())) {
+        require(accounts.findByPhone(norm).isEmpty(), "Số điện thoại đã có tài khoản.");
+      }
+      a.setPhone(norm);
+    } else {
+      a.setPhone("");
+    }
     accounts.save(a);
     return map("id", a.getId());
   }

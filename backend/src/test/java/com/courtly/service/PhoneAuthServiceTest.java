@@ -16,6 +16,9 @@ public class PhoneAuthServiceTest {
     assertEquals("+84912345678", PhoneUtils.normalizeE164("0912 345 678"));
     assertEquals("+84912345678", PhoneUtils.normalizeE164("+84912345678"));
     assertEquals("+84912345678", PhoneUtils.normalizeE164("84912345678"));
+    assertEquals("+84911000002", PhoneUtils.normalizeE164("0911000002"));
+    assertEquals("+84911000002", PhoneUtils.normalizeE164("+84911000002"));
+    assertEquals("+84911000002", PhoneUtils.normalizeE164("0911.000.002"));
     assertEquals("+84769496289", PhoneUtils.normalizeE164("0769496289"));
     assertEquals("+84377035664", PhoneUtils.normalizeE164("0377035664"));
 

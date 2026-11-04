@@ -6,6 +6,7 @@ import com.courtly.dto.request.CatalogRequest;
 import com.courtly.entity.*;
 import com.courtly.exception.BusinessException;
 import com.courtly.repository.*;
+import com.courtly.util.PhoneUtils;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
@@ -394,7 +395,14 @@ public class CatalogService {
         accounts.findByEmailIgnoreCase(email).map(x -> x.getId().equals(id)).orElse(true),
         "Email đã tồn tại");
     a.setEmail(email);
-    a.setPhone(r.phone() == null ? "" : r.phone());
+    String rawPhone = r.phone() == null ? "" : r.phone().trim();
+    String normPhone = rawPhone.isBlank() ? "" : PhoneUtils.normalizeE164(rawPhone);
+    if (!normPhone.isBlank()) {
+      require(
+          accounts.findByPhone(normPhone).map(x -> x.getId().equals(id)).orElse(true),
+          "Số điện thoại đã có tài khoản");
+    }
+    a.setPhone(normPhone);
     a.setRole(oneOf(r.role(), "ADMIN", "STAFF", "CUSTOMER"));
     a.setStatus(oneOf(r.status(), "ACTIVE", "LOCKED"));
     return accounts.save(a).getId();
@@ -409,7 +417,8 @@ public class CatalogService {
                 .orElseThrow(() -> new BusinessException("Nhân sự không tồn tại"));
     s.setFullName(text(r.name(), "Tên nhân sự"));
     s.setType(oneOf(r.type(), "REFEREE", "BALL_BOY", "COACH"));
-    s.setPhone(r.phone() == null ? "" : r.phone());
+    String staffPhone = r.phone() == null ? "" : r.phone().trim();
+    s.setPhone(staffPhone.isBlank() ? "" : (PhoneUtils.isValid(staffPhone) ? PhoneUtils.normalizeE164(staffPhone) : staffPhone));
     s.setHourlyRate(positive(r.rate()));
     String status = oneOf(r.status(), "ACTIVE", "INACTIVE");
     if (id != null && "INACTIVE".equals(status))

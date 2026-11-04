@@ -113,7 +113,7 @@ public class DemoDataInitializer implements ApplicationRunner {
       Account staffAcc = new Account();
       staffAcc.setFullName("Nhân viên Staff");
       staffAcc.setEmail("staff@gmail.com");
-      staffAcc.setPhone("0987654321");
+      staffAcc.setPhone("+84987654321");
       staffAcc.setRole("STAFF");
       staffAcc.setPasswordHash(passwordEncoder.encode("12345"));
       accounts.save(staffAcc);
@@ -139,7 +139,7 @@ public class DemoDataInitializer implements ApplicationRunner {
       Account a = new Account();
       a.setFullName(names[i]);
       a.setEmail("demo" + (i + 1) + "@example.com");
-      a.setPhone("090000000" + i);
+      a.setPhone("+8490000000" + i);
       a.setRole("CUSTOMER");
       accounts.save(a);
     }
@@ -149,7 +149,7 @@ public class DemoDataInitializer implements ApplicationRunner {
       Staff s = new Staff();
       s.setFullName(people[i]);
       s.setType(types[i]);
-      s.setPhone("091000000" + i);
+      s.setPhone("+8491000000" + i);
       s.setHourlyRate(BigDecimal.valueOf(i == 1 ? 250000 : i == 0 ? 120000 : 60000));
       staff.save(s);
     }
