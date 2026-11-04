@@ -42,6 +42,11 @@ public class DemoResetService {
   public static final String KIET_ID = "11111111-2222-3333-4444-555555555503";
   public static final String PHUONG_MAI_ID = "11111111-2222-3333-4444-555555555504";
 
+  public static final String FB_NAM_ID = "bbbbbbbb-0001-0000-0000-000000000001";
+  public static final String FB_DUC_ID = "bbbbbbbb-0002-0000-0000-000000000002";
+  public static final String FB_HA_PENDING_ID = "bbbbbbbb-0003-0000-0000-000000000003";
+  public static final String FB_HA_LOW_ID = "bbbbbbbb-0004-0000-0000-000000000004";
+
   private static final String BCRYPT_123456 = "$2a$12$UUtz0fA3mVVqyAxke7itjuFI22Q62Kl0DN2ythRJEJc6xub.js6le";
 
   @Transactional
@@ -88,7 +93,10 @@ public class DemoResetService {
     jdbc.execute("DELETE FROM bookings");
     jdbc.execute("DELETE FROM orders");
     jdbc.execute("UPDATE vouchers SET used_count = 0");
+    jdbc.execute("DELETE FROM vouchers WHERE code LIKE 'SORRY-%'");
+    jdbc.execute("DELETE FROM app_documents WHERE document_key LIKE 'feedback:%' OR document_key LIKE 'compensation:%'");
     jdbc.execute("DELETE FROM tournament_registrations");
+    jdbc.execute("DELETE FROM notifications");
 
     // 2. Khôi phục các bảng danh mục theo ảnh chụp chuẩn baseline
     demoBaseline.restoreBaseline();
@@ -667,37 +675,33 @@ public class DemoResetService {
     // G. PHẢN HỒI & ĐÁNH GIÁ (FEEDBACK / REVIEWS)
     // -----------------------------------------------------------------------------------------
     // 1 & 2: Feedback đã duyệt (PUBLISHED)
-    String fb1Id = UUID.randomUUID().toString();
     String fb1Json = String.format(
         "{\"id\": \"%s\", \"topic\": \"COURT\", \"rating\": 5, \"status\": \"PUBLISHED\", \"published\": true, \"message\": \"Sân A01 mặt sân rất êm, độ nảy bóng chuẩn. Đèn cao áp ban đêm đánh rất thích không bị chói mắt!\", \"accountId\": \"%s\", \"displayName\": \"Trần Hoàng Nam\", \"reply\": \"Courtly chân thành cảm ơn phản hồi quý giá của anh Nam! Hẹn gặp lại anh trong những buổi chơi tới.\", \"createdAt\": \"%sT08:30:00Z\", \"publishConsent\": true}",
-        fb1Id, NAM_ID, yesterdayStr
+        FB_NAM_ID, NAM_ID, yesterdayStr
     );
-    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "feedback:" + fb1Id, fb1Json);
+    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "feedback:" + FB_NAM_ID, fb1Json);
 
-    String fb2Id = UUID.randomUUID().toString();
     String fb2Json = String.format(
         "{\"id\": \"%s\", \"topic\": \"STAFF\", \"rating\": 5, \"status\": \"PUBLISHED\", \"published\": true, \"message\": \"Lễ tân và trọng tài hỗ trợ rất nhiệt tình, thủ tục check-in bằng mã QR cực kỳ nhanh gọn chỉ mất 2 giây.\", \"accountId\": \"%s\", \"displayName\": \"Phạm Minh Đức\", \"reply\": \"Courtly cảm ơn anh Đức rất nhiều. CLB luôn nỗ lực mang lại trải nghiệm tiện lợi nhất!\", \"createdAt\": \"%sT11:00:00Z\", \"publishConsent\": true}",
-        fb2Id, DUC_ID, twoDaysAgoStr
+        FB_DUC_ID, DUC_ID, twoDaysAgoStr
     );
-    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "feedback:" + fb2Id, fb2Json);
+    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "feedback:" + FB_DUC_ID, fb2Json);
 
     // 3: Feedback CHƯA DUYỆT (PENDING - chưa có reply, chưa published)
     // KÍCH HOẠT CHẤM ĐỎ THÔNG BÁO TRÊN ICON 'NỘI DUNG / FEEDBACK' CỦA ADMIN
-    String fb3Id = UUID.randomUUID().toString();
     String fb3Json = String.format(
         "{\"id\": \"%s\", \"topic\": \"SERVICE\", \"rating\": 4, \"status\": \"PENDING\", \"published\": false, \"message\": \"Cơ sở vật chất khang trang, nước uống pocari mát lạnh. Mong CLB sớm bổ sung thêm tủ đồ thông minh tích hợp QR code!\", \"accountId\": \"%s\", \"displayName\": \"Lê Thu Hà\", \"reply\": null, \"createdAt\": \"%sT10:00:00Z\", \"publishConsent\": true}",
-        fb3Id, HA_ID, todayStr
+        FB_HA_PENDING_ID, HA_ID, todayStr
     );
-    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "feedback:" + fb3Id, fb3Json);
+    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "feedback:" + FB_HA_PENDING_ID, fb3Json);
 
     // 4: Feedback ĐÁNH GIÁ THẤP (LOW_RATING - 2 sao, trạng thái NEW, hạn 24h)
     // Demo quy trình Service Recovery và nút Tặng voucher bù ngay sau reset
-    String fb4Id = UUID.randomUUID().toString();
     String fb4Json = String.format(
         "{\"id\": \"%s\", \"topic\": \"COURT\", \"rating\": 2, \"status\": \"PENDING\", \"published\": false, \"lowRating\": true, \"handlingStatus\": \"NEW\", \"dueAt\": \"%sT23:59:59Z\", \"message\": \"Đèn sân B04 chập chờn, trọng tài đến trễ 10 phút.\", \"accountId\": \"%s\", \"displayName\": \"Lê Thu Hà\", \"reply\": null, \"createdAt\": \"%sT09:00:00Z\", \"publishConsent\": true, \"courtNames\": \"Sân B04\", \"visitDate\": \"%s\"}",
-        fb4Id, todayStr, HA_ID, todayStr, yesterdayStr
+        FB_HA_LOW_ID, todayStr, HA_ID, todayStr, yesterdayStr
     );
-    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "feedback:" + fb4Id, fb4Json);
+    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "feedback:" + FB_HA_LOW_ID, fb4Json);
 
     // -----------------------------------------------------------------------------------------
     // H. GIẢI ĐẤU (TOURNAMENT) & ĐĂNG KÝ VĐV
