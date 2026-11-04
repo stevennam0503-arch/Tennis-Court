@@ -5,7 +5,7 @@ import OrderActions from '../components/OrderActions';
 import BookingPicker from '../components/BookingPicker';
 import {useCourtly} from '../context';
 import {Title,Panel,Button,Chip,Tabs} from '../components/UI';
-import {money,today,labels} from '../utils/format';
+import {money,today,labels,slotLabel} from '../utils/format';
 export default function CustomerPage({route}){
  if(route==='orders')return <MyOrders/>;
  if(route==='history')return <MyHistory/>;

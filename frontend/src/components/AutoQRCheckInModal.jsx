@@ -400,7 +400,7 @@ export default function AutoQRCheckInModal({ onClose }) {
                   <p style={{ fontSize: 13, color: '#475569', margin: '8px 0 0' }}>
                     Đã ghi nhận lượt vào phòng chờ VIP thành công lúc {new Date().toLocaleTimeString('vi-VN')}.
                   </p>
-                  <button className="aqr-resume-btn" onClick={resumeScan} style={{ marginTop: 12 }}>
+                  <button className="aqr-resume-btn" onClick={resumeScanning} style={{ marginTop: 12 }}>
                     <RefreshCw size={16} /> Quét thẻ hoặc mã tiếp theo
                   </button>
                 </div>
@@ -415,7 +415,7 @@ export default function AutoQRCheckInModal({ onClose }) {
                   <p style={{ color: '#dc2626', fontSize: 14, fontWeight: 600, margin: '6px 0' }}>
                     {lastScannedResult.msg}
                   </p>
-                  <button className="aqr-resume-btn" onClick={resumeScan} style={{ marginTop: 12 }}>
+                  <button className="aqr-resume-btn" onClick={resumeScanning} style={{ marginTop: 12 }}>
                     <RefreshCw size={16} /> Quét lại
                   </button>
                 </div>

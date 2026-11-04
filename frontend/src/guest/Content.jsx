@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Star,
   ArrowUpRight,
@@ -32,7 +32,7 @@ import { useGuest, Action, Empty, requestId } from './context';
 // ARTICLE READER COMPONENT (CHẾ ĐỘ ĐỌC BÁO THỰC THỤ)
 // ==========================================
 export function ArticleReader({ article: a, onBack, onSelectArticle, allArticles = [] }) {
-  const { t, navigate } = useGuest();
+  const { t, navigate, lang } = useGuest();
   const [copied, setCopied] = useState(false);
 
   // Fallback high-res image

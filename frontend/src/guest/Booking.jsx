@@ -834,7 +834,7 @@ export default function Booking() {
                                 return sMin >= sug.start && eMin <= sug.end;
                               }).sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
 
-                              setCourt(sug.court);
+                              setCourtId(sug.court.id);
                               setCourtRanges(prev => ({
                                 ...prev,
                                 [sug.court.id]: {

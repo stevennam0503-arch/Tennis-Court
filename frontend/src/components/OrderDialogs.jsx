@@ -10,7 +10,7 @@ import {OrderTimeline} from '../pages/CustomerHistory';
 import { useCourtly } from '../context';
 import { Modal, FormDialog, Button, Chip, Table } from './UI';
 import { api } from '../services/api';
-import { money, active, options } from '../utils/format';
+import { money, active, options, labels } from '../utils/format';
 
 async function resolveSlots(values) {
   await api('/schedules/generate','POST',{date:values.date});
@@ -817,7 +817,7 @@ export function ExtendOrderDialog({id, onClose}) {
 }
 
 export function CheckOutDialog({id, onClose}) {
-  const {data, mutate, notify, show} = useCourtly();
+  const {data, mutate, notify, show, isAdmin} = useCourtly();
   const o = data.orders.find(x => x.id === id);
   const [submitting, setSubmitting] = useState(false);
   const [showQR, setShowQR] = useState(false);

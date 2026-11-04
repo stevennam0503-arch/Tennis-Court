@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useCourtly } from '../context';
 import { Title, Panel, Button, Chip, Table, OrderStatusChip } from '../components/UI';
-import { money, today, slotLabel } from '../utils/format';
+import { money, today, slotLabel, hourLabel } from '../utils/format';
 
 export function getOrderTiming(order, currentToday) {
   if (!order) return { state: 'UNKNOWN' };
@@ -89,7 +89,7 @@ export function getOrderTiming(order, currentToday) {
 }
 
 export default function OperationsPage() {
-  const { data, show, isAdmin } = useCourtly();
+  const { data, show, isAdmin, navigate } = useCourtly();
   const currentToday = today();
 
   const [activeTab, setActiveTab] = useState('all');

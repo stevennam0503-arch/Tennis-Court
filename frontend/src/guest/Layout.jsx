@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ArrowUpRight, Menu, LogOut, ChevronDown, Phone, Mail, MapPin, Clock, Bell, CheckCheck } from 'lucide-react';
 import { money, today as dateToday } from '../utils/format';
+import { api } from '../services/api';
 import {useGuest, time, hourLabel} from './context';
 import {customerNavigation} from '../navigation';
 import {UserAvatar} from '../components/UserAvatar';

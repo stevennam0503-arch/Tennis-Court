@@ -2,7 +2,7 @@ import GuestPortal from './guest/Portal';
 
 import React,{useState,useCallback,useRef,useEffect,useMemo} from 'react';
 
-import {CalendarDays,ClipboardList,Wallet,Grid2X2,Package,Users,Trophy,ChartColumn,Settings,Bell,Menu,UserRound,LogOut,MessageSquare,Send,Ticket} from 'lucide-react';
+import {CalendarDays,ClipboardList,Wallet,Grid2X2,Package,Users,Trophy,ChartColumn,Settings,Bell,Menu,UserRound,LogOut,MessageSquare,Send,Ticket,Megaphone,Award} from 'lucide-react';
 
 import {CourtlyContext} from './context';
 
@@ -10,7 +10,7 @@ import {useClub} from './hooks/useClub';
 
 import {api} from './services/api';
 
-import {today,dateLabel} from './utils/format';
+import {today,dateLabel,hourLabel} from './utils/format';
 
 import {Button} from './components/UI';
 

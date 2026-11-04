@@ -5,6 +5,7 @@ import QRCode from 'qrcode';
 import {api} from '../services/api';
 
 import {useGuest,Action,State,Empty,money,time,hourLabel,dateToday,requestId} from './context';
+import {labels} from '../utils/format';
 
 
 

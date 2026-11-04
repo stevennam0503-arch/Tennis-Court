@@ -389,7 +389,7 @@ export default function StaffPage() {
               }}
             >
               <span>
-                Hiển thị <b>{(currentSchedulePage - 1) * schedulePageSize + 1}</b> – <b>{Math.min(currentSchedulePage * schedulePageSize, filteredSchedules.length)}</b> trong số <b>{filteredShifts.length}</b> ca làm việc
+                Hiển thị <b>{(currentSchedulePage - 1) * schedulePageSize + 1}</b> – <b>{Math.min(currentSchedulePage * schedulePageSize, filteredShifts.length)}</b> trong số <b>{filteredShifts.length}</b> ca làm việc
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Button
