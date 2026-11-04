@@ -777,7 +777,7 @@ public class LoyaltyService {
 
   @Transactional(readOnly = true)
   public Map<String, Object> getLoyaltyReport(LocalDate startDate, LocalDate endDate) {
-    List<Account> all = accounts.findAll();
+    List<Account> all = accounts.findAll().stream().filter(a -> "CUSTOMER".equalsIgnoreCase(a.getRole())).toList();
     Map<String, Long> tierCounts = new LinkedHashMap<>();
     for (String t : List.of("ROOKIE", "CHALLENGER", "MASTERS", "GRAND_SLAM")) {
       tierCounts.put(t, all.stream().filter(a -> t.equalsIgnoreCase(a.getTier() != null ? a.getTier() : "ROOKIE")).count());

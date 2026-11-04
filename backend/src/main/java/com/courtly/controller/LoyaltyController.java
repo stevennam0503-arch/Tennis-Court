@@ -67,6 +67,7 @@ public class LoyaltyController {
       @RequestParam(required = false) String query) {
     List<Account> list = accounts.findAll();
     return list.stream()
+        .filter(a -> "CUSTOMER".equalsIgnoreCase(a.getRole()))
         .filter(a -> tier == null || tier.isBlank() || tier.equalsIgnoreCase(a.getTier()))
         .filter(a -> {
           if (query == null || query.isBlank()) return true;
