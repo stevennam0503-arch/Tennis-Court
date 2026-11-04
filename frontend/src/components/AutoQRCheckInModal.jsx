@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import jsQR from 'jsqr';
 import { Camera, Upload, Keyboard, CheckCircle2, AlertTriangle, Clock, RefreshCw, X, Sparkles, Volume2, ArrowRight } from 'lucide-react';
 import { useCourtly } from '../context';
-import { money, today } from '../utils/format';
+import { money, today, slotLabel, hourLabel } from '../utils/format';
 import './AutoQRCheckInModal.css';
 
 // Audio tone synthesizer for instant feedback
@@ -48,7 +48,9 @@ export default function AutoQRCheckInModal({ onClose }) {
   
   // Processing & result state
   const [processing, setProcessing] = useState(false);
-  const [lastScannedResult, setLastScannedResult] = useState(null); // { order, type: 'SUCCESS' | 'HOLDING' | 'ALREADY' | 'COMPLETED' | 'NOT_FOUND', msg }
+  const [lastScannedResult, setLastScannedResult] = useState(null); // { order, type: 'SUCCESS' | 'HOLDING' | 'ALREADY' | 'COMPLETED' | 'NOT_FOUND' | 'NEEDS_REASON' | 'ERROR', msg }
+  const [exceptionReason, setExceptionReason] = useState('');
+  const [submittingException, setSubmittingException] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [autoResumeTimer, setAutoResumeTimer] = useState(0);
 
@@ -105,9 +107,7 @@ export default function AutoQRCheckInModal({ onClose }) {
     // 1. Order is CONFIRMED -> AUTOMATIC CHECK-IN!
     if (order.status === 'CONFIRMED') {
       try {
-        await mutate(`/orders/${order.id}/check-in`, {
-          reason: 'Quét mã QR tự động tại quầy'
-        });
+        await mutate(`/orders/${order.id}/check-in`, {});
         playSuccessSound();
         notify(`✅ Check-in thành công: ${order.name}`);
         setLastScannedResult({
@@ -117,8 +117,9 @@ export default function AutoQRCheckInModal({ onClose }) {
         });
       } catch (err) {
         playWarningSound();
+        setExceptionReason('');
         setLastScannedResult({
-          type: 'ERROR',
+          type: 'NEEDS_REASON',
           order,
           msg: err.message || 'Lỗi khi thực hiện check-in đơn hàng'
         });
@@ -271,6 +272,8 @@ export default function AutoQRCheckInModal({ onClose }) {
   const resumeScanning = () => {
     setLastScannedResult(null);
     setManualCode('');
+    setExceptionReason('');
+    setSubmittingException(false);
     scanningRef.current = true;
   };
 
@@ -350,7 +353,7 @@ export default function AutoQRCheckInModal({ onClose }) {
                     <div className="aqr-info-row">
                       <span style={{ color: '#64748b' }}>Lịch thi đấu:</span>
                       <b>
-                        {lastScannedResult.order.date} • {lastScannedResult.order.slots?.map(s => `${data.courts.find(c => c.id === s.court)?.name || 'Sân'} (${s.hour}:00)`).join(', ')}
+                        {lastScannedResult.order.date} • {lastScannedResult.order.slots?.map(s => `${data.courts.find(c => c.id === s.court)?.name || 'Sân'} (${slotLabel(s)})`).join(', ')}
                       </b>
                     </div>
                     <div className="aqr-info-row">
@@ -446,6 +449,111 @@ export default function AutoQRCheckInModal({ onClose }) {
                   <button type="button" className="btn" onClick={resumeScanning}>
                     Thử lại
                   </button>
+                </div>
+              )}
+
+              {lastScannedResult.type === 'NEEDS_REASON' && (
+                <div style={{ background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: 12, padding: 22, textAlign: 'left' }}>
+                  <div style={{ textAlign: 'center', marginBottom: 14 }}>
+                    <AlertTriangle size={42} color="#d97706" style={{ margin: '0 auto 8px' }} />
+                    <h3 style={{ margin: '0 0 6px', fontSize: 18, color: '#92400e' }}>CẦN LÝ DO NGOẠI LỆ CHECK-IN</h3>
+                    <p style={{ margin: 0, color: '#b45309', fontSize: 13, fontWeight: 600 }}>
+                      {lastScannedResult.msg}
+                    </p>
+                  </div>
+
+                  <div className="aqr-info-list" style={{ margin: '14px 0', background: '#fff', padding: '12px 14px', borderRadius: 8, border: '1px solid #fef3c7' }}>
+                    <div className="aqr-info-row">
+                      <span style={{ color: '#64748b' }}>Khách hàng:</span>
+                      <b>{lastScannedResult.order?.name}</b>
+                    </div>
+                    <div className="aqr-info-row">
+                      <span style={{ color: '#64748b' }}>Sân & Lịch chơi:</span>
+                      <b>
+                        {lastScannedResult.order?.date} • {lastScannedResult.order?.slots?.map(s => `${data.courts.find(c => c.id === s.court)?.name || 'Sân'} (${slotLabel(s)})`).join(', ')}
+                      </b>
+                    </div>
+                    <div className="aqr-info-row">
+                      <span style={{ color: '#64748b' }}>Mã vé:</span>
+                      <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#92400e' }}>
+                        CT-{lastScannedResult.order?.id?.slice(0, 8).toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#78350f', marginBottom: 6 }}>
+                      Lý do check-in ngoại lệ (bắt buộc, tối thiểu 5 ký tự):
+                    </label>
+                    <input
+                      autoFocus
+                      type="text"
+                      value={exceptionReason}
+                      onChange={e => setExceptionReason(e.target.value)}
+                      placeholder="Ví dụ: Khách đến sớm được quản lý duyệt, đổi ca..."
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid #d97706', fontSize: 14, boxSizing: 'border-box' }}
+                    />
+                    {exceptionReason.trim().length > 0 && exceptionReason.trim().length < 5 && (
+                      <small style={{ color: '#dc2626', marginTop: 4, display: 'block' }}>
+                        Lý do phải có ít nhất 5 ký tự (hiện có {exceptionReason.trim().length})
+                      </small>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                    <button
+                      type="button"
+                      className="btn primary"
+                      style={{ background: '#d97706', borderColor: '#d97706', padding: '10px 20px', fontWeight: 700 }}
+                      disabled={exceptionReason.trim().length < 5 || submittingException}
+                      onClick={async () => {
+                        setSubmittingException(true);
+                        try {
+                          await mutate(`/orders/${lastScannedResult.order.id}/check-in`, {
+                            reason: exceptionReason.trim(),
+                            visitDate: lastScannedResult.order.date
+                          });
+                          playSuccessSound();
+                          notify(`✅ Check-in ngoại lệ thành công: ${lastScannedResult.order.name}`);
+                          setLastScannedResult({
+                            type: 'SUCCESS',
+                            order: { ...lastScannedResult.order, status: 'CHECKED_IN', checkInAt: new Date().toISOString() },
+                            msg: `Check-in ngoại lệ thành công! (Lý do: ${exceptionReason.trim()})`
+                          });
+                        } catch (err) {
+                          playWarningSound();
+                          notify(err.message || 'Lỗi khi check-in ngoại lệ');
+                        } finally {
+                          setSubmittingException(false);
+                        }
+                      }}
+                    >
+                      {submittingException ? 'Đang xử lý…' : '⚠️ Check-in ngoại lệ'}
+                    </button>
+                    <button type="button" className="btn" onClick={resumeScanning}>
+                      Hủy / Quét lượt khác
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {lastScannedResult.type === 'ERROR' && (
+                <div style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 12, padding: 22, textAlign: 'center' }}>
+                  <X size={42} color="#dc2626" style={{ margin: '0 auto 10px' }} />
+                  <h3 style={{ margin: '0 0 6px', fontSize: 18, color: '#991b1b' }}>CHECK-IN THẤT BẠI</h3>
+                  <p style={{ margin: '0 0 16px', color: '#7f1d1d', fontSize: 14 }}>
+                    {lastScannedResult.msg}
+                  </p>
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                    <button type="button" className="btn" onClick={resumeScanning}>
+                      Thử lại
+                    </button>
+                    {lastScannedResult.order && (
+                      <button type="button" className="btn" onClick={() => { onClose(); show({ type: 'order', id: lastScannedResult.order.id }); }}>
+                        Xem chi tiết đơn
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

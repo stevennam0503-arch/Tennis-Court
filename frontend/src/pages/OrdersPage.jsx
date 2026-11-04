@@ -57,7 +57,11 @@ export default function OrdersPage() {
       await mutate(`/orders/${orderId}/check-in`, {});
       notify('✅ Khách đã check-in thành công!');
     } catch (e) {
-      notify(e.message || 'Không thể check-in');
+      if (e.message && (e.message.includes('ngoại lệ') || e.message.includes('Lý do') || e.message.includes('check-in') || e.message.includes('cọc'))) {
+        show({ type: 'check-in', id: orderId });
+      } else {
+        notify(e.message || 'Không thể check-in');
+      }
     } finally {
       setActionLoading(false);
     }

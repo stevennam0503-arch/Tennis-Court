@@ -27,6 +27,7 @@ public class OrderApplicationService {
   private final SettingsService settings;
   private final MembershipService memberships;
   private final CourtScheduleRepository schedules;
+  private final AuditService audit;
 
   public Map<String, Object> create(BookingRequest r, Account actor) {
     var a = actor;
@@ -270,11 +271,33 @@ public class OrderApplicationService {
                       .map(s -> at(s.getScheduleDate(), s.getEndTime()))
                       .max(Comparator.naturalOrder())
                       .orElseThrow();
-              if (!(early instanceof Number n)
-                  || Instant.now().isBefore(start.minusSeconds(((Number) early).longValue() * 60))
-                  || !Instant.now().isBefore(end)
-                  || o.getPaidAmount().compareTo(o.getDepositRequired()) < 0)
-                text((String) b.get("reason"), "Lý do check-in ngoại lệ");
+              long earlyMinutes = (early instanceof Number n) ? n.longValue() : 30L;
+              Instant allowedFrom = start.minusSeconds(earlyMinutes * 60);
+              Instant now = Instant.now();
+              boolean isEarly = now.isBefore(allowedFrom);
+              boolean isLate = !now.isBefore(end);
+              boolean isUnpaid = o.getPaidAmount().compareTo(o.getDepositRequired()) < 0;
+
+              if (isEarly || isLate || isUnpaid) {
+                String reason = b.get("reason") != null ? b.get("reason").toString().trim() : "";
+                if (reason.length() < 5) {
+                  if (isEarly) {
+                    String timeStr = allowedFrom.atZone(ZONE).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm 'ng\u00e0y' dd/MM"));
+                    throw new com.courtly.exception.BusinessException("Ch\u01b0a t\u1edbi gi\u1edd check-in (t\u1eeb " + timeStr + "). Nh\u1eadp l\u00fd do ngo\u1ea1i l\u1ec7 \u0111\u1ec3 ti\u1ebfp t\u1ee5c.");
+                  } else if (isLate) {
+                    String timeStr = end.atZone(ZONE).format(java.time.format.DateTimeFormatter.ofPattern("HH:mm 'ng\u00e0y' dd/MM"));
+                    throw new com.courtly.exception.BusinessException("\u0110\u00e3 qua gi\u1edd ch\u01a1i (k\u1ebft th\u00fac l\u00fac " + timeStr + "). Nh\u1eadp l\u00fd do ngo\u1ea1i l\u1ec7 \u0111\u1ec3 ti\u1ebfp t\u1ee5c.");
+                  } else {
+                    throw new com.courtly.exception.BusinessException("\u0110\u01a1n ch\u01b0a thanh to\u00e1n \u0111\u1ee7 ti\u1ec1n c\u1ecdc. Nh\u1eadp l\u00fd do ngo\u1ea1i l\u1ec7 \u0111\u1ec3 ti\u1ebfp t\u1ee5c.");
+                  }
+                }
+                var extra = docs.decode(o.getMetadata());
+                extra.put("checkInExceptionReason", reason);
+                extra.put("checkInExceptionBy", a.getFullName());
+                extra.put("checkInExceptionAt", Instant.now().toString());
+                o.setMetadata(docs.encode(extra));
+                audit.log("CHECK-IN NGO\u1ea0I L\u1ec6", "Check-in ngo\u1ea1i l\u1ec7 \u0111\u01a1n #" + o.getId().toString().substring(0, 8) + " b\u1edfi " + a.getFullName() + ": " + reason);
+              }
               service.checkIn(id, visitDate);
             }
             case "no-show" -> {
