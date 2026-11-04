@@ -10,5 +10,7 @@ public interface VoucherRedemptionRepository extends JpaRepository<VoucherRedemp
 
   long countByVoucherIdAndAccountId(UUID voucherId, UUID accountId);
 
+  java.util.List<VoucherRedemption> findByVoucherId(UUID voucherId);
+
   void deleteByOrderId(UUID orderId);
 }

@@ -4,6 +4,7 @@ import com.courtly.entity.Voucher;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,4 +17,10 @@ public interface VoucherRepository extends LockingRepository<Voucher> {
   Optional<Voucher> findByCodeForUpdate(@Param("code") String code);
 
   List<Voucher> findByEnabledTrue();
+
+  List<Voucher> findByAssignedAccountId(UUID accountId);
+
+  List<Voucher> findByStatus(String status);
+
+  Optional<Voucher> findByFeedbackId(String feedbackId);
 }

@@ -3,6 +3,8 @@ package com.courtly.entity;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalTime;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -54,4 +56,46 @@ public class Voucher extends BaseEntity {
 
   @Column(name = "description")
   private String description;
+
+  @Column(name = "status", nullable = false, length = 20)
+  private String status = "ACTIVE"; // DRAFT, PENDING_APPROVAL, ACTIVE, PAUSED, ENDED
+
+  @Column(name = "created_by")
+  private UUID createdBy;
+
+  @Column(name = "approved_by")
+  private UUID approvedBy;
+
+  @Column(name = "approved_at")
+  private Instant approvedAt;
+
+  @Column(name = "campaign_id")
+  private UUID campaignId;
+
+  @Column(name = "zone", length = 20)
+  private String zone; // OUTDOOR, INDOOR, VIP
+
+  @Column(name = "valid_from_time")
+  private LocalTime validFromTime;
+
+  @Column(name = "valid_to_time")
+  private LocalTime validToTime;
+
+  @Column(name = "valid_weekdays", length = 50)
+  private String validWeekdays; // e.g. "1,2,3,4,5" (1=Monday, 7=Sunday)
+
+  @Column(name = "assigned_account_id")
+  private UUID assignedAccountId;
+
+  @Column(name = "source", length = 50)
+  private String source = "GENERAL"; // GENERAL, FEEDBACK_RECOVERY, TIER_GIFT, BIRTHDAY, POINTS_REDEMPTION
+
+  @Column(name = "feedback_id", length = 100)
+  private String feedbackId;
+
+  @Column(name = "order_id")
+  private UUID orderId;
+
+  @Column(name = "min_tier", length = 50)
+  private String minTier; // ROOKIE, CHALLENGER, MASTERS, GRAND_SLAM
 }

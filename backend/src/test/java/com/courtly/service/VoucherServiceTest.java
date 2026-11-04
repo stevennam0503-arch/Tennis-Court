@@ -21,6 +21,7 @@ class VoucherServiceTest {
   private VoucherRedemptionRepository redemptions;
   private CustomerOrderRepository orders;
   private MembershipService memberships;
+  private AuditService auditService;
   private VoucherService service;
 
   @BeforeEach
@@ -29,7 +30,8 @@ class VoucherServiceTest {
     redemptions = mock(VoucherRedemptionRepository.class);
     orders = mock(CustomerOrderRepository.class);
     memberships = mock(MembershipService.class);
-    service = new VoucherService(vouchers, redemptions, orders, memberships);
+    auditService = mock(AuditService.class);
+    service = new VoucherService(vouchers, redemptions, orders, memberships, auditService);
   }
 
   private Voucher createVoucher(String code, String type, BigDecimal val, BigDecimal min, BigDecimal max) {
