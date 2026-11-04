@@ -452,36 +452,79 @@ export default function ContentAdminPage() {
               <div style={{ marginTop: 12, background: '#fff', padding: 12, borderRadius: 6, border: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>Tặng voucher xin lỗi khách hàng:</span>
-                  {review.compensationVoucherId ? (
-                    <span style={{ background: '#ecfdf5', color: '#065f46', padding: '3px 8px', borderRadius: 4, fontSize: 12, fontWeight: 700 }}>
-                      ✅ Đã tặng: {review.compensationVoucherCode || review.compensationVoucherId}
-                    </span>
-                  ) : null}
-                </div>
-
-                {!review.compensationVoucherId ? (
-                  <div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-                      {RECOVERY_TEMPLATES.map(t => (
+                  {(review.compensationVoucherCode || review.compensationVoucherId) ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ background: '#ecfdf5', color: '#065f46', padding: '3px 8px', borderRadius: 4, fontSize: 12, fontWeight: 700 }}>
+                        Đã tặng {review.compensationVoucherCode || review.compensationVoucherId}
+                      </span>
+                      {isAdmin && (
                         <button
-                          key={t.id}
                           type="button"
-                          onClick={() => setSelectedTemplate(t.id)}
+                          onClick={async () => {
+                            const reason = window.prompt('Nhập lý do thu hồi voucher bồi thường (tối thiểu 5 ký tự):');
+                            if (!reason || reason.trim().length < 5) {
+                              if (reason !== null) notify('Lý do thu hồi phải có ít nhất 5 ký tự');
+                              return;
+                            }
+                            try {
+                              await api(`/content/feedback/${review.id}/revoke-compensation`, 'POST', { reason: reason.trim() });
+                              notify('Đã thu hồi voucher bồi thường thành công!');
+                              setReview(prev => ({
+                                ...prev,
+                                compensationVoucherId: null,
+                                compensationVoucherCode: null
+                              }));
+                              load();
+                            } catch (e) {
+                              notify('Lỗi thu hồi: ' + e.message);
+                            }
+                          }}
                           style={{
-                            padding: '6px 12px',
-                            borderRadius: 6,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            border: '1px solid',
-                            borderColor: selectedTemplate === t.id ? '#059669' : '#cbd5e1',
-                            background: selectedTemplate === t.id ? '#ecfdf5' : '#fff',
-                            color: selectedTemplate === t.id ? '#065f46' : '#334155',
+                            background: '#fee2e2',
+                            color: '#991b1b',
+                            border: '1px solid #f87171',
+                            borderRadius: 4,
+                            padding: '3px 8px',
+                            fontSize: 11.5,
+                            fontWeight: 700,
                             cursor: 'pointer'
                           }}
                         >
-                          {t.title}
+                          Thu hồi
                         </button>
-                      ))}
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+
+                {!(review.compensationVoucherCode || review.compensationVoucherId) ? (
+                  <div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                      {RECOVERY_TEMPLATES.map(t => {
+                        const isAvailable = isAdmin || t.id !== 'FREE_COURT';
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            disabled={!isAvailable}
+                            onClick={() => setSelectedTemplate(t.id)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: 6,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              border: '1px solid',
+                              borderColor: selectedTemplate === t.id ? '#059669' : '#cbd5e1',
+                              background: selectedTemplate === t.id ? '#ecfdf5' : isAvailable ? '#fff' : '#f1f5f9',
+                              color: selectedTemplate === t.id ? '#065f46' : isAvailable ? '#334155' : '#94a3b8',
+                              cursor: isAvailable ? 'pointer' : 'not-allowed',
+                              opacity: isAvailable ? 1 : 0.6
+                            }}
+                          >
+                            {t.title} {!isAvailable && '(Admin)'}
+                          </button>
+                        );
+                      })}
                     </div>
                     <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
                       Mô tả: {RECOVERY_TEMPLATES.find(t => t.id === selectedTemplate)?.desc}
@@ -490,7 +533,7 @@ export default function ContentAdminPage() {
                       onClick={() => handleCompensate(review.id)}
                       style={{ background: '#059669', color: '#fff', fontSize: 12, padding: '6px 14px' }}
                     >
-                      <Gift size={14} /> Xác nhận tặng voucher bù
+                      <Gift size={14} /> 🎁 Tặng voucher
                     </Button>
                   </div>
                 ) : (

@@ -41,6 +41,8 @@ class FeedbackRecoveryTest {
   @Mock
   private VoucherService vouchers;
   @Mock
+  private VoucherRepository vouchersRepo;
+  @Mock
   private NotificationService notificationService;
   @Mock
   private AuditService auditService;
@@ -98,7 +100,9 @@ class FeedbackRecoveryTest {
     sorryVoucher.setValue(BigDecimal.valueOf(50000));
     sorryVoucher.setType("FIXED");
 
-    when(docs.get("feedback:" + fbId)).thenReturn(doc);
+    com.courtly.entity.AppDocument appDoc = new com.courtly.entity.AppDocument();
+    when(docs.lock("feedback:" + fbId)).thenReturn(appDoc);
+    when(docs.read(appDoc)).thenReturn(doc);
     when(accounts.findById(customer.getId())).thenReturn(Optional.of(customer));
     when(vouchers.createCompensationVoucher(eq(customer.getId()), any(), eq(fbId), any(), eq(staff)))
         .thenReturn(sorryVoucher);
@@ -109,22 +113,60 @@ class FeedbackRecoveryTest {
     assertEquals("SORRY-7K3Q", result.get("code"));
     assertEquals(sorryVoucher.getId().toString(), doc.get("compensationVoucherId"));
     assertEquals("SORRY-7K3Q", doc.get("compensationVoucherCode"));
+    verify(docs).save(eq(appDoc), any());
     verify(notificationService, atLeastOnce()).enqueue(any(), any(), any(), eq("COMPENSATION_VOUCHER"), any(), any(), any(), any(), any(), any());
   }
 
   @Test
-  void compensateFeedback_WhenAlreadyCompensatedByStaff_ShouldThrowException() {
+  void compensateFeedback_WhenAlreadyCompensated_ShouldThrowExceptionForBothAdminAndStaff() {
     String fbId = UUID.randomUUID().toString();
     Map<String, Object> doc = new HashMap<>();
     doc.put("id", fbId);
     doc.put("accountId", customer.getId().toString());
-    doc.put("compensationVoucherId", UUID.randomUUID().toString());
+    doc.put("compensationVoucherCode", "SORRY-3LPK");
 
-    when(docs.get("feedback:" + fbId)).thenReturn(doc);
+    com.courtly.entity.AppDocument appDoc = new com.courtly.entity.AppDocument();
+    when(docs.lock("feedback:" + fbId)).thenReturn(appDoc);
+    when(docs.read(appDoc)).thenReturn(doc);
 
-    assertThrows(BusinessException.class, () -> {
-      contentService.compensateFeedback(fbId, Map.of(), staff);
-    });
+    Voucher existing = new Voucher();
+    existing.setCode("SORRY-3LPK");
+    existing.setStatus("ACTIVE");
+    when(vouchersRepo.findByCodeIgnoreCase("SORRY-3LPK")).thenReturn(Optional.of(existing));
+
+    Account admin = new Account();
+    admin.setRole("ADMIN");
+
+    // Staff cannot compensate again
+    assertThrows(BusinessException.class, () -> contentService.compensateFeedback(fbId, Map.of(), staff));
+    // Admin cannot compensate again without revoking
+    assertThrows(BusinessException.class, () -> contentService.compensateFeedback(fbId, Map.of(), admin));
+  }
+
+  @Test
+  void revokeCompensation_AdminCanRevokeUnusedVoucher() {
+    String fbId = UUID.randomUUID().toString();
+    Map<String, Object> doc = new HashMap<>();
+    doc.put("id", fbId);
+    doc.put("compensationVoucherCode", "SORRY-3LPK");
+
+    com.courtly.entity.AppDocument appDoc = new com.courtly.entity.AppDocument();
+    when(docs.lock("feedback:" + fbId)).thenReturn(appDoc);
+    when(docs.read(appDoc)).thenReturn(doc);
+
+    Voucher v = new Voucher();
+    v.setCode("SORRY-3LPK");
+    v.setStatus("ACTIVE");
+    v.setUsedCount(0);
+    when(vouchersRepo.findByCodeIgnoreCase("SORRY-3LPK")).thenReturn(Optional.of(v));
+
+    Account admin = new Account();
+    admin.setRole("ADMIN");
+
+    var res = contentService.revokeCompensation(fbId, Map.of("reason", "Tặng nhầm mức bồi thường"), admin);
+    assertEquals("SORRY-3LPK", res.get("revokedCode"));
+    assertEquals("REVOKED", v.getStatus());
+    assertNull(doc.get("compensationVoucherCode"));
   }
 
   @Test

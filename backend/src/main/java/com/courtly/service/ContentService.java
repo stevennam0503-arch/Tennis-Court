@@ -26,6 +26,7 @@ public class ContentService {
   private final BookingSlotRepository bookingSlots;
   private final AccountRepository accounts;
   private final VoucherService vouchers;
+  private final com.courtly.repository.VoucherRepository vouchersRepo;
   private final NotificationService notificationService;
   private final AuditService auditService;
 
@@ -412,11 +413,17 @@ public class ContentService {
     if (!Set.of("ADMIN", "STAFF").contains(actor.getRole())) {
       throw new BusinessException("Chỉ Quản trị viên và Nhân viên mới có quyền tặng voucher bồi thường");
     }
-    var f = docs.get("feedback:" + id);
-    require(!f.isEmpty(), "Phản hồi không tồn tại");
 
-    if (f.get("compensationVoucherId") != null && !"ADMIN".equals(actor.getRole())) {
-      throw new BusinessException("Đánh giá này đã được tặng voucher bồi thường trước đó.");
+    var docRow = docs.lock("feedback:" + id);
+    require(docRow != null, "Phản hồi không tồn tại");
+    var f = docs.read(docRow);
+
+    if (f.get("compensationVoucherCode") != null) {
+      String code = String.valueOf(f.get("compensationVoucherCode"));
+      var existingVoucher = vouchersRepo.findByCodeIgnoreCase(code).orElse(null);
+      if (existingVoucher != null && !"REVOKED".equals(existingVoucher.getStatus())) {
+        throw new BusinessException("Phản hồi này đã được tặng voucher " + code + ". Để thay đổi mức bù, vui lòng thu hồi voucher cũ trước.");
+      }
     }
 
     UUID targetAccountId = UUID.fromString(String.valueOf(f.get("accountId")));
@@ -445,7 +452,7 @@ public class ContentService {
     f.put("compensationVoucherCode", voucher.getCode());
     f.put("compensatedAt", Instant.now().toString());
     f.put("compensatedBy", actor.getFullName());
-    docs.put("feedback:" + id, f);
+    docs.save(docRow, f);
 
     String courtNames = f.get("courtNames") != null ? String.valueOf(f.get("courtNames")) : "sân";
     String visitDate = f.get("visitDate") != null ? String.valueOf(f.get("visitDate")) : "";
@@ -466,5 +473,42 @@ public class ContentService {
     auditService.log("COMPENSATE_FEEDBACK", "Tặng voucher " + voucher.getCode() + " cho feedback " + id + " bởi " + actor.getFullName());
 
     return map("id", voucher.getId(), "code", voucher.getCode(), "status", voucher.getStatus());
+  }
+
+  public Map<String, Object> revokeCompensation(String id, Map<String, Object> body, Account actor) {
+    if (!"ADMIN".equals(actor.getRole())) {
+      throw new BusinessException("Chỉ Quản trị viên mới có quyền thu hồi voucher bồi thường");
+    }
+    String reason = String.valueOf(body.getOrDefault("reason", "")).trim();
+    require(reason.length() >= 5, "Lý do thu hồi phải có ít nhất 5 ký tự");
+
+    var docRow = docs.lock("feedback:" + id);
+    require(docRow != null, "Phản hồi không tồn tại");
+    var f = docs.read(docRow);
+
+    String code = (String) f.get("compensationVoucherCode");
+    require(code != null && !code.isBlank(), "Phản hồi này chưa được tặng voucher hoặc voucher đã bị thu hồi trước đó");
+
+    com.courtly.entity.Voucher v = vouchersRepo.findByCodeIgnoreCase(code)
+        .orElseThrow(() -> new BusinessException("Không tìm thấy voucher bồi thường " + code));
+    if (v.getUsedCount() > 0) {
+      throw new BusinessException("Voucher " + code + " đã được khách hàng sử dụng, không thể thu hồi");
+    }
+
+    v.setStatus("REVOKED");
+    v.setEnabled(false);
+    vouchersRepo.save(v);
+
+    f.put("revokedCompensationVoucherCode", code);
+    f.remove("compensationVoucherId");
+    f.remove("compensationVoucherCode");
+    f.remove("compensatedAt");
+    f.put("compensationRevokedAt", Instant.now().toString());
+    f.put("compensationRevokeReason", reason);
+    docs.save(docRow, f);
+
+    auditService.log("REVOKE_COMPENSATION", "Thu hồi voucher " + code + " cho phản hồi " + id + " lý do: " + reason);
+
+    return map("success", true, "revokedCode", code, "message", "Đã thu hồi voucher bồi thường " + code);
   }
 }

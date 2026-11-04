@@ -434,6 +434,15 @@ public class VoucherService {
     if (body.get("minTier") != null) {
       v.setMinTier((String) body.get("minTier"));
     }
+    if (body.get("source") != null) {
+      v.setSource(String.valueOf(body.get("source")));
+    }
+    if (body.get("feedbackId") != null) {
+      v.setFeedbackId(String.valueOf(body.get("feedbackId")));
+    }
+    if (body.get("orderId") != null) {
+      v.setOrderId(body.get("orderId") instanceof UUID u ? u : UUID.fromString(String.valueOf(body.get("orderId"))));
+    }
 
     // Phân quyền tạo:
     boolean isAdmin = "ADMIN".equals(actor.getRole());

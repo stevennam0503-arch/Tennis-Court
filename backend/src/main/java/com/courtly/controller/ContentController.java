@@ -50,6 +50,12 @@ public class ContentController {
     return content.compensateFeedback(id, body, auth.current(r));
   }
 
+  @PostMapping("/content/feedback/{id}/revoke-compensation")
+  public Map<String, Object> revokeCompensation(
+      @PathVariable String id, @RequestBody Map<String, Object> body, HttpServletRequest r) {
+    return content.revokeCompensation(id, body, auth.current(r));
+  }
+
   @RequestMapping(
       value = {
         "/feedback",
