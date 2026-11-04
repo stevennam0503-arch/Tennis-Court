@@ -21,12 +21,18 @@ export default function OrderTable({ orders }) {
               <small>{o.id.slice(0, 8)}</small>
             </td>
             <td>
-              {o.slots.slice(0, 2).map(s => (
-                <div key={s.id}>
-                  {data.courts.find(c => c.id === s.court)?.name} · {slotLabel(s)}
-                </div>
-              ))}
-              {o.slots.length > 2 && <small>+{o.slots.length - 2} khung giờ</small>}
+              {o.slots && o.slots.length > 0 ? (
+                <>
+                  {o.slots.slice(0, 2).map(s => (
+                    <div key={s.id}>
+                      {data.courts.find(c => c.id === s.court)?.name || 'Sân tennis'} · {slotLabel(s)}
+                    </div>
+                  ))}
+                  {o.slots.length > 2 && <small>+{o.slots.length - 2} khung giờ</small>}
+                </>
+              ) : (
+                <div>{o.subtotal || o.total ? `Lịch sân (${money(o.subtotal || o.total)})` : 'Sân tennis'}</div>
+              )}
               <small>{o.date}</small>
             </td>
             <td>

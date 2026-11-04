@@ -153,7 +153,7 @@ export function MyHistory() {
               <Chip status={o.status} />
             </div>
             <p className="subtitle">
-              {o.slots.map(s => `${data.courts.find(c => c.id === s.court)?.name || 'Sân'} · ${slotLabel(s)}`).join(' / ')}
+              {o.slots && o.slots.length > 0 ? o.slots.map(s => `${data.courts.find(c => c.id === s.court)?.name || 'Sân'} · ${slotLabel(s)}`).join(' / ') : (o.total || o.subtotal ? `Lịch sử đặt sân · ${money(o.total || o.subtotal)}` : 'Sân tennis')}
             </p>
             {o.totalExtensionMinutes > 0 && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 8px', borderRadius: 6, background: '#dbeafe', color: '#1e40af', fontSize: 12, fontWeight: 700, margin: '4px 0 8px' }}>
@@ -722,7 +722,7 @@ export function MyServices() {
               <Chip status={o.status} />
             </div>
             <p className="subtitle">
-              {o.slots.map(s => `${data.courts.find(c => c.id === s.court)?.name || 'Sân'} ${slotLabel(s)}`).join(' / ')}
+              {o.slots && o.slots.length > 0 ? o.slots.map(s => `${data.courts.find(c => c.id === s.court)?.name || 'Sân'} ${slotLabel(s)}`).join(' / ') : (o.total || o.subtotal ? `Lịch sử đặt sân · ${money(o.total || o.subtotal)}` : 'Sân tennis')}
             </p>
             {(o.staff || []).map(st => (
               <div className="order-line" key={st.id}>
