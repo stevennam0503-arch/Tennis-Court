@@ -223,7 +223,7 @@ export default function ReportsPage() {
 
     { name: 'Phí giải đấu', value: tournamentValue, color: '#8b5cf6' },
 
-    { name: 'Gói thành viên', value: membershipValue, color: '#3b82f6' },
+
 
     ...(legacyValue ? [{ name: 'Khoản dịch vụ cũ', value: legacyValue, color: '#94a3b8' }] : [])
 
@@ -673,7 +673,7 @@ export default function ReportsPage() {
 
       ['2. Dịch vụ trọng tài', staffValue],
 
-      ['3. Phí giải đấu & Phí thành viên', netTournamentCash + netMembershipCash],
+      ['3. Phí giải đấu', netTournamentCash],
 
       ['Trừ: Khoản hoàn tiền', refundsInPeriod.reduce((a, r) => a + r.amount, 0)],
 
@@ -905,11 +905,11 @@ export default function ReportsPage() {
 
         <Stat
 
-          title="Thu giải & Thành viên"
+          title="Thu giải đấu"
 
-          value={money(netTournamentCash + netMembershipCash)}
+          value={money(netTournamentCash)}
 
-          note={`Giải: ${money(netTournamentCash)} · HV: ${money(netMembershipCash)}`}
+          note="Phí tham gia giải đấu"
 
           icon={Trophy}
 

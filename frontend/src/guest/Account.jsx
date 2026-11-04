@@ -2152,7 +2152,7 @@ export function Membership(){
       multiplier: '×2,0',
       advance: '21 ngày',
       changes: '4 lượt',
-      gift: '1.000đ + Voucher 300k + Thẻ VIP',
+      gift: '1.000 điểm + Voucher 300.000₫ + Thẻ VIP Lounge',
       birthday: '250.000₫',
       desc: 'Đặc quyền thẻ VIP Lounge & Hủy linh hoạt',
       premium: true

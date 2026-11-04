@@ -1085,7 +1085,7 @@ const INITIAL_SHOWCASE_FEEDBACKS = [
       adminName: 'Ban Quản Lý Courtly Club',
       adminRole: 'Phản hồi chính thức',
       date: '3 tuần trước',
-      message: 'Dạ cảm ơn anh Bảo! Để giữ giờ vàng dễ hơn, anh có thể đăng ký gói Thành viên để được quyền đặt trước đến 14 - 21 ngày so với khách thông thường nhé ạ!'
+      message: 'Dạ cảm ơn anh Bảo! Khi tích luỹ chi tiêu lên các hạng Masters hoặc Grand Slam, anh sẽ được quyền đặt trước đến 14 - 21 ngày so với khách thông thường nhé ạ!'
     }
   },
   {

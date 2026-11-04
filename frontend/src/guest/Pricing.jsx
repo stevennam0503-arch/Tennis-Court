@@ -260,10 +260,10 @@ export default function Pricing() {
         <div style={{ background: '#edf1e6', padding: '12px 18px', borderTop: '1px solid #cbd2c2', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12, fontSize: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#52655a' }}>
             <CheckCircle2 size={15} color="#173c32" />
-            <span>{t('Bấm trực tiếp vào ô giá bất kỳ để xem tiền cọc 30% và chuyển sang đặt lịch.')}</span>
+            <span>{t('Bấm trực tiếp vào ô giá bất kỳ để xem tiền cọc 50% và chuyển sang đặt lịch.')}</span>
           </div>
           <div style={{ fontWeight: 700, color: '#173c32' }}>
-            {t('Thành viên Courtly')}: <span style={{ color: '#15803d' }}>{t('Giảm thêm từ 10% – 20% trên giá niêm yết')}</span>
+            {t('Thành viên Courtly')}: <span style={{ color: '#15803d' }}>{t('Thành viên giảm 3% – 8% theo hạng')}</span>
           </div>
         </div>
       </div>

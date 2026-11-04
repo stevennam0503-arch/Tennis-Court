@@ -483,7 +483,7 @@ export default function LoyaltyAdminPage() {
                     <td style={{ padding: '12px 14px', fontWeight: 800 }}>×2,0</td>
                     <td style={{ padding: '12px 14px' }}>21 ngày</td>
                     <td style={{ padding: '12px 14px' }}>4 lượt</td>
-                    <td style={{ padding: '12px 14px' }}>1.000đ + Voucher 300k + Thẻ VIP</td>
+                    <td style={{ padding: '12px 14px' }}>1.000 điểm + Voucher 300.000₫ + Thẻ VIP Lounge</td>
                     <td style={{ padding: '12px 14px' }}>250.000₫</td>
                     <td style={{ padding: '12px 14px', fontWeight: 700, color: '#92400e' }}>Phòng chờ VIP Lounge · Hủy linh hoạt</td>
                   </tr>

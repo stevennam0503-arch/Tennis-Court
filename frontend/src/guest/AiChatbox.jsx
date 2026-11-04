@@ -68,7 +68,7 @@ export function buildPricingKnowledge(data, isEn) {
 
 const COURTLY_RULES_VI = `
 - Giờ mở cửa: 06:00 – 23:00 tất cả các ngày trong tuần (kể cả Thứ 7, Chủ Nhật và ngày lễ). Khung giờ đặt sân theo bước 30 phút.
-- Đặt sân & Giữ chỗ: Khách cần thanh toán tiền cọc 30% - 50% trong vòng 15 phút sau khi tạo đơn qua VietQR để khóa slot độc quyền. Phần còn lại thanh toán tại quầy khi đến chơi.
+- Đặt sân & Giữ chỗ: Khách cần thanh toán tiền cọc 50% trong vòng 5 phút sau khi tạo đơn qua VietQR để khóa slot độc quyền. Phần còn lại thanh toán tại quầy khi đến chơi.
 - Check-in vào sân: Sau khi đặt sân, khách mở vé điện tử QR Check-in trên website, xuất trình tại quầy lễ tân để nhân viên quét camera xác nhận vào sân.
 - Chính sách Hủy & Hoàn tiền cọc:
   + Hủy trước 24 giờ: Hoàn 100% tiền cọc (vào ví voucher CLB).
@@ -90,7 +90,7 @@ const COURTLY_RULES_VI = `
 
 const COURTLY_RULES_EN = `
 - Operating Hours: 06:00 – 23:00 daily (including weekends and public holidays). Booking slots in 30-minute steps.
-- Booking & Deposit: 30% to 50% deposit required within 15 minutes via VietQR to secure court exclusively. Balance paid at reception upon check-in or check-out.
+- Booking & Deposit: 50% deposit required within 5 minutes via VietQR to secure court exclusively. Balance paid at reception upon check-in or check-out.
 - Check-in: Open digital QR ticket on mobile, scan at reception camera upon arrival.
 - Cancellation & Refund Policy:
   + Over 24 hours notice: 100% refund into club credit/voucher wallet.

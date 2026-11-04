@@ -470,7 +470,7 @@ export function Footer(){
   const servicesLinks=[
     ['booking','Đặt sân trực tuyến'],
     ['pricing','Bảng giá & Khung giờ'],
-    ['membership','Gói thành viên (Membership)'],
+    ['membership','Hạng thành viên'],
     ['tournaments','Giải đấu & Sự kiện'],
   ];
   const exploreLinks=[

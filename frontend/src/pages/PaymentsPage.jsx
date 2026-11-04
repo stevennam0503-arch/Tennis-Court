@@ -295,7 +295,7 @@ export default function PaymentsPage() {
 
       if (methodFilter === 'BANK_TRANSFER' && p.method !== 'BANK_TRANSFER') return false;
 
-      if (methodFilter === 'MEMBERSHIP' && !p.isMembership) return false;
+
 
       if (query.trim()) {
 
@@ -457,7 +457,7 @@ export default function PaymentsPage() {
 
         <Stat title="Tổng đã hoàn" value={money(refund)} note={periodLabel} icon={RefreshCw} />
 
-        <Stat title="Thu phí thành viên" value={money(memTotal)} note={periodLabel} icon={Users} />
+
 
         <Stat title="Thu ròng" value={money(netRevenue)} note={periodLabel} icon={ChartColumn} />
 
@@ -543,7 +543,7 @@ export default function PaymentsPage() {
 
                 <option value="BANK_TRANSFER">Chuyển khoản (VietQR)</option>
 
-                <option value="MEMBERSHIP">Phí thành viên</option>
+
 
               </select>
 

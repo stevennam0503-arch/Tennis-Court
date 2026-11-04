@@ -958,7 +958,7 @@
   "Giảm 25%": "25% Off",
   "Cao điểm": "Peak",
   "Bấm để xem chi tiết tiền cọc & giữ chỗ": "Click to view deposit details & reserve",
-  "Bấm trực tiếp vào ô giá bất kỳ để xem tiền cọc 30% và chuyển sang đặt lịch.": "Click any rate cell to view 30% deposit and proceed with booking.",
+
   "Thành viên Courtly": "Courtly Members",
   "Giảm thêm từ 10% – 20% trên giá niêm yết": "Extra 10% – 20% off listed prices",
   "Quy định & Chính sách hoạt động của CLB": "Club Operational Policies & Rules",
@@ -1500,5 +1500,11 @@
   "Chỉ áp dụng ưu đãi hạng thành viên cho tiền sân. Không giảm phí trọng tài hoặc giải đấu.": "Tier discounts apply only to court fees. Referee and tournament fees are not discounted.",
   "Xem hạng thành viên": "View Membership Tiers",
   "Đặc quyền hạng thành viên Courtly": "Courtly Membership Tier Privileges",
-  "Hạng thành viên & Điểm thưởng": "Loyalty Tiers & Points"
+  "Hạng thành viên & Điểm thưởng": "Loyalty Tiers & Points",
+  "COURTLY MEMBER · Chơi càng nhiều, ưu đãi càng lớn": "COURTLY MEMBER · The more you play, the greater the rewards",
+  "Xem 4 hạng thành viên": "View 4 Membership Tiers",
+  "Xem 4 hạng thành viên ": "View 4 Membership Tiers ",
+  "Chơi càng nhiều, ưu đãi càng lớn. Tích luỹ chi tiêu tự động, thăng hạng từ Rookie lên Grand Slam cùng nhiều quyền lợi độc quyền.": "Play more, earn more. Auto-accumulate spending, level up from Rookie to Grand Slam with exclusive perks.",
+  "Bấm trực tiếp vào ô giá bất kỳ để xem tiền cọc 50% và chuyển sang đặt lịch.": "Click any rate cell to view 50% deposit and proceed with booking.",
+  "Thành viên giảm 3% – 8% theo hạng": "Members get 3% – 8% discount by tier"
 }
