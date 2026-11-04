@@ -1464,7 +1464,7 @@ export function Feedback() {
                     Chưa đăng nhập ·{' '}
                     <button
                       type="button"
-                      onClick={login}
+                      onClick={() => login('login', { from: 'feedback' })}
                       style={{
                         background: 'transparent',
                         border: 'none',

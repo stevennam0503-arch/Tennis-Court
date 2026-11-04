@@ -572,7 +572,7 @@ export default function Booking() {
             </label>
 
             {wantReferee && valid && (!user ? (
-              <Action secondary onClick={login}>{t('Đăng nhập để xem trọng tài')}</Action>
+              <Action secondary onClick={() => login('login', { from: 'booking-referee' })}>{t('Đăng nhập để xem trọng tài')}</Action>
             ) : !options ? (
               <p role="status">{t('Đang tải dữ liệu…')}</p>
             ) : (

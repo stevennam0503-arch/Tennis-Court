@@ -161,9 +161,12 @@ export default function Portal({session,onSession,onLogout}){
 
   useEffect(()=>()=>clearTimeout(timer.current),[]);
 
-  const login=(mode='login',ctx=null)=>{
-    setAuthMode(mode);
-    setAuthContext(ctx);
+  const VALID_AUTH_MODES = ['login', 'register', 'activate', 'activate-otp', 'reset-password'];
+  const login = (mode = 'login', ctx = null) => {
+    const validMode = (typeof mode === 'string' && VALID_AUTH_MODES.includes(mode)) ? mode : 'login';
+    const validCtx = (ctx && typeof ctx === 'object' && !(ctx.nativeEvent || ctx.target)) ? ctx : null;
+    setAuthMode(validMode);
+    setAuthContext(validCtx);
     setAuth(true);
   };
 
