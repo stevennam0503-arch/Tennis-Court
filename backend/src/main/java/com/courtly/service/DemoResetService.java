@@ -100,6 +100,7 @@ public class DemoResetService {
     jdbc.execute("DELETE FROM app_documents WHERE document_key LIKE 'feedback:%' OR document_key LIKE 'compensation:%'");
     jdbc.execute("DELETE FROM tournament_registrations");
     jdbc.execute("DELETE FROM notifications");
+    jdbc.execute("DELETE FROM campaigns"); // chiến dịch tạo khi tập demo không được sót lại
     jdbc.execute("DELETE FROM tournaments");
     jdbc.execute("DELETE FROM accounts");
 
@@ -607,6 +608,7 @@ public class DemoResetService {
           "VALUES (gen_random_uuid(), ?::uuid, ?::uuid, ?, NOW() - (? || ' months')::interval + interval '2 hours')",
           bookingId, schedId, kietSpends[i], kietMonths[i]
       );
+      insertPastPayment(pastOrdId, kietSpends[i], kietMonths[i]);
       String expClause = (i == 4) ? "NOW() + interval '20 days'" : "NOW() + interval '10 months'";
       jdbc.update(
           "INSERT INTO loyalty_ledger (id, account_id, type, points, spend_amount, order_id, expires_at, note, created_at) " +
@@ -651,6 +653,7 @@ public class DemoResetService {
           "VALUES (gen_random_uuid(), ?::uuid, ?::uuid, ?, NOW() - (? || ' months')::interval - interval '1 day' + interval '2 hours')",
           bookingId, schedId, khoaSpends[i], khoaMonths[i]
       );
+      insertPastPayment(pastOrdId, khoaSpends[i], khoaMonths[i]);
       jdbc.update(
           "INSERT INTO loyalty_ledger (id, account_id, type, points, spend_amount, order_id, expires_at, note, created_at) " +
           "VALUES (gen_random_uuid(), ?::uuid, 'EARN', ?, ?, ?::uuid, NOW() + interval '10 months', ?, NOW() - (? || ' months')::interval - interval '1 day')",
@@ -688,6 +691,7 @@ public class DemoResetService {
           "VALUES (gen_random_uuid(), ?::uuid, ?::uuid, ?, NOW() - (? || ' months')::interval - interval '2 days' + interval '2 hours')",
           bookingId, schedId, trangSpends[i], trangMonths[i]
       );
+      insertPastPayment(pastOrdId, trangSpends[i], trangMonths[i]);
       jdbc.update(
           "INSERT INTO loyalty_ledger (id, account_id, type, points, spend_amount, order_id, expires_at, note, created_at) " +
           "VALUES (gen_random_uuid(), ?::uuid, 'EARN', ?, ?, ?::uuid, NOW() + interval '10 months', ?, NOW() - (? || ' months')::interval - interval '2 days')",
@@ -893,6 +897,15 @@ public class DemoResetService {
    * cọc 50%, chứng từ thu và khoản hoàn luôn khớp bảng giá hiện hành. Kịch bản thanh toán của đơn được giữ:
    * chưa thu, đã cọc, hoặc đã thu đủ.
    */
+  /** Đơn quá khứ đã chơi xong và thu đủ: phải có phiếu thu, nếu không reconcileSeededOrders() coi là công nợ. */
+  private void insertPastPayment(String orderId, BigDecimal amount, int monthsAgo) {
+    jdbc.update(
+        "INSERT INTO payments (id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at) " +
+        "VALUES (gen_random_uuid(), ?::uuid, ?::uuid, 'BALANCE', 'BANK_TRANSFER', ?, ?, 'PAID', NOW() - (? || ' months')::interval + interval '2 hours')",
+        orderId, STAFF_ID, amount, "PAY-PAST-" + orderId.substring(0, 8).toUpperCase(), monthsAgo
+    );
+  }
+
   @SuppressWarnings("unchecked")
   private void reconcileSeededOrders() {
     for (Map<String, Object> o : jdbc.queryForList("SELECT id, status, total_amount, paid_amount, metadata FROM orders")) {

@@ -163,6 +163,7 @@ export default function Portal({session,onSession,onLogout}){
           try { return sessionStorage.getItem('courtly_tourney_banner_dismissed') === 'true'; } catch { return false; }
         });
   const [debtBannerDismissed, setDebtBannerDismissed] = useState(false);
+  const user=session?.authenticated?session.user:null;
 
     useEffect(() => {
     if (user?.id) {
@@ -188,7 +189,6 @@ export default function Portal({session,onSession,onLogout}){
   }, [user?.id]);
 
   const serial=useRef(0),timer=useRef();
-  const user=session?.authenticated?session.user:null;
 
   useEffect(() => {
     if (user?.id) {

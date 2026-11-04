@@ -32,6 +32,19 @@ public class CampaignService {
   private final NotificationRepository notificationRepository;
   private final AuditService auditService;
 
+  /** Nhận ISO có múi giờ (2026-11-05T10:00:00Z) hoặc giờ địa phương từ ô datetime-local (2026-11-05T10:00). */
+  private static Instant parseInstant(String raw) {
+    try {
+      return Instant.parse(raw);
+    } catch (java.time.format.DateTimeParseException e) {
+      try {
+        return java.time.LocalDateTime.parse(raw).atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toInstant();
+      } catch (java.time.format.DateTimeParseException e2) {
+        throw new BusinessException("Thời gian chiến dịch không hợp lệ: " + raw);
+      }
+    }
+  }
+
   @Transactional(readOnly = true)
   public List<Map<String, Object>> listCampaigns() {
     return campaigns.findAllByOrderByCreatedAtDesc().stream()
@@ -68,11 +81,11 @@ public class CampaignService {
       c.setBudgetLimit(new BigDecimal(body.get("budgetLimit").toString()));
     }
 
-    if (body.get("startsAt") != null) {
-      c.setStartsAt(Instant.parse(body.get("startsAt").toString()));
+    if (body.get("startsAt") != null && !body.get("startsAt").toString().isBlank()) {
+      c.setStartsAt(parseInstant(body.get("startsAt").toString()));
     }
-    if (body.get("endsAt") != null) {
-      c.setEndsAt(Instant.parse(body.get("endsAt").toString()));
+    if (body.get("endsAt") != null && !body.get("endsAt").toString().isBlank()) {
+      c.setEndsAt(parseInstant(body.get("endsAt").toString()));
     }
 
     String initialStatus = (String) body.getOrDefault("status", "DRAFT");

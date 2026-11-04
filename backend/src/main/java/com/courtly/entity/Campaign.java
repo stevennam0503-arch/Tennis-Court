@@ -1,6 +1,7 @@
 package com.courtly.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.ColumnTransformer;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -35,6 +36,7 @@ public class Campaign {
   @Column(length = 50)
   private String audience = "ALL"; // ALL, TIER, NEW_CUSTOMERS, INACTIVE_30D, NEAR_NEXT_TIER, CUSTOM_LIST
 
+  @ColumnTransformer(read = "audience_filter #>> '{}'", write = "to_jsonb(?::text)")
   @Column(name = "audience_filter", columnDefinition = "JSONB")
   private String audienceFilter;
 
