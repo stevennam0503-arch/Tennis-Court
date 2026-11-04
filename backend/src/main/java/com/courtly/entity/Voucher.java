@@ -45,8 +45,6 @@ public class Voucher extends BaseEntity {
   @Column(name = "per_user_limit")
   private Integer perUserLimit = 1;
 
-  @Column(name = "member_only", nullable = false)
-  private Boolean memberOnly = false;
 
   @Column(name = "new_user_only", nullable = false)
   private Boolean newUserOnly = false;

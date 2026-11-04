@@ -939,11 +939,13 @@
         "usage_limit": 1000,
         "used_count": 0,
         "per_user_limit": 5,
-        "member_only": true,
         "new_user_only": false,
         "enabled": true,
         "description": "Giảm 10% (tối đa 100k) dành riêng cho hội viên",
-        "created_at": "2026-10-26T16:23:39.463825+00:00"
+        "created_at": "2026-10-26T16:23:39.463825+00:00",
+        "min_tier": "CHALLENGER",
+        "status": "ACTIVE",
+        "source": "GENERAL"
       },
       {
         "id": "3dae80e2-c04d-4a8f-8c5d-77f44386a69a",
@@ -957,11 +959,13 @@
         "usage_limit": 200,
         "used_count": 0,
         "per_user_limit": 1,
-        "member_only": false,
         "new_user_only": false,
         "enabled": true,
         "description": "Ưu đãi Giờ Vàng giảm 25%",
-        "created_at": "2026-10-26T16:23:39.463825+00:00"
+        "created_at": "2026-10-26T16:23:39.463825+00:00",
+        "min_tier": null,
+        "status": "ACTIVE",
+        "source": "GENERAL"
       },
       {
         "id": "8027c37e-ed1b-42fe-8ec2-3bf259d6e617",
@@ -975,11 +979,13 @@
         "usage_limit": 100,
         "used_count": 0,
         "per_user_limit": 1,
-        "member_only": false,
         "new_user_only": false,
         "enabled": true,
         "description": "Mã giảm giá đã hết hạn",
-        "created_at": "2026-10-31T04:05:04.936334+00:00"
+        "created_at": "2026-10-31T04:05:04.936334+00:00",
+        "min_tier": null,
+        "status": "ENDED",
+        "source": "GENERAL"
       },
       {
         "id": "a4bcc7ce-78e1-4a9e-b723-c228deded759",
@@ -993,11 +999,13 @@
         "usage_limit": 1000,
         "used_count": 0,
         "per_user_limit": 2,
-        "member_only": false,
         "new_user_only": false,
         "enabled": true,
         "description": "Giảm 50.000 đ mùa hè sôi động 2026",
-        "created_at": "2026-10-26T16:23:39.463825+00:00"
+        "created_at": "2026-10-26T16:23:39.463825+00:00",
+        "min_tier": null,
+        "status": "ACTIVE",
+        "source": "GENERAL"
       },
       {
         "id": "bdfa717e-07df-4533-b7a0-ae4f375e844a",
@@ -1011,11 +1019,13 @@
         "usage_limit": 500,
         "used_count": 0,
         "per_user_limit": 1,
-        "member_only": false,
         "new_user_only": false,
         "enabled": true,
         "description": "Giảm 20% tối đa 100k cho khách hàng mới",
-        "created_at": "2026-10-31T04:05:04.936334+00:00"
+        "created_at": "2026-10-31T04:05:04.936334+00:00",
+        "min_tier": null,
+        "status": "ACTIVE",
+        "source": "GENERAL"
       },
       {
         "id": "cdfcd3b6-201e-4355-98f6-7738161c6cff",
@@ -1029,11 +1039,13 @@
         "usage_limit": 300,
         "used_count": 0,
         "per_user_limit": 1,
-        "member_only": false,
         "new_user_only": false,
         "enabled": true,
         "description": "Voucher tri ân 50.000 đ",
-        "created_at": "2026-10-26T16:23:39.463825+00:00"
+        "created_at": "2026-10-26T16:23:39.463825+00:00",
+        "min_tier": null,
+        "status": "ACTIVE",
+        "source": "GENERAL"
       },
       {
         "id": "e12067ce-649f-4f9a-b5de-61cd03e054a5",
@@ -1047,11 +1059,13 @@
         "usage_limit": 500,
         "used_count": 0,
         "per_user_limit": 1,
-        "member_only": false,
         "new_user_only": true,
         "enabled": true,
         "description": "Giảm 50.000 đ cho khách hàng đặt sân lần đầu",
-        "created_at": "2026-10-26T16:23:39.463825+00:00"
+        "created_at": "2026-10-26T16:23:39.463825+00:00",
+        "min_tier": null,
+        "status": "ACTIVE",
+        "source": "GENERAL"
       }
     ],
     "club_settings": [

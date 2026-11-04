@@ -29,12 +29,21 @@ public class VoucherService {
   private final VoucherRepository vouchers;
   private final VoucherRedemptionRepository redemptions;
   private final CustomerOrderRepository orders;
-  private final MembershipService memberships;
   private final AccountRepository accounts;
   private final AuditService auditService;
 
   private static final SecureRandom RANDOM = new SecureRandom();
   
+  private String tierDisplayName(String t) {
+    if (t == null) return "Rookie";
+    return switch (t.toUpperCase(Locale.ROOT)) {
+      case "GRAND_SLAM" -> "Grand Slam";
+      case "MASTERS" -> "Masters";
+      case "CHALLENGER" -> "Challenger";
+      default -> "Rookie";
+    };
+  }
+
   private int tierValue(String t) {
     if (t == null) return 1;
     return switch (t.toUpperCase(Locale.ROOT)) {
@@ -58,10 +67,8 @@ public class VoucherService {
     BigDecimal total = totalAmount != null ? totalAmount : BigDecimal.ZERO;
 
     long pastOrders = 0;
-    boolean isMember = false;
     if (accountId != null) {
       pastOrders = orders.countByCustomerAccountIdAndStatusNotIn(accountId, Set.of("CANCELLED", "EXPIRED"));
-      isMember = memberships.hasActiveMembership(accountId);
     }
 
     List<Map<String, Object>> result = new ArrayList<>();
@@ -109,19 +116,16 @@ public class VoucherService {
         }
       }
 
-      if (applicable && (Boolean.TRUE.equals(v.getMemberOnly()) || (v.getMinTier() != null && !v.getMinTier().isBlank()))) {
+      if (applicable && v.getMinTier() != null && !v.getMinTier().isBlank()) {
         if (accountId == null) {
           applicable = false;
-          reason = "Dành riêng cho Hội viên CLB (cần đăng nhập)";
-        } else if (!isMember && Boolean.TRUE.equals(v.getMemberOnly())) {
-          applicable = false;
-          reason = "Chỉ áp dụng cho Hội viên CLB có gói active";
-        } else if (v.getMinTier() != null && !v.getMinTier().isBlank()) {
+          reason = "Đăng nhập để dùng voucher theo hạng";
+        } else {
           var acc = accounts.findById(accountId).orElse(null);
           String userTier = acc != null && acc.getTier() != null ? acc.getTier().toUpperCase(Locale.ROOT) : "ROOKIE";
           if (tierValue(userTier) < tierValue(v.getMinTier().toUpperCase(Locale.ROOT))) {
             applicable = false;
-            reason = "Chỉ áp dụng cho thành viên từ hạng " + v.getMinTier() + " trở lên";
+            reason = "Chỉ áp dụng từ hạng " + tierDisplayName(v.getMinTier()) + " trở lên";
           }
         }
       }
@@ -145,7 +149,6 @@ public class VoucherService {
       item.put("value", v.getValue());
       item.put("minOrder", v.getMinOrder());
       item.put("maxDiscount", v.getMaxDiscount());
-      item.put("memberOnly", v.getMemberOnly());
       item.put("minTier", v.getMinTier());
       item.put("newUserOnly", v.getNewUserOnly());
       item.put("description", v.getDescription());
@@ -313,18 +316,14 @@ public class VoucherService {
         }
       }
 
-      if (Boolean.TRUE.equals(v.getMemberOnly())) {
-        boolean activeMember = memberships.hasActiveMembership(accountId);
-        if (!activeMember) {
-          throw new BusinessException("Voucher " + v.getCode() + " chỉ áp dụng cho hội viên có gói active");
-        }
-      }
-
       if (v.getMinTier() != null && !v.getMinTier().isBlank()) {
+        if (accountId == null) {
+          throw new BusinessException("Đăng nhập để dùng voucher theo hạng");
+        }
         var acc = accounts.findById(accountId).orElse(null);
         String userTier = acc != null && acc.getTier() != null ? acc.getTier().toUpperCase(Locale.ROOT) : "ROOKIE";
         if (tierValue(userTier) < tierValue(v.getMinTier().toUpperCase(Locale.ROOT))) {
-          throw new BusinessException("Voucher " + v.getCode() + " chỉ áp dụng cho thành viên từ hạng " + v.getMinTier() + " trở lên");
+          throw new BusinessException("Chỉ áp dụng từ hạng " + tierDisplayName(v.getMinTier()) + " trở lên");
         }
       }
 
@@ -340,8 +339,8 @@ public class VoucherService {
         }
       }
     } else {
-      if (Boolean.TRUE.equals(v.getMemberOnly()) || (v.getMinTier() != null && !v.getMinTier().isBlank())) {
-        throw new BusinessException("Voucher " + v.getCode() + " yêu cầu đăng nhập tài khoản");
+      if (v.getMinTier() != null && !v.getMinTier().isBlank()) {
+        throw new BusinessException("Đăng nhập để dùng voucher theo hạng");
       }
     }
   }

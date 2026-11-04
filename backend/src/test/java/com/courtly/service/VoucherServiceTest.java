@@ -34,7 +34,7 @@ class VoucherServiceTest {
     memberships = mock(MembershipService.class);
     accounts = mock(AccountRepository.class);
     auditService = mock(AuditService.class);
-    service = new VoucherService(vouchers, redemptions, orders, memberships, accounts, auditService);
+    service = new VoucherService(vouchers, redemptions, orders, accounts, auditService);
   }
 
   private Voucher createVoucher(String code, String type, BigDecimal val, BigDecimal min, BigDecimal max) {
@@ -49,7 +49,6 @@ class VoucherServiceTest {
     v.setUsedCount(0);
     v.setUsageLimit(100);
     v.setPerUserLimit(1);
-    v.setMemberOnly(false);
     v.setNewUserOnly(false);
     v.setDescription("Test voucher " + code);
     return v;
@@ -85,18 +84,21 @@ class VoucherServiceTest {
   }
 
   @Test
-  void vip10RequiresActiveMembership() {
+  void vip10RequiresChallengerTier() {
     Voucher v = createVoucher("VIP10", "PERCENT", new BigDecimal("10"), new BigDecimal("200000"), new BigDecimal("100000"));
-    v.setMemberOnly(true);
+    v.setMinTier("CHALLENGER");
     when(vouchers.findByCodeIgnoreCase("VIP10")).thenReturn(Optional.of(v));
 
     UUID accountId = UUID.randomUUID();
-    when(memberships.hasActiveMembership(accountId)).thenReturn(false);
+    com.courtly.entity.Account rookie = new com.courtly.entity.Account();
+    rookie.setId(accountId);
+    rookie.setTier("ROOKIE");
+    when(accounts.findById(accountId)).thenReturn(Optional.of(rookie));
 
     var ex = assertThrows(BusinessException.class, () -> service.calculate("VIP10", new BigDecimal("250000"), accountId));
-    assertTrue(ex.getMessage().contains("chỉ áp dụng cho hội viên"));
+    assertTrue(ex.getMessage().contains("Chỉ áp dụng từ hạng Challenger trở lên"));
 
-    when(memberships.hasActiveMembership(accountId)).thenReturn(true);
+    rookie.setTier("CHALLENGER");
     var result = service.calculate("VIP10", new BigDecimal("250000"), accountId);
     assertEquals(new BigDecimal("25000.00"), result.get("discount"));
   }
@@ -176,16 +178,18 @@ class VoucherServiceTest {
     welcome.setNewUserOnly(true);
 
     Voucher vip10 = createVoucher("VIP10", "PERCENT", new BigDecimal("10"), new BigDecimal("200000"), new BigDecimal("100000"));
-    vip10.setMemberOnly(true);
+    vip10.setMinTier("CHALLENGER");
 
     Voucher he2026 = createVoucher("HE2026", "FIXED", new BigDecimal("50000"), new BigDecimal("150000"), new BigDecimal("50000"));
 
     when(vouchers.findByEnabledTrue()).thenReturn(List.of(welcome, vip10, he2026));
 
     UUID accountId = UUID.randomUUID();
-    // User has past orders, but is a VIP member
+    com.courtly.entity.Account challenger = new com.courtly.entity.Account();
+    challenger.setId(accountId);
+    challenger.setTier("CHALLENGER");
+    when(accounts.findById(accountId)).thenReturn(Optional.of(challenger));
     when(orders.countByCustomerAccountIdAndStatusNotIn(eq(accountId), any())).thenReturn(1L);
-    when(memberships.hasActiveMembership(accountId)).thenReturn(true);
 
     // Amount is 200,000 đ
     var list = service.evaluateAll(new BigDecimal("200000"), accountId);
