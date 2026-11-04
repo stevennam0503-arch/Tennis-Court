@@ -3,6 +3,11 @@ package com.courtly.service;
 import static com.courtly.util.Rules.*;
 
 import com.courtly.entity.Account;
+import com.courtly.entity.Voucher;
+import com.courtly.repository.VoucherRepository;
+import java.math.BigDecimal;
+import java.security.SecureRandom;
+import java.time.Duration;
 import com.courtly.exception.BusinessException;
 import com.courtly.repository.AccountRepository;
 import com.courtly.service.sms.SmsService;
@@ -38,6 +43,8 @@ public class AuthService {
   private final EmailService emails;
   private final SmsService smsService;
   private final DemoAccessPolicy demo;
+  private final VoucherRepository vouchers;
+  private final NotificationService notificationService;
 
   @Value("${courtly.admin-email:admin@gmail.com}")
   private String adminEmail;
@@ -348,6 +355,79 @@ public class AuthService {
   }
 
   @Transactional
+
+  public void issueWelcomeVoucherIfEligible(Account a, String phone) {
+    if (a == null || phone == null || phone.isBlank()) return;
+    String e164 = PhoneUtils.normalizeE164(phone);
+
+    // Idempotent: 1 voucher per phone across all accounts (even deleted/re-registered)
+    String docKey = "welcome:phone:" + e164;
+    var existingDoc = documents.lock(docKey);
+    if (existingDoc != null) {
+      return;
+    }
+
+    // Also check by account ID
+    boolean alreadyHasAccountVoucher = vouchers.findByAssignedAccountId(a.getId()).stream()
+        .anyMatch(v -> "TIER_GIFT".equals(v.getSource()) && v.getCode().startsWith("WELCOME-"));
+    if (alreadyHasAccountVoucher) return;
+
+    String suffix = randomWelcomeSuffix(4);
+    String code = "WELCOME-" + suffix;
+    while (vouchers.findByCodeIgnoreCase(code).isPresent()) {
+      suffix = randomWelcomeSuffix(4);
+      code = "WELCOME-" + suffix;
+    }
+
+    Voucher v = new Voucher();
+    v.setCode(code);
+    v.setType("FIXED");
+    v.setValue(new BigDecimal("50000"));
+    v.setMinOrder(BigDecimal.ZERO);
+    v.setStartsAt(Instant.now());
+    v.setExpiresAt(Instant.now().plus(Duration.ofDays(30)));
+    v.setUsageLimit(1);
+    v.setPerUserLimit(1);
+    v.setNewUserOnly(false);
+    v.setEnabled(true);
+    v.setStatus("ACTIVE");
+    v.setSource("TIER_GIFT");
+    v.setAssignedAccountId(a.getId());
+    v.setDescription("Voucher chào mừng thành viên mới Courtly");
+    vouchers.save(v);
+
+    documents.put(docKey, map(
+        "documentKey", docKey,
+        "phone", e164,
+        "accountId", a.getId().toString(),
+        "voucherCode", code,
+        "issuedAt", Instant.now().toString()
+    ));
+
+    notificationService.enqueue(
+        a.getId(),
+        null,
+        null,
+        "WELCOME_GIFT",
+        "IN_APP",
+        null,
+        "🎁 Chào mừng thành viên mới!",
+        "Chào mừng bạn đến Courtly – tặng voucher 50.000₫",
+        Instant.now(),
+        "WELCOME:" + a.getId() + ":IN_APP"
+    );
+  }
+
+  private String randomWelcomeSuffix(int len) {
+    String alphanum = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+    SecureRandom r = new SecureRandom();
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < len; i++) {
+      sb.append(alphanum.charAt(r.nextInt(alphanum.length())));
+    }
+    return sb.toString();
+  }
+
   public void verifyOtpDirectly(String rawPhone, String code, String purpose) {
     require(rawPhone != null && !rawPhone.isBlank(), "Thiếu số điện thoại xác thực OTP");
     require(code != null && !code.isBlank(), "Vui lòng nhập mã xác thực OTP");
@@ -529,6 +609,7 @@ public class AuthService {
         a.setStatus("ACTIVE");
         a.setPasswordHash(encoder.encode(p));
         accounts.saveAndFlush(a);
+        issueWelcomeVoucherIfEligible(a, e164);
         return signIn(a, req, res);
       }
 
@@ -592,6 +673,9 @@ public class AuthService {
       } else {
         a.setStatus("ACTIVE");
         accounts.saveAndFlush(a);
+        if (a.getPhone() != null && !a.getPhone().isBlank()) {
+          issueWelcomeVoucherIfEligible(a, a.getPhone());
+        }
         return signIn(a, req, res);
       }
     }
@@ -766,6 +850,9 @@ public class AuthService {
       a.setAuthVersion(a.getAuthVersion() + 1);
       info.put("used", true);
       documents.save(row, info);
+      if (a.getPhone() != null && !a.getPhone().isBlank()) {
+        issueWelcomeVoucherIfEligible(a, a.getPhone());
+      }
       return signIn(a, req, res);
     }
     if (action.equals("activate")) {
