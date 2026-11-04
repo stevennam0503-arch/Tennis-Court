@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, User, Lock, Mail, Phone, KeyRound } from 'lucide-react';
+import { Eye, EyeOff, User, Lock, Mail, Phone, KeyRound, CheckCircle2, ArrowRight } from 'lucide-react';
 import { api } from '../services/api';
 import { useGuest } from './context';
+import { isValidPhone, formatPhoneDisplay, normalizePhone } from '../utils/phone';
 
 export default function GuestAuth({ onSuccess, initialMode = 'login', context = null }) {
   const { t } = useGuest();
@@ -10,7 +11,17 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
   useEffect(() => {
     if (initialMode) setMode(initialMode);
   }, [initialMode]);
+
+  // Luồng đăng ký 3 bước bằng SĐT: 1 (phone) -> 2 (otp) -> 3 (profile)
+  const [regStep, setRegStep] = useState(1);
+  const [phoneToken, setPhoneToken] = useState('');
+  const [countdown, setCountdown] = useState(0);
+
+  // Đăng nhập: 'password' hoặc 'otp'
+  const [loginMethod, setLoginMethod] = useState('password');
+
   const [values, setValues] = useState({
+    emailOrPhone: '',
     email: '',
     password: '',
     name: '',
@@ -19,6 +30,7 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
     token: '',
     code: ''
   });
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
@@ -28,14 +40,106 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
 
   const set = (k, v) => setValues(x => ({ ...x, [k]: v }));
 
-  const handleResend = async () => {
-    if (busy || !values.email.trim()) return;
+  // Đếm ngược 60 giây gửi lại mã OTP
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
+  // Gửi OTP qua SMS đăng ký
+  const handleSendRegisterOtp = async () => {
+    setError('');
+    setSuccess('');
+    if (!values.phone || !isValidPhone(values.phone)) {
+      return setError(t('Vui lòng nhập số điện thoại Việt Nam hợp lệ (10 chữ số, ví dụ 0912 345 678).'));
+    }
+    setBusy(true);
+    try {
+      const res = await api('/auth/phone/send-otp', 'POST', {
+        phone: values.phone.trim(),
+        purpose: 'REGISTER'
+      });
+      setSuccess(res.message || t('Đã gửi mã xác thực OTP qua SMS.'));
+      setCountdown(res.cooldownSeconds || 60);
+      if (res.devCode) {
+        setDevCode(res.devCode);
+        set('code', res.devCode);
+      }
+      setRegStep(2);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Xác thực OTP đăng ký -> nhận phoneToken
+  const handleVerifyRegisterOtp = async () => {
+    setError('');
+    setSuccess('');
+    if (!values.code || values.code.trim().length < 6) {
+      return setError(t('Vui lòng nhập đầy đủ mã OTP 6 số.'));
+    }
+    setBusy(true);
+    try {
+      const res = await api('/auth/phone/verify', 'POST', {
+        phone: values.phone.trim(),
+        code: values.code.trim(),
+        purpose: 'REGISTER'
+      });
+      setPhoneToken(res.phoneToken);
+      setSuccess(t('Xác thực số điện thoại thành công!'));
+      setDevCode('');
+      setRegStep(3);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Gửi lại OTP SMS
+  const handleResendPhoneOtp = async (purpose = 'REGISTER') => {
+    if (countdown > 0 || busy) return;
     setError('');
     setSuccess('');
     setBusy(true);
     try {
-      const res = await api('/auth/resend-activation', 'POST', { email: values.email.trim() });
-      setSuccess(t('Đã gửi lại mã kích hoạt mới đến email của bạn.'));
+      const targetPhone = mode === 'register' ? values.phone : values.emailOrPhone;
+      const res = await api('/auth/phone/send-otp', 'POST', {
+        phone: targetPhone.trim(),
+        purpose
+      });
+      setSuccess(t('Đã gửi lại mã OTP mới qua SMS.'));
+      setCountdown(res.cooldownSeconds || 60);
+      if (res.devCode) {
+        setDevCode(res.devCode);
+        set('code', res.devCode);
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Gửi OTP SMS để đăng nhập
+  const handleSendLoginOtp = async () => {
+    setError('');
+    setSuccess('');
+    if (!values.emailOrPhone || !isValidPhone(values.emailOrPhone)) {
+      return setError(t('Vui lòng nhập số điện thoại Việt Nam hợp lệ (10 chữ số).'));
+    }
+    setBusy(true);
+    try {
+      const res = await api('/auth/phone/send-otp', 'POST', {
+        phone: values.emailOrPhone.trim(),
+        purpose: 'LOGIN'
+      });
+      setSuccess(res.message || t('Đã gửi mã đăng nhập OTP qua SMS.'));
+      setCountdown(res.cooldownSeconds || 60);
       if (res.devCode) {
         setDevCode(res.devCode);
         set('code', res.devCode);
@@ -52,64 +156,115 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
     setError('');
     setSuccess('');
 
+    // Xử lý theo từng mode
     if (mode === 'register') {
-      const p = values.phone.trim().replace(/\s+/g, '');
-      if (!/^0[0-9]{9}$/.test(p)) {
-        return setError(t('Số điện thoại không hợp lệ (cần 10 chữ số, bắt đầu bằng 0).'));
+      if (regStep === 1) {
+        return handleSendRegisterOtp();
+      }
+      if (regStep === 2) {
+        return handleVerifyRegisterOtp();
+      }
+      if (regStep === 3) {
+        if (!values.name?.trim()) {
+          return setError(t('Vui lòng nhập họ và tên.'));
+        }
+        if (!values.password || values.password.length < 6) {
+          return setError(t('Mật khẩu cần tối thiểu 6 ký tự.'));
+        }
+        if (values.password !== values.confirm) {
+          return setError(t('Hai mật khẩu chưa trùng nhau.'));
+        }
+        setBusy(true);
+        try {
+          const res = await api('/auth/register', 'POST', {
+            phoneToken,
+            name: values.name.trim(),
+            password: values.password,
+            email: values.email?.trim() || null
+          });
+          await onSuccess(res);
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setBusy(false);
+        }
+        return;
       }
     }
 
-    if (!['login', 'activate-otp'].includes(mode) && values.password !== values.confirm) {
-      return setError(t('Hai mật khẩu chưa trùng nhau.'));
-    }
-
-    setBusy(true);
-    try {
-      if (mode === 'register') {
-        const res = await api('/auth/register', 'POST', {
-          ...values,
-          phone: values.phone.trim().replace(/\s+/g, ''),
-          requireActivation: true
-        });
-        if (res.requiresActivation) {
-          setMode('activate-otp');
-          if (res.email) set('email', res.email);
-          setSuccess(res.message || t('Mã kích hoạt OTP 6 số đã được gửi tới email.'));
-          if (res.devCode) {
-            setDevCode(res.devCode);
-            set('code', res.devCode);
+    if (mode === 'login') {
+      setBusy(true);
+      try {
+        if (loginMethod === 'otp') {
+          if (!values.code) {
+            setBusy(false);
+            return setError(t('Vui lòng nhập mã OTP để đăng nhập.'));
           }
+          const res = await api('/auth/phone/login-otp', 'POST', {
+            phone: values.emailOrPhone.trim(),
+            code: values.code.trim()
+          });
+          await onSuccess(res);
           return;
         }
-        await onSuccess(res);
-        return;
-      }
 
-      if (mode === 'activate-otp') {
-        const session = await api('/auth/activate', 'POST', {
-          code: values.code.trim(),
-          email: values.email?.trim()
+        // Đăng nhập bằng mật khẩu (nhận cả email hoặc số điện thoại)
+        const res = await api('/auth/login', 'POST', {
+          emailOrPhone: values.emailOrPhone?.trim(),
+          email: values.emailOrPhone?.trim(),
+          password: values.password
         });
-        await onSuccess(session);
-        return;
+        await onSuccess(res);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setBusy(false);
       }
+      return;
+    }
 
-      const res = await api('/auth/' + mode, 'POST', values);
-      if (res.requiresActivation) {
-        setMode('activate-otp');
-        if (res.email) set('email', res.email);
-        setSuccess(res.message || t('Tài khoản chưa kích hoạt. Vui lòng nhập mã OTP.'));
+    if (mode === 'forgot') {
+      setBusy(true);
+      try {
+        const res = await api('/auth/forgot-password', 'POST', {
+          emailOrPhone: values.emailOrPhone?.trim(),
+          phone: values.emailOrPhone?.trim(),
+          email: values.emailOrPhone?.trim()
+        });
+        setSuccess(res.message);
         if (res.devCode) {
           setDevCode(res.devCode);
           set('code', res.devCode);
         }
-        return;
+        setMode('reset-password');
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setBusy(false);
       }
-      await onSuccess(res);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setBusy(false);
+      return;
+    }
+
+    if (mode === 'reset-password') {
+      if (values.password !== values.confirm) {
+        return setError(t('Hai mật khẩu chưa trùng nhau.'));
+      }
+      setBusy(true);
+      try {
+        const res = await api('/auth/reset-password', 'POST', {
+          phone: values.emailOrPhone?.trim(),
+          email: values.emailOrPhone?.trim(),
+          code: values.code.trim(),
+          password: values.password
+        });
+        setSuccess(t('Đổi mật khẩu thành công!'));
+        await onSuccess(res);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setBusy(false);
+      }
+      return;
     }
   };
 
@@ -117,9 +272,9 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
 
   const titles = {
     login: isBookingFlow ? t('Đăng nhập để đặt sân') : t('Đăng nhập Courtly'),
-    register: isBookingFlow ? t('Tạo tài khoản & Nhận quà') : t('Tạo tài khoản mới'),
-    'activate-otp': t('Kích hoạt tài khoản'),
-    activate: t('Đặt lại mật khẩu')
+    register: isBookingFlow ? t('Đăng ký & Nhận quà') : t('Đăng ký tài khoản'),
+    forgot: t('Quên mật khẩu'),
+    'reset-password': t('Đặt lại mật khẩu mới')
   };
 
   const subtitles = {
@@ -127,15 +282,14 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
       ? t('Đăng nhập để giữ chỗ sân theo thời gian thực và tự động áp dụng ưu đãi.')
       : t('Chào mừng trở lại! Đăng nhập để đặt sân và quản lý lịch thi đấu.'),
     register: isBookingFlow
-      ? t('Đăng ký nhận ngay Voucher WELCOME 50.000₫ và giữ chỗ sân tức thì.')
-      : t('Đăng ký nhanh chóng để giữ chỗ sân trực tuyến và nhận quà chào mừng 50k.'),
-    'activate-otp': `${t('Mã OTP 6 số đã gửi tới')} ${values.email || t('email của bạn')}.`,
-    activate: t('Nhập mã kích hoạt một lần do quản trị viên cấp để thiết lập mật khẩu.')
+      ? t('Đăng ký bằng SĐT nhận ngay Voucher WELCOME 50.000₫ và giữ chỗ sân tức thì.')
+      : t('Đăng ký bằng số điện thoại xác thực OTP nhanh chóng và tiện lợi.'),
+    forgot: t('Nhập email hoặc số điện thoại đã đăng ký để nhận mã khôi phục.'),
+    'reset-password': t('Nhập mã xác nhận OTP và thiết lập mật khẩu mới.')
   };
 
   return (
     <div className="gx-auth-card" style={{ maxWidth: 440, margin: '0 auto', width: '100%' }}>
-
       {/* Header section with icon & centered title */}
       <div style={{ textAlign: 'center', marginBottom: 20 }}>
         <div
@@ -154,9 +308,7 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
           {mode === 'login' ? (
             <Lock size={22} />
           ) : mode === 'register' ? (
-            <User size={22} />
-          ) : mode === 'activate-otp' ? (
-            <Mail size={22} />
+            <Phone size={22} />
           ) : (
             <KeyRound size={22} />
           )}
@@ -191,6 +343,8 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
             </span>
           </div>
         )}
+
+        {/* Thông báo thành công / lỗi */}
         {success && (
           <div
             className="gx-notice"
@@ -208,247 +362,9 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
           </div>
         )}
 
-        {mode === 'register' && (
-          <>
-            <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
-              {t('Họ và tên')}
-              <input
-                required
-                maxLength={100}
-                autoComplete="name"
-                placeholder={t("Ví dụ: Nguyễn Văn A")}
-                value={values.name}
-                onChange={e => set('name', e.target.value)}
-                style={{ borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 14px', fontSize: 14 }}
-              />
-            </label>
-            <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
-              {t('Số điện thoại liên hệ')}
-              <input
-                type="tel"
-                required
-                maxLength={15}
-                placeholder={t("0912345678 (10 chữ số)")}
-                value={values.phone}
-                onChange={e => set('phone', e.target.value)}
-                style={{ borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 14px', fontSize: 14 }}
-              />
-            </label>
-          </>
-        )}
-
-        {mode === 'activate-otp' ? (
-          <>
-            <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
-              Email
-              <input
-                type="email"
-                value={values.email}
-                readOnly
-                disabled
-                style={{ background: '#f1f5f9', color: '#64748b', borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 14px' }}
-              />
-            </label>
-
-            {devCode && (
-              <div
-                style={{
-                  background: '#f0fdf4',
-                  border: '1px dashed #86efac',
-                  borderRadius: 8,
-                  padding: '10px 14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 10
-                }}
-              >
-                <div>
-                  <small style={{ display: 'block', color: '#166534', fontWeight: 600 }}>{t('Thử nghiệm / Demo:')}</small>
-                  <span style={{ fontSize: 13, color: '#14532d' }}>
-                    {t('Mã OTP:')} <strong style={{ letterSpacing: 2, fontSize: 15, fontFamily: 'monospace' }}>{devCode}</strong>
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="btn sm"
-                  style={{
-                    whiteSpace: 'nowrap',
-                    background: '#166534',
-                    color: '#fff',
-                    border: 'none',
-                    padding: '6px 12px',
-                    borderRadius: 6,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => set('code', devCode)}
-                >
-                  {t('Điền nhanh')}
-                </button>
-              </div>
-            )}
-
-            <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
-              {t('Mã kích hoạt OTP 6 số')}
-              <input
-                required
-                maxLength={12}
-                placeholder="123456"
-                value={values.code}
-                onChange={e => set('code', e.target.value.trim())}
-                style={{
-                  fontSize: 22,
-                  letterSpacing: '6px',
-                  textAlign: 'center',
-                  fontWeight: 'bold',
-                  borderRadius: 8,
-                  border: '2px solid #173c32',
-                  padding: '10px 14px',
-                  background: '#fdfdfb'
-                }}
-              />
-            </label>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '2px 0 6px' }}>
-              <small style={{ color: '#637269' }}>{t('Hiệu lực trong 15 phút.')}</small>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={handleResend}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#173c32',
-                  textDecoration: 'underline',
-                  cursor: busy ? 'not-allowed' : 'pointer',
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  padding: 0
-                }}
-              >
-                {t('Gửi lại mã OTP')}
-              </button>
-            </div>
-          </>
-        ) : mode === 'activate' ? (
-          <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
-            {t('Mã kích hoạt')}
-            <input
-              required
-              placeholder={t("Dán mã kích hoạt tại đây")}
-              value={values.token}
-              onChange={e => set('token', e.target.value)}
-              style={{ borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 14px', fontSize: 14 }}
-            />
-          </label>
-        ) : (
-          <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
-            Email
-            <input
-              type="email"
-              autoComplete="username"
-              required
-              maxLength={254}
-              placeholder="tenban@gmail.com"
-              value={values.email}
-              onChange={e => set('email', e.target.value)}
-              style={{ borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 14px', fontSize: 14 }}
-            />
-          </label>
-        )}
-
-        {mode !== 'activate-otp' && (
-          <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
-            {t('Mật khẩu')}
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                required
-                minLength={mode === 'login' ? undefined : 6}
-                maxLength={128}
-                placeholder={t("Nhập mật khẩu của bạn")}
-                value={values.password}
-                onChange={e => set('password', e.target.value)}
-                style={{
-                  width: '100%',
-                  borderRadius: 8,
-                  border: '1px solid #cbd5e1',
-                  padding: '10px 42px 10px 14px',
-                  fontSize: 14
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(s => !s)}
-                title={showPassword ? t('Ẩn mật khẩu') : t('Hiện mật khẩu')}
-                style={{
-                  position: 'absolute',
-                  right: 10,
-                  background: 'none',
-                  border: 'none',
-                  color: '#637269',
-                  cursor: 'pointer',
-                  padding: 4,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </label>
-        )}
-
-        {!['login', 'activate-otp'].includes(mode) && (
-          <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
-            {t('Nhập lại mật khẩu')}
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <input
-                type={showConfirm ? 'text' : 'password'}
-                autoComplete="new-password"
-                required
-                placeholder={t("Nhập lại chính xác mật khẩu")}
-                value={values.confirm}
-                onChange={e => set('confirm', e.target.value)}
-                style={{
-                  width: '100%',
-                  borderRadius: 8,
-                  border: '1px solid #cbd5e1',
-                  padding: '10px 42px 10px 14px',
-                  fontSize: 14
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirm(s => !s)}
-                title={showConfirm ? t('Ẩn mật khẩu') : t('Hiện mật khẩu')}
-                style={{
-                  position: 'absolute',
-                  right: 10,
-                  background: 'none',
-                  border: 'none',
-                  color: '#637269',
-                  cursor: 'pointer',
-                  padding: 4,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                tabIndex={-1}
-              >
-                {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </label>
-        )}
-
         {error && (
           <div
-            className="gx-error"
+            className="gx-notice error"
             role="alert"
             style={{
               padding: '11px 14px',
@@ -459,190 +375,556 @@ export default function GuestAuth({ onSuccess, initialMode = 'login', context = 
               fontSize: 13
             }}
           >
-            {t(error)}
+            {error}
           </div>
         )}
 
-        {/* Centered Submit Button */}
-        <button
-          type="submit"
-          disabled={busy}
-          className="ct-primary gx-auth-submit-btn"
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            textAlign: 'center',
-            padding: '13px 20px',
-            borderRadius: 8,
-            fontSize: 15,
-            fontWeight: 700,
-            minHeight: 48,
-            cursor: busy ? 'not-allowed' : 'pointer',
-            background: '#173c32',
-            color: '#ffffff',
-            border: 'none',
-            boxShadow: '0 2px 10px rgba(23,60,50,0.18)',
-            marginTop: 6
-          }}
-        >
-          {t(
-            busy
-              ? 'Đang xử lý…'
-              : mode === 'login'
-              ? 'Đăng nhập'
-              : mode === 'register'
-              ? 'Tạo tài khoản'
-              : mode === 'activate-otp'
-              ? 'Xác nhận kích hoạt'
-              : 'Lưu mật khẩu & tiếp tục'
-          )}
-        </button>
-      </form>
-
-      {/* Mode navigation footer */}
-      <div
-        style={{
-          marginTop: 22,
-          paddingTop: 18,
-          borderTop: '1px solid #e2e8f0',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 10
-        }}
-      >
-        {mode === 'login' ? (
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: 13 }}>
+        {/* Khung Test / Demo devCode */}
+        {devCode && (
+          <div
+            style={{
+              background: '#f0fdf4',
+              border: '1px dashed #86efac',
+              borderRadius: 8,
+              padding: '10px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10
+            }}
+          >
+            <div>
+              <small style={{ display: 'block', color: '#166534', fontWeight: 600 }}>{t('Thử nghiệm / Demo SMS OTP:')}</small>
+              <span style={{ fontSize: 13, color: '#14532d' }}>
+                {t('Mã OTP:')} <strong style={{ letterSpacing: 2, fontSize: 15, fontFamily: 'monospace' }}>{devCode}</strong>
+              </span>
+            </div>
             <button
               type="button"
-              onClick={() => {
-                setMode('register');
-                setError('');
-                setSuccess('');
-              }}
+              className="btn sm"
               style={{
-                background: 'none',
+                whiteSpace: 'nowrap',
+                background: '#166534',
+                color: '#fff',
                 border: 'none',
-                color: '#173c32',
+                padding: '6px 12px',
+                borderRadius: 6,
+                fontSize: 12,
                 fontWeight: 600,
-                cursor: 'pointer',
-                padding: '4px 0',
-                textDecoration: 'underline'
+                cursor: 'pointer'
               }}
+              onClick={() => set('code', devCode)}
             >
-              {t('Chưa có tài khoản? Đăng ký')}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('activate');
-                setError('');
-                setSuccess('');
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#64748b',
-                cursor: 'pointer',
-                padding: '4px 0',
-                textDecoration: 'underline'
-              }}
-            >
-              {t('Quên mật khẩu / Có mã?')}
+              {t('Điền nhanh')}
             </button>
           </div>
-        ) : mode === 'register' ? (
-          <div style={{ textAlign: 'center', fontSize: 13 }}>
-            <span style={{ color: '#64748b' }}>{t('Đã có tài khoản?')} </span>
+        )}
+
+        {/* ===================== MODE LOGIN ===================== */}
+        {mode === 'login' && (
+          <>
+            {/* Toggle phương thức đăng nhập */}
+            <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: 8, padding: 3, marginBottom: 4 }}>
+              <button
+                type="button"
+                onClick={() => setLoginMethod('password')}
+                style={{
+                  flex: 1,
+                  padding: '7px 0',
+                  fontSize: 12.5,
+                  fontWeight: loginMethod === 'password' ? 600 : 400,
+                  background: loginMethod === 'password' ? '#fff' : 'transparent',
+                  color: loginMethod === 'password' ? '#173c32' : '#64748b',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  boxShadow: loginMethod === 'password' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
+                }}
+              >
+                {t('Mật khẩu')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setLoginMethod('otp')}
+                style={{
+                  flex: 1,
+                  padding: '7px 0',
+                  fontSize: 12.5,
+                  fontWeight: loginMethod === 'otp' ? 600 : 400,
+                  background: loginMethod === 'otp' ? '#fff' : 'transparent',
+                  color: loginMethod === 'otp' ? '#173c32' : '#64748b',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  boxShadow: loginMethod === 'otp' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none'
+                }}
+              >
+                {t('Mã OTP SMS')}
+              </button>
+            </div>
+
+            <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
+              {loginMethod === 'otp' ? t('Số điện thoại') : t('Email hoặc số điện thoại')}
+              <input
+                required
+                autoComplete="username"
+                placeholder={loginMethod === 'otp' ? '0912 345 678' : 'email@example.com hoặc 0912 345 678'}
+                value={values.emailOrPhone}
+                onChange={e => set('emailOrPhone', e.target.value)}
+                style={{ borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 14px', fontSize: 14 }}
+              />
+            </label>
+
+            {loginMethod === 'password' ? (
+              <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>{t('Mật khẩu')}</span>
+                  <button
+                    type="button"
+                    onClick={() => setMode('forgot')}
+                    style={{ background: 'none', border: 'none', color: '#173c32', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    {t('Quên mật khẩu?')}
+                  </button>
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    autoComplete="current-password"
+                    placeholder="••••••••"
+                    value={values.password}
+                    onChange={e => set('password', e.target.value)}
+                    style={{ width: '100%', borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 40px 10px 14px', fontSize: 14, boxSizing: 'border-box' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </label>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                  <label style={{ flex: 1, display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
+                    {t('Mã OTP 6 số')}
+                    <input
+                      required
+                      maxLength={6}
+                      placeholder="123456"
+                      value={values.code}
+                      onChange={e => set('code', e.target.value.trim())}
+                      style={{ fontSize: 18, letterSpacing: '4px', textAlign: 'center', borderRadius: 8, border: '1px solid #cbd5e1', padding: '9px 12px' }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={busy || countdown > 0}
+                    onClick={handleSendLoginOtp}
+                    style={{
+                      padding: '10px 14px',
+                      background: countdown > 0 ? '#94a3b8' : '#173c32',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 8,
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      cursor: countdown > 0 ? 'not-allowed' : 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {countdown > 0 ? `${countdown}s` : t('Nhận mã OTP')}
+                  </button>
+                </div>
+              </>
+            )}
+
             <button
-              type="button"
-              onClick={() => {
-                setMode('login');
-                setError('');
-                setSuccess('');
-              }}
+              type="submit"
+              disabled={busy}
               style={{
-                background: 'none',
+                marginTop: 6,
+                padding: '11px',
+                borderRadius: 8,
+                background: '#173c32',
+                color: '#def46a',
                 border: 'none',
-                color: '#173c32',
                 fontWeight: 700,
-                cursor: 'pointer',
-                padding: '4px 6px',
-                textDecoration: 'underline'
+                fontSize: 14,
+                cursor: busy ? 'not-allowed' : 'pointer'
               }}
             >
-              {t('Đăng nhập')}
+              {busy ? t('Đang xử lý...') : t('Đăng nhập')}
             </button>
-          </div>
-        ) : mode === 'activate-otp' ? (
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: 13 }}>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('login');
-                setError('');
-                setSuccess('');
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#173c32',
-                fontWeight: 600,
-                cursor: 'pointer',
-                textDecoration: 'underline'
-              }}
-            >
-              {t('Đã kích hoạt? Đăng nhập')}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('register');
-                setError('');
-                setSuccess('');
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#64748b',
-                cursor: 'pointer',
-                textDecoration: 'underline'
-              }}
-            >
-              {t('Đăng ký lại')}
-            </button>
-          </div>
-        ) : (
-          <div style={{ textAlign: 'center', fontSize: 13 }}>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('login');
-                setError('');
-                setSuccess('');
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#173c32',
-                fontWeight: 600,
-                cursor: 'pointer',
-                textDecoration: 'underline'
-              }}
-            >
-              ← {t('Quay lại Đăng nhập')}
-            </button>
-          </div>
+
+            <div style={{ textAlign: 'center', fontSize: 13, color: '#64748b', marginTop: 10 }}>
+              {t('Chưa có tài khoản?')} {' '}
+              <button
+                type="button"
+                onClick={() => { setMode('register'); setRegStep(1); }}
+                style={{ background: 'none', border: 'none', color: '#173c32', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                {t('Đăng ký bằng SĐT')}
+              </button>
+            </div>
+          </>
         )}
 
-        {mode === 'activate' && (
-          <p style={{ margin: '8px 0 0', fontSize: 12, color: '#64748b', textAlign: 'center' }}>
-            {t('Liên hệ quầy lễ tân để xác minh và nhận mã đặt lại mật khẩu trực tiếp.')}
-          </p>
+        {/* ===================== MODE REGISTER (3 BƯỚC) ===================== */}
+        {mode === 'register' && (
+          <>
+            {/* Tiến trình 3 bước */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, padding: '0 10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 22, height: 22, borderRadius: '50%', background: regStep >= 1 ? '#173c32' : '#cbd5e1', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>1</span>
+                <span style={{ fontSize: 12, fontWeight: regStep === 1 ? 600 : 400, color: regStep === 1 ? '#173c32' : '#64748b' }}>{t('Số điện thoại')}</span>
+              </div>
+              <span style={{ width: 20, height: 1, background: '#cbd5e1' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 22, height: 22, borderRadius: '50%', background: regStep >= 2 ? '#173c32' : '#cbd5e1', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>2</span>
+                <span style={{ fontSize: 12, fontWeight: regStep === 2 ? 600 : 400, color: regStep === 2 ? '#173c32' : '#64748b' }}>{t('Xác thực OTP')}</span>
+              </div>
+              <span style={{ width: 20, height: 1, background: '#cbd5e1' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 22, height: 22, borderRadius: '50%', background: regStep >= 3 ? '#173c32' : '#cbd5e1', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>3</span>
+                <span style={{ fontSize: 12, fontWeight: regStep === 3 ? 600 : 400, color: regStep === 3 ? '#173c32' : '#64748b' }}>{t('Tạo mật khẩu')}</span>
+              </div>
+            </div>
+
+            {/* Bước 1: Nhập Số điện thoại */}
+            {regStep === 1 && (
+              <>
+                <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
+                  {t('Số điện thoại của bạn')}
+                  <input
+                    type="tel"
+                    required
+                    maxLength={15}
+                    placeholder="0912 345 678"
+                    value={values.phone}
+                    onChange={e => set('phone', e.target.value)}
+                    style={{ borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 14px', fontSize: 15 }}
+                  />
+                  <small style={{ color: '#64748b' }}>{t('Mã OTP xác thực sẽ được gửi qua tin nhắn SMS tới số này.')}</small>
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={busy}
+                  style={{
+                    marginTop: 6,
+                    padding: '11px',
+                    borderRadius: 8,
+                    background: '#173c32',
+                    color: '#def46a',
+                    border: 'none',
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: busy ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {busy ? t('Đang gửi...') : t('Tiếp tục / Nhận mã OTP')}
+                </button>
+              </>
+            )}
+
+            {/* Bước 2: Nhập mã OTP SMS */}
+            {regStep === 2 && (
+              <>
+                <div style={{ fontSize: 13, color: '#334155', background: '#f8fafc', padding: 10, borderRadius: 8 }}>
+                  {t('Đang xác thực cho số:')} <strong>{formatPhoneDisplay(values.phone)}</strong>
+                  {' · '}
+                  <button
+                    type="button"
+                    onClick={() => setRegStep(1)}
+                    style={{ background: 'none', border: 'none', color: '#173c32', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    {t('Đổi số')}
+                  </button>
+                </div>
+
+                <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
+                  {t('Mã OTP 6 số từ tin nhắn SMS')}
+                  <input
+                    required
+                    maxLength={6}
+                    placeholder="123456"
+                    value={values.code}
+                    onChange={e => set('code', e.target.value.trim())}
+                    style={{
+                      fontSize: 22,
+                      letterSpacing: '6px',
+                      textAlign: 'center',
+                      fontWeight: 'bold',
+                      borderRadius: 8,
+                      border: '2px solid #173c32',
+                      padding: '10px 14px',
+                      background: '#fdfdfb'
+                    }}
+                  />
+                </label>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <small style={{ color: '#64748b' }}>{t('Mã hiệu lực trong 5 phút.')}</small>
+                  <button
+                    type="button"
+                    disabled={countdown > 0 || busy}
+                    onClick={() => handleResendPhoneOtp('REGISTER')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: countdown > 0 ? '#94a3b8' : '#173c32',
+                      textDecoration: countdown > 0 ? 'none' : 'underline',
+                      cursor: countdown > 0 ? 'not-allowed' : 'pointer',
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      padding: 0
+                    }}
+                  >
+                    {countdown > 0 ? `${t('Gửi lại sau')} ${countdown}s` : t('Gửi lại mã OTP')}
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={busy}
+                  style={{
+                    marginTop: 6,
+                    padding: '11px',
+                    borderRadius: 8,
+                    background: '#173c32',
+                    color: '#def46a',
+                    border: 'none',
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: busy ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {busy ? t('Đang xác thực...') : t('Xác nhận mã OTP')}
+                </button>
+              </>
+            )}
+
+            {/* Bước 3: Nhập thông tin & mật khẩu */}
+            {regStep === 3 && (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#166534', background: '#f0fdf4', padding: '8px 12px', borderRadius: 6, fontSize: 12.5 }}>
+                  <CheckCircle2 size={16} />
+                  <span>{t('Đã xác minh số điện thoại:')} <strong>{formatPhoneDisplay(values.phone)}</strong></span>
+                </div>
+
+                <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
+                  {t('Họ và tên')}
+                  <input
+                    required
+                    maxLength={100}
+                    autoComplete="name"
+                    placeholder={t("Ví dụ: Nguyễn Văn A")}
+                    value={values.name}
+                    onChange={e => set('name', e.target.value)}
+                    style={{ borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 14px', fontSize: 14 }}
+                  />
+                </label>
+
+                <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
+                  <span>{t('Email')} <small style={{ color: '#64748b', fontWeight: 400 }}>({t('tùy chọn, dùng nhận hóa đơn & thông báo')})</small></span>
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    placeholder="email@example.com"
+                    value={values.email}
+                    onChange={e => set('email', e.target.value)}
+                    style={{ borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 14px', fontSize: 14 }}
+                  />
+                </label>
+
+                <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
+                  {t('Mật khẩu')}
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      autoComplete="new-password"
+                      placeholder="••••••••"
+                      value={values.password}
+                      onChange={e => set('password', e.target.value)}
+                      style={{ width: '100%', borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 40px 10px 14px', fontSize: 14, boxSizing: 'border-box' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </label>
+
+                <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
+                  {t('Nhập lại mật khẩu')}
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showConfirm ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      autoComplete="new-password"
+                      placeholder="••••••••"
+                      value={values.confirm}
+                      onChange={e => set('confirm', e.target.value)}
+                      style={{ width: '100%', borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 40px 10px 14px', fontSize: 14, boxSizing: 'border-box' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm(!showConfirm)}
+                      style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}
+                    >
+                      {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={busy}
+                  style={{
+                    marginTop: 6,
+                    padding: '11px',
+                    borderRadius: 8,
+                    background: '#173c32',
+                    color: '#def46a',
+                    border: 'none',
+                    fontWeight: 700,
+                    fontSize: 14,
+                    cursor: busy ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {busy ? t('Đang tạo tài khoản...') : t('Hoàn tất đăng ký & Nhận quà')}
+                </button>
+              </>
+            )}
+
+            <div style={{ textAlign: 'center', fontSize: 13, color: '#64748b', marginTop: 10 }}>
+              {t('Đã có tài khoản?')} {' '}
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                style={{ background: 'none', border: 'none', color: '#173c32', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                {t('Đăng nhập')}
+              </button>
+            </div>
+          </>
         )}
-      </div>
+
+        {/* ===================== MODE FORGOT PASSWORD ===================== */}
+        {mode === 'forgot' && (
+          <>
+            <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
+              {t('Email hoặc số điện thoại')}
+              <input
+                required
+                placeholder="0912 345 678 hoặc email@domain.com"
+                value={values.emailOrPhone}
+                onChange={e => set('emailOrPhone', e.target.value)}
+                style={{ borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 14px', fontSize: 14 }}
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={busy}
+              style={{
+                marginTop: 6,
+                padding: '11px',
+                borderRadius: 8,
+                background: '#173c32',
+                color: '#def46a',
+                border: 'none',
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: busy ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {busy ? t('Đang xử lý...') : t('Gửi mã xác nhận')}
+            </button>
+
+            <div style={{ textAlign: 'center', fontSize: 13, color: '#64748b', marginTop: 10 }}>
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                style={{ background: 'none', border: 'none', color: '#173c32', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                ← {t('Quay lại đăng nhập')}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ===================== MODE RESET PASSWORD ===================== */}
+        {mode === 'reset-password' && (
+          <>
+            <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
+              {t('Mã OTP xác nhận 6 số')}
+              <input
+                required
+                maxLength={6}
+                placeholder="123456"
+                value={values.code}
+                onChange={e => set('code', e.target.value.trim())}
+                style={{ fontSize: 18, letterSpacing: '4px', textAlign: 'center', borderRadius: 8, border: '1px solid #cbd5e1', padding: '9px 12px' }}
+              />
+            </label>
+
+            <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
+              {t('Mật khẩu mới')}
+              <input
+                type="password"
+                required
+                minLength={6}
+                placeholder="••••••••"
+                value={values.password}
+                onChange={e => set('password', e.target.value)}
+                style={{ borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 14px', fontSize: 14 }}
+              />
+            </label>
+
+            <label style={{ display: 'grid', gap: 6, fontSize: 13, fontWeight: 500, color: '#173c32' }}>
+              {t('Nhập lại mật khẩu mới')}
+              <input
+                type="password"
+                required
+                minLength={6}
+                placeholder="••••••••"
+                value={values.confirm}
+                onChange={e => set('confirm', e.target.value)}
+                style={{ borderRadius: 8, border: '1px solid #cbd5e1', padding: '10px 14px', fontSize: 14 }}
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={busy}
+              style={{
+                marginTop: 6,
+                padding: '11px',
+                borderRadius: 8,
+                background: '#173c32',
+                color: '#def46a',
+                border: 'none',
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: busy ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {busy ? t('Đang cập nhật...') : t('Lưu mật khẩu mới')}
+            </button>
+          </>
+        )}
+      </form>
     </div>
   );
 }

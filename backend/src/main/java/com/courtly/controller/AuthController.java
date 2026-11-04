@@ -23,6 +23,24 @@ public class AuthController {
     return auth.session(r);
   }
 
+  @PostMapping("/auth/phone/send-otp")
+  public Map<String, Object> sendPhoneOtp(@RequestBody Map<String, Object> body, HttpServletRequest req) {
+    return auth.sendPhoneOtp(body, req);
+  }
+
+  @PostMapping("/auth/phone/verify")
+  public Map<String, Object> verifyPhoneOtp(@RequestBody Map<String, Object> body) {
+    return auth.verifyPhoneOtp(body);
+  }
+
+  @PostMapping("/auth/phone/login-otp")
+  public Map<String, Object> loginPhoneOtp(
+      @RequestBody Map<String, Object> body,
+      HttpServletRequest req,
+      HttpServletResponse res) {
+    return auth.loginWithPhoneOtp(body, req, res);
+  }
+
   @PostMapping("/auth/{action}")
   public Map<String, Object> action(
       @PathVariable String action,
