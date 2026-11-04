@@ -166,7 +166,7 @@ td:first-child{white-space:nowrap}
   <div class="acc">
     <div class="card"><span class="who">Admin</span><span class="code">admin@gmail.com</span><p>Flow 01, Flow 04, trả lời feedback.</p></div>
     <div class="card"><span class="who">Staff</span><span class="code">staff@gmail.com</span><p>Thu cọc tại quầy, check-in, check-out.</p></div>
-    <div class="card"><span class="who cus">Khách hội viên</span><span class="code">demo.hoivien@gmail.com</span><p>Gói Plus, chưa có đơn nào. Trường hợp "khách đã có tài khoản hội viên".</p></div>
+    <div class="card"><span class="who cus">Khách hội viên</span><span class="code">demo.hoivien@gmail.com</span><p>Hạng Masters (1.500 điểm, chi tiêu 19.800.000₫/12 tháng). Dùng 500 điểm trừ tiền sân, đổi quà và thăng hạng Grand Slam.</p></div>
     <div class="card"><span class="who cus">Khách mới</span><span class="code">tự đăng ký tại chỗ</span><p>Trường hợp "khách mới đăng ký". Khi chạy thử dùng <code>khachmoi.demo@example.com</code>.</p></div>
   </div>
   <p class="tip">Mật khẩu các tài khoản có sẵn: <code>123456</code>. <code>hoangnam</code>, <code>khachmoi</code> và các khách mẫu khác chỉ để admin xem đủ trạng thái đơn; không dùng để đặt.</p>
@@ -371,25 +371,31 @@ td:first-child{white-space:nowrap}
         </div></li>
       <li class="step"><span class="num">11</span><span class="screen">Chọn sân khác + trọng tài</span><label class="tick"><input type="checkbox" id="f2k" aria-label="Đã xong"></label>
         <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="ui">Sân A02</span> → <span class="btn light">18:00</span> → <span class="btn light">19:00</span> → tick <span class="ui">Thêm trọng tài</span> → ở thẻ <span class="ui">TT Nguyễn Hoàng Long · 220.000₫ / giờ</span> bấm <span class="btn light">Chọn</span> → voucher <span class="btn light">VIP10</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Tiền sân 300.000₫ · <b>Ưu đãi hội viên −45.000₫</b> · <b>Voucher (VIP10) −25.500₫</b> · Trọng tài 220.000₫ · Tổng 449.500₫ · Cọc 50% tiền sân 114.750₫</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Hệ thống nhận ra hội viên Plus, giảm 15% trước rồi mới tính voucher trên số đã giảm. Phí trọng tài không giảm và nằm trong phần trả sau.</p></div>
+          <div class="row"><span class="lbl">Bấm</span><p><span class="ui">Sân A02</span> → <span class="btn light">18:00</span> → <span class="btn light">19:00</span> → công tắc <span class="ui">Dùng điểm</span>: nhập <b>500</b> điểm → tick <span class="ui">Thêm trọng tài</span> → chọn <span class="ui">TT Nguyễn Hoàng Long · 220.000₫ / giờ</span></p></div>
+          <div class="row"><span class="lbl">Thấy</span><p>Tiền sân 300.000₫ · <b>Ưu đãi hạng Masters (−5%) −15.000₫</b> (= 285.000₫) · <b>Dùng 500 điểm −50.000₫</b> (= 235.000₫ tiền sân) · Trọng tài 220.000₫ · Tổng 455.000₫ · <b>Cọc 50% tiền sân 117.500₫</b> · Điểm còn lại: 1.000 điểm</p></div>
+          <div class="row"><span class="lbl">Nói</span><p class="say">Thứ tự giảm trừ minh bạch: Giá sân gốc → Ưu đãi hạng Masters (−5%) → Voucher → Điểm thưởng (1đ = 100₫, tối đa 50% tiền sân). Điểm trừ tức thì khi tạo đơn và khoá bi quan chống tiêu trùng.</p></div>
         </div></li>
       <li class="step"><span class="num">12</span><span class="screen">Thanh toán VietQR</span><label class="tick"><input type="checkbox" id="f2l" aria-label="Đã xong"></label>
         <div class="body">
           <div class="row"><span class="lbl">Bấm</span><p><span class="btn">Tiếp tục thanh toán</span> → <span class="btn">Chuyển khoản VietQR</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Hộp <span class="ui">CHUYỂN KHOẢN VIETQR 24/7</span>: mã QR, 114.750₫, ngân hàng MB Bank, nội dung chuyển khoản, giờ hết hạn</p></div>
+          <div class="row"><span class="lbl">Thấy</span><p>Hộp <span class="ui">CHUYỂN KHOẢN VIETQR 24/7</span>: mã QR, 117.500₫, ngân hàng MB Bank, nội dung chuyển khoản, giờ hết hạn</p></div>
         </div></li>
       <li class="step"><span class="num">13</span><span class="screen">Cuối hộp VietQR</span><label class="tick"><input type="checkbox" id="f2m" aria-label="Đã xong"></label>
         <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><b>Cuộn chuột trong hộp</b> xuống cuối → bấm dòng <span class="btn light">⚡ Công cụ Demo Hội đồng: Giả lập Ngân hàng gửi Webhook</span> để mở → <span class="btn">⚡ Giả lập MB Bank chuyển đủ (114.750₫)</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p><span class="ui">GIAO DỊCH THÀNH CÔNG · KHOẢN CHUYỂN ĐÃ XÁC MINH</span>, số tiền 114.750₫, trạng thái Đã xác nhận</p></div>
+          <div class="row"><span class="lbl">Bấm</span><p><b>Cuộn chuột trong hộp</b> xuống cuối → bấm dòng <span class="btn light">⚡ Công cụ Demo Hội đồng: Giả lập Ngân hàng gửi Webhook</span> để mở → <span class="btn">⚡ Giả lập MB Bank chuyển đủ (117.500₫)</span></p></div>
+          <div class="row"><span class="lbl">Thấy</span><p><span class="ui">GIAO DỊCH THÀNH CÔNG · KHOẢN CHUYỂN ĐÃ XÁC MINH</span>, số tiền 117.500₫, trạng thái Đã xác nhận</p></div>
           <div class="row"><span class="lbl">Nói</span><p class="say">Ngân hàng báo về qua webhook; tiền về đủ thì đơn tự xác nhận.</p></div>
         </div></li>
       <li class="step"><span class="num">14</span><span class="screen">Hộp xác nhận</span><label class="tick"><input type="checkbox" id="f2n" aria-label="Đã xong"></label>
         <div class="body">
           <div class="row"><span class="lbl">Bấm</span><p><span class="btn">Xem đơn hàng của tôi</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Mã đơn <b>#CT-XXXXXXXX</b> · <span class="ui">Đã xác nhận</span> · Trọng tài · <span class="ui">✓ Đã đóng 114.750₫</span> · nút <span class="ui">🎫 Xem Vé Điện Tử &amp; Mã QR Check-in</span>. <b>Ghi lại mã đơn</b> cho Flow 03</p></div>
+          <div class="row"><span class="lbl">Thấy</span><p>Mã đơn <b>#CT-XXXXXXXX</b> · <span class="ui">Đã xác nhận</span> · Trọng tài · <span class="ui">✓ Đã đóng 117.500₫</span> · nút <span class="ui">🎫 Xem Vé Điện Tử &amp; Mã QR Check-in</span>. <b>Ghi lại mã đơn</b> cho Flow 03</p></div>
+        </div></li>
+          <li class="step"><span class="num">15</span><span class="screen">Đổi điểm lấy quà &amp; dịch vụ</span><label class="tick"><input type="checkbox" id="f2o" aria-label="Đã xong"></label>
+        <div class="body">
+          <div class="row"><span class="lbl">Bấm</span><p>Menu tài khoản → <span class="btn light">Hạng &amp; điểm của tôi</span> → cuộn tới <span class="ui">Danh mục đổi quà</span> → ở quà <span class="ui">Gia hạn 30 phút (800 điểm)</span> bấm <span class="btn">Đổi quà (800 điểm)</span></p></div>
+          <div class="row"><span class="lbl">Thấy</span><p>Thông báo "Đổi quà thành công! Mã voucher: RWD-EXT30-XXXX", điểm trừ còn 200 điểm, voucher mới xuất hiện trong mục <span class="ui">Ưu đãi của tôi</span></p></div>
+          <div class="row"><span class="lbl">Nói</span><p class="say">Khách hàng chủ động đổi điểm tích lũy lấy các voucher dịch vụ gia hạn, giờ vàng hoặc trọng tài.</p></div>
         </div></li>
     </ol>
   </div>
@@ -466,7 +472,8 @@ td:first-child{white-space:nowrap}
       <li class="step"><span class="num">7</span><span class="screen">Cuối hộp check-out</span><label class="tick"><input type="checkbox" id="f3g" aria-label="Đã xong"></label>
         <div class="body">
           <div class="row"><span class="lbl">Bấm</span><p>Cuộn xuống → <span class="btn">💵 Thu đủ tiền mặt 462.250 ₫ &amp; Hoàn tất Check-out</span> (hoặc <span class="btn light">Mở mã VietQR chuyển khoản</span>)</p></div>
-          <div class="row"><span class="lbl">Thấy</span><p><span class="ui">🏁 Đã thu đủ 462.250 ₫ và hoàn tất Check-out cho đơn #…!</span> Đơn sang tab Hoàn tất</p></div>
+          <div class="row"><span class="lbl">Thấy</span><p><span class="ui">🏁 Đã thu đủ và hoàn tất Check-out cho đơn #…!</span> Đơn sang tab Hoàn tất</p></div>
+          <div class="row"><span class="lbl">Nói</span><p class="say">Đơn thanh toán hoàn tất đưa tổng chi tiêu 12 tháng của <code>demo.hoivien</code> vượt 20.000.000₫. Hệ thống tự động nâng hạng tài khoản lên <b>Grand Slam</b> ngay lập tức, tặng thêm 1.000 điểm thưởng, voucher 300.000₫ và kích hoạt quyền lợi thẻ VIP Lounge!</p></div>
         </div></li>
     </ol>
   </div>
@@ -502,10 +509,11 @@ td:first-child{white-space:nowrap}
           <div class="row"><span class="lbl">Bấm</span><p>Đăng nhập lại <code>demo.hoivien</code> → menu <span class="btn light">Feedback</span> → <span class="btn light">5 sao</span> → nhập nội dung (ít nhất 10 ký tự) → chủ đề <span class="btn light">👨‍⚖️ Trọng tài &amp; HLV</span> → <b>để nguyên</b> ô "Cho phép hiển thị công khai" (đã tick sẵn) → <span class="btn">🎾 Gửi đánh giá</span></p></div>
           <div class="row"><span class="lbl">Thấy</span><p><span class="ui">Cảm ơn bạn! Đánh giá đã được gửi thành công đến Ban Quản Lý Courtly.</span></p></div>
         </div></li>
-      <li class="step"><span class="num">12</span><span class="screen">Admin review · Nội dung &amp; feedback</span><label class="tick"><input type="checkbox" id="f3l" aria-label="Đã xong"></label>
+      <li class="step"><span class="num">12</span><span class="screen">Lễ tân / Admin xử lý &amp; tặng voucher bù</span><label class="tick"><input type="checkbox" id="f3l" aria-label="Đã xong"></label>
         <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Cửa sổ admin: <span class="btn light">Nội dung &amp; feedback</span> → tab <span class="btn light">Feedback &amp; Đánh giá</span> → dòng mới (trạng thái <span class="ui">Đang chờ xử lý</span>) → <span class="btn light">Xem &amp; trả lời</span> → Chế độ hiển thị <span class="ui">Công khai trên trang Đánh giá</span> → nhập phản hồi → <span class="btn">Lưu phản hồi</span></p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Feedback đến cuối vòng đời dịch vụ; admin duyệt công khai và trả lời khách.</p></div>
+          <div class="row"><span class="lbl">Bấm</span><p>Cửa sổ lễ tân (Staff) hoặc Admin: vào <span class="btn light">Feedback &amp; Đánh giá</span> → chọn phản hồi cần hỗ trợ → bấm <span class="btn light">Nhận xử lý</span> → chọn mẫu <span class="btn light">Xin lỗi nhẹ (50k)</span> → bấm <span class="btn">🎁 Tặng voucher</span></p></div>
+          <div class="row"><span class="lbl">Thấy</span><p>Mã voucher bồi thường <b>SORRY-XXXX</b> được tạo tự động với nguồn <code>RECOVERY</code> và gửi đến ví ưu đãi của khách; nút đổi thành <span class="ui">Đã tặng SORRY-XXXX</span> chặn tặng trùng; Admin có thêm nút <span class="ui">Thu hồi</span> nếu cần hủy mã chưa dùng</p></div>
+          <div class="row"><span class="lbl">Nói</span><p class="say">Staff được quyền xử lý feedback và tặng voucher bồi thường trong hạn mức; quy trình đối soát ghi nhận đúng nguồn bù đắp.</p></div>
         </div></li>
     </ol>
     <p><b>Usage history</b>: khách xem ở menu tài khoản → <span class="ui">Lịch sử đặt sân</span>; admin xem ở <span class="ui">Lịch sử đặt sân</span>.</p>
@@ -534,7 +542,7 @@ td:first-child{white-space:nowrap}
       <li class="step"><span class="num">1</span><span class="screen">Menu trái · Thu tiền &amp; hoàn tiền</span><label class="tick"><input type="checkbox" id="f4a" aria-label="Đã xong"></label>
         <div class="body">
           <div class="row"><span class="lbl">Bấm</span><p><span class="btn light">Thu tiền &amp; hoàn tiền</span> (kỳ tính mặc định <span class="ui">Tháng 11/2026</span>) → tab <span class="btn light">Giao dịch</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Ba giao dịch vừa phát sinh nằm trên cùng: <code>CASH-…</code> Tiền cọc · Tiền mặt · 125.000₫; <code>sandbox:…</code> Tiền cọc · Chuyển khoản · 114.750₫; <code>CO-…</code> Thanh toán · Tiền mặt · 462.250₫. Mỗi dòng ghi thu ngân: Lễ tân hoặc Hệ thống / QR</p></div>
+          <div class="row"><span class="lbl">Thấy</span><p>Ba giao dịch vừa phát sinh nằm trên cùng: <code>CASH-…</code> Tiền cọc · Tiền mặt · 125.000₫; <code>sandbox:…</code> Tiền cọc · Chuyển khoản · 117.500₫; <code>CO-…</code> Thanh toán · Tiền mặt · 462.250₫. Mỗi dòng ghi thu ngân: Lễ tân hoặc Hệ thống / QR</p></div>
           <div class="row"><span class="lbl">Nói</span><p class="say">Giao dịch ở Flow 02 và 03 đã vào sổ, kèm người thu và phương thức.</p></div>
         </div></li>
     </ol>
