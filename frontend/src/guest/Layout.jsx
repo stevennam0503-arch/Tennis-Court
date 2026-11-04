@@ -9,6 +9,18 @@ export function Logo(){const {navigate,t}=useGuest();return <button className="c
 export function CustomerNotifications() {
   const { t, user, data, navigate, show, pay, login } = useGuest();
   const [open, setOpen] = useState(false);
+  const [serverNotifs, setServerNotifs] = useState([]);
+
+  useEffect(() => {
+    if (user?.id) {
+      api('/notifications/my').then(res => {
+        if (Array.isArray(res)) setServerNotifs(res);
+      }).catch(() => {});
+    } else {
+      setServerNotifs([]);
+    }
+  }, [user?.id]);
+
   const [readIds, setReadIds] = useState(() => {
     try {
       if (!user?.id) return [];
@@ -163,8 +175,25 @@ export function CustomerNotifications() {
       });
     }
 
+    // 6. Thông báo từ backend outbox
+    serverNotifs.forEach(sn => {
+      if (!list.some(item => item.id === sn.id)) {
+        list.push({
+          id: sn.id,
+          type: sn.type,
+          icon: sn.type.includes('REMINDER') ? '🎾' : sn.type.includes('DEBT') ? '⚠️' : '🔔',
+          title: sn.subject || t('Thông báo từ Courtly'),
+          description: sn.body,
+          date: sn.createdAt ? new Date(sn.createdAt).toLocaleDateString('vi-VN') : '',
+          actionLabel: t('Xem'),
+          action: () => navigate('orders'),
+          urgent: sn.type.includes('DEBT') || sn.type.includes('EXPIRING')
+        });
+      }
+    });
+
     return list;
-  }, [user, data, t, navigate, show, pay]);
+  }, [user, data, serverNotifs, t, navigate, show, pay]);
 
   const unreadCount = user ? notifications.filter(n => !readIds.includes(n.id)).length : 0;
 
