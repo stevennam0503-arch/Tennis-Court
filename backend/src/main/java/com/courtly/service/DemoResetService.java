@@ -604,7 +604,7 @@ public class DemoResetService {
       jdbc.update(
           "INSERT INTO booking_slots (id, booking_id, schedule_id, unit_price, completed_at) " +
           "VALUES (gen_random_uuid(), ?::uuid, ?::uuid, ?, NOW() - (? || ' months')::interval + interval '2 hours')",
-          bookingId, schedId, kietSpends[i]
+          bookingId, schedId, kietSpends[i], kietMonths[i]
       );
       String expClause = (i == 4) ? "NOW() + interval '20 days'" : "NOW() + interval '10 months'";
       jdbc.update(
@@ -648,7 +648,7 @@ public class DemoResetService {
       jdbc.update(
           "INSERT INTO booking_slots (id, booking_id, schedule_id, unit_price, completed_at) " +
           "VALUES (gen_random_uuid(), ?::uuid, ?::uuid, ?, NOW() - (? || ' months')::interval + interval '2 hours')",
-          bookingId, schedId, khoaSpends[i]
+          bookingId, schedId, khoaSpends[i], khoaMonths[i]
       );
       jdbc.update(
           "INSERT INTO loyalty_ledger (id, account_id, type, points, spend_amount, order_id, expires_at, note, created_at) " +
@@ -685,7 +685,7 @@ public class DemoResetService {
       jdbc.update(
           "INSERT INTO booking_slots (id, booking_id, schedule_id, unit_price, completed_at) " +
           "VALUES (gen_random_uuid(), ?::uuid, ?::uuid, ?, NOW() - (? || ' months')::interval + interval '2 hours')",
-          bookingId, schedId, trangSpends[i]
+          bookingId, schedId, trangSpends[i], trangMonths[i]
       );
       jdbc.update(
           "INSERT INTO loyalty_ledger (id, account_id, type, points, spend_amount, order_id, expires_at, note, created_at) " +
