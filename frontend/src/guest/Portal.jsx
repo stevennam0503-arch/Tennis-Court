@@ -14,6 +14,9 @@ import {News,Article,Contact,Feedback,Policies} from './Content';
 import {Orders,CancelDialog,Membership,Profile,TicketDialog,ZaloZnsDialog,ExtendCourtDialog} from './Account';
 import Payments,{PaymentDialog,PaymentChoice} from './Payments';
 import GuestAuth from './Auth';
+import MyLoyalty from '../pages/MyLoyalty';
+import MyVouchers from '../pages/MyVouchers';
+import { CourtlyContext } from '../context';
 import AiChatbox from './AiChatbox';
 import './handoff.css';
 import './guest.css';
@@ -46,8 +49,59 @@ function Modal({children,onClose,title,hideClose}){
   return <div className="gx-backdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><section className="gx-dialog" ref={ref} role="dialog" aria-modal="true" aria-label={title}>{!hideClose && <button className="gx-close" aria-label={title} onClick={onClose}><X/></button>}{children}</section></div>;
 }
 
-const paths={about:'/',booking:'/dat-san',pricing:'/bang-gia',cashdesk:'/quay-thu',news:'/tin-tuc',contact:'/lien-he',feedback:'/feedback',tournaments:'/giai-dau',membership:'/thanh-vien',orders:'/tai-khoan/don',history:'/tai-khoan/lich',payments:'/tai-khoan/thanh-toan',profile:'/tai-khoan',policies:'/chinh-sach'};
-const initialRoute=()=>{ if(location.pathname==='/membership'){ window.history.replaceState({}, '', '/thanh-vien'); return 'membership'; } if(location.pathname==='/thanh-vien') return 'membership'; return Object.entries(paths).find(([,p])=>p===location.pathname)?.[0]||({orders:'orders',history:'history',payments:'payments','profile-orders':'orders','profile-history':'history','profile-payments':'payments','profile-membership':'membership',profile:'profile',tournaments:'tournaments'})[location.hash.slice(1)]||'about'; };
+const paths={about:'/',booking:'/dat-san',pricing:'/bang-gia',cashdesk:'/quay-thu',news:'/tin-tuc',contact:'/lien-he',feedback:'/feedback',tournaments:'/giai-dau',membership:'/thanh-vien',orders:'/tai-khoan/don',history:'/tai-khoan/lich',payments:'/tai-khoan/thanh-toan',profile:'/tai-khoan',policies:'/chinh-sach',loyalty:'/tai-khoan/hang-diem',vouchers:'/tai-khoan/uu-dai'};
+const initialRoute=()=>{ if(location.pathname==='/membership'){ window.history.replaceState({}, '', '/thanh-vien'); return 'membership'; } if(location.pathname==='/thanh-vien') return 'membership';
+  if(location.pathname==='/tai-khoan/hang-diem') return 'loyalty';
+  if(location.pathname==='/tai-khoan/uu-dai') return 'vouchers'; return Object.entries(paths).find(([,p])=>p===location.pathname)?.[0]||({orders:'orders',history:'history',payments:'payments','profile-orders':'orders','profile-history':'history','profile-payments':'payments','profile-membership':'membership','profile-loyalty':'loyalty','profile-vouchers':'vouchers',loyalty:'loyalty',vouchers:'vouchers',profile:'profile',tournaments:'tournaments'})[location.hash.slice(1)]||'about'; };
+
+
+function AccountNav({ active, navigate, t }) {
+  const tabs = [
+    { id: 'profile', label: 'Hồ sơ', icon: '👤' },
+    { id: 'loyalty', label: 'Hạng & Điểm', icon: '👑' },
+    { id: 'vouchers', label: 'Ưu đãi của tôi', icon: '🎁' },
+    { id: 'orders', label: 'Đơn hiện tại', icon: '📋' },
+    { id: 'history', label: 'Lịch sử sân', icon: '📅' },
+    { id: 'payments', label: 'Thanh toán', icon: '💳' }
+  ];
+  return (
+    <nav className="ct-pad" style={{ paddingBottom: 0, paddingTop: 16 }}>
+      <div style={{
+        display: 'flex',
+        gap: 8,
+        overflowX: 'auto',
+        borderBottom: '1px solid #e2e8f0',
+        paddingBottom: 8,
+        whiteSpace: 'nowrap'
+      }}>
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => navigate(tab.id)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '7px 14px',
+              borderRadius: 20,
+              border: active === tab.id ? '1.5px solid #173c32' : '1px solid #e2e8f0',
+              background: active === tab.id ? '#173c32' : '#ffffff',
+              color: active === tab.id ? '#def46a' : '#475569',
+              fontWeight: active === tab.id ? 700 : 500,
+              fontSize: 13,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <span>{tab.icon}</span>
+            <span>{t(tab.label)}</span>
+          </button>
+        ))}
+      </div>
+    </nav>
+  );
+}
 
 export default function Portal({session,onSession,onLogout}){
     const [activeCampaignBanners, setActiveCampaignBanners] = useState([]);
@@ -246,7 +300,7 @@ export default function Portal({session,onSession,onLogout}){
     welcomeBannerApplied,setWelcomeBannerApplied
   };
 
-  const protectedRoute=['profile','orders','history','payments','cashdesk'].includes(route);
+  const protectedRoute=['profile','orders','history','payments','cashdesk','loyalty','vouchers'].includes(route);
 
   const myOrders = useMemo(() => {
     if (!user || !data?.orders) return [];
@@ -555,6 +609,10 @@ export default function Portal({session,onSession,onLogout}){
 
         <NoticeBar notices={notices} t={t} />
 
+        {user && ['profile', 'loyalty', 'vouchers', 'orders', 'history', 'payments'].includes(route) && (
+          <AccountNav active={route} navigate={navigate} t={t} />
+        )}
+
         <main>
           {error && (
             <div className="gx-error gx-global-error" role="alert">
@@ -580,6 +638,20 @@ export default function Portal({session,onSession,onLogout}){
                   {route==='history' && <Orders history/>}
                   {route==='payments' && <Payments/>}
                   {route==='profile' && <Profile/>}
+                  {route==='loyalty' && (
+                    <CourtlyContext.Provider value={{ user, notify, data, navigate, isAdmin: false, isStaff: false, setActiveVoucherCode }}>
+                      <div className="ct-pad">
+                        <MyLoyalty />
+                      </div>
+                    </CourtlyContext.Provider>
+                  )}
+                  {route==='vouchers' && (
+                    <CourtlyContext.Provider value={{ user, notify, data, navigate, isAdmin: false, isStaff: false, setActiveVoucherCode }}>
+                      <div className="ct-pad">
+                        <MyVouchers />
+                      </div>
+                    </CourtlyContext.Provider>
+                  )}
                   {route==='cashdesk' && <CashDesk/>}
                 </>
               )}
@@ -615,7 +687,7 @@ export default function Portal({session,onSession,onLogout}){
                 if (!userHasOrders && !voucherUsed && !voucherDismissed) {
                   setShowWelcomeBanner(true);
                   setWelcomeBannerDismissed(false);
-                  if (authContext?.from === 'booking' || route === 'booking') {
+                  if (authContext?.targetRoute) { navigate(authContext.targetRoute); } else if (authContext?.from === 'booking' || route === 'booking') {
                     navigate('booking');
                     setActiveVoucherCode('WELCOME');
                     setWelcomeBannerApplied(true);
@@ -627,7 +699,7 @@ export default function Portal({session,onSession,onLogout}){
                   setShowWelcomeBanner(false);
                   setWelcomeBannerDismissed(true);
                   notify(`${t('Chào mừng trở lại')}, ${s.user.name || t('bạn')}!`);
-                  if (authContext?.from === 'booking' || route === 'booking') {
+                  if (authContext?.targetRoute) { navigate(authContext.targetRoute); } else if (authContext?.from === 'booking' || route === 'booking') {
                     navigate('booking');
                   }
                 }

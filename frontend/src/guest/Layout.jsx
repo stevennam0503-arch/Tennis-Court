@@ -179,16 +179,18 @@ export function CustomerNotifications() {
     // 6. Thông báo từ backend outbox
     serverNotifs.forEach(sn => {
       if (!list.some(item => item.id === sn.id)) {
+        const fullText = `${sn.type || ''} ${sn.subject || ''} ${sn.body || ''}`.toLowerCase();
+        const isVoucher = /voucher|ưu đãi|tri ân|xin lỗi|chào mừng|nâng hạng|sinh nhật|gift|reward/i.test(fullText);
         list.push({
           id: sn.id,
           type: sn.type,
-          icon: sn.type.includes('REMINDER') ? '🎾' : sn.type.includes('DEBT') ? '⚠️' : '🔔',
+          icon: isVoucher ? '🎁' : sn.type?.includes('REMINDER') ? '🎾' : sn.type?.includes('DEBT') ? '⚠️' : '🔔',
           title: sn.subject || t('Thông báo từ Courtly'),
           description: sn.body,
           date: sn.createdAt ? new Date(sn.createdAt).toLocaleDateString('vi-VN') : '',
-          actionLabel: t('Xem'),
-          action: () => navigate('orders'),
-          urgent: sn.type.includes('DEBT') || sn.type.includes('EXPIRING')
+          actionLabel: isVoucher ? t('Xem ưu đãi') : t('Xem'),
+          action: () => isVoucher ? navigate('vouchers') : navigate('orders'),
+          urgent: sn.type?.includes('DEBT') || sn.type?.includes('EXPIRING')
         });
       }
     });
@@ -371,7 +373,13 @@ export function CustomerNotifications() {
                     return (
                       <div
                         key={n.id}
+                        onClick={() => {
+                          markOneRead(n.id);
+                          setOpen(false);
+                          if (n.action) n.action();
+                        }}
                         style={{
+                          cursor: n.action ? 'pointer' : 'default',
                           padding: '11px 14px',
                           borderBottom: '1px solid #f1f5f9',
                           background: isUnread ? '#f0fdf4' : '#ffffff',
@@ -456,7 +464,7 @@ export function CustomerNotifications() {
   );
 }
 
-export function Header(){const {t,lang,setLang,user,navigate,route,login,logout}=useGuest();const [open,setOpen]=useState(false);const links=customerNavigation.map(({id,label})=>[id,label]);return <><div className="ct-prototype"><span>COURTLY · TENNIS CLUB</span><span>{t('MỖI LẦN RA SÂN, MỘT NIỀM VUI.')}</span></div><header className="ct-header ct-original-header"><Logo/><nav id="guest-primary-navigation" className={open?'gx-nav-open':''} aria-label={t('Điều hướng chính')}>{links.map(([id,label])=><button key={id} data-nav={id} data-primary={['pricing','booking','tournaments','membership'].includes(id)?'true':undefined} aria-current={route===id?'page':undefined} onClick={()=>{navigate(id);setOpen(false)}}>{t(label)}</button>)}</nav><div className="cl-header-tools"><div className="cl-language">{['vi','en'].map(l=><button key={l} lang={l} onClick={()=>setLang(l)} aria-pressed={lang===l}>{l.toUpperCase()}</button>)}</div><div className="cl-header-divider" aria-hidden="true"/><CustomerNotifications/>{user?<details className="ct-account-menu"><summary className="ct-account"><UserAvatar user={user} size={34} className="ca-avatar"/><span className="gx-user-name">{user.name}</span><ChevronDown/></summary><div>{[['profile','Hồ sơ của tôi'],['orders','Đơn của tôi'],['history','Lịch sử đặt sân'],['payments','Lịch sử thanh toán'],['membership','Thành viên & Điểm']].map(([id,label])=><button key={id} onClick={e=>{e.currentTarget.closest('details').open=false;navigate(id)}}>{t(label)}</button>)}{['ADMIN','STAFF'].includes(user.role)&&<button onClick={e=>{e.currentTarget.closest('details').open=false;navigate('cashdesk')}}>{t('Thu tiền tại quầy')}</button>}{['ADMIN','STAFF'].includes(user.role)&&<a href="/app">{user.role==='ADMIN'?t('Quản trị'):t('Vận hành')}</a>}<button onClick={logout}>{t('Đăng xuất')} <LogOut/></button></div></details>:<div className="ct-header-auth-group"><button className="ca-login-button" onClick={()=>login('login')}>{t('Đăng nhập')}</button></div>}<button className="gx-menu" aria-label={t('Mở menu')} aria-controls="guest-primary-navigation" aria-expanded={open} onClick={()=>setOpen(!open)}><Menu/></button></div></header></>;}
+export function Header(){const {t,lang,setLang,user,navigate,route,login,logout}=useGuest();const [open,setOpen]=useState(false);const links=customerNavigation.map(({id,label})=>[id,label]);return <><div className="ct-prototype"><span>COURTLY · TENNIS CLUB</span><span>{t('MỖI LẦN RA SÂN, MỘT NIỀM VUI.')}</span></div><header className="ct-header ct-original-header"><Logo/><nav id="guest-primary-navigation" className={open?'gx-nav-open':''} aria-label={t('Điều hướng chính')}>{links.map(([id,label])=><button key={id} data-nav={id} data-primary={['pricing','booking','tournaments','membership'].includes(id)?'true':undefined} aria-current={route===id?'page':undefined} onClick={()=>{navigate(id);setOpen(false)}}>{t(label)}</button>)}</nav><div className="cl-header-tools"><div className="cl-language">{['vi','en'].map(l=><button key={l} lang={l} onClick={()=>setLang(l)} aria-pressed={lang===l}>{l.toUpperCase()}</button>)}</div><div className="cl-header-divider" aria-hidden="true"/><CustomerNotifications/>{user?<details className="ct-account-menu"><summary className="ct-account"><UserAvatar user={user} size={34} className="ca-avatar"/><span className="gx-user-name">{user.name}</span><ChevronDown/></summary><div>{[['profile','Hồ sơ của tôi'],['loyalty','Hạng & điểm của tôi'],['vouchers','Ưu đãi của tôi'],['orders','Đơn của tôi'],['history','Lịch sử đặt sân'],['payments','Lịch sử thanh toán'],['membership','Chính sách thành viên']].map(([id,label])=><button key={id} onClick={e=>{e.currentTarget.closest('details').open=false;navigate(id)}}>{t(label)}</button>)}{['ADMIN','STAFF'].includes(user.role)&&<button onClick={e=>{e.currentTarget.closest('details').open=false;navigate('cashdesk')}}>{t('Thu tiền tại quầy')}</button>}{['ADMIN','STAFF'].includes(user.role)&&<a href="/app">{user.role==='ADMIN'?t('Quản trị'):t('Vận hành')}</a>}<button onClick={logout}>{t('Đăng xuất')} <LogOut/></button></div></details>:<div className="ct-header-auth-group"><button className="ca-login-button" onClick={()=>login('login')}>{t('Đăng nhập')}</button></div>}<button className="gx-menu" aria-label={t('Mở menu')} aria-controls="guest-primary-navigation" aria-expanded={open} onClick={()=>setOpen(!open)}><Menu/></button></div></header></>;}
 export function Footer(){
   const {t,navigate,club,lang,setLang}=useGuest();
   const servicesLinks=[

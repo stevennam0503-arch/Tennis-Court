@@ -2212,12 +2212,12 @@ export function Membership(){
 
             <div style={{ marginTop: 'auto', paddingTop: 16 }}>
               {user ? (
-                <Action onClick={() => navigate('profile')}>
+                <Action onClick={() => navigate('loyalty')}>
                   {t('Xem hạng & điểm của bạn')}
                 </Action>
               ) : (
-                <Action onClick={() => login('register')}>
-                  {t('Đăng ký nhận quà 50k')}
+                <Action onClick={() => login('login', { targetRoute: 'loyalty' })}>
+                  {t('Xem hạng & điểm của bạn')}
                 </Action>
               )}
             </div>
