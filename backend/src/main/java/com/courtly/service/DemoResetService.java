@@ -88,6 +88,7 @@ public class DemoResetService {
     jdbc.execute("DELETE FROM voucher_redemptions");
     jdbc.execute("DELETE FROM booking_staff");
     jdbc.execute("DELETE FROM booking_slots");
+    jdbc.execute("DELETE FROM court_schedules");
     jdbc.execute("DELETE FROM staff_schedules");
     jdbc.execute("DELETE FROM order_products");
     jdbc.execute("DELETE FROM drinks");
