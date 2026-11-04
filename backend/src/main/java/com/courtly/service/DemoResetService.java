@@ -632,27 +632,27 @@ public class DemoResetService {
 
       jdbc.update(
           "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, subtotal, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Nguyễn Minh Khoa', '+84911000001', 'COMPLETED', ?, ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
+          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Nguyễn Minh Khoa', '+84911000001', 'COMPLETED', ?, ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval - interval '1 day', 0, '{\"seededPast\": true}')",
           pastOrdId, DEMO_HOIVIEN_ID, DEMO_HOIVIEN_ID, khoaSpends[i], khoaSpends[i], khoaSpends[i], khoaMonths[i]
       );
       jdbc.update(
           "INSERT INTO court_schedules (id, court_id, schedule_date, start_time, end_time, price, status, version) " +
-          "VALUES (?::uuid, ?::uuid, (CURRENT_DATE - (? || ' months')::interval)::date, '18:00:00', '20:00:00', ?, 'COMPLETED', 0)",
+          "VALUES (?::uuid, ?::uuid, (CURRENT_DATE - (? || ' months')::interval - interval '1 day')::date, '18:00:00', '20:00:00', ?, 'COMPLETED', 0)",
           schedId, courtId, khoaMonths[i], khoaSpends[i]
       );
       jdbc.update(
           "INSERT INTO bookings (id, order_id, status, check_in_at, check_out_at, created_at) " +
-          "VALUES (?::uuid, ?::uuid, 'COMPLETED', NOW() - (? || ' months')::interval, NOW() - (? || ' months')::interval + interval '2 hours', NOW() - (? || ' months')::interval)",
+          "VALUES (?::uuid, ?::uuid, 'COMPLETED', NOW() - (? || ' months')::interval - interval '1 day', NOW() - (? || ' months')::interval - interval '1 day' + interval '2 hours', NOW() - (? || ' months')::interval - interval '1 day')",
           bookingId, pastOrdId, khoaMonths[i], khoaMonths[i], khoaMonths[i]
       );
       jdbc.update(
           "INSERT INTO booking_slots (id, booking_id, schedule_id, unit_price, completed_at) " +
-          "VALUES (gen_random_uuid(), ?::uuid, ?::uuid, ?, NOW() - (? || ' months')::interval + interval '2 hours')",
+          "VALUES (gen_random_uuid(), ?::uuid, ?::uuid, ?, NOW() - (? || ' months')::interval - interval '1 day' + interval '2 hours')",
           bookingId, schedId, khoaSpends[i], khoaMonths[i]
       );
       jdbc.update(
           "INSERT INTO loyalty_ledger (id, account_id, type, points, spend_amount, order_id, expires_at, note, created_at) " +
-          "VALUES (gen_random_uuid(), ?::uuid, 'EARN', ?, ?, ?::uuid, NOW() + interval '10 months', ?, NOW() - (? || ' months')::interval)",
+          "VALUES (gen_random_uuid(), ?::uuid, 'EARN', ?, ?, ?::uuid, NOW() + interval '10 months', ?, NOW() - (? || ' months')::interval - interval '1 day')",
           DEMO_HOIVIEN_ID, khoaPoints[i], khoaSpends[i], pastOrdId, "Tích điểm đơn quá khứ " + pastOrdId.substring(0, 8), khoaMonths[i]
       );
     }
@@ -669,27 +669,27 @@ public class DemoResetService {
 
       jdbc.update(
           "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, subtotal, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
-          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Phạm Thu Trang', '+84911000002', 'COMPLETED', ?, ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
+          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Phạm Thu Trang', '+84911000002', 'COMPLETED', ?, ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval - interval '2 days', 0, '{\"seededPast\": true}')",
           pastOrdId, DEMO_KHACH_ID, DEMO_KHACH_ID, trangSpends[i], trangSpends[i], trangSpends[i], trangMonths[i]
       );
       jdbc.update(
           "INSERT INTO court_schedules (id, court_id, schedule_date, start_time, end_time, price, status, version) " +
-          "VALUES (?::uuid, ?::uuid, (CURRENT_DATE - (? || ' months')::interval)::date, '18:00:00', '20:00:00', ?, 'COMPLETED', 0)",
+          "VALUES (?::uuid, ?::uuid, (CURRENT_DATE - (? || ' months')::interval - interval '2 days')::date, '18:00:00', '20:00:00', ?, 'COMPLETED', 0)",
           schedId, courtId, trangMonths[i], trangSpends[i]
       );
       jdbc.update(
           "INSERT INTO bookings (id, order_id, status, check_in_at, check_out_at, created_at) " +
-          "VALUES (?::uuid, ?::uuid, 'COMPLETED', NOW() - (? || ' months')::interval, NOW() - (? || ' months')::interval + interval '2 hours', NOW() - (? || ' months')::interval)",
+          "VALUES (?::uuid, ?::uuid, 'COMPLETED', NOW() - (? || ' months')::interval - interval '2 days', NOW() - (? || ' months')::interval - interval '2 days' + interval '2 hours', NOW() - (? || ' months')::interval - interval '2 days')",
           bookingId, pastOrdId, trangMonths[i], trangMonths[i], trangMonths[i]
       );
       jdbc.update(
           "INSERT INTO booking_slots (id, booking_id, schedule_id, unit_price, completed_at) " +
-          "VALUES (gen_random_uuid(), ?::uuid, ?::uuid, ?, NOW() - (? || ' months')::interval + interval '2 hours')",
+          "VALUES (gen_random_uuid(), ?::uuid, ?::uuid, ?, NOW() - (? || ' months')::interval - interval '2 days' + interval '2 hours')",
           bookingId, schedId, trangSpends[i], trangMonths[i]
       );
       jdbc.update(
           "INSERT INTO loyalty_ledger (id, account_id, type, points, spend_amount, order_id, expires_at, note, created_at) " +
-          "VALUES (gen_random_uuid(), ?::uuid, 'EARN', ?, ?, ?::uuid, NOW() + interval '10 months', ?, NOW() - (? || ' months')::interval)",
+          "VALUES (gen_random_uuid(), ?::uuid, 'EARN', ?, ?, ?::uuid, NOW() + interval '10 months', ?, NOW() - (? || ' months')::interval - interval '2 days')",
           DEMO_KHACH_ID, trangPoints[i], trangSpends[i], pastOrdId, "Tích điểm đơn quá khứ " + pastOrdId.substring(0, 8), trangMonths[i]
       );
     }
