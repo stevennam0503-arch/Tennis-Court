@@ -11,6 +11,7 @@ import { useCourtly } from '../context';
 import { Modal, FormDialog, Button, Chip, Table } from './UI';
 import { api } from '../services/api';
 import { money, active, options, labels } from '../utils/format';
+import { buildCheckoutBreakdown } from '../utils/checkout.mjs';
 
 async function resolveSlots(values) {
   await api('/schedules/generate','POST',{date:values.date});
@@ -987,12 +988,30 @@ export function CheckOutDialog({id, onClose}) {
 
   if (!o) return null;
 
-  const total = o.total || 0;
-  const paid = o.paid || 0;
-  const due = Math.max(0, total - paid);
-  const excess = Math.max(0, paid - total);
-  const extMinutes = o.totalExtensionMinutes || (o.extensionHistory?.reduce((acc, h) => acc + (h.duration || 0), 0)) || 0;
-  const extFee = o.totalExtensionFee || (o.extensionHistory?.reduce((acc, h) => acc + (h.fee || 0), 0)) || 0;
+  const breakdown = buildCheckoutBreakdown(o);
+  if (!breakdown) return null;
+
+  const {
+    courtBase,
+    extMinutes,
+    extFee,
+    tierDiscount,
+    tierPlanName,
+    voucherDiscount,
+    voucherCode,
+    pointsDiscount,
+    pointsRedeemed,
+    refereeFee,
+    totalAmount,
+    paidAmount,
+    remainingDue,
+    excessRefund
+  } = breakdown;
+
+  const total = totalAmount;
+  const paid = paidAmount;
+  const due = remainingDue;
+  const excess = excessRefund;
 
   const handleCashCheckOut = async () => {
     setSubmitting(true);
@@ -1071,7 +1090,7 @@ export function CheckOutDialog({id, onClose}) {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13.5 }}>
           <span>Tiền sân ban đầu:</span>
-          <b>{money(extFee > 0 ? total - extFee : total)}</b>
+          <b>{money(courtBase)}</b>
         </div>
 
         {extFee > 0 && (
@@ -1081,33 +1100,39 @@ export function CheckOutDialog({id, onClose}) {
           </div>
         )}
 
-        {(o.membershipBenefit?.discount > 0 || o.tierBenefit?.discount > 0) && (
+        {tierDiscount > 0 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13.5, color: '#16a34a' }}>
-            <span>{o.tierBenefit?.planName || o.membershipBenefit?.planName || 'Giảm theo hạng'}:</span>
-            <b>–{money(o.tierBenefit?.discount || o.membershipBenefit?.discount)}</b>
+            <span>Giảm theo hạng ({tierPlanName}):</span>
+            <b>–{money(tierDiscount)}</b>
           </div>
         )}
-        {o.voucherBenefit?.discount > 0 && (
+        {voucherDiscount > 0 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13.5, color: '#16a34a' }}>
-            <span>Voucher ({o.voucherBenefit.code}):</span>
-            <b>–{money(o.voucherBenefit.discount)}</b>
+            <span>Voucher ({voucherCode || 'Ưu đãi'}):</span>
+            <b>–{money(voucherDiscount)}</b>
           </div>
         )}
-        {(o.pointsDiscount > 0 || o.pointsRedeemed > 0) && (
+        {pointsDiscount > 0 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13.5, color: '#16a34a' }}>
-            <span>Dùng điểm ({o.pointsRedeemed || Math.round(o.pointsDiscount / 100)} điểm):</span>
-            <b>–{money(o.pointsDiscount || (o.pointsRedeemed * 100))}</b>
+            <span>Dùng điểm ({pointsRedeemed} điểm):</span>
+            <b>–{money(pointsDiscount)}</b>
+          </div>
+        )}
+        {refereeFee > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13.5, color: '#0369a1' }}>
+            <span>Phí dịch vụ trọng tài:</span>
+            <b>+{money(refereeFee)}</b>
           </div>
         )}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTop: '1px dashed #cbd5e1', fontSize: 15, fontWeight: 700 }}>
           <span>Tổng giá trị đơn:</span>
-          <b style={{ color: '#0f172a' }}>{money(total)}</b>
+          <b style={{ color: '#0f172a' }}>{money(totalAmount)}</b>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 14, color: '#059669' }}>
           <span>Đã thanh toán (Cọc / chuyển khoản trước):</span>
-          <b>–{money(paid)}</b>
+          <b>–{money(paidAmount)}</b>
         </div>
 
         <div style={{

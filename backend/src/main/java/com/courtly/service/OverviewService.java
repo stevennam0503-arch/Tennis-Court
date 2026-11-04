@@ -599,6 +599,17 @@ public class OverviewService {
         nextDate,
         "status",
         o.getStatus(),
+        "subtotal",
+        o.getSubtotal() != null ? o.getSubtotal() : java.math.BigDecimal.ZERO,
+        "refereeFee",
+        meta.get("refereeFee") != null ? meta.get("refereeFee") : staffList.stream()
+            .filter(x -> x.getReleasedAt() == null || x.getCompletedAt() != null)
+            .map(x -> x.getUnitPrice().multiply(hours(x.getStaffSchedule().getStartTime(), x.getStaffSchedule().getEndTime())))
+            .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add),
+        "totalExtensionFee",
+        meta.get("totalExtensionFee") != null ? meta.get("totalExtensionFee") : java.math.BigDecimal.ZERO,
+        "totalExtensionMinutes",
+        meta.get("totalExtensionMinutes") != null ? meta.get("totalExtensionMinutes") : 0,
         "total",
         o.getTotalAmount(),
         "paid",
