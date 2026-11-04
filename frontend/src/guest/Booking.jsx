@@ -1,7 +1,7 @@
 import {editableVisit} from '../utils/order-visits.mjs';
 import {isOverdueDebt} from '../utils/order-timing.mjs';
 import React, {useState, useEffect, useRef} from 'react';
-import {ArrowUpRight, ArrowRight, Clock, UserRound, RotateCcw, Check, Plus, Tag} from 'lucide-react';
+import {ArrowUpRight, ArrowRight, Clock, UserRound, RotateCcw, Check, Plus, Tag, AlertTriangle} from 'lucide-react';
 import {api} from '../services/api';
 import {useGuest, Action, Empty, money, time, dateToday, zone, requestId} from './context';
 import {toMinutes, clock, rangeSlots, canEndAt, timePoints} from './bookingTime.mjs';
@@ -25,6 +25,22 @@ export default function Booking() {
   const [recurringWeeks, setRecurringWeeks] = useState(1);
   const [pendingVoucherCode, setPendingVoucherCode] = useState(null);
   const req = useRef(requestId());
+  const [conflictNotice, setConflictNotice] = useState(null);
+  const [suggestedCourts, setSuggestedCourts] = useState([]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      refresh().catch(() => {});
+    };
+    window.addEventListener('focus', handleFocus);
+    const interval = setInterval(() => {
+      refresh().catch(() => {});
+    }, 30000);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
+    };
+  }, [refresh]);
 
   const overdueDebtOrders = React.useMemo(() => {
     if (!user || !data?.orders) return [];
@@ -323,8 +339,78 @@ export default function Booking() {
         await pay('ORDER', result.id);
       }
     } catch (e) {
-      setError(e.message);
-      notify(e.message);
+      if (e.status === 409 || e.code === 'SLOT_TAKEN' || e.message?.includes('giữ chỗ') || e.message?.includes('Khung giờ vừa được đặt') || e.message?.includes('đang thi đấu')) {
+        await refresh();
+        const conflicts = e.data?.conflicts || [];
+        const conflictScheduleIds = new Set(conflicts.map(c => c.scheduleId));
+        const conflictCourtIds = new Set(conflicts.map(c => c.courtId));
+
+        setCourtRanges(prev => {
+          const next = { ...prev };
+          for (const [cid, cr] of Object.entries(next)) {
+            if (!cr.slots) continue;
+            if (conflictCourtIds.has(cid) || (conflicts.length === 0 && cid === court?.id)) {
+              delete next[cid];
+            } else {
+              const remaining = cr.slots.filter(s => !conflictScheduleIds.has(s.id));
+              if (remaining.length === 0) {
+                delete next[cid];
+              } else if (remaining.length !== cr.slots.length) {
+                const newStart = Math.min(...remaining.map(s => toMinutes(s.start)));
+                const newEnd = Math.max(...remaining.map(s => toMinutes(s.end)));
+                next[cid] = {
+                  ...cr,
+                  start: newStart,
+                  end: newEnd,
+                  rangeLabel: `${clock(newStart)}–${clock(newEnd)}`,
+                  slots: remaining
+                };
+              }
+            }
+          }
+          return next;
+        });
+
+        let noticeText = e.message;
+        if (conflicts.length > 0) {
+          const firstConf = conflicts[0];
+          noticeText = `${firstConf.courtName} ${firstConf.start.slice(0, 5)}–${firstConf.end.slice(0, 5)} vừa được khách khác giữ chỗ. Vui lòng chọn giờ khác.`;
+        } else if (noticeText.includes('đang thi đấu') || noticeText.includes('vừa được đặt')) {
+          noticeText = (court?.name || 'Sân bạn chọn') + ' vừa được khách khác giữ chỗ. Vui lòng chọn giờ khác hoặc xem gợi ý bên dưới.';
+        }
+        setConflictNotice(noticeText);
+
+        const targetType = conflicts[0]?.courtType || court?.type || 'OUTDOOR';
+        const targetStart = conflicts[0]?.start ? toMinutes(conflicts[0].start) : start;
+        const targetEnd = conflicts[0]?.end ? toMinutes(conflicts[0].end) : end;
+        const targetCourtId = conflicts[0]?.courtId || court?.id;
+
+        if (targetStart !== null && targetEnd !== null) {
+          const alts = (data?.courts || [])
+            .filter(c => c.status === 'ACTIVE' && c.type === targetType && c.id !== targetCourtId)
+            .filter(c => {
+              const cSchedules = (data?.schedules || []).filter(s => s.court === c.id && s.date === date);
+              const needed = cSchedules.filter(s => {
+                const sMin = toMinutes(s.start);
+                const eMin = toMinutes(s.end);
+                return sMin >= targetStart && eMin <= targetEnd;
+              });
+              const neededCount = (targetEnd - targetStart) / 30;
+              return needed.length === neededCount && needed.every(s => s.status === 'AVAILABLE');
+            })
+            .slice(0, 3);
+
+          setSuggestedCourts(alts.map(c => ({
+            court: c,
+            start: targetStart,
+            end: targetEnd
+          })));
+        }
+        notify(noticeText);
+      } else {
+        setError(e.message);
+        notify(e.message);
+      }
     } finally {
       setSaving(false);
     }
@@ -650,6 +736,67 @@ export default function Booking() {
 
         {/* CỘT TỔNG KẾT ĐƠN HÀNG */}
         <aside className="gx-quote" aria-label={t('Chi phí buổi chơi')}>
+          {conflictNotice && (
+            <div style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <AlertTriangle size={22} color="#dc2626" style={{ flexShrink: 0, marginTop: 2 }} />
+                <div style={{ flex: 1 }}>
+                  <h4 style={{ margin: '0 0 4px', color: '#991b1b', fontSize: 14, fontWeight: 700 }}>
+                    KHUNG GIỜ VỪA CÓ NGƯỜI GIỮ CHỖ
+                  </h4>
+                  <p style={{ margin: 0, color: '#7f1d1d', fontSize: 13 }}>
+                    {conflictNotice}
+                  </p>
+
+                  {suggestedCourts.length > 0 && (
+                    <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px dashed #fca5a5' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#991b1b', display: 'block', marginBottom: 8 }}>
+                        💡 Gợi ý sân khác cùng khu còn trống đúng khung giờ ({clock(suggestedCourts[0].start)}–{clock(suggestedCourts[0].end)}):
+                      </span>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {suggestedCourts.map(sug => (
+                          <button
+                            key={sug.court.id}
+                            type="button"
+                            className="btn sm"
+                            style={{ background: '#fff', borderColor: '#dc2626', color: '#991b1b', fontWeight: 700 }}
+                            onClick={() => {
+                              const cSchedules = (data?.schedules || []).filter(s => s.court === sug.court.id && s.date === date);
+                              const slots = cSchedules.filter(s => {
+                                const sMin = toMinutes(s.start);
+                                const eMin = toMinutes(s.end);
+                                return sMin >= sug.start && eMin <= sug.end;
+                              }).sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
+
+                              setCourt(sug.court);
+                              setCourtRanges(prev => ({
+                                ...prev,
+                                [sug.court.id]: {
+                                  courtId: sug.court.id,
+                                  start: sug.start,
+                                  end: sug.end,
+                                  phase: 'start',
+                                  valid: true,
+                                  rangeLabel: `${clock(sug.start)}–${clock(sug.end)}`,
+                                  slots
+                                }
+                              }));
+                              setConflictNotice(null);
+                              setSuggestedCourts([]);
+                              notify(`Đã chuyển sang ${sug.court.name} (${clock(sug.start)}–${clock(sug.end)})`);
+                            }}
+                          >
+                            🎾 Chọn {sug.court.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <span className="ct-eyebrow">{t('BUỔI CHƠI CỦA BẠN')}</span>
           <h2>{selectedCourtEntries.length > 1 ? `${selectedCourtEntries.length} ${t('sân trong đơn')} · Courtly` : court?.name || 'Courtly'}</h2>
           <p className="gx-quote-date">{displayDate}</p>

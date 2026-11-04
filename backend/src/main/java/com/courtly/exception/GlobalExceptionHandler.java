@@ -37,6 +37,17 @@ public class GlobalExceptionHandler {
                 Instant.now()));
   }
 
+  @ExceptionHandler(SlotTakenException.class)
+  public ResponseEntity<java.util.Map<String, Object>> slotTaken(SlotTakenException e) {
+    java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+    body.put("code", "SLOT_TAKEN");
+    body.put("error", "SLOT_TAKEN");
+    body.put("message", e.getMessage());
+    body.put("conflicts", e.getConflictingSlots());
+    body.put("timestamp", Instant.now().toString());
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+  }
+
   @ExceptionHandler(BusinessException.class)
   public ResponseEntity<ApiError> business(BusinessException e) {
     return ResponseEntity.badRequest().body(new ApiError(e.getMessage(), Instant.now()));

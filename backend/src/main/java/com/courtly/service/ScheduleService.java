@@ -80,9 +80,29 @@ public class ScheduleService {
   }
 
   public void requireAvailable(List<CourtSchedule> slots) {
+    List<Map<String, Object>> conflicting = new ArrayList<>();
     for (CourtSchedule slot : slots) {
-      require("ACTIVE".equals(slot.getCourt().getStatus()), "Sân không hoạt động");
-      require("AVAILABLE".equals(slot.getStatus()), "Khung giờ vừa được đặt hoặc đang thi đấu");
+      if (slot.getCourt() == null || !"ACTIVE".equals(slot.getCourt().getStatus()) || !"AVAILABLE".equals(slot.getStatus())) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("scheduleId", slot.getId());
+        item.put("courtId", slot.getCourt() != null ? slot.getCourt().getId() : null);
+        item.put("courtName", slot.getCourt() != null ? slot.getCourt().getName() : "Sân");
+        item.put("courtType", slot.getCourt() != null ? slot.getCourt().getType() : "OUTDOOR");
+        item.put("date", slot.getScheduleDate() != null ? slot.getScheduleDate().toString() : "");
+        item.put("start", slot.getStartTime() != null ? slot.getStartTime().toString() : "");
+        item.put("end", slot.getEndTime() != null ? slot.getEndTime().toString() : "");
+        item.put("status", slot.getStatus());
+        conflicting.add(item);
+      }
+    }
+    if (!conflicting.isEmpty()) {
+      var first = conflicting.get(0);
+      String courtName = (String) first.get("courtName");
+      String start = first.get("start") != null && first.get("start").toString().length() >= 5 ? first.get("start").toString().substring(0, 5) : "";
+      String end = first.get("end") != null && first.get("end").toString().length() >= 5 ? first.get("end").toString().substring(0, 5) : "";
+      String timePart = (!start.isEmpty() && !end.isEmpty()) ? " " + start + "–" + end : "";
+      String msg = courtName + timePart + " vừa được khách khác giữ chỗ. Vui lòng chọn giờ khác.";
+      throw new com.courtly.exception.SlotTakenException(msg, conflicting);
     }
   }
 

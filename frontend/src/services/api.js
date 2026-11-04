@@ -68,6 +68,8 @@ export async function api(path, method = 'GET', body, isRetry = false) {
 
     const error = new Error(data?.message || defaultMsg);
     error.status = response.status;
+    error.data = data;
+    error.code = data?.code || data?.error;
     throw error;
   }
   if (path.startsWith('/auth/') && method === 'POST') csrf = null;
