@@ -39,6 +39,8 @@ public class DemoResetService {
   private static final String LONG_ID = "99999999-4444-4444-4444-444444444444";
   public static final String DEMO_HOIVIEN_ID = "11111111-2222-3333-4444-555555555501";
   public static final String DEMO_KHACH_ID = "11111111-2222-3333-4444-555555555502";
+  public static final String KIET_ID = "11111111-2222-3333-4444-555555555503";
+  public static final String PHUONG_MAI_ID = "11111111-2222-3333-4444-555555555504";
 
   private static final String BCRYPT_123456 = "$2a$12$UUtz0fA3mVVqyAxke7itjuFI22Q62Kl0DN2ythRJEJc6xub.js6le";
 
@@ -91,14 +93,14 @@ public class DemoResetService {
     // 2. Khôi phục các bảng danh mục theo ảnh chụp chuẩn baseline
     demoBaseline.restoreBaseline();
 
-    // Xóa các tài khoản tạm / phát sinh kiểm thử, giữ lại bộ 8 tài khoản chuẩn
-    jdbc.execute("DELETE FROM accounts WHERE email NOT IN ('admin@gmail.com', 'staff@gmail.com', 'hoangnam@gmail.com', 'khachmoi@gmail.com', 'thao.le@gmail.com', 'minhduc@gmail.com', 'phuong.vu@gmail.com', 'hoanglong@gmail.com', 'demo.hoivien@gmail.com', 'demo.khach@gmail.com')");
+    // Xóa các tài khoản tạm / phát sinh kiểm thử, giữ lại bộ tài khoản chuẩn
+    jdbc.execute("DELETE FROM accounts WHERE email NOT IN ('admin@gmail.com', 'staff@gmail.com', 'hoangnam@gmail.com', 'khachmoi@gmail.com', 'thao.le@gmail.com', 'minhduc@gmail.com', 'phuong.vu@gmail.com', 'hoanglong@gmail.com', 'demo.hoivien@gmail.com', 'demo.khach@gmail.com', 'kietdlv@gmail.com', 'phuongmaiphanqn3@gmail.com')");
 
     // Đưa toàn bộ slot về AVAILABLE và dọn dẹp các slot bất thường nếu có
     jdbc.execute("DELETE FROM court_schedules WHERE extract(second from start_time) != 0 OR extract(minute from start_time) % 30 != 0 OR extract(second from end_time) != 0 OR extract(minute from end_time) % 30 != 0");
     jdbc.execute("UPDATE court_schedules SET status = 'AVAILABLE'");
 
-    // Đảm bảo 8 tài khoản hệ thống chuẩn luôn tồn tại; mật khẩu đưa về 123456 để kịch bản demo luôn đăng nhập được
+    // Đảm bảo các tài khoản hệ thống chuẩn luôn tồn tại; mật khẩu đưa về 123456 để kịch bản demo luôn đăng nhập được
     String upsertAccountsSql = String.format(
         """
         INSERT INTO accounts (id, email, full_name, phone, role, status, password_hash, created_at, auth_version)
@@ -112,8 +114,11 @@ public class DemoResetService {
           ('%s', 'phuong.vu@gmail.com', 'Vũ Mai Phương', '0903111222', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'hoanglong@gmail.com', 'Đặng Hoàng Long', '0938444333', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
           ('%s', 'demo.hoivien@gmail.com', 'Nguyễn Minh Khoa (Demo hội viên)', '0911000001', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
-          ('%s', 'demo.khach@gmail.com', 'Phạm Thu Trang (Demo khách)', '0911000002', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0)
+          ('%s', 'demo.khach@gmail.com', 'Phạm Thu Trang (Demo khách)', '0911000002', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'kietdlv@gmail.com', 'Khách demo Kiệt', '+84769496289', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0),
+          ('%s', 'phuongmaiphanqn3@gmail.com', 'Khách demo Phương Mai', '+84377035664', 'CUSTOMER', 'ACTIVE', '%s', NOW(), 0)
         ON CONFLICT (id) DO UPDATE SET 
+          email = EXCLUDED.email,
           full_name = EXCLUDED.full_name,
           phone = EXCLUDED.phone,
           role = EXCLUDED.role,
@@ -129,7 +134,9 @@ public class DemoResetService {
         PHUONG_ID, BCRYPT_123456,
         LONG_ID, BCRYPT_123456,
         DEMO_HOIVIEN_ID, BCRYPT_123456,
-        DEMO_KHACH_ID, BCRYPT_123456
+        DEMO_KHACH_ID, BCRYPT_123456,
+        KIET_ID, BCRYPT_123456,
+        PHUONG_MAI_ID, BCRYPT_123456
     );
     jdbc.execute(upsertAccountsSql);
 

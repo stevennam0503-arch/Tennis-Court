@@ -22,8 +22,10 @@ Cả 4 luồng dùng **một câu chuyện liền mạch**: Admin đổi giá v�
 |---|---|---|
 | Admin | `admin@gmail.com` | Luồng 1, cuối Luồng 3, Luồng 4 |
 | Staff (lễ tân) | `staff@gmail.com` | Luồng 3 |
-| Khách hội viên Plus (sạch, 0 đơn, active 335 ngày) | `demo.hoivien@gmail.com` (Nguyễn Minh Khoa) | Luồng 2, trường hợp A (đặt sân hưởng ưu đãi hội viên + voucher VIP10) |
+| Khách hội viên Plus (sạch, 0 đơn) | `demo.hoivien@gmail.com` (Nguyễn Minh Khoa) | Luồng 2, trường hợp A (đặt sân hưởng ưu đãi hội viên + voucher VIP10) |
 | Khách mới (sạch, 0 đơn) | `demo.khach@gmail.com` (Phạm Thu Trang) | Luồng 2, trường hợp B (đặt sân hưởng voucher WELCOME) |
+| Khách thật chủ dự án (Grand Slam, sạch) | `kietdlv@gmail.com` (0769496289 - Khách demo Kiệt) | Demo nhận thông báo Email/SMS thật, phòng chờ VIP |
+| Khách thật chủ dự án (Rookie, sạch) | `phuongmaiphanqn3@gmail.com` (0377035664 - Khách demo Phương Mai) | Demo nhận thông báo Email/SMS thật, đặt sân mới |
 | Tài khoản minh họa đơn mẫu | `hoangnam@gmail.com`, `khachmoi@gmail.com` | Minh họa trạng thái đơn cho admin, không dùng để đặt |
 
 ---
