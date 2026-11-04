@@ -45,6 +45,15 @@ public class CustomerOrder extends BaseEntity {
   @Column(name = "paid_amount", nullable = false, precision = 14, scale = 2)
   private BigDecimal paidAmount = BigDecimal.ZERO;
 
+  @Column(name = "tier_discount", precision = 14, scale = 2)
+  private BigDecimal tierDiscount = BigDecimal.ZERO;
+
+  @Column(name = "points_redeemed")
+  private Integer pointsRedeemed = 0;
+
+  @Column(name = "points_discount", precision = 14, scale = 2)
+  private BigDecimal pointsDiscount = BigDecimal.ZERO;
+
   @Column(name = "payment_status", nullable = false)
   private String paymentStatus = "UNPAID";
 

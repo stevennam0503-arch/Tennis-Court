@@ -488,72 +488,149 @@ public class DemoResetService {
     jdbc.update("INSERT INTO payments (id, order_id, received_by_account_id, type, method, amount, transaction_code, status, paid_at) VALUES (?::uuid, ?::uuid, ?::uuid, 'DEPOSIT', 'BANK_TRANSFER', 500000.00, 'PAY-REF-017', 'PAID', NOW() - interval '6 hours')", pay17Id, ord17Id, STAFF_ID);
     bookCourtWithReferee(courtV02, todayStr, "17:00:00", "19:00:00", bkg17Id, refereeId, refereeRate);
 
+        // -----------------------------------------------------------------------------------------
+    // F. HẠNG THÀNH VIÊN & ĐIỂM THƯỞNG (LOYALTY TIERS & REWARD POINTS)
     // -----------------------------------------------------------------------------------------
-    // F. GÓI HỘI VIÊN (ACTIVE & PENDING APPROVAL)
-    // -----------------------------------------------------------------------------------------
-    // Xóa cache tài liệu hội viên & phản hồi cũ
-    jdbc.execute("DELETE FROM app_documents WHERE document_key LIKE 'membership:%' OR document_key LIKE 'membership-payment:%' OR document_key LIKE 'request:membership:%' OR document_key LIKE 'feedback:%'");
+    // Xóa cache tài liệu hội viên cũ khỏi app_documents & làm sạch bảng loyalty
+    jdbc.execute("DELETE FROM app_documents WHERE document_key LIKE 'membership:%' OR document_key LIKE 'membership-payment:%' OR document_key LIKE 'request:membership:%' OR document_key LIKE 'membership-plan:%'");
+    jdbc.execute("DELETE FROM lounge_visits");
+    jdbc.execute("DELETE FROM vip_cards");
+    jdbc.execute("DELETE FROM loyalty_ledger");
 
-    // 1. Membership VIP Plus ACTIVE cho Trần Hoàng Nam
-    String memNamId = UUID.randomUUID().toString();
-    String memNamPayId = UUID.randomUUID().toString();
-    String memStart = today.getYear() + "-" + String.format("%02d", today.getMonthValue()) + "-01T00:00:00Z";
-    LocalDate sixtyDaysLater = today.plusDays(60);
-    String memEnd = sixtyDaysLater.getYear() + "-" + String.format("%02d", sixtyDaysLater.getMonthValue()) + "-28T23:59:59Z";
-
-    String memNamDocJson = String.format(
-        "{\"id\": \"%s\", \"accountId\": \"%s\", \"planId\": \"plus\", \"planName\": \"Plus\", \"startsAt\": \"%s\", \"endsAt\": \"%s\", \"status\": \"ACTIVE\", \"discountPercent\": 15, \"vipDiscountPercent\": 10, \"price\": 499000, \"rescheduleUsage\": 0}",
-        memNamId, NAM_ID, memStart, memEnd
+    // 1. Cập nhật hạng, điểm, chi tiêu, ngày sinh, mã giới thiệu cho các tài khoản
+    // Kiệt (Grand Slam, 21.500.000₫ spend, 2.400 điểm, sinh ngày 15 tháng sau)
+    LocalDate kietBday = today.plusMonths(1).withDayOfMonth(15);
+    jdbc.update(
+        "UPDATE accounts SET tier = 'GRAND_SLAM', tier_since = NOW() - interval '45 days', tier_expires_at = NOW() + interval '320 days', " +
+        "lifetime_spend = 21500000.00, points_balance = 2400, birth_date = ?::date, referral_code = 'KIET888' WHERE id = ?::uuid",
+        kietBday.toString(), KIET_ID
     );
-    String memNamPayDocJson = String.format(
-        "{\"id\": \"%s\", \"membershipId\": \"%s\", \"accountId\": \"%s\", \"planId\": \"plus\", \"planName\": \"Plus\", \"amount\": 499000, \"createdAt\": \"%sT08:00:00Z\", \"status\": \"PAID\", \"method\": \"BANK_TRANSFER\", \"transactionCode\": \"MEM-PLUS-001\"}",
-        memNamPayId, memNamId, NAM_ID, todayStr
-    );
-    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "membership:" + NAM_ID, memNamDocJson);
-    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "membership-payment:" + memNamPayId, memNamPayDocJson);
 
-    // 2. Membership Club ACTIVE cho Lê Thị Thảo
-    String memThaoId = UUID.randomUUID().toString();
-    String memThaoPayId = UUID.randomUUID().toString();
-    LocalDate fortyFiveDaysLater = today.plusDays(45);
-    String memThaoEnd = fortyFiveDaysLater.getYear() + "-" + String.format("%02d", fortyFiveDaysLater.getMonthValue()) + "-28T23:59:59Z";
-
-    String memThaoDocJson = String.format(
-        "{\"id\": \"%s\", \"accountId\": \"%s\", \"planId\": \"club\", \"planName\": \"Club\", \"startsAt\": \"%s\", \"endsAt\": \"%s\", \"status\": \"ACTIVE\", \"discountPercent\": 10, \"vipDiscountPercent\": 5, \"price\": 249000, \"rescheduleUsage\": 0}",
-        memThaoId, THAO_ID, memStart, memThaoEnd
+    // Nguyễn Minh Khoa - demo.hoivien (Masters, 19.800.000₫ spend, 1.500 điểm, sinh 20/03)
+    jdbc.update(
+        "UPDATE accounts SET tier = 'MASTERS', tier_since = NOW() - interval '60 days', tier_expires_at = NOW() + interval '305 days', " +
+        "lifetime_spend = 19800000.00, points_balance = 1500, birth_date = '1993-03-20'::date, referral_code = 'KHOA999' WHERE id = ?::uuid",
+        DEMO_HOIVIEN_ID
     );
-    String memThaoPayDocJson = String.format(
-        "{\"id\": \"%s\", \"membershipId\": \"%s\", \"accountId\": \"%s\", \"planId\": \"club\", \"planName\": \"Club\", \"amount\": 249000, \"createdAt\": \"%sT09:00:00Z\", \"status\": \"PAID\", \"method\": \"BANK_TRANSFER\", \"transactionCode\": \"MEM-CLUB-002\"}",
-        memThaoPayId, memThaoId, THAO_ID, yesterdayStr
-    );
-    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "membership:" + THAO_ID, memThaoDocJson);
-    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "membership-payment:" + memThaoPayId, memThaoPayDocJson);
 
-    // Membership Plus ACTIVE cho Nguyễn Minh Khoa (Demo hội viên)
-    String memKhoaId = UUID.randomUUID().toString();
-    String memKhoaPayId = UUID.randomUUID().toString();
-    String memKhoaStart = today.minusDays(30).atStartOfDay(ZONE).toInstant().toString();
-    String memKhoaEnd = today.plusDays(335).atTime(23, 59, 59).atZone(ZONE).toInstant().toString();
-
-    String memKhoaDocJson = String.format(
-        "{\"id\": \"%s\", \"accountId\": \"%s\", \"planId\": \"plus\", \"planName\": \"Plus\", \"startsAt\": \"%s\", \"endsAt\": \"%s\", \"status\": \"ACTIVE\", \"discountPercent\": 15, \"vipDiscountPercent\": 10, \"price\": 499000, \"rescheduleUsage\": 0}",
-        memKhoaId, DEMO_HOIVIEN_ID, memKhoaStart, memKhoaEnd
+    // Phạm Thu Trang - demo.khach (Challenger, 3.400.000₫ spend, 420 điểm, sinh tháng hiện tại ngày 10)
+    LocalDate trangBday = today.withDayOfMonth(10);
+    jdbc.update(
+        "UPDATE accounts SET tier = 'CHALLENGER', tier_since = NOW() - interval '30 days', tier_expires_at = NOW() + interval '335 days', " +
+        "lifetime_spend = 3400000.00, points_balance = 420, birth_date = ?::date, referral_code = 'TRANG777' WHERE id = ?::uuid",
+        trangBday.toString(), DEMO_KHACH_ID
     );
-    String memKhoaPayDocJson = String.format(
-        "{\"id\": \"%s\", \"membershipId\": \"%s\", \"accountId\": \"%s\", \"planId\": \"plus\", \"planName\": \"Plus\", \"amount\": 499000, \"createdAt\": \"%sT08:00:00Z\", \"status\": \"PAID\", \"method\": \"BANK_TRANSFER\", \"transactionCode\": \"MEM-PLUS-DEMO\"}",
-        memKhoaPayId, memKhoaId, DEMO_HOIVIEN_ID, today.minusDays(30).toString()
-    );
-    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "membership:" + DEMO_HOIVIEN_ID, memKhoaDocJson);
-    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "membership-payment:" + memKhoaPayId, memKhoaPayDocJson);
 
-    // 3. Membership Request PENDING cho Lê Thu Hà (Khách mới chờ duyệt thanh toán)
-    String reqHaDocJson = String.format(
-        "{\"accountId\": \"%s\", \"accountName\": \"Lê Thu Hà (Khách mới)\", \"accountPhone\": \"0987654321\", \"planId\": \"plus\", \"planName\": \"Plus\", \"amount\": 499000, \"status\": \"PENDING\", \"createdAt\": \"%sT10:15:00Z\", \"note\": \"Đăng ký nâng cấp gói Plus tại quầy, chờ thanh toán chuyển khoản\"}",
-        HA_ID, todayStr
+    // Phương Mai - phuongmaiphanqn3 (Rookie, 0₫ spend, 0 điểm)
+    jdbc.update(
+        "UPDATE accounts SET tier = 'ROOKIE', tier_since = NOW(), tier_expires_at = NOW() + interval '365 days', " +
+        "lifetime_spend = 0.00, points_balance = 0, referral_code = 'MAI666' WHERE id = ?::uuid",
+        PHUONG_MAI_ID
     );
-    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "request:membership:" + HA_ID, reqHaDocJson);
 
-    // -----------------------------------------------------------------------------------------
+    // Các tài khoản mẫu khác
+    jdbc.update("UPDATE accounts SET tier = 'MASTERS', lifetime_spend = 12000000.00, points_balance = 950, referral_code = 'NAM123' WHERE id = ?::uuid", NAM_ID);
+    jdbc.update("UPDATE accounts SET tier = 'GRAND_SLAM', lifetime_spend = 22000000.00, points_balance = 2100, referral_code = 'DUC456' WHERE id = ?::uuid", DUC_ID);
+    jdbc.update("UPDATE accounts SET tier = 'CHALLENGER', lifetime_spend = 4500000.00, points_balance = 320, referral_code = 'THAO789' WHERE id = ?::uuid", THAO_ID);
+    jdbc.update("UPDATE accounts SET tier = 'CHALLENGER', lifetime_spend = 3200000.00, points_balance = 250, referral_code = 'PHUONG111' WHERE id = ?::uuid", PHUONG_ID);
+    jdbc.update("UPDATE accounts SET tier = 'ROOKIE', lifetime_spend = 800000.00, points_balance = 80, referral_code = 'LONG222' WHERE id = ?::uuid", LONG_ID);
+    jdbc.update("UPDATE accounts SET tier = 'ROOKIE', lifetime_spend = 0.00, points_balance = 0, referral_code = 'HA333' WHERE id = ?::uuid", HA_ID);
+
+    // 2. Thẻ VIP Lounge & Lượt vào phòng chờ cho Kiệt
+    String vipCardId = UUID.randomUUID().toString();
+    jdbc.update(
+        "INSERT INTO vip_cards (id, code, account_id, issued_at, expires_at, status) " +
+        "VALUES (?::uuid, 'VIP-KS9876', ?::uuid, NOW() - interval '45 days', NOW() + interval '320 days', 'ACTIVE')",
+        vipCardId, KIET_ID
+    );
+    jdbc.update(
+        "INSERT INTO lounge_visits (id, card_id, checked_in_at, staff_id) " +
+        "VALUES (gen_random_uuid(), ?::uuid, NOW() - interval '2 days', ?::uuid)",
+        vipCardId, STAFF_ID
+    );
+
+    // 3. Đơn quá khứ (2-11 tháng trước) & Sổ điểm (loyalty_ledger)
+    // Tài khoản Kiệt: 5 đơn = 21.500.000₫, 2.400 điểm (có 300 điểm hết hạn trong 20 ngày)
+    BigDecimal[] kietSpends = { new BigDecimal("4500000"), new BigDecimal("4000000"), new BigDecimal("4500000"), new BigDecimal("4500000"), new BigDecimal("4000000") };
+    int[] kietPoints = { 500, 450, 500, 500, 450 }; // Tổng 2400 điểm
+    int[] kietMonths = { 10, 8, 6, 4, 2 };
+    for (int i = 0; i < kietSpends.length; i++) {
+      String pastOrdId = UUID.randomUUID().toString();
+      jdbc.update(
+          "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
+          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Khách demo Kiệt', '+84769496289', 'COMPLETED', ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
+          pastOrdId, KIET_ID, KIET_ID, kietSpends[i], kietSpends[i], kietMonths[i]
+      );
+      String expClause = (i == 4) ? "NOW() + interval '20 days'" : "NOW() + interval '10 months'";
+      jdbc.update(
+          "INSERT INTO loyalty_ledger (id, account_id, type, points, spend_amount, order_id, expires_at, note, created_at) " +
+          "VALUES (gen_random_uuid(), ?::uuid, 'EARN', ?, ?, ?::uuid, " + expClause + ", ?, NOW() - (? || ' months')::interval)",
+          KIET_ID, kietPoints[i], kietSpends[i], pastOrdId, "Tích điểm đơn quá khứ " + pastOrdId.substring(0, 8), kietMonths[i]
+      );
+    }
+
+    // Tài khoản Nguyễn Minh Khoa (demo.hoivien): 5 đơn = 19.800.000₫, 1.500 điểm
+    BigDecimal[] khoaSpends = { new BigDecimal("4000000"), new BigDecimal("4000000"), new BigDecimal("4000000"), new BigDecimal("4000000"), new BigDecimal("3800000") };
+    int[] khoaPoints = { 300, 300, 300, 300, 300 }; // Tổng 1500 điểm
+    int[] khoaMonths = { 10, 8, 6, 4, 2 };
+    for (int i = 0; i < khoaSpends.length; i++) {
+      String pastOrdId = UUID.randomUUID().toString();
+      jdbc.update(
+          "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
+          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Nguyễn Minh Khoa (Demo hội viên)', '0911000001', 'COMPLETED', ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
+          pastOrdId, DEMO_HOIVIEN_ID, DEMO_HOIVIEN_ID, khoaSpends[i], khoaSpends[i], khoaMonths[i]
+      );
+      jdbc.update(
+          "INSERT INTO loyalty_ledger (id, account_id, type, points, spend_amount, order_id, expires_at, note, created_at) " +
+          "VALUES (gen_random_uuid(), ?::uuid, 'EARN', ?, ?, ?::uuid, NOW() + interval '10 months', ?, NOW() - (? || ' months')::interval)",
+          DEMO_HOIVIEN_ID, khoaPoints[i], khoaSpends[i], pastOrdId, "Tích điểm đơn quá khứ " + pastOrdId.substring(0, 8), khoaMonths[i]
+      );
+    }
+
+    // Tài khoản Phạm Thu Trang (demo.khach): 2 đơn = 3.400.000₫, 420 điểm
+    BigDecimal[] trangSpends = { new BigDecimal("1700000"), new BigDecimal("1700000") };
+    int[] trangPoints = { 210, 210 }; // Tổng 420 điểm
+    int[] trangMonths = { 4, 2 };
+    for (int i = 0; i < trangSpends.length; i++) {
+      String pastOrdId = UUID.randomUUID().toString();
+      jdbc.update(
+          "INSERT INTO orders (id, customer_account_id, created_by_account_id, customer_name, customer_phone, status, total_amount, deposit_required, paid_amount, payment_status, created_at, version, metadata) " +
+          "VALUES (?::uuid, ?::uuid, ?::uuid, 'Phạm Thu Trang (Demo khách)', '0911000002', 'COMPLETED', ?, 0, ?, 'PAID', NOW() - (? || ' months')::interval, 0, '{\"seededPast\": true}')",
+          pastOrdId, DEMO_KHACH_ID, DEMO_KHACH_ID, trangSpends[i], trangSpends[i], trangMonths[i]
+      );
+      jdbc.update(
+          "INSERT INTO loyalty_ledger (id, account_id, type, points, spend_amount, order_id, expires_at, note, created_at) " +
+          "VALUES (gen_random_uuid(), ?::uuid, 'EARN', ?, ?, ?::uuid, NOW() + interval '10 months', ?, NOW() - (? || ' months')::interval)",
+          DEMO_KHACH_ID, trangPoints[i], trangSpends[i], pastOrdId, "Tích điểm đơn quá khứ " + pastOrdId.substring(0, 8), trangMonths[i]
+      );
+    }
+
+    // 4. Voucher đặc thù cho các tài khoản demo
+    // Voucher 300.000₫ thăng hạng Grand Slam của Kiệt
+    jdbc.update(
+        "INSERT INTO vouchers (id, code, type, value, min_order, max_discount, starts_at, expires_at, usage_limit, used_count, per_user_limit, enabled, member_only, new_user_only, description, status, assigned_account_id, source) " +
+        "VALUES (gen_random_uuid(), 'TIER-GS-300K', 'FIXED', 300000.00, 0, 300000.00, NOW() - interval '45 days', NOW() + interval '60 days', 1, 0, 1, true, false, false, 'Quà thăng hạng Grand Slam (giảm 300.000₫)', 'ACTIVE', ?::uuid, 'TIER_GIFT') " +
+        "ON CONFLICT (code) DO UPDATE SET assigned_account_id = EXCLUDED.assigned_account_id, enabled = true, used_count = 0",
+        KIET_ID
+    );
+
+    // Voucher sinh nhật 60.000₫ của Trang (tháng hiện tại)
+    jdbc.update(
+        "INSERT INTO vouchers (id, code, type, value, min_order, max_discount, starts_at, expires_at, usage_limit, used_count, per_user_limit, enabled, member_only, new_user_only, description, status, assigned_account_id, source) " +
+        "VALUES (gen_random_uuid(), 'BDAY-CHALLENGER-60K', 'FIXED', 60000.00, 0, 60000.00, date_trunc('month', NOW()), (date_trunc('month', NOW()) + interval '1 month - 1 second'), 1, 0, 1, true, false, false, 'Voucher sinh nhật hạng Challenger (giảm 60.000₫)', 'ACTIVE', ?::uuid, 'BIRTHDAY') " +
+        "ON CONFLICT (code) DO UPDATE SET assigned_account_id = EXCLUDED.assigned_account_id, enabled = true, used_count = 0",
+        DEMO_KHACH_ID
+    );
+
+    // Voucher chào mừng 50.000₫ của Phương Mai
+    jdbc.update(
+        "INSERT INTO vouchers (id, code, type, value, min_order, max_discount, starts_at, expires_at, usage_limit, used_count, per_user_limit, enabled, member_only, new_user_only, description, status, assigned_account_id, source) " +
+        "VALUES (gen_random_uuid(), 'WELCOME-50K', 'FIXED', 50000.00, 0, 50000.00, NOW() - interval '1 day', NOW() + interval '30 days', 1, 0, 1, true, false, false, 'Voucher chào mừng thành viên mới (giảm 50.000₫)', 'ACTIVE', ?::uuid, 'TIER_GIFT') " +
+        "ON CONFLICT (code) DO UPDATE SET assigned_account_id = EXCLUDED.assigned_account_id, enabled = true, used_count = 0",
+        PHUONG_MAI_ID
+    );
+
+// -----------------------------------------------------------------------------------------
     // G. PHẢN HỒI & ĐÁNH GIÁ (FEEDBACK / REVIEWS)
     // -----------------------------------------------------------------------------------------
     // 1 & 2: Feedback đã duyệt (PUBLISHED)
@@ -648,13 +725,13 @@ public class DemoResetService {
 
   private void seedVouchers() {
     jdbc.execute("""
-        INSERT INTO vouchers (id, code, type, value, min_order, max_discount, starts_at, expires_at, usage_limit, used_count, per_user_limit, member_only, new_user_only, enabled, description)
+        INSERT INTO vouchers (id, code, type, value, min_order, max_discount, starts_at, expires_at, usage_limit, used_count, per_user_limit, member_only, new_user_only, enabled, description, min_tier)
         VALUES
-          (gen_random_uuid(), 'CHAOBANMOI', 'PERCENT', 20.00, 150000.00, 100000.00, NOW() - interval '10 days', NOW() + interval '90 days', 500, 0, 1, false, false, true, 'Giảm 20% tối đa 100k cho khách hàng mới'),
-          (gen_random_uuid(), 'COURTLY50K', 'FIXED', 50000.00, 100000.00, 50000.00, NOW() - interval '10 days', NOW() + interval '90 days', 300, 0, 1, false, false, true, 'Giảm trực tiếp 50.000đ cho đơn từ 100k'),
-          (gen_random_uuid(), 'VIP10', 'PERCENT', 10.00, 200000.00, 100000.00, NOW() - interval '10 days', NOW() + interval '90 days', 1000, 0, 2, true, false, true, 'Ưu đãi 10% đặc quyền dành cho Hội viên'),
-          (gen_random_uuid(), 'FLASH25', 'PERCENT', 25.00, 100000.00, 150000.00, NOW() - interval '10 days', NOW() + interval '90 days', 200, 0, 1, false, false, true, 'Khuyến mãi giờ vàng 25% tối đa 150k'),
-          (gen_random_uuid(), 'HETHAN2025', 'FIXED', 30000.00, 100000.00, 30000.00, NOW() - interval '60 days', NOW() - interval '1 day', 100, 0, 1, false, false, true, 'Mã giảm giá đã hết hạn')
+          (gen_random_uuid(), 'CHAOBANMOI', 'PERCENT', 20.00, 150000.00, 100000.00, NOW() - interval '10 days', NOW() + interval '90 days', 500, 0, 1, false, false, true, 'Giảm 20% tối đa 100k cho khách hàng mới', null),
+          (gen_random_uuid(), 'COURTLY50K', 'FIXED', 50000.00, 100000.00, 50000.00, NOW() - interval '10 days', NOW() + interval '90 days', 300, 0, 1, false, false, true, 'Giảm trực tiếp 50.000đ cho đơn từ 100k', null),
+          (gen_random_uuid(), 'VIP10', 'PERCENT', 10.00, 200000.00, 100000.00, NOW() - interval '10 days', NOW() + interval '90 days', 1000, 0, 2, false, false, true, 'Ưu đãi 10% đặc quyền dành cho hạng Masters & Grand Slam', 'MASTERS'),
+          (gen_random_uuid(), 'FLASH25', 'PERCENT', 25.00, 100000.00, 150000.00, NOW() - interval '10 days', NOW() + interval '90 days', 200, 0, 1, false, false, true, 'Khuyến mãi giờ vàng 25% tối đa 150k', null),
+          (gen_random_uuid(), 'HETHAN2025', 'FIXED', 30000.00, 100000.00, 30000.00, NOW() - interval '60 days', NOW() - interval '1 day', 100, 0, 1, false, false, true, 'Mã giảm giá đã hết hạn', null)
         ON CONFLICT (code) DO UPDATE SET
           used_count = 0,
           enabled = EXCLUDED.enabled,

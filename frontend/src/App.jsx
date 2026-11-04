@@ -22,7 +22,7 @@ import {PublicHeader,PublicFooter} from './components/PublicLayout';
 
 import MembershipPage from './pages/MembershipPage';
 
-import MembershipAdminPage from './pages/MembershipAdminPage';
+import LoyaltyAdminPage from './pages/LoyaltyAdminPage';
 
 import InformationPage from './pages/InformationPage';
 
@@ -64,13 +64,13 @@ import NotificationsPage from './pages/NotificationsPage';
 import SentNotificationsAdminPage from './pages/SentNotificationsAdminPage';
 import VouchersPage from './pages/VouchersPage';
 
-const adminMenu=[['operations',ClipboardList,'Việc cần xử lý'],['history',CalendarDays,'Lịch sử đặt sân'],['payment-history',Wallet,'Lịch sử thanh toán'],['services',Package,'Dịch vụ trọng tài'],['calendar',CalendarDays,'Lịch sân'],['orders',ClipboardList,'Đơn đặt sân'],['payments',Wallet,'Thu tiền & hoàn tiền'],['sent-notifications',Send,'Thông báo đã gửi'],['vouchers',Ticket,'Khuyến mãi & voucher'],['courts',Grid2X2,'Sân & bảng giá'],['membership',Users,'Membership & hội viên'],['staff',Users,'Nhân sự'],['tournaments',Trophy,'Giải đấu'],['accounts',Users,'Tài khoản & phân quyền'],['reports',ChartColumn,'Báo cáo'],['content',MessageSquare,'Nội dung & feedback'],['system',Settings,'Hệ thống & module'],['profile',UserRound,'Hồ sơ của tôi']];
+const adminMenu=[['operations',ClipboardList,'Việc cần xử lý'],['history',CalendarDays,'Lịch sử đặt sân'],['payment-history',Wallet,'Lịch sử thanh toán'],['services',Package,'Dịch vụ trọng tài'],['calendar',CalendarDays,'Lịch sân'],['orders',ClipboardList,'Đơn đặt sân'],['payments',Wallet,'Thu tiền & hoàn tiền'],['sent-notifications',Send,'Thông báo đã gửi'],['vouchers',Ticket,'Khuyến mãi & voucher'],['courts',Grid2X2,'Sân & bảng giá'],['loyalty',Award,'Thành viên & điểm'],['staff',Users,'Nhân sự'],['tournaments',Trophy,'Giải đấu'],['accounts',Users,'Tài khoản & phân quyền'],['reports',ChartColumn,'Báo cáo'],['content',MessageSquare,'Nội dung & feedback'],['system',Settings,'Hệ thống & module'],['profile',UserRound,'Hồ sơ của tôi']];
 
-const staffMenu=[['operations',ClipboardList,'Việc cần xử lý'],['calendar',CalendarDays,'Lịch sân'],['orders',ClipboardList,'Đơn đặt sân'],['payments',Wallet,'Thu tiền & hoàn tiền'],['services',Package,'Dịch vụ trọng tài'],['sent-notifications',Send,'Thông báo đã gửi'],['vouchers',Ticket,'Khuyến mãi & voucher'],['content',MessageSquare,'Feedback & Đánh giá'],['history',CalendarDays,'Lịch sử đặt sân'],['profile',UserRound,'Hồ sơ của tôi']];
+const staffMenu=[['operations',ClipboardList,'Việc cần xử lý'],['calendar',CalendarDays,'Lịch sân'],['orders',ClipboardList,'Đơn đặt sân'],['payments',Wallet,'Thu tiền & hoàn tiền'],['services',Package,'Dịch vụ trọng tài'],['sent-notifications',Send,'Thông báo đã gửi'],['vouchers',Ticket,'Khuyến mãi & voucher'],['loyalty',Award,'Thành viên & điểm'],['content',MessageSquare,'Feedback & Đánh giá'],['history',CalendarDays,'Lịch sử đặt sân'],['profile',UserRound,'Hồ sơ của tôi']];
 
 const customerMenu=[['calendar',CalendarDays,'Đặt sân'],['tournaments',Trophy,'Giải đấu']];
 
-const pages={membership:MembershipAdminPage,operations:OperationsPage,history:MyHistory,'payment-history':MyPayments,services:MyServices,calendar:CalendarPage,orders:OrdersPage,payments:PaymentsPage,courts:CourtsPage,staff:StaffPage,tournaments:TournamentsPage,accounts:AccountsPage,reports:ReportsPage,system:SystemPage,notifications:NotificationsPage,'sent-notifications':SentNotificationsAdminPage,vouchers:VouchersPage,profile:ProfilePage,content:ContentAdminPage};
+const pages={loyalty:LoyaltyAdminPage,operations:OperationsPage,history:MyHistory,'payment-history':MyPayments,services:MyServices,calendar:CalendarPage,orders:OrdersPage,payments:PaymentsPage,courts:CourtsPage,staff:StaffPage,tournaments:TournamentsPage,accounts:AccountsPage,reports:ReportsPage,system:SystemPage,notifications:NotificationsPage,'sent-notifications':SentNotificationsAdminPage,vouchers:VouchersPage,profile:ProfilePage,content:ContentAdminPage};
 
 export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsumed}){
 
@@ -307,7 +307,7 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
 
   {label:'TRA CỨU',ids:['history','payment-history','reports']},
 
-  {label:'KINH DOANH',ids:['courts','membership','tournaments','vouchers']},
+  {label:'KINH DOANH',ids:['courts','loyalty','tournaments','vouchers']},
 
   {label:'QUẢN TRỊ',ids:['staff','accounts','content','system']}
 

@@ -27,7 +27,6 @@ public class PresentationService {
   private final CustomerOrderRepository orderRepo;
   private final AccountRepository accounts;
   private final SettingsService settings;
-  private final MembershipService membership;
   private final StaffRepository staff;
 
   @Value("${courtly.seed-demo:false}")
@@ -60,7 +59,7 @@ public class PresentationService {
       var tournaments = rows(v, "tournaments");
       return map(
           "membershipPlans",
-          membership.plans().stream().filter(p -> Boolean.TRUE.equals(p.get("enabled"))).toList(),
+          List.of(),
           "club",
           content.club(),
           "sample",
@@ -187,7 +186,6 @@ public class PresentationService {
     v.put("sample", sample);
     v.put("demoResetEnabled", "ADMIN".equals(viewer.getRole()) && demo.enabled());
 
-    v.putAll(membership.view(viewer));
     v.put("viewer", auth.user(viewer));
     if (Set.of("ADMIN", "STAFF").contains(viewer.getRole())) return v;
     var mine =

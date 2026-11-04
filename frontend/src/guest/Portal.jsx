@@ -46,8 +46,8 @@ function Modal({children,onClose,title,hideClose}){
   return <div className="gx-backdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><section className="gx-dialog" ref={ref} role="dialog" aria-modal="true" aria-label={title}>{!hideClose && <button className="gx-close" aria-label={title} onClick={onClose}><X/></button>}{children}</section></div>;
 }
 
-const paths={about:'/',booking:'/dat-san',pricing:'/bang-gia',cashdesk:'/quay-thu',news:'/tin-tuc',contact:'/lien-he',feedback:'/feedback',tournaments:'/giai-dau',membership:'/membership',orders:'/tai-khoan/don',history:'/tai-khoan/lich',payments:'/tai-khoan/thanh-toan',profile:'/tai-khoan',policies:'/chinh-sach'};
-const initialRoute=()=>Object.entries(paths).find(([,p])=>p===location.pathname)?.[0]||({orders:'orders',history:'history',payments:'payments','profile-orders':'orders','profile-history':'history','profile-payments':'payments','profile-membership':'membership',profile:'profile',tournaments:'tournaments'})[location.hash.slice(1)]||'about';
+const paths={about:'/',booking:'/dat-san',pricing:'/bang-gia',cashdesk:'/quay-thu',news:'/tin-tuc',contact:'/lien-he',feedback:'/feedback',tournaments:'/giai-dau',membership:'/thanh-vien',orders:'/tai-khoan/don',history:'/tai-khoan/lich',payments:'/tai-khoan/thanh-toan',profile:'/tai-khoan',policies:'/chinh-sach'};
+const initialRoute=()=>{ if(location.pathname==='/membership'||location.pathname==='/thanh-vien') return 'membership'; return Object.entries(paths).find(([,p])=>p===location.pathname)?.[0]||({orders:'orders',history:'history',payments:'payments','profile-orders':'orders','profile-history':'history','profile-payments':'payments','profile-membership':'membership',profile:'profile',tournaments:'tournaments'})[location.hash.slice(1)]||'about'; };
 
 export default function Portal({session,onSession,onLogout}){
   const [lang,setLang]=useState(()=>localStorage.getItem('courtly-language')||'vi'),
@@ -288,7 +288,7 @@ export default function Portal({session,onSession,onLogout}){
     return data.tournaments.find(t => t.status === 'OPEN' && t.start >= dateToday());
   }, [data?.tournaments]);
 
-  const tournamentBannerVisible = user && hasAnyBooking && !membershipBannerVisible && featuredTournament && !tourneyBannerDismissed;
+  const tournamentBannerVisible = user && hasAnyBooking && featuredTournament && !tourneyBannerDismissed;
 
   const notices = useMemo(() => {
     const list = [];
@@ -423,45 +423,6 @@ export default function Portal({session,onSession,onLogout}){
           </div>
         ),
         onDismiss: () => setBannerDismissed(true)
-      });
-    }
-
-    // Priority 4: Gói hội viên
-    if (membershipBannerVisible && !pendingPaymentOrder) {
-      list.push({
-        key: 'membership',
-        icon: '👑',
-        accent: '#def46a',
-        bg: 'linear-gradient(90deg, #1e3a8a 0%, #172554 100%)',
-        borderBottom: '1px solid rgba(222, 244, 106, 0.3)',
-        title: t('Đặc quyền Hội viên Courtly Club'),
-        badge: t('TIẾT KIỆM ĐẾN 15%'),
-        badgeBg: '#3b82f6',
-        badgeColor: '#ffffff',
-        desc: t('Bạn đã thi đấu tại Courtly! Đăng ký hội viên để hưởng giảm giá sân, đặt trước 21 ngày và miễn phí đổi lịch.'),
-        actions: (
-          <button
-            type="button"
-            onClick={() => navigate('membership')}
-            style={{
-              background: '#def46a',
-              color: '#172554',
-              border: 'none',
-              padding: '6px 12px',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            ⭐ {t('Xem gói Hội viên')}
-          </button>
-        ),
-        onDismiss: () => {
-          setMembershipBannerDismissed(true);
-          sessionStorage.setItem('courtly_membership_banner_dismissed', 'true');
-        }
       });
     }
 

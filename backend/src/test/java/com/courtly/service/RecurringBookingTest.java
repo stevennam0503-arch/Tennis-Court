@@ -65,7 +65,8 @@ class RecurringBookingTest {
             mock(AuditService.class),
             documents,
             membership,
-            vouchers);
+            vouchers,
+            mock(LoyaltyService.class));
   }
 
   @Test

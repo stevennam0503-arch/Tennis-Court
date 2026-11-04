@@ -30,7 +30,8 @@ public class OrderService {
   private final AuditService audit;
   private final DocumentService documents;
   private final MembershipService membership;
-  private final VoucherService vouchers;
+  private final VoucherService vouchers;
+  private final LoyaltyService loyaltyService;
 
   @Transactional
   public UUID create(BookingRequest request) {
@@ -237,7 +238,8 @@ public class OrderService {
     release(b);
     // Played visits have consumed the benefit; cancelling later visits must not return its use.
     if (slots.findByBookingId(b.getId()).stream().noneMatch(x -> x.getCompletedAt() != null))
-      vouchers.release(id);
+      vouchers.release(id);
+    loyaltyService.reverseOrderPoints(order);
     audit.log("HỦY ĐƠN", id.toString());
   }
 
@@ -304,7 +306,13 @@ public class OrderService {
     b.setCheckOutAt(Instant.now());
     boolean remaining = !allocated(b).isEmpty();
     order.setStatus(remaining ? "CONFIRMED" : "COMPLETED");
-    b.setStatus(order.getStatus());
+    b.setStatus(order.getStatus());
+    if (!remaining) {
+      boolean goldenHour = slots.findByBookingId(b.getId()).stream()
+          .anyMatch(s -> s.getSchedule() != null && s.getSchedule().getStartTime() != null 
+              && s.getSchedule().getStartTime().getHour() >= 10 && s.getSchedule().getStartTime().getHour() < 15);
+      loyaltyService.earnOrderPoints(order, goldenHour);
+    }
     var meta = documents.decode(order.getMetadata());
     meta.remove("activeVisitDate");
     var history = (Map<String, Object>) meta.computeIfAbsent("visitHistory", k -> new LinkedHashMap<>());

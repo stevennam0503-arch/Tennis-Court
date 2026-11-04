@@ -2099,144 +2099,136 @@ export function CancelDialog({order,onClose}){
 
 
 export function Membership(){
+  const {t,data,user,login,navigate}=useGuest();
 
-  const {t,data,user,login,refresh,pay,notify}=useGuest();
-
-  const [busy,setBusy]=useState(false);
-
-  const join=async planId=>{if(!user){login();return}setBusy(true);try{const r=await api('/membership/requests','POST',{planId,requestId:requestId()});await refresh();await pay('MEMBERSHIP',r.id)}catch(e){notify(e.message)}finally{setBusy(false)}};
-
-  // Sắp xếp các gói hội viên theo giá tiền tăng dần (Guest -> Thấp -> Cao)
-
-  const rawPlans = (data?.membershipPlans || []).filter(p => p.enabled !== false);
-
-  const plans = [...rawPlans].sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
-
-
+  const tiers = [
+    {
+      id: 'rookie',
+      name: 'Rookie',
+      icon: '🎾',
+      spend: '0₫',
+      discount: '0%',
+      multiplier: '×1,0',
+      advance: '7 ngày',
+      changes: '0',
+      gift: 'Voucher chào mừng 50k',
+      birthday: '30.000₫',
+      desc: 'Hạng khởi đầu cho mọi người chơi tennis tại Courtly'
+    },
+    {
+      id: 'challenger',
+      name: 'Challenger',
+      icon: '⭐',
+      spend: '3.000.000₫',
+      discount: '−3%',
+      multiplier: '×1,2',
+      advance: '10 ngày',
+      changes: '1 lượt',
+      gift: '200 điểm thưởng',
+      birthday: '60.000₫',
+      desc: 'Cho nhịp ra sân đều đặn hàng tuần',
+      featured: true
+    },
+    {
+      id: 'masters',
+      name: 'Masters',
+      icon: '🏆',
+      spend: '8.000.000₫',
+      discount: '−5%',
+      multiplier: '×1,5',
+      advance: '14 ngày',
+      changes: '2 lượt',
+      gift: '500 điểm thưởng',
+      birthday: '120.000₫',
+      desc: 'Đăng ký giải đấu sớm 3 ngày'
+    },
+    {
+      id: 'grandslam',
+      name: 'Grand Slam',
+      icon: '👑',
+      spend: '20.000.000₫',
+      discount: '−8%',
+      multiplier: '×2,0',
+      advance: '21 ngày',
+      changes: '4 lượt',
+      gift: '1.000đ + Voucher 300k + Thẻ VIP',
+      birthday: '250.000₫',
+      desc: 'Đặc quyền thẻ VIP Lounge & Hủy linh hoạt',
+      premium: true
+    }
+  ];
 
   return (
-
     <section className="ct-pad">
-
       <div className="gx-heading">
-
-        <span className="ct-eyebrow">COURTLY MEMBERSHIP</span>
-
-        <h1>{t('Chơi đều hơn. Chủ động hơn.')}</h1>
-
-        <p>{t('Không tự gia hạn. Chỉ kích hoạt sau khi xác nhận đủ phí.')}</p>
-
+        <span className="ct-eyebrow">COURTLY LOYALTY TIERS</span>
+        <h1>{t('Chơi càng nhiều. Ưu đãi càng lớn.')}</h1>
+        <p>{t('Hệ thống 4 hạng thành viên tự động xét hạng dựa trên tổng chi tiêu 12 tháng trượt. Tích điểm đổi giờ sân và nhận quà tặng thăng hạng, voucher sinh nhật độc quyền.')}</p>
       </div>
 
       <div
-
         className="gx-plan-grid"
-
         style={{
-
           display: 'grid',
-
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-
-          gap: 24,
-
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: 20,
           marginBottom: 32,
-
           alignItems: 'stretch'
-
         }}
-
       >
+        {tiers.map(tr => (
+          <article
+            key={tr.id}
+            className={'ct-plan ' + (tr.featured ? 'ct-plan-featured' : '')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
+              borderRadius: 12,
+              border: tr.premium ? '2px solid #f59e0b' : undefined,
+              background: tr.premium ? '#fffdf7' : undefined
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 24 }}>{tr.icon}</span>
+              <h2 style={{ margin: 0, fontSize: 22 }}>{tr.name}</h2>
+            </div>
+            
+            <div className="ct-price" style={{ margin: '14px 0 16px' }}>
+              <span style={{ fontSize: 11.5, textTransform: 'uppercase', color: '#64748b' }}>Chi tiêu 12 tháng từ</span>
+              <strong style={{ fontSize: 24 }}>{tr.spend}</strong>
+            </div>
 
-        <article className="ct-plan" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <ul style={{ flex: 1, paddingLeft: 18, fontSize: 13, lineHeight: 1.8 }}>
+              <li><b>Giảm giá sân:</b> <span style={{ color: '#16a34a', fontWeight: 700 }}>{tr.discount}</span></li>
+              <li><b>Tích điểm thưởng:</b> <b>{tr.multiplier}</b> (1đ / 10k)</li>
+              <li><b>Đặt trước tối đa:</b> {tr.advance}</li>
+              <li><b>Đổi lịch free/tháng:</b> {tr.changes}</li>
+              <li><b>Quà lên hạng:</b> {tr.gift}</li>
+              <li><b>Voucher sinh nhật:</b> {tr.birthday}</li>
+              {tr.premium && <li style={{ color: '#b45309', fontWeight: 700 }}>👑 Đặc quyền thẻ VIP Lounge</li>}
+            </ul>
 
-          <h2>Guest</h2>
-
-          <div className="ct-price">
-
-            {t('Miễn phí')}
-
-            <span>{t('Không phí hội viên')}</span>
-
-          </div>
-
-          <ul style={{ flex: 1 }}>
-
-            <li>{t('Đặt cả sân thường và VIP')}</li>
-
-            <li>{t('Đặt trước tối đa')} 7 {t('ngày')}</li>
-
-            <li>{t('Thanh toán theo giá niêm yết')}</li>
-
-            <li>{t('Gửi xe theo biểu phí lượt')}</li>
-
-          </ul>
-
-        </article>
-
-        {plans.map((p, idx) => {
-
-          const isFeatured = p.id === 'club' || (plans.length > 1 && idx === Math.floor(plans.length / 2));
-
-          return (
-
-            <article
-
-              key={p.id}
-
-              className={'ct-plan ' + (isFeatured ? 'ct-plan-featured' : '')}
-
-              style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
-
-            >
-
-              <h2>{p.name}</h2>
-
-              <div className="ct-price">
-
-                {money(p.price)}
-
-                <span>/ {p.days} {t('ngày')}</span>
-
-              </div>
-
-              <ul style={{ flex: 1 }}>
-
-                <li>{t('Giảm tiền sân A/B')}: {p.discountPercent}%</li>
-
-                <li>{t('Giảm tiền sân VIP')}: {p.vipDiscountPercent ?? (p.id === 'plus' ? 10 : 5)}%</li>
-
-                <li>{t('Đặt trước tối đa')} {p.advanceDays ?? (p.id === 'plus' ? 21 : 14)} {t('ngày')}</li>
-
-                <li>{p.freeChanges ?? (p.id === 'plus' ? 2 : 1)} {t('lượt đổi lịch có điều kiện')}</li>
-
-                <li>{t('Miễn phí gửi xe')}</li>
-
-                {p.id === 'plus' && <li>{t('Đặc quyền phòng VIP Lounge')}</li>}
-
-              </ul>
-
-              <div style={{ marginTop: 'auto', paddingTop: 16 }}>
-
-                <Action disabled={busy} onClick={() => join(p.id)}>
-
-                  {t('Chọn')} {p.name}
-
+            <div style={{ marginTop: 'auto', paddingTop: 16 }}>
+              {user ? (
+                <Action onClick={() => navigate('profile')}>
+                  {t('Xem hạng & điểm của bạn')}
                 </Action>
-
-              </div>
-
-            </article>
-
-          );
-
-        })}
-
-      </div><p className="gx-notice">{t('Ưu đãi chỉ áp dụng tiền sân trong thời hạn gói. Đổi lịch trước ít nhất 24 giờ, cùng loại sân/thời lượng và còn chỗ; chênh lệch giá vẫn cần thanh toán.')}</p><div className="gx-records">{data?.memberships?.map(m=><article key={m.id}><header><h3>{m.planName}</h3><State value={m.status}/></header><p>{m.startsAt&&new Date(m.startsAt).toLocaleDateString()} {m.endsAt&&' → '+new Date(m.endsAt).toLocaleDateString()}</p>{m.status==='PENDING'&&<div className="gx-actions"><Action onClick={()=>pay('MEMBERSHIP',m.id)}>{t('Thanh toán phí hội viên')}</Action><Action secondary onClick={async()=>{try{await api(`/membership/requests/${m.id}/cancel`,'POST',{requestId:requestId()});await refresh()}catch(e){notify(e.message)}}}>{t('Hủy yêu cầu')}</Action></div>}</article>)}</div></section>);
-
+              ) : (
+                <Action onClick={() => login('register')}>
+                  {t('Đăng ký nhận quà 50k')}
+                </Action>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+      <p className="gx-notice">
+        {t('Điểm thưởng có giá trị 1 điểm = 100₫ trừ trực tiếp vào tiền sân khi đặt lịch (tối đa 50% tiền sân còn lại) hoặc đổi các voucher dịch vụ gia hạn, trọng tài, giờ vàng.')}
+      </p>
+    </section>
+  );
 }
-
-
 
 export function Profile(){
   const {t,user,data,refresh,notify}=useGuest();

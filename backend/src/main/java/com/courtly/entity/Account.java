@@ -1,7 +1,9 @@
 package com.courtly.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.*;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -53,4 +55,28 @@ public class Account extends BaseEntity {
 
   @Column(name = "marketing_consent_at")
   private Instant marketingConsentAt;
+
+  @Column(name = "tier", length = 20)
+  private String tier = "ROOKIE";
+
+  @Column(name = "tier_since")
+  private Instant tierSince;
+
+  @Column(name = "tier_expires_at")
+  private Instant tierExpiresAt;
+
+  @Column(name = "points_balance")
+  private Integer pointsBalance = 0;
+
+  @Column(name = "lifetime_spend", precision = 14, scale = 2)
+  private BigDecimal lifetimeSpend = BigDecimal.ZERO;
+
+  @Column(name = "birth_date")
+  private LocalDate birthDate;
+
+  @Column(name = "referral_code", length = 20, unique = true)
+  private String referralCode;
+
+  @Column(name = "referred_by")
+  private UUID referredBy;
 }

@@ -7,6 +7,7 @@ import com.courtly.entity.CustomerOrder;
 import com.courtly.entity.Voucher;
 import com.courtly.entity.VoucherRedemption;
 import com.courtly.exception.BusinessException;
+import com.courtly.repository.AccountRepository;
 import com.courtly.repository.CustomerOrderRepository;
 import com.courtly.repository.VoucherRedemptionRepository;
 import com.courtly.repository.VoucherRepository;
@@ -21,6 +22,7 @@ class VoucherServiceTest {
   private VoucherRedemptionRepository redemptions;
   private CustomerOrderRepository orders;
   private MembershipService memberships;
+  private AccountRepository accounts;
   private AuditService auditService;
   private VoucherService service;
 
@@ -30,8 +32,9 @@ class VoucherServiceTest {
     redemptions = mock(VoucherRedemptionRepository.class);
     orders = mock(CustomerOrderRepository.class);
     memberships = mock(MembershipService.class);
+    accounts = mock(AccountRepository.class);
     auditService = mock(AuditService.class);
-    service = new VoucherService(vouchers, redemptions, orders, memberships, auditService);
+    service = new VoucherService(vouchers, redemptions, orders, memberships, accounts, auditService);
   }
 
   private Voucher createVoucher(String code, String type, BigDecimal val, BigDecimal min, BigDecimal max) {

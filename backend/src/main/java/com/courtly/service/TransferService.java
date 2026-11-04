@@ -28,7 +28,6 @@ public class TransferService {
   private final AccountRepository accounts;
   private final PaymentService payments;
   private final OrderService booking;
-  private final MembershipService memberships;
   private final DemoAccessPolicy demo;
 
   @Value("${courtly.payment.mode:MANUAL}")
@@ -116,7 +115,7 @@ public class TransferService {
     require("DEMO".equals(getMode()) || "SANDBOX".equals(getMode()) || "LIVE".equals(getMode()), "Chuyển khoản hiện chưa khả dụng; vui lòng thanh toán tại quầy");
     require(Boolean.TRUE.equals(config().get("bankConfigured")), "Chưa cấu hình tài khoản nhận chuyển khoản; vui lòng thanh toán tại quầy");
     require(!"LIVE".equals(getMode()) || !webhookKey.isBlank(), "Chưa cấu hình xác minh ngân hàng; vui lòng thanh toán tại quầy");
-    String type = oneOf((String) b.get("type"), "ORDER", "TOURNAMENT", "MEMBERSHIP"),
+    String type = oneOf((String) b.get("type"), "ORDER", "TOURNAMENT"),
         target = text((String) b.get("targetId"), "Mã đơn");
     String purpose = "BALANCE".equals(b.get("purpose")) ? "BALANCE" : "DEPOSIT";
     BigDecimal due;
@@ -139,12 +138,7 @@ public class TransferService {
           !"CANCELLED".equals(r.getStatus()) && !"CANCELLED".equals(r.getTournament().getStatus()),
           "Đăng ký đã hủy");
       due = r.getTournament().getRegistrationFee().subtract(payments.registrationPaid(r.getId()));
-    } else {
-      var m = docs.get("membership:" + target);
-      own(a, m.get("accountId"));
-      require("PENDING".equals(m.get("status")), "Gói đã được xử lý");
-      due = amount(m.get("price")).subtract(membershipReceived(target));
-    }
+    } else { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Loại giao dịch không hợp lệ"); }
     require(due.signum() > 0, "Không còn khoản cần thanh toán");
     for (var old : mine(a))
       if (type.equals(old.get("type"))
@@ -314,41 +308,16 @@ public class TransferService {
           due.min(
               r.getTournament().getRegistrationFee().subtract(payments.registrationPaid(r.getId())));
     }
-    if (type.equals("MEMBERSHIP")) {
-      var m = docs.get("membership:" + target);
-      valid &= "PENDING".equals(m.get("status"));
-      due =
-          due.min(
-              PresentationService.decimal(m.get("price")).subtract(membershipReceived(target)));
-    }
+
     valid &= received.compareTo(due) <= 0 && due.signum() > 0;
     if (valid) {
-      if (type.equals("MEMBERSHIP")) {
-        var total = membershipReceived(target).add(received);
-        if (total.compareTo(
-                PresentationService.decimal(docs.get("membership:" + target).get("price")))
-            == 0) {
-          var admin = accounts.findByEmailIgnoreCase(adminEmail).orElseThrow();
-          memberships.action(
-              admin,
-              "POST",
-              "/api/membership/requests/" + target + "/activate",
-              map(
-                  "collected", true,
-                  "amount", total,
-                  "method", "BANK_TRANSFER",
-                  "transactionCode", event,
-                  "requestId", event));
-        }
-      } else {
-        payments.collect(
-            new PaymentRequest(
-                type.equals("ORDER") ? UUID.fromString(target) : null,
-                type.equals("TOURNAMENT") ? UUID.fromString(target) : null,
-                received,
-                "BANK_TRANSFER",
-                event));
-      }
+      payments.collect(
+          new PaymentRequest(
+              type.equals("ORDER") ? UUID.fromString(target) : null,
+              type.equals("TOURNAMENT") ? UUID.fromString(target) : null,
+              received,
+              "BANK_TRANSFER",
+              event));
       x.put("received", PresentationService.decimal(x.get("received")).add(received));
       x.put("remaining", PresentationService.decimal(x.get("remaining")).subtract(received));
       x.put(
@@ -375,12 +344,7 @@ public class TransferService {
     docs.put("transfer:" + x.get("id"), x);
   }
 
-  private BigDecimal membershipReceived(String target) {
-    return docs.list("transfer:").stream()
-        .filter(x -> "MEMBERSHIP".equals(x.get("type")) && target.equals(x.get("targetId")))
-        .map(x -> PresentationService.decimal(x.get("received")))
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
-  }
+
 
   private static String tlv(String id, String s) {
     return id + String.format(Locale.ROOT, "%02d", s.length()) + s;

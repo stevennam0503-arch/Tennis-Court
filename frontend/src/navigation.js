@@ -4,7 +4,7 @@ export const customerNavigation = [
   {id:'pricing',href:'/bang-gia',label:'Bảng giá'},
   {id:'booking',href:'/dat-san',label:'Đặt sân'},
   {id:'tournaments',href:'/giai-dau',label:'Giải đấu'},
-  {id:'membership',href:'/membership',label:'Hội viên'},
+  {id:'membership',href:'/thanh-vien',label:'Thành viên'},
 ];
 
 // Footer destinations: include feedback, news, and contact information.

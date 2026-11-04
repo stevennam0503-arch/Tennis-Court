@@ -9,7 +9,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 class TransferSecurityTest {
   private TransferService service() {
-    return new TransferService(null, null, null, null, null, null, null, null);
+    return new TransferService(null, null, null, null, null, null, null);
   }
 
   @Test

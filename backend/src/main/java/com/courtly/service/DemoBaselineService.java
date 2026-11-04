@@ -92,7 +92,7 @@ public class DemoBaselineService {
 
     // 8. Khôi phục app_documents thuộc baseline (club, article:*, membership-plan:*, fixture:*)
     String appDocumentsJson = tables.get("app_documents").toString();
-    String docFilter = "document_key = 'club' OR document_key LIKE 'article:%' OR document_key LIKE 'membership-plan:%' OR document_key LIKE 'fixture:%'";
+    String docFilter = "document_key = 'club' OR document_key LIKE 'article:%' OR document_key LIKE 'fixture:%'";
     restoreTable("app_documents", "document_key", appDocumentsJson, docFilter);
 
     log.info("Khôi phục danh mục từ baseline.json thành công.");

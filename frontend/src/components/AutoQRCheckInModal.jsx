@@ -92,6 +92,43 @@ export default function AutoQRCheckInModal({ onClose }) {
     setProcessing(true);
     scanningRef.current = false;
 
+    const cleanStr = String(payload).trim().toUpperCase();
+    if (cleanStr.startsWith('VIP-')) {
+      try {
+        const res = await fetch('/api/loyalty/vip-lounge/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: cleanStr })
+        });
+        const json = await res.json();
+        if (json.valid) {
+          playSuccessSound();
+          notify(`✅ VIP Lounge: Mời ${json.customerName} vào phòng chờ`);
+          setLastScannedResult({
+            type: 'VIP_SUCCESS',
+            vipData: json,
+            msg: json.message || '✅ Thẻ VIP hợp lệ – mời vào phòng chờ'
+          });
+        } else {
+          playWarningSound();
+          setLastScannedResult({
+            type: 'VIP_INVALID',
+            vipData: json,
+            msg: json.message || 'Thẻ hết hiệu lực hoặc không hợp lệ'
+          });
+        }
+      } catch (err) {
+        playWarningSound();
+        setLastScannedResult({
+          type: 'VIP_INVALID',
+          msg: err.message || 'Không thể xác thực thẻ VIP Lounge'
+        });
+      } finally {
+        setProcessing(false);
+      }
+      return;
+    }
+
     const order = findMatchingOrder(payload);
     if (!order) {
       playWarningSound();
@@ -331,6 +368,58 @@ export default function AutoQRCheckInModal({ onClose }) {
           {/* SUCCESS RESULT SCREEN */}
           {lastScannedResult ? (
             <div className={`aqr-result-view ${lastScannedResult.type}`}>
+                            {lastScannedResult.type === 'VIP_SUCCESS' && (
+                <div className="aqr-success-card" style={{ background: '#fdfbf7', border: '2px solid #f59e0b' }}>
+                  <div className="aqr-success-icon" style={{ background: '#fef3c7', color: '#b45309' }}>
+                    👑
+                  </div>
+                  <h3 className="aqr-success-title" style={{ color: '#92400e' }}>XÁC THỰC THẺ VIP LOUNGE THÀNH CÔNG!</h3>
+                  <p style={{ margin: 0, color: '#15803d', fontSize: 14, fontWeight: 700 }}>
+                    {lastScannedResult.msg}
+                  </p>
+                  <div className="aqr-success-order-box" style={{ background: '#fff', border: '1px solid #fde68a' }}>
+                    <div className="aqr-info-row">
+                      <span style={{ color: '#64748b' }}>Hội viên:</span>
+                      <strong style={{ fontSize: 16, color: '#173c32' }}>{lastScannedResult.vipData?.customerName}</strong>
+                    </div>
+                    <div className="aqr-info-row">
+                      <span style={{ color: '#64748b' }}>Hạng đặc quyền:</span>
+                      <b style={{ color: '#b45309', background: '#fef3c7', padding: '2px 8px', borderRadius: 12 }}>👑 GRAND SLAM</b>
+                    </div>
+                    <div className="aqr-info-row">
+                      <span style={{ color: '#64748b' }}>Mã thẻ VIP:</span>
+                      <b style={{ letterSpacing: '0.05em', color: '#0f172a' }}>{lastScannedResult.vipData?.cardCode}</b>
+                    </div>
+                    {lastScannedResult.vipData?.phone && (
+                      <div className="aqr-info-row">
+                        <span style={{ color: '#64748b' }}>Số điện thoại:</span>
+                        <b>{lastScannedResult.vipData.phone}</b>
+                      </div>
+                    )}
+                  </div>
+                  <p style={{ fontSize: 13, color: '#475569', margin: '8px 0 0' }}>
+                    Đã ghi nhận lượt vào phòng chờ VIP thành công lúc {new Date().toLocaleTimeString('vi-VN')}.
+                  </p>
+                  <button className="aqr-resume-btn" onClick={resumeScan} style={{ marginTop: 12 }}>
+                    <RefreshCw size={16} /> Quét thẻ hoặc mã tiếp theo
+                  </button>
+                </div>
+              )}
+
+              {lastScannedResult.type === 'VIP_INVALID' && (
+                <div className="aqr-error-card" style={{ background: '#fef2f2', border: '2px solid #ef4444' }}>
+                  <div className="aqr-error-icon">
+                    <AlertTriangle size={36} />
+                  </div>
+                  <h3 style={{ color: '#991b1b', margin: 0 }}>THẺ VIP KHÔNG HỢP LỆ</h3>
+                  <p style={{ color: '#dc2626', fontSize: 14, fontWeight: 600, margin: '6px 0' }}>
+                    {lastScannedResult.msg}
+                  </p>
+                  <button className="aqr-resume-btn" onClick={resumeScan} style={{ marginTop: 12 }}>
+                    <RefreshCw size={16} /> Quét lại
+                  </button>
+                </div>
+              )}
               {lastScannedResult.type === 'SUCCESS' && (
                 <div className="aqr-success-card">
                   <div className="aqr-success-icon">

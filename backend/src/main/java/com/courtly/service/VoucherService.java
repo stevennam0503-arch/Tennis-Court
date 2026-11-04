@@ -7,6 +7,7 @@ import com.courtly.entity.CustomerOrder;
 import com.courtly.entity.Voucher;
 import com.courtly.entity.VoucherRedemption;
 import com.courtly.exception.BusinessException;
+import com.courtly.repository.AccountRepository;
 import com.courtly.repository.CustomerOrderRepository;
 import com.courtly.repository.VoucherRedemptionRepository;
 import com.courtly.repository.VoucherRepository;
@@ -29,9 +30,21 @@ public class VoucherService {
   private final VoucherRedemptionRepository redemptions;
   private final CustomerOrderRepository orders;
   private final MembershipService memberships;
+  private final AccountRepository accounts;
   private final AuditService auditService;
 
   private static final SecureRandom RANDOM = new SecureRandom();
+  
+  private int tierValue(String t) {
+    if (t == null) return 1;
+    return switch (t.toUpperCase(Locale.ROOT)) {
+      case "GRAND_SLAM" -> 4;
+      case "MASTERS" -> 3;
+      case "CHALLENGER" -> 2;
+      default -> 1;
+    };
+  }
+
   private static final String ALPHANUM = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // loại bỏ ký tự dễ nhầm 0,1,O,I
 
   @Transactional(readOnly = true)
@@ -96,13 +109,20 @@ public class VoucherService {
         }
       }
 
-      if (applicable && (Boolean.TRUE.equals(v.getMemberOnly()) || v.getMinTier() != null)) {
+      if (applicable && (Boolean.TRUE.equals(v.getMemberOnly()) || (v.getMinTier() != null && !v.getMinTier().isBlank()))) {
         if (accountId == null) {
           applicable = false;
           reason = "Dành riêng cho Hội viên CLB (cần đăng nhập)";
         } else if (!isMember && Boolean.TRUE.equals(v.getMemberOnly())) {
           applicable = false;
           reason = "Chỉ áp dụng cho Hội viên CLB có gói active";
+        } else if (v.getMinTier() != null && !v.getMinTier().isBlank()) {
+          var acc = accounts.findById(accountId).orElse(null);
+          String userTier = acc != null && acc.getTier() != null ? acc.getTier().toUpperCase(Locale.ROOT) : "ROOKIE";
+          if (tierValue(userTier) < tierValue(v.getMinTier().toUpperCase(Locale.ROOT))) {
+            applicable = false;
+            reason = "Chỉ áp dụng cho thành viên từ hạng " + v.getMinTier() + " trở lên";
+          }
         }
       }
 
@@ -300,6 +320,14 @@ public class VoucherService {
         }
       }
 
+      if (v.getMinTier() != null && !v.getMinTier().isBlank()) {
+        var acc = accounts.findById(accountId).orElse(null);
+        String userTier = acc != null && acc.getTier() != null ? acc.getTier().toUpperCase(Locale.ROOT) : "ROOKIE";
+        if (tierValue(userTier) < tierValue(v.getMinTier().toUpperCase(Locale.ROOT))) {
+          throw new BusinessException("Voucher " + v.getCode() + " chỉ áp dụng cho thành viên từ hạng " + v.getMinTier() + " trở lên");
+        }
+      }
+
       if (v.getPerUserLimit() != null) {
         long userUsed = redemptions.countByVoucherIdAndAccountId(v.getId(), accountId);
         if (userUsed >= v.getPerUserLimit()) {
@@ -312,8 +340,8 @@ public class VoucherService {
         }
       }
     } else {
-      if (Boolean.TRUE.equals(v.getMemberOnly())) {
-        throw new BusinessException("Voucher " + v.getCode() + " chỉ áp dụng cho Hội viên CLB (vui lòng đăng nhập tài khoản)");
+      if (Boolean.TRUE.equals(v.getMemberOnly()) || (v.getMinTier() != null && !v.getMinTier().isBlank())) {
+        throw new BusinessException("Voucher " + v.getCode() + " yêu cầu đăng nhập tài khoản");
       }
     }
   }
