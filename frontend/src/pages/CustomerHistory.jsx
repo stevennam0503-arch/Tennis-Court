@@ -59,7 +59,7 @@ export function MyHistory() {
       if (to && o.date > to) return false;
       if (status && o.status !== status) return false;
       return true;
-    }).sort((a, b) => b.date.localeCompare(a.date));
+    }).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   }, [data.orders, query, from, to, status, isAdmin]);
 
   const totalPages = Math.ceil(rows.length / pageSize) || 1;
@@ -299,7 +299,7 @@ export function MyPayments() {
       }
 
       return true;
-    }).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    }).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   }, [allPayments, data.refunds, data.payments, data.orders, kindFilter, methodFilter, from, to, query, isAdmin]);
 
   const totalPages = Math.ceil(rows.length / pageSize) || 1;
@@ -653,7 +653,7 @@ export function MyServices() {
     return (tab === 'available' ? eligible : rented).filter(o => {
       const targetStr = `${o.id} ${o.date} ${isAdmin ? o.name : ''}`.toLowerCase();
       return targetStr.includes(query.toLowerCase());
-    }).sort((a, b) => tab === 'available' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
+    }).sort((a, b) => tab === 'available' ? (a.date || '').localeCompare(b.date || '') : (b.date || '').localeCompare(a.date || ''));
   }, [tab, eligible, rented, query, isAdmin]);
 
   const totalPages = Math.ceil(orders.length / pageSize) || 1;

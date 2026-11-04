@@ -151,7 +151,7 @@ export default function OrdersPage() {
       return true;
     }).sort((a, b) => {
       // Newest date first; if same date, compare createdAt
-      const dComp = b.date.localeCompare(a.date);
+      const dComp = (b.date || '').localeCompare(a.date || '');
       if (dComp !== 0) return dComp;
       return (b.createdAt || '').localeCompare(a.createdAt || '');
     });
