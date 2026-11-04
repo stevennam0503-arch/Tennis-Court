@@ -19,6 +19,7 @@ class LoyaltyServiceTest {
   private VipCardRepository vipCards;
   private LoungeVisitRepository loungeVisits;
   private VoucherService voucherService;
+  private VoucherRepository vouchers;
   private NotificationService notificationService;
   private AuditService auditService;
   private LoyaltyService loyaltyService;
@@ -32,6 +33,7 @@ class LoyaltyServiceTest {
     vipCards = mock(VipCardRepository.class);
     loungeVisits = mock(LoungeVisitRepository.class);
     voucherService = mock(VoucherService.class);
+    vouchers = mock(VoucherRepository.class);
     notificationService = mock(NotificationService.class);
     auditService = mock(AuditService.class);
 
@@ -41,6 +43,7 @@ class LoyaltyServiceTest {
         vipCards,
         loungeVisits,
         voucherService,
+        vouchers,
         notificationService,
         auditService
     );
@@ -200,4 +203,77 @@ class LoyaltyServiceTest {
     verify(voucherService).createCompensationVoucher(eq(acc.getId()), isNull(), isNull(), anyMap(), eq(acc));
   }
 
+  @Test
+  void testCalculateEffectivePoints() {
+    // 1. Min 100 points
+    assertEquals(0, loyaltyService.calculateEffectivePoints(90, 1000, new BigDecimal("300000")));
+
+    // 2. Multiple of 10
+    assertEquals(250, loyaltyService.calculateEffectivePoints(255, 1000, new BigDecimal("300000")));
+
+    // 3. Max 50% of remaining court fee (court 285.000₫ -> 50% is 142.500₫ -> max 1420 points)
+    assertEquals(500, loyaltyService.calculateEffectivePoints(500, 1500, new BigDecimal("285000")));
+    assertEquals(1420, loyaltyService.calculateEffectivePoints(2000, 1500, new BigDecimal("285000")));
+
+    // 4. Cannot exceed account balance
+    assertEquals(300, loyaltyService.calculateEffectivePoints(500, 300, new BigDecimal("285000")));
+  }
+
+  @Test
+  void testRefundRedeemedPointsIdempotent() {
+    UUID orderId = UUID.randomUUID();
+    UUID accountId = UUID.randomUUID();
+    Account acc = new Account();
+    acc.setId(accountId);
+    acc.setEmail("hoivien@test.com");
+    acc.setPointsBalance(1000);
+
+    CustomerOrder order = new CustomerOrder();
+    order.setId(orderId);
+    order.setCustomerAccount(acc);
+    order.setPointsRedeemed(500);
+
+    when(accounts.findForUpdate(accountId)).thenReturn(Optional.of(acc));
+    when(ledger.findByOrderId(orderId)).thenReturn(List.of());
+
+    // First refund
+    loyaltyService.refundRedeemedPoints(order);
+    assertEquals(1500, acc.getPointsBalance());
+    verify(ledger, times(1)).save(any(LoyaltyLedger.class));
+
+    // Second refund with existing REVERSAL -> idempotent, points not refunded twice
+    LoyaltyLedger rev = new LoyaltyLedger();
+    rev.setType("REVERSAL");
+    rev.setPoints(500);
+    when(ledger.findByOrderId(orderId)).thenReturn(List.of(rev));
+
+    loyaltyService.refundRedeemedPoints(order);
+    assertEquals(1500, acc.getPointsBalance()); // still 1500
+    verify(ledger, times(1)).save(any(LoyaltyLedger.class)); // not called again
+  }
+
+  @Test
+  void testRewardsCatalogAndRedemption() {
+    var catalog = loyaltyService.getRewardsCatalog();
+    assertEquals(3, catalog.size());
+    assertTrue(catalog.stream().anyMatch(r -> "EXT30".equals(r.get("code")) && ((int) r.get("points")) == 800));
+    assertTrue(catalog.stream().anyMatch(r -> "GOLDEN1H".equals(r.get("code")) && ((int) r.get("points")) == 1200));
+    assertTrue(catalog.stream().anyMatch(r -> "REF1H".equals(r.get("code")) && ((int) r.get("points")) == 2000));
+
+    UUID accountId = UUID.randomUUID();
+    Account acc = new Account();
+    acc.setId(accountId);
+    acc.setEmail("hoivien@test.com");
+    acc.setPointsBalance(1500);
+
+    when(accounts.findForUpdate(accountId)).thenReturn(Optional.of(acc));
+    when(vouchers.save(any(Voucher.class))).thenAnswer(i -> i.getArgument(0));
+
+    // Redeem EXT30 (800 pts)
+    var res = loyaltyService.redeemReward(accountId, "EXT30");
+    assertTrue((boolean) res.get("success"));
+    assertEquals(700, acc.getPointsBalance());
+    assertEquals(700, res.get("pointsBalance"));
+    assertTrue(String.valueOf(res.get("voucherCode")).startsWith("RWD-EXT30-"));
+  }
 }

@@ -28,6 +28,7 @@ public class PaymentService {
   private final BookingSlotRepository slots;
   private final OrderTotalsService totals;
   private final AuditService audit;
+  private final LoyaltyService loyalty;
 
   public BigDecimal net(Payment payment) {
     return payment
@@ -172,6 +173,7 @@ public class PaymentService {
       }
       order.setPaidAmount(order.getPaidAmount().subtract(amount));
       totals.updatePaymentStatus(order);
+      loyalty.refundRedeemedPoints(order);
     }
     if (reg != null) reg.setStatus("PENDING");
     audit.log("HOÀN TIỀN", refund.getId().toString());

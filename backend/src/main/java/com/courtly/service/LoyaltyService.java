@@ -26,6 +26,7 @@ public class LoyaltyService {
   private final VipCardRepository vipCards;
   private final LoungeVisitRepository loungeVisits;
   private final VoucherService voucherService;
+  private final VoucherRepository vouchers;
   private final NotificationService notificationService;
   private final AuditService auditService;
 
@@ -125,8 +126,8 @@ public class LoyaltyService {
     }
 
     BigDecimal paid = order.getPaidAmount() != null ? order.getPaidAmount() : BigDecimal.ZERO;
-    // Không tính phần tiền thanh toán bằng điểm
-    BigDecimal netCashSpend = paid.subtract(order.getPointsDiscount() != null ? order.getPointsDiscount() : BigDecimal.ZERO);
+    // Không tính phần tiền thanh toán bằng điểm (thực thu tối đa là giá trị đơn sau giảm trừ)
+    BigDecimal netCashSpend = paid.min(order.getTotalAmount() != null ? order.getTotalAmount() : paid);
     if (netCashSpend.compareTo(BigDecimal.ZERO) <= 0) {
       return 0;
     }
@@ -199,6 +200,37 @@ public class LoyaltyService {
     accounts.save(account);
 
     auditService.log("REVERSE_POINTS", "Hoàn tác " + earned + " điểm đơn " + order.getId() + " tài khoản " + account.getEmail());
+  }
+
+  @Transactional
+  public void refundRedeemedPoints(CustomerOrder order) {
+    if (order == null || order.getCustomerAccount() == null) return;
+    int redeemed = order.getPointsRedeemed() != null ? order.getPointsRedeemed() : 0;
+    if (redeemed <= 0) return;
+
+    // Idempotent: check if reversal for points redemption already recorded for this order
+    boolean alreadyReversed = ledger.findByOrderId(order.getId()).stream()
+        .anyMatch(l -> "REVERSAL".equals(l.getType()) && l.getPoints() > 0);
+    if (alreadyReversed) return;
+
+    Account account = accounts.findForUpdate(order.getCustomerAccount().getId())
+        .orElse(order.getCustomerAccount());
+
+    LoyaltyLedger reversal = new LoyaltyLedger();
+    reversal.setAccount(account);
+    reversal.setType("REVERSAL");
+    reversal.setPoints(redeemed);
+    reversal.setSpendAmount(BigDecimal.ZERO);
+    reversal.setOrder(order);
+    reversal.setNote("Hoàn trả " + redeemed + " điểm đơn " + order.getId().toString().substring(0, 8));
+    reversal.setCreatedAt(now());
+    ledger.save(reversal);
+
+    int currentBalance = account.getPointsBalance() != null ? account.getPointsBalance() : 0;
+    account.setPointsBalance(currentBalance + redeemed);
+    accounts.save(account);
+
+    auditService.log("REFUND_POINTS", "Hoàn trả " + redeemed + " điểm đã dùng từ đơn " + order.getId() + " tài khoản " + account.getEmail());
   }
 
   // =========================================================================
@@ -327,17 +359,42 @@ public class LoyaltyService {
   // =========================================================================
 
   /**
-   * Tính tiền giảm từ điểm: 1 điểm = 100₫, tối đa 50% tiền sân còn lại sau giảm hạng và voucher.
+   * Tính số điểm thực tế có thể dùng cho đơn:
+   * Tối thiểu 100 điểm, bội số của 10, tối đa 50% tiền sân còn lại sau hạng và voucher, không vượt quá số dư.
    */
+  public int calculateEffectivePoints(Integer pointsToUse, int accountBalance, BigDecimal remainingCourtFee) {
+    if (pointsToUse == null || pointsToUse < 100 || remainingCourtFee == null || remainingCourtFee.compareTo(BigDecimal.ZERO) <= 0) {
+      return 0;
+    }
+    int validPoints = (pointsToUse / 10) * 10;
+    validPoints = Math.min(validPoints, Math.max(0, accountBalance));
+    if (validPoints < 100) return 0;
+
+    // Trần 50% tiền sân còn lại (1 điểm = 100₫ -> mỗi 1.000₫ = 10 điểm)
+    BigDecimal maxDiscount = remainingCourtFee.multiply(new BigDecimal("0.5")).setScale(0, RoundingMode.DOWN);
+    int maxPointsByCourtFee = maxDiscount.divide(new BigDecimal("100"), 0, RoundingMode.DOWN).intValue();
+    maxPointsByCourtFee = (maxPointsByCourtFee / 10) * 10;
+
+    return Math.min(validPoints, maxPointsByCourtFee);
+  }
+
+  /**
+   * Tính tiền giảm từ điểm: 1 điểm = 100₫.
+   */
+  public BigDecimal computePointsDiscount(int points) {
+    if (points < 100) {
+      return BigDecimal.ZERO;
+    }
+    int validPoints = (points / 10) * 10;
+    return BigDecimal.valueOf(validPoints).multiply(BigDecimal.valueOf(100));
+  }
+
   public BigDecimal computePointsDiscount(int points, BigDecimal remainingCourtFee) {
     if (points < 100 || remainingCourtFee == null || remainingCourtFee.compareTo(BigDecimal.ZERO) <= 0) {
       return BigDecimal.ZERO;
     }
-    // Bội số của 10
     int validPoints = (points / 10) * 10;
     BigDecimal discount = BigDecimal.valueOf(validPoints).multiply(BigDecimal.valueOf(100));
-
-    // Trần 50% tiền sân còn lại
     BigDecimal maxDiscount = remainingCourtFee.multiply(BigDecimal.valueOf(0.5)).setScale(0, RoundingMode.DOWN);
     return discount.min(maxDiscount);
   }
@@ -345,13 +402,14 @@ public class LoyaltyService {
   @Transactional
   public void deductPointsForOrder(Account account, CustomerOrder order, int pointsUsed, BigDecimal discountAmount) {
     if (pointsUsed <= 0) return;
-    int current = account.getPointsBalance() != null ? account.getPointsBalance() : 0;
+    Account lockedAccount = accounts.findForUpdate(account.getId()).orElse(account);
+    int current = lockedAccount.getPointsBalance() != null ? lockedAccount.getPointsBalance() : 0;
     if (current < pointsUsed) {
       throw new BusinessException("Số điểm của bạn (" + current + " điểm) không đủ để dùng " + pointsUsed + " điểm");
     }
 
     LoyaltyLedger entry = new LoyaltyLedger();
-    entry.setAccount(account);
+    entry.setAccount(lockedAccount);
     entry.setType("REDEEM_ORDER");
     entry.setPoints(-pointsUsed);
     entry.setSpendAmount(discountAmount);
@@ -360,10 +418,120 @@ public class LoyaltyService {
     entry.setCreatedAt(now());
     ledger.save(entry);
 
-    account.setPointsBalance(current - pointsUsed);
+    lockedAccount.setPointsBalance(current - pointsUsed);
+    accounts.save(lockedAccount);
+    account.setPointsBalance(lockedAccount.getPointsBalance());
+
+    auditService.log("REDEEM_POINTS", "Dùng " + pointsUsed + " điểm cho đơn " + order.getId() + " tài khoản " + lockedAccount.getEmail());
+  }
+
+  public List<Map<String, Object>> getRewardsCatalog() {
+    return List.of(
+        Map.of(
+            "code", "EXT30",
+            "name", "Gia hạn 30 phút",
+            "points", 800,
+            "description", "Voucher miễn phí gia hạn thời gian chơi sân thêm 30 phút (hạn 60 ngày)",
+            "category", "COURT"
+        ),
+        Map.of(
+            "code", "GOLDEN1H",
+            "name", "1 giờ sân giờ vàng (10:00–15:00)",
+            "points", 1200,
+            "description", "Voucher miễn phí 1 giờ sân trong khung giờ vàng 10:00–15:00 (hạn 60 ngày)",
+            "category", "COURT"
+        ),
+        Map.of(
+            "code", "REF1H",
+            "name", "1 giờ trọng tài",
+            "points", 2000,
+            "description", "Voucher miễn phí 1 giờ dịch vụ trọng tài chuyên nghiệp (hạn 60 ngày)",
+            "category", "SERVICE"
+        )
+    );
+  }
+
+  @Transactional
+  public Map<String, Object> redeemReward(UUID accountId, String rewardCode) {
+    if (accountId == null) {
+      throw new BusinessException("Vui lòng đăng nhập để đổi quà");
+    }
+    String code = rewardCode != null ? rewardCode.trim().toUpperCase(Locale.ROOT) : "";
+    var catalog = getRewardsCatalog();
+    var optReward = catalog.stream().filter(r -> code.equals(r.get("code"))).findFirst();
+    if (optReward.isEmpty()) {
+      throw new BusinessException("Mã phần quà không hợp lệ");
+    }
+    var reward = optReward.get();
+    int costPoints = ((Number) reward.get("points")).intValue();
+    String rewardName = (String) reward.get("name");
+
+    Account account = accounts.findForUpdate(accountId)
+        .orElseThrow(() -> new BusinessException("Không tìm thấy tài khoản"));
+    int currentBalance = account.getPointsBalance() != null ? account.getPointsBalance() : 0;
+    if (currentBalance < costPoints) {
+      throw new BusinessException("Bạn hiện có " + currentBalance + " điểm, không đủ để đổi phần quà này (" + costPoints + " điểm)");
+    }
+
+    account.setPointsBalance(currentBalance - costPoints);
     accounts.save(account);
 
-    auditService.log("REDEEM_POINTS", "Dùng " + pointsUsed + " điểm cho đơn " + order.getId() + " tài khoản " + account.getEmail());
+    String prefix = switch (code) {
+      case "EXT30" -> "RWD-EXT30";
+      case "GOLDEN1H" -> "RWD-GOLDEN";
+      case "REF1H" -> "RWD-REF1H";
+      default -> "RWD-" + code;
+    };
+    String vCode = prefix + "-" + randomSuffix(4);
+    while (vouchers.findByCodeIgnoreCase(vCode).isPresent()) {
+      vCode = prefix + "-" + randomSuffix(4);
+    }
+
+    Voucher v = new Voucher();
+    v.setCode(vCode);
+    v.setType("FIXED");
+    v.setValue(switch (code) {
+      case "EXT30" -> new BigDecimal("150000");
+      case "GOLDEN1H" -> new BigDecimal("250000");
+      case "REF1H" -> new BigDecimal("200000");
+      default -> new BigDecimal("100000");
+    });
+    v.setMinOrder(BigDecimal.ZERO);
+    v.setStartsAt(now());
+    v.setExpiresAt(now().plus(Duration.ofDays(60)));
+    v.setUsageLimit(1);
+    v.setPerUserLimit(1);
+    v.setNewUserOnly(false);
+    v.setEnabled(true);
+    v.setStatus("ACTIVE");
+    v.setSource("POINTS_REWARD");
+    v.setAssignedAccountId(accountId);
+    v.setDescription("Đổi từ " + costPoints + " điểm thưởng: " + rewardName);
+    if ("GOLDEN1H".equals(code)) {
+      v.setValidFromTime(LocalTime.of(10, 0));
+      v.setValidToTime(LocalTime.of(15, 0));
+    }
+    vouchers.save(v);
+
+    LoyaltyLedger entry = new LoyaltyLedger();
+    entry.setAccount(account);
+    entry.setType("REDEEM_REWARD");
+    entry.setPoints(-costPoints);
+    entry.setSpendAmount(BigDecimal.ZERO);
+    entry.setNote("Đổi " + costPoints + " điểm lấy voucher " + rewardName + " (" + vCode + ")");
+    entry.setCreatedAt(now());
+    ledger.save(entry);
+
+    auditService.log("REDEEM_REWARD", "Đổi " + costPoints + " điểm lấy " + rewardName + " (mã " + vCode + ") tài khoản " + account.getEmail());
+    notificationService.enqueue(account.getId(), null, null, "POINTS_REWARD", "IN_APP", null, "🎁 Đổi quà thành công!", "Bạn đã đổi " + costPoints + " điểm lấy phần quà " + rewardName + ". Mã voucher: " + vCode + " (hạn dùng 60 ngày).", now(), "RWD:" + vCode + ":IN_APP");
+
+    return Map.of(
+        "success", true,
+        "voucherCode", vCode,
+        "pointsSpent", costPoints,
+        "pointsBalance", account.getPointsBalance(),
+        "message", "Đổi quà thành công! Mã voucher: " + vCode
+    );
   }
 
   // =========================================================================

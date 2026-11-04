@@ -42,6 +42,20 @@ export default function Booking() {
 
   const [voucherBusy, setVoucherBusy] = useState(false);
 
+  const [loyalty, setLoyalty] = useState(null);
+  const [usePoints, setUsePoints] = useState(false);
+  const [pointsInput, setPointsInput] = useState('');
+
+  useEffect(() => {
+    if (user?.id) {
+      api('/loyalty/my', 'GET').then(setLoyalty).catch(() => {});
+    } else {
+      setLoyalty(null);
+      setUsePoints(false);
+      setPointsInput('');
+    }
+  }, [user?.id]);
+
   const [publicVouchers, setPublicVouchers] = useState([]);
 
   const [showVoucherList, setShowVoucherList] = useState(false);
@@ -540,7 +554,19 @@ export default function Booking() {
 
   const voucherDiscount = appliedVoucher ? appliedVoucher.discount : 0;
 
-  const net = Math.max(0, baseCourtNet - voucherDiscount);
+  const courtAfterVoucher = Math.max(0, baseCourtNet - voucherDiscount);
+
+  const userBalance = loyalty?.pointsBalance ?? user?.pointsBalance ?? 0;
+  const maxCourtPoints = Math.floor(Math.floor(courtAfterVoucher * 0.5) / 1000) * 10;
+  const maxPointsUsable = Math.min(Math.floor(userBalance / 10) * 10, maxCourtPoints);
+  const requestedPoints = pointsInput !== '' ? parseInt(pointsInput, 10) : maxPointsUsable;
+  const validRequestedPoints = !isNaN(requestedPoints) ? Math.floor(requestedPoints / 10) * 10 : 0;
+  const effectivePoints = usePoints && maxPointsUsable >= 100
+    ? Math.min(maxPointsUsable, Math.max(0, validRequestedPoints))
+    : 0;
+  const pointsDiscount = effectivePoints >= 100 ? effectivePoints * 100 : 0;
+
+  const net = Math.max(0, courtAfterVoucher - pointsDiscount);
 
   const totalAmount = net + refFee;
 
@@ -783,6 +809,8 @@ export default function Booking() {
           voucherCode: appliedVoucher?.code || undefined,
 
           recurringWeeks: recurringWeeks > 1 ? recurringWeeks : undefined,
+
+          pointsToUse: effectivePoints >= 100 ? effectivePoints : undefined,
 
           requestId: req.current
 
@@ -2438,6 +2466,60 @@ export default function Booking() {
 
 
 
+          {user && userBalance >= 100 && maxPointsUsable >= 100 && (
+            <div style={{
+              margin: '12px 0',
+              padding: '10px 14px',
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              borderRadius: 8
+            }}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                <label style={{display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, color: '#166534'}}>
+                  <input
+                    type="checkbox"
+                    checked={usePoints}
+                    onChange={e => {
+                      setUsePoints(e.target.checked);
+                      if (e.target.checked && pointsInput === '') {
+                        setPointsInput(maxPointsUsable);
+                      }
+                    }}
+                    style={{accentColor: '#16a34a', width: 16, height: 16}}
+                  />
+                  <span>🎁 {t('Dùng điểm thưởng')}</span>
+                </label>
+                <span style={{fontSize: 12, color: '#15803d', fontWeight: 600}}>
+                  {t('Số dư')}: <b>{userBalance}</b> pts
+                </span>
+              </div>
+              {usePoints && (
+                <div style={{marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12}}>
+                  <span>{t('Số điểm dùng:')}</span>
+                  <input
+                    type="number"
+                    min={100}
+                    max={maxPointsUsable}
+                    step={10}
+                    value={pointsInput !== '' ? pointsInput : maxPointsUsable}
+                    onChange={e => setPointsInput(e.target.value)}
+                    style={{
+                      width: 80,
+                      padding: '4px 6px',
+                      borderRadius: 6,
+                      border: '1px solid #86efac',
+                      fontWeight: 700,
+                      color: '#166534'
+                    }}
+                  />
+                  <span style={{color: '#4b5563'}}>
+                    (Tối đa: <b>{maxPointsUsable}</b> pts ≈ −{money(maxPointsUsable * 100)})
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           <dl>
 
             <div>
@@ -2456,7 +2538,7 @@ export default function Booking() {
 
               <div>
 
-                <dt>{t('Ưu đãi hội viên')}{recurringWeeks > 1 ? ` (× ${recurringWeeks} ${t('tuần')})` : ''}</dt>
+                <dt>{options?.courtQuote?.planName || t('Ưu đãi theo hạng')}{recurringWeeks > 1 ? ` (× ${recurringWeeks} ${t('tuần')})` : ''}</dt>
 
                 <dd>−{money(discount)}</dd>
 
@@ -2471,6 +2553,18 @@ export default function Booking() {
                 <dt>{t('Voucher')} ({appliedVoucher.code})</dt>
 
                 <dd style={{color: '#16a34a', fontWeight: 700}}>−{money(appliedVoucher.discount)}</dd>
+
+              </div>
+
+            )}
+
+            {pointsDiscount > 0 && (
+
+              <div>
+
+                <dt>{t('Dùng điểm')} ({effectivePoints} pts)</dt>
+
+                <dd style={{color: '#16a34a', fontWeight: 700}}>−{money(pointsDiscount)}</dd>
 
               </div>
 

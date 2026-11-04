@@ -11,9 +11,11 @@ public record BookingRequest(
     List<StaffAssignment> assignments,
     String requestId,
     String voucherCode,
-    Integer recurringWeeks) {
+    Integer recurringWeeks,
+    Integer pointsToUse,
+    String otp) {
   public BookingRequest(String name, String phone, UUID accountId, List<UUID> ids) {
-    this(name, phone, accountId, ids, List.of(), null, null, null);
+    this(name, phone, accountId, ids, List.of(), null, null, null, null, null);
   }
 
   public BookingRequest(
@@ -23,7 +25,7 @@ public record BookingRequest(
       List<UUID> ids,
       List<StaffAssignment> assignments,
       String requestId) {
-    this(name, phone, accountId, ids, assignments, requestId, null, null);
+    this(name, phone, accountId, ids, assignments, requestId, null, null, null, null);
   }
 
   public BookingRequest(
@@ -34,6 +36,18 @@ public record BookingRequest(
       List<StaffAssignment> assignments,
       String requestId,
       String voucherCode) {
-    this(name, phone, accountId, ids, assignments, requestId, voucherCode, null);
+    this(name, phone, accountId, ids, assignments, requestId, voucherCode, null, null, null);
+  }
+
+  public BookingRequest(
+      String name,
+      String phone,
+      UUID accountId,
+      List<UUID> ids,
+      List<StaffAssignment> assignments,
+      String requestId,
+      String voucherCode,
+      Integer recurringWeeks) {
+    this(name, phone, accountId, ids, assignments, requestId, voucherCode, recurringWeeks, null, null);
   }
 }

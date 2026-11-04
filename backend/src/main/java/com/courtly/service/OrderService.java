@@ -198,6 +198,7 @@ public class OrderService {
     quote(order, allSlots);
 
     applyVoucher(order, request.voucherCode(), allSlots);
+    applyPoints(order, request.pointsToUse(), allSlots);
 
     totals.recalculate(order);
 
@@ -253,6 +254,12 @@ public class OrderService {
 
       }
 
+      if (o.getPointsDiscount() != null && o.getPointsDiscount().compareTo(BigDecimal.ZERO) > 0) {
+
+        net = net.subtract(o.getPointsDiscount()).max(BigDecimal.ZERO);
+
+      }
+
       return net;
 
     }
@@ -262,6 +269,34 @@ public class OrderService {
   }
 
 
+
+  private void applyPoints(CustomerOrder o, Integer pointsToUse, List<CourtSchedule> selected) {
+    if (pointsToUse == null || pointsToUse <= 0 || o.getCustomerAccount() == null) {
+      o.setPointsRedeemed(0);
+      o.setPointsDiscount(BigDecimal.ZERO);
+      return;
+    }
+    BigDecimal courtTotal = selected.stream().map(CourtSchedule::getPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+    var extra = documents.decode(o.getMetadata());
+    BigDecimal courtNet = OrderTotalsService.voucherBase(courtTotal, extra.get("membershipBenefit"));
+    if (extra.get("voucherBenefit") instanceof Map<?, ?> voucher) {
+      courtNet = courtNet.subtract(PresentationService.decimal(voucher.get("discount"))).max(BigDecimal.ZERO);
+    }
+    Account acc = accounts.findForUpdate(o.getCustomerAccount().getId()).orElse(o.getCustomerAccount());
+    int balance = acc.getPointsBalance() != null ? acc.getPointsBalance() : 0;
+    int effectivePoints = loyaltyService.calculateEffectivePoints(pointsToUse, balance, courtNet);
+    if (effectivePoints >= 100) {
+      BigDecimal pointsDiscount = loyaltyService.computePointsDiscount(effectivePoints);
+      o.setPointsRedeemed(effectivePoints);
+      o.setPointsDiscount(pointsDiscount);
+      loyaltyService.deductPointsForOrder(acc, o, effectivePoints, pointsDiscount);
+      extra.put("pointsBenefit", Map.of("points", effectivePoints, "discount", pointsDiscount));
+      o.setMetadata(documents.encode(extra));
+    } else {
+      o.setPointsRedeemed(0);
+      o.setPointsDiscount(BigDecimal.ZERO);
+    }
+  }
 
   private void applyVoucher(CustomerOrder o, String voucherCode, List<CourtSchedule> selected) {
 
@@ -482,6 +517,7 @@ public class OrderService {
     if (slots.findByBookingId(b.getId()).stream().noneMatch(x -> x.getCompletedAt() != null))
 
       vouchers.release(id);
+    loyaltyService.refundRedeemedPoints(order);
     loyaltyService.reverseOrderPoints(order);
 
     audit.log("HỦY ĐƠN", id.toString());
@@ -853,6 +889,8 @@ public class OrderService {
       release(b);
 
       vouchers.release(order.getId());
+
+      loyaltyService.refundRedeemedPoints(order);
 
       audit.log("HẾT HẠN", order.getId().toString());
 

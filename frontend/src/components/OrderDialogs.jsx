@@ -76,7 +76,7 @@ export function OrderDetail({id,onClose,visitDate}) {
     )}
     {o.status==='CONFIRMED' && (
       <div className="notice" style={{marginTop:12, background:'#f0fdf4', borderColor:'#bbf7d0', color:'#166534'}}>
-        ✓ <b>Lịch đặt đã được xác nhận</b> (Đã cọc {money(o.paid)}). Lễ tân kiểm tra thẻ hội viên/thông tin và bấm <b>"Thực hiện Check-in vào sân"</b> khi khách tới.
+        ✓ <b>Lịch đặt đã được xác nhận</b> (Đã cọc {money(o.paid)}). Lễ tân kiểm tra mã QR đặt sân/thông tin và bấm <b>"Thực hiện Check-in vào sân"</b> khi khách tới.
       </div>
     )}
     {o.status==='CHECKED_IN' && (
@@ -511,16 +511,22 @@ export function InvoiceDialog({id, onClose}) {
             <div style={{ borderBottom: '1px dashed #94a3b8', margin: '8px 0' }} />
 
             <div style={{ fontSize: 11.5 }}>
-              {o.membershipBenefit?.discount > 0 && (
+              {(o.membershipBenefit?.discount > 0 || o.tierBenefit?.discount > 0) && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16a34a', marginBottom: 2 }}>
-                  <span>Ưu đãi hội viên:</span>
-                  <b>–{money(o.membershipBenefit.discount)}</b>
+                  <span>{o.tierBenefit?.planName || o.membershipBenefit?.planName || 'Giảm theo hạng'}:</span>
+                  <b>–{money(o.tierBenefit?.discount || o.membershipBenefit?.discount)}</b>
                 </div>
               )}
               {o.voucherBenefit?.discount > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16a34a', marginBottom: 2 }}>
-                  <span>Voucher giảm giá:</span>
+                  <span>Voucher ({o.voucherBenefit.code}):</span>
                   <b>–{money(o.voucherBenefit.discount)}</b>
+                </div>
+              )}
+              {(o.pointsDiscount > 0 || o.pointsRedeemed > 0) && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16a34a', marginBottom: 2 }}>
+                  <span>Dùng điểm ({o.pointsRedeemed || Math.round(o.pointsDiscount / 100)} điểm):</span>
+                  <b>–{money(o.pointsDiscount || (o.pointsRedeemed * 100))}</b>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 12.5, marginTop: 4 }}>
@@ -610,16 +616,22 @@ export function InvoiceDialog({id, onClose}) {
           </Table>
 
           <div style={{ marginTop: 16, borderTop: '1px solid #e2e8f0', paddingTop: 12 }}>
-            {o.membershipBenefit?.discount > 0 && (
+            {(o.membershipBenefit?.discount > 0 || o.tierBenefit?.discount > 0) && (
               <div className="summary-line membership-discount" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span>Ưu đãi hội viên ({o.membershipBenefit.planName})</span>
-                <b style={{ color: '#16a34a' }}>–{money(o.membershipBenefit.discount)}</b>
+                <span>{o.tierBenefit?.planName || o.membershipBenefit?.planName || 'Giảm theo hạng'}</span>
+                <b style={{ color: '#16a34a' }}>–{money(o.tierBenefit?.discount || o.membershipBenefit?.discount)}</b>
               </div>
             )}
             {o.voucherBenefit?.discount > 0 && (
               <div className="summary-line voucher-discount" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span>Voucher giảm giá ({o.voucherBenefit.code})</span>
+                <span>Voucher ({o.voucherBenefit.code})</span>
                 <b style={{ color: '#16a34a' }}>–{money(o.voucherBenefit.discount)}</b>
+              </div>
+            )}
+            {(o.pointsDiscount > 0 || o.pointsRedeemed > 0) && (
+              <div className="summary-line points-discount" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span>Dùng điểm ({o.pointsRedeemed || Math.round(o.pointsDiscount / 100)} điểm)</span>
+                <b style={{ color: '#16a34a' }}>–{money(o.pointsDiscount || (o.pointsRedeemed * 100))}</b>
               </div>
             )}
             <div className="summary-line total" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, marginBottom: 6 }}>
@@ -919,10 +931,22 @@ export function CheckOutDialog({id, onClose}) {
           </div>
         )}
 
-        {o.membershipBenefit?.discount > 0 && (
+        {(o.membershipBenefit?.discount > 0 || o.tierBenefit?.discount > 0) && (
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13.5, color: '#16a34a' }}>
-            <span>Ưu đãi hội viên ({o.membershipBenefit.planName}):</span>
-            <b>–{money(o.membershipBenefit.discount)}</b>
+            <span>{o.tierBenefit?.planName || o.membershipBenefit?.planName || 'Giảm theo hạng'}:</span>
+            <b>–{money(o.tierBenefit?.discount || o.membershipBenefit?.discount)}</b>
+          </div>
+        )}
+        {o.voucherBenefit?.discount > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13.5, color: '#16a34a' }}>
+            <span>Voucher ({o.voucherBenefit.code}):</span>
+            <b>–{money(o.voucherBenefit.discount)}</b>
+          </div>
+        )}
+        {(o.pointsDiscount > 0 || o.pointsRedeemed > 0) && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13.5, color: '#16a34a' }}>
+            <span>Dùng điểm ({o.pointsRedeemed || Math.round(o.pointsDiscount / 100)} điểm):</span>
+            <b>–{money(o.pointsDiscount || (o.pointsRedeemed * 100))}</b>
           </div>
         )}
 

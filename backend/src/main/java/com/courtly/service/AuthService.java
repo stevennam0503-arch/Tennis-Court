@@ -148,6 +148,9 @@ public class AuthService {
     m.put("notifyEmail", a.getNotifyEmail());
     m.put("notifySms", a.getNotifySms());
     m.put("marketingConsent", a.getMarketingConsent());
+    m.put("tier", a.getTier() != null ? a.getTier() : "ROOKIE");
+    m.put("pointsBalance", a.getPointsBalance() != null ? a.getPointsBalance() : 0);
+    m.put("tierExpiresAt", a.getTierExpiresAt());
     return m;
   }
 
@@ -250,7 +253,7 @@ public class AuthService {
       if (accounts.findByPhone(e164).isPresent()) {
         throw new BusinessException("Số điện thoại đã có tài khoản. Hãy đăng nhập hoặc liên hệ quầy.");
       }
-    } else if ("LOGIN".equals(purpose) || "RESET_PASSWORD".equals(purpose)) {
+    } else if ("LOGIN".equals(purpose) || "RESET_PASSWORD".equals(purpose) || "POINTS".equals(purpose)) {
       if (accounts.findByPhone(e164).isEmpty()) {
         throw new BusinessException("Số điện thoại chưa được đăng ký tài khoản.");
       }
@@ -342,6 +345,38 @@ public class AuthService {
     resp.put("phoneToken", phoneToken);
     resp.put("phone", PhoneUtils.formatDisplay(e164));
     return resp;
+  }
+
+  @Transactional
+  public void verifyOtpDirectly(String rawPhone, String code, String purpose) {
+    require(rawPhone != null && !rawPhone.isBlank(), "Thiếu số điện thoại xác thực OTP");
+    require(code != null && !code.isBlank(), "Vui lòng nhập mã xác thực OTP");
+    String e164 = PhoneUtils.normalizeE164(rawPhone);
+    String p = purpose == null ? "POINTS" : purpose.trim().toUpperCase(Locale.ROOT);
+    String otpKey = "otp:phone:" + p + ":" + e164;
+    var row = documents.lock(otpKey);
+    require(row != null, "Mã OTP không tồn tại hoặc đã hết hạn.");
+    var info = documents.read(row);
+    int attempts = ((Number) info.getOrDefault("attempts", 0)).intValue();
+    Instant expiresAt = Instant.parse((String) info.get("expiresAt"));
+    if (attempts >= 5 || Instant.now().isAfter(expiresAt) || Boolean.TRUE.equals(info.get("used"))) {
+      throw new BusinessException("Mã OTP đã hết hạn hoặc thử sai quá 5 lần. Vui lòng gửi lại mã mới.");
+    }
+    String storedHash = (String) info.get("codeHash");
+    boolean valid = storedHash != null && MessageDigest.isEqual(
+        hashOtp(code.trim()).getBytes(StandardCharsets.UTF_8),
+        storedHash.getBytes(StandardCharsets.UTF_8));
+    if (!valid) {
+      info.put("attempts", attempts + 1);
+      documents.save(row, info);
+      int remain = 4 - attempts;
+      if (remain <= 0) {
+        throw new BusinessException("Bạn đã nhập sai 5 lần. Mã OTP đã bị khóa. Vui lòng gửi lại mã mới.");
+      }
+      throw new BusinessException("Mã OTP không đúng (còn " + remain + " lần thử).");
+    }
+    info.put("used", true);
+    documents.save(row, info);
   }
 
   @Transactional

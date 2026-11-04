@@ -31,6 +31,17 @@ public class LoyaltyController {
     return loyaltyService.getCustomerLoyaltySummary(user.getId());
   }
 
+  @GetMapping("/loyalty/rewards")
+  public List<Map<String, Object>> getRewards() {
+    return loyaltyService.getRewardsCatalog();
+  }
+
+  @PostMapping("/loyalty/rewards/{code}/redeem")
+  public Map<String, Object> redeemReward(@PathVariable String code, HttpServletRequest r) {
+    Account user = authService.current(r);
+    return loyaltyService.redeemReward(user.getId(), code);
+  }
+
   @GetMapping("/public/loyalty/tiers")
   public List<Map<String, Object>> publicTiers() {
     return List.of(

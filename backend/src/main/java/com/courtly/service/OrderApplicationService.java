@@ -4,6 +4,7 @@ import static com.courtly.util.Rules.*;
 
 import com.courtly.dto.request.*;
 import com.courtly.entity.*;
+import com.courtly.exception.BusinessException;
 import com.courtly.repository.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.*;
@@ -25,6 +26,7 @@ public class OrderApplicationService {
   private final ObjectMapper mapper;
   private final jakarta.validation.Validator validator;
   private final SettingsService settings;
+  private final AccountRepository accounts;
   private final MembershipService memberships;
   private final CourtScheduleRepository schedules;
   private final AuditService audit;
@@ -55,7 +57,17 @@ public class OrderApplicationService {
                     r.assignments(),
                     r.requestId(),
                     r.voucherCode(),
-                    r.recurringWeeks());
+                    r.recurringWeeks(),
+                    r.pointsToUse(),
+                    r.otp());
+          } else {
+            if (r.pointsToUse() != null && r.pointsToUse() > 0) {
+              require(r.accountId() != null, "Khách hàng muốn dùng điểm cần chọn đúng tài khoản thành viên");
+              require(r.otp() != null && !r.otp().isBlank(), "Khách hàng dùng điểm tại quầy cần nhập mã OTP xác thực");
+              Account cust = accounts.findById(r.accountId()).orElseThrow(() -> new BusinessException("Không tìm thấy tài khoản khách hàng"));
+              require(cust.getPhone() != null && !cust.getPhone().isBlank(), "Tài khoản khách chưa có số điện thoại để nhận mã OTP");
+              auth.verifyOtpDirectly(cust.getPhone(), r.otp(), "POINTS");
+            }
           }
           UUID id = service.create(effective);
           var o = service.lock(id);
@@ -447,6 +459,9 @@ public class OrderApplicationService {
     var voucher = (Map<String,Object>) meta.get("voucherBenefit");
     if (voucher != null && benefit != null) {
       net = net.subtract(PresentationService.decimal(voucher.get("discount"))).max(java.math.BigDecimal.ZERO);
+    }
+    if (o.getPointsDiscount() != null && o.getPointsDiscount().compareTo(java.math.BigDecimal.ZERO) > 0) {
+      net = net.subtract(o.getPointsDiscount()).max(java.math.BigDecimal.ZERO);
     }
     o.setDepositRequired(net.multiply(new java.math.BigDecimal("0.5")).setScale(0, java.math.RoundingMode.HALF_UP));
   }

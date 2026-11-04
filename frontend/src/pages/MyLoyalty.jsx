@@ -20,6 +20,9 @@ export default function MyLoyalty() {
   const [loading, setLoading] = useState(true);
   const [vipQrUrl, setVipQrUrl] = useState('');
   const [copiedRef, setCopiedRef] = useState(false);
+  const [rewards, setRewards] = useState([]);
+  const [redeemBusy, setRedeemBusy] = useState(false);
+  const [redeemMsg, setRedeemMsg] = useState('');
 
   useEffect(() => {
     const fetchLoyalty = async () => {
@@ -39,6 +42,11 @@ export default function MyLoyalty() {
             }).then(setVipQrUrl).catch(() => {});
           }
         }
+        const rRes = await fetch('/api/loyalty/rewards');
+        if (rRes.ok) {
+          const rJson = await rRes.json();
+          setRewards(rJson);
+        }
       } catch (err) {
         console.error('Lỗi tải thông tin hạng & điểm:', err);
       } finally {
@@ -47,6 +55,32 @@ export default function MyLoyalty() {
     };
     fetchLoyalty();
   }, []);
+
+  const handleRedeem = async (rewardCode) => {
+    if (redeemBusy) return;
+    setRedeemBusy(true);
+    setRedeemMsg('');
+    try {
+      const res = await fetch(`/api/loyalty/rewards/${rewardCode}/redeem`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const resJson = await res.json();
+      if (!res.ok) {
+        throw new Error(resJson.message || 'Đổi quà thất bại');
+      }
+      setRedeemMsg(`🎉 Đổi thành công! Mã voucher: ${resJson.voucherCode} (Đã trừ ${resJson.pointsSpent} điểm)`);
+      // Refresh loyalty summary
+      const lRes = await fetch('/api/loyalty/my');
+      if (lRes.ok) {
+        setData(await lRes.json());
+      }
+    } catch (err) {
+      setRedeemMsg(`⚠️ ${err.message}`);
+    } finally {
+      setRedeemBusy(false);
+    }
+  };
 
   const copyReferralCode = () => {
     if (!data?.referralCode) return;
@@ -232,6 +266,101 @@ export default function MyLoyalty() {
           </div>
         </div>
       )}
+
+      {/* 4.5. REWARDS CATALOG (ĐỔI ĐIỂM LẤY DỊCH VỤ) */}
+      <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', padding: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div>
+            <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>🎁</span> Danh mục đổi điểm lấy quà & dịch vụ
+            </h3>
+            <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
+              Dùng điểm thưởng tích lũy để đổi các voucher dịch vụ độc quyền (hạn dùng 60 ngày).
+            </p>
+          </div>
+          <div style={{ fontSize: 13, color: '#059669', fontWeight: 700, background: '#ecfdf5', padding: '6px 12px', borderRadius: 20 }}>
+            Điểm của bạn: {data.pointsBalance || 0} pts
+          </div>
+        </div>
+
+        {redeemMsg && (
+          <div style={{
+            padding: '10px 14px',
+            borderRadius: 8,
+            marginBottom: 16,
+            fontSize: 13,
+            fontWeight: 600,
+            background: redeemMsg.startsWith('🎉') ? '#f0fdf4' : '#fef2f2',
+            color: redeemMsg.startsWith('🎉') ? '#15803d' : '#b91c1c',
+            border: `1px solid ${redeemMsg.startsWith('🎉') ? '#bbf7d0' : '#fecaca'}`
+          }}>
+            {redeemMsg}
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
+          {(rewards.length > 0 ? rewards : [
+            { code: 'EXT30', name: 'Gia hạn 30 phút', points: 800, description: 'Voucher miễn phí gia hạn thời gian chơi sân thêm 30 phút (hạn 60 ngày)' },
+            { code: 'GOLDEN1H', name: '1 giờ sân giờ vàng (10:00–15:00)', points: 1200, description: 'Voucher 1 giờ sân trong khung giờ vàng 10:00–15:00 (hạn 60 ngày)' },
+            { code: 'REF1H', name: '1 giờ trọng tài', points: 2000, description: 'Voucher 1 giờ dịch vụ trọng tài chuyên nghiệp (hạn 60 ngày)' }
+          ]).map(r => {
+            const canAfford = (data.pointsBalance || 0) >= r.points;
+            return (
+              <div 
+                key={r.code}
+                style={{
+                  border: '1.5px solid #e2e8f0',
+                  borderRadius: 12,
+                  padding: 16,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  background: canAfford ? '#f8fafc' : '#fafafa',
+                  opacity: canAfford ? 1 : 0.75
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: '#0369a1', background: '#e0f2fe', padding: '2px 8px', borderRadius: 10 }}>
+                      {r.code}
+                    </span>
+                    <strong style={{ fontSize: 15, fontWeight: 900, color: '#b45309' }}>
+                      {r.points.toLocaleString()} pts
+                    </strong>
+                  </div>
+                  <h4 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 700, color: '#1e293b' }}>
+                    {r.name}
+                  </h4>
+                  <p style={{ margin: 0, fontSize: 12.5, color: '#64748b', lineHeight: 1.4 }}>
+                    {r.description}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!canAfford || redeemBusy}
+                  onClick={() => handleRedeem(r.code)}
+                  style={{
+                    marginTop: 14,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: canAfford ? '#173c32' : '#cbd5e1',
+                    color: canAfford ? '#def46a' : '#64748b',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: canAfford && !redeemBusy ? 'pointer' : 'not-allowed',
+                    textAlign: 'center',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {redeemBusy ? 'Đang đổi…' : canAfford ? 'Đổi quà ngay' : `Thiếu ${(r.points - (data.pointsBalance || 0)).toLocaleString()} pts`}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* 5. REFERRAL CODE BOX */}
       <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', padding: 20 }}>
