@@ -2,658 +2,313 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@500;600;700&family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap">
 <style>
-/* Layout: one reading column; each flow mirrors the slide timeline (4 stages + output); every stage holds numbered click steps */
+/* Layout: one reading column of plain numbered steps; each step = Bấm / Thấy / Nói */
 :root{
-  --bg:#f3f5f0; --surface:#ffffff; --sunken:#e8eee5; --line:#d3ddd0;
-  --fg:#1a2b21; --muted:#5d6f63; --brand:#1f5a3d; --brand-ink:#ffffff;
-  --lime:#def46a; --lime-ink:#1a2b21;
-  --ok:#1e7a46; --ok-bg:#e3f3e8; --warn:#9a5b06; --warn-bg:#fff4dc; --bad:#b4232b; --bad-bg:#fde8e8;
-  --say:#2c6b47;
-  --f-display:'Lexend',system-ui,sans-serif;
+  --bg:#f6f7f3; --fg:#1b2a21; --muted:#5a6b60; --line:#d6ddd3;
+  --brand:#1f5a3d; --say:#2c6b47; --warn:#9a5b06; --warn-bg:#fff4dc;
+  --code-bg:#e9eee6;
   --f-body:'Be Vietnam Pro',system-ui,-apple-system,'Segoe UI',sans-serif;
   --f-mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#111a15; --surface:#18241d; --sunken:#1f2e25; --line:#2d4034;
-  --fg:#e5ede7; --muted:#9db0a3; --brand:#7fc79c; --brand-ink:#0f1a14;
-  --lime:#def46a; --lime-ink:#1a2b21;
-  --ok:#7fd3a0; --ok-bg:#183626; --warn:#f2c46b; --warn-bg:#3a2c12; --bad:#f39a9f; --bad-bg:#3d1c1f;
-  --say:#a6dcbb; color-scheme:dark}}
+  --bg:#121a15; --fg:#e4ece6; --muted:#9db0a3; --line:#2c3d32;
+  --brand:#8fd0a8; --say:#a6dcbb; --warn:#f2c46b; --warn-bg:#352a13; --code-bg:#1e2a23; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#111a15; --surface:#18241d; --sunken:#1f2e25; --line:#2d4034;
-  --fg:#e5ede7; --muted:#9db0a3; --brand:#7fc79c; --brand-ink:#0f1a14;
-  --lime:#def46a; --lime-ink:#1a2b21;
-  --ok:#7fd3a0; --ok-bg:#183626; --warn:#f2c46b; --warn-bg:#3a2c12; --bad:#f39a9f; --bad-bg:#3d1c1f;
-  --say:#a6dcbb; color-scheme:dark}
-
+  --bg:#121a15; --fg:#e4ece6; --muted:#9db0a3; --line:#2c3d32;
+  --brand:#8fd0a8; --say:#a6dcbb; --warn:#f2c46b; --warn-bg:#352a13; --code-bg:#1e2a23; color-scheme:dark}
 *{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--fg);font:15px/1.6 var(--f-body);
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
-body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
-.wrap{max-width:980px;margin:0 auto}
-h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.25}
-p{margin:0}
-code,.code{font-family:var(--f-mono);font-size:.88em;background:var(--sunken);padding:1px 6px;border-radius:5px;white-space:nowrap}
-
-header{padding-block:40px 24px;display:grid;gap:12px}
-.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
-h1{font-size:clamp(28px,5vw,40px);font-weight:700}
-.lead{color:var(--muted);max-width:66ch}
-.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
-.chip{font-size:12.5px;padding:4px 10px;border-radius:999px;background:var(--sunken);color:var(--fg);font-weight:500}
-
-nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);margin-bottom:28px}
-nav ul{list-style:none;margin:0;padding:10px 0;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
-nav a{display:block;white-space:nowrap;text-decoration:none;color:var(--muted);font-size:13.5px;font-weight:500;padding:6px 12px;border-radius:999px}
-nav a:hover{color:var(--fg);background:var(--sunken)}
-nav a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-
-section{scroll-margin-top:70px;display:grid;gap:16px;margin-bottom:52px}
-.sec-head{display:grid;gap:6px}
-.sec-head h2{font-size:24px;font-weight:600}
-.sec-head p{color:var(--muted);max-width:70ch}
-.flowtag{font:700 12px var(--f-mono);letter-spacing:.08em;color:var(--brand)}
-.distinct{font-size:13.5px;color:var(--fg);background:var(--sunken);border-radius:8px;padding:8px 12px;width:fit-content;max-width:100%}
-.distinct b{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.06em;color:var(--brand);margin-right:6px}
-
-/* timeline strip mirroring the slide */
-.timeline{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
-.timeline a{text-decoration:none;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:2px}
-.timeline a:hover{border-color:var(--brand)}
-.timeline .n{font:600 11px var(--f-mono);color:var(--muted)}
-.timeline .t{font:600 14px var(--f-display)}
-.timeline .out{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
-.timeline .out .n{color:var(--lime-ink)}
-
-.stage{display:grid;gap:10px;scroll-margin-top:70px}
-.stage-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
-.stage-head h3{font-size:18px;font-weight:600}
-.who{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:6px;background:var(--brand);color:var(--brand-ink)}
-.who.cus{background:var(--lime);color:var(--lime-ink)}
-.who.sys{background:var(--sunken);color:var(--fg)}
-.bul{display:flex;flex-wrap:wrap;gap:6px}
-.bul span{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 9px}
-
-ol.steps{list-style:none;margin:0;padding:0;display:grid;gap:10px}
-.step{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:4px 12px;align-items:start;transition:opacity .2s}
-.num{grid-row:1 / span 2;width:28px;height:28px;border-radius:50%;background:var(--sunken);display:grid;place-items:center;font:600 13px var(--f-display)}
-.step.done{opacity:.55}
-.step.done .num{background:var(--ok-bg);color:var(--ok)}
-.screen{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.tick{grid-row:1;grid-column:3}
-.tick input{width:20px;height:20px;accent-color:var(--brand);cursor:pointer}
-.body{grid-column:2 / span 2;display:grid;gap:8px}
-.row{display:grid;grid-template-columns:62px minmax(0,1fr);gap:10px}
-.lbl{font-size:12px;font-weight:600;color:var(--muted);padding-top:2px}
-.btn{display:inline-block;font-weight:600;font-size:13.5px;padding:0 8px;border-radius:7px;background:var(--brand);color:var(--brand-ink)}
-.btn.light{background:var(--sunken);color:var(--fg);border:1px solid var(--line)}
-.btn.warn{background:var(--warn-bg);color:var(--warn);border:1px solid currentColor}
-.ui{font-weight:600}
+body{background:var(--bg);color:var(--fg);font:16px/1.65 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 72px}
+main{max-width:46rem;margin:0 auto}
+h1{font-size:1.9rem;line-height:1.2;margin:0 0 .4rem;text-wrap:balance;color:var(--brand)}
+h2{font-size:1.35rem;margin:2.8rem 0 .3rem;padding-top:1rem;border-top:2px solid var(--line);text-wrap:balance}
+h3{font-size:1.05rem;margin:1.8rem 0 .4rem;color:var(--brand)}
+p{margin:.5rem 0}
+.meta{color:var(--muted);font-size:.93rem}
+.tag{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+ol.steps{padding-left:1.4rem;margin:.4rem 0}
+ol.steps>li{margin:.9rem 0;padding-left:.2rem}
+ol.steps>li::marker{font-weight:700;color:var(--brand)}
+.k{font-weight:700}
 .say{color:var(--say);font-style:italic}
-.say::before{content:"“"}.say::after{content:"”"}
-
-.output{background:var(--surface);border:2px solid var(--lime);border-radius:12px;padding:14px 16px;display:grid;gap:6px}
-.output h3{font-size:16px}
-.output ul{margin:0;padding-left:18px}
-
-.note{background:var(--warn-bg);border-radius:10px;padding:12px 16px;display:grid;gap:4px}
-.note b{color:var(--warn)}
-.tip{background:var(--sunken);border-radius:10px;padding:12px 16px}
-
-.acc{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:4px}
-.card .code{width:fit-content}
-.card p{font-size:13.5px;color:var(--muted)}
-
-.tablebox{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
-table{border-collapse:collapse;width:100%;min-width:680px;font-size:14px}
-th,td{text-align:left;padding:10px 14px;border-top:1px solid var(--line);vertical-align:top}
-th{border-top:0;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--sunken)}
-td:first-child{white-space:nowrap}
-.pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--sunken)}
-.pill.bad{background:var(--bad-bg);color:var(--bad)}
-.pill.warn{background:var(--warn-bg);color:var(--warn)}
-.pill.ok{background:var(--ok-bg);color:var(--ok)}
-.untested{color:var(--muted)}
-.untested ul{margin:4px 0 0;padding-left:18px}
-.reset{display:flex;justify-content:flex-end}
-.reset button{font:500 13px var(--f-body);color:var(--muted);background:none;border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
-
-@media (max-width:720px){
-  .timeline{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .step{grid-template-columns:28px minmax(0,1fr) auto;padding:12px}
-  .body{grid-column:1 / span 3}
-  .num{grid-row:1}
-  .row{grid-template-columns:1fr;gap:2px}
-}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}html{scroll-behavior:auto}}
+code,.m{font-family:var(--f-mono);font-size:.88em;background:var(--code-bg);padding:.05em .35em;border-radius:4px;overflow-wrap:anywhere}
+.warn{background:var(--warn-bg);color:var(--fg);border-left:3px solid var(--warn);padding:.6rem .9rem;margin:.8rem 0;border-radius:0 6px 6px 0}
+.warn b{color:var(--warn)}
+ul{padding-left:1.3rem}
+li{margin:.25rem 0}
+table{border-collapse:collapse;width:100%;font-size:.93rem}
+.tw{overflow-x:auto}
+th,td{border-bottom:1px solid var(--line);text-align:left;padding:.45rem .5rem;vertical-align:top}
+th{font-weight:600;color:var(--muted)}
+td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+a{color:var(--brand)}
 </style>
 
-<div class="wrap">
-<header>
-  <span class="eyebrow">Countly Tennis · Tennis Court Booking</span>
-  <h1>Kịch bản demo 4 luồng, từng nút bấm</h1>
-  <p class="lead">Đi theo đúng timeline trong slide: mỗi luồng có 4 chặng và một đầu ra. Mọi tên nút, thông báo và con số dưới đây là chữ hiện thật trên màn hình khi chạy thử, cùng một bộ dữ liệu từ Flow 01 đến Flow 04. Tick ô bên phải mỗi bước khi tập.</p>
-  <div class="meta">
-    <span class="chip">Chạy thử 04/11/2026, 09:30–09:50</span>
-    <span class="chip">Bản <code>97bc43b</code></span>
-  </div>
-</header>
+<main>
+<p class="tag">Courtly Tennis Club · Kịch bản trình diễn</p>
+<h1>Kịch bản demo 4 luồng</h1>
+<p class="meta">Đi theo timeline trong slide. Mỗi bước ghi: <span class="k">Bấm</span> gì, <span class="k">Thấy</span> gì, <span class="k">Nói</span> gì. Tên nút, thông báo và số tiền dưới đây lấy từ lần chạy thử thật trên bản mới nhất (05/11/2026). Số tổng ở Flow 04 sẽ lệch nhẹ theo giờ demo.</p>
 
-<nav aria-label="Các phần"><ul>
-  <li><a href="#chuan-bi">Chuẩn bị</a></li>
-  <li><a href="#flow-01">Flow 01 · Setup &amp; Sales</a></li>
-  <li><a href="#flow-02">Flow 02 · Booking &amp; Payment</a></li>
-  <li><a href="#flow-03">Flow 03 · Service &amp; Feedback</a></li>
-  <li><a href="#flow-04">Flow 04 · Reconciliation</a></li>
-  <li><a href="#loi">Lỗi phát hiện</a></li>
-</ul></nav>
+<h2>Chuẩn bị</h2>
+<ol class="steps">
+<li><span class="k">Terminal:</span> nếu vừa kéo code mới thì <code>docker compose up -d --build</code>, sau đó luôn chạy <code>.\reset-demo.ps1</code>. Phải thấy dòng <code>[THANH CONG]</code>.</li>
+<li><span class="k">Trình duyệt:</span> mỗi vai một trình duyệt hoặc một cửa sổ ẩn danh riêng, vì đăng nhập vai này sẽ đẩy vai kia ra:
+  <ul>
+  <li>Chrome thường: <b>admin</b> tại <code>localhost:3000/app</code></li>
+  <li>Edge: <b>lễ tân</b> tại <code>localhost:3000/app</code></li>
+  <li>Chrome ẩn danh: <b>khách</b> tại <code>localhost:3000</code></li>
+  </ul>
+  Đang đăng nhập admin hay lễ tân thì trang khách tự chuyển về <code>/app</code>.</li>
+<li><span class="k">Giờ đặt sân:</span> đặt hôm nay, mốc 30 phút gần nhất sau giờ demo (demo 14:10 thì đặt 14:30–15:30). Như vậy lễ tân quét vé là vào sân ngay. Đặt xa hơn thì đi nhánh "check-in ngoại lệ" ở Flow 03.</li>
+</ol>
+<div class="tw"><table>
+<tr><th>Vai</th><th>Tài khoản</th><th>Dùng ở</th></tr>
+<tr><td>Admin</td><td><code>admin@gmail.com</code></td><td>Flow 01, Flow 04</td></tr>
+<tr><td>Lễ tân</td><td><code>staff@gmail.com</code></td><td>Thu cọc, check-in, check-out, xử lý đánh giá</td></tr>
+<tr><td>Khách thành viên</td><td><code>demo.hoivien@gmail.com</code></td><td>Hạng Masters, 1.500 điểm, chi tiêu 12 tháng 19.900.000₫. Lên Grand Slam ngay trong buổi demo.</td></tr>
+<tr><td>Khách mới</td><td>Đăng ký tại chỗ bằng số điện thoại</td><td>Số chưa có tài khoản, ví dụ <code>0909 123 456</code></td></tr>
+</table></div>
+<p class="meta">Mật khẩu mọi tài khoản có sẵn: <code>123456</code>. Các khách mẫu khác (hoangnam, khachmoi…) chỉ để admin thấy đủ trạng thái đơn.</p>
 
-<!-- ============ CHUẨN BỊ ============ -->
-<section id="chuan-bi">
-  <div class="sec-head"><h2>Chuẩn bị</h2><p>Làm trước khi hội đồng vào phòng.</p></div>
-  <ol class="steps">
-    <li class="step"><span class="num">1</span><span class="screen">Terminal</span><label class="tick"><input type="checkbox" id="p1" aria-label="Đã xong"></label>
-      <div class="body"><p>Nếu vừa kéo code mới: <code>docker compose up -d --build</code>. Sau đó reset dữ liệu: <code>.\reset-demo.ps1</code>. Reset sẽ xóa tài khoản đăng ký thử và đưa mọi thay đổi về như ban đầu.</p></div></li>
-    <li class="step"><span class="num">2</span><span class="screen">Trình duyệt</span><label class="tick"><input type="checkbox" id="p2" aria-label="Đã xong"></label>
-      <div class="body"><p>Mở 3 cửa sổ để khỏi đăng xuất qua lại: <b>Chrome thường</b> cho admin (<code>localhost:3000/app</code>), <b>Chrome ẩn danh</b> cho khách (<code>localhost:3000</code>), <b>trình duyệt thứ hai</b> (Edge) cho lễ tân (<code>localhost:3000/app</code>).</p></div></li>
-    <li class="step"><span class="num">3</span><span class="screen">Chọn giờ đặt</span><label class="tick"><input type="checkbox" id="p3" aria-label="Đã xong"></label>
-      <div class="body"><p>Ở Flow 02, đặt slot <b>hôm nay, mốc 30 phút gần nhất sau giờ hiện tại</b> (demo lúc 14:10 thì đặt 14:30). Như vậy ở Flow 03 lễ tân quét vé là vào sân ngay. Đặt xa hơn thì phải đi luồng check-in ngoại lệ.</p></div></li>
-  </ol>
-  <div class="acc">
-    <div class="card"><span class="who">Admin</span><span class="code">admin@gmail.com</span><p>Flow 01, Flow 04, trả lời feedback.</p></div>
-    <div class="card"><span class="who">Staff</span><span class="code">staff@gmail.com</span><p>Thu cọc tại quầy, check-in, check-out.</p></div>
-    <div class="card"><span class="who cus">Khách hội viên</span><span class="code">demo.hoivien@gmail.com</span><p>Hạng Masters (1.500 điểm, chi tiêu 19.900.000₫/12 tháng). Dùng 500 điểm trừ tiền sân, đổi quà và thăng hạng Grand Slam.</p></div>
-    <div class="card"><span class="who cus">Khách mới</span><span class="code">tự đăng ký tại chỗ</span><p>Trường hợp "khách mới đăng ký". Khi chạy thử dùng <code>khachmoi.demo@example.com</code>.</p></div>
-  </div>
-  <p class="tip">Mật khẩu các tài khoản có sẵn: <code>123456</code>. <code>hoangnam</code>, <code>khachmoi</code> và các khách mẫu khác chỉ để admin xem đủ trạng thái đơn; không dùng để đặt.</p>
-</section>
+<!-- ================= FLOW 01 ================= -->
+<h2>Flow 01 · Chuẩn bị và mở bán</h2>
+<p class="meta">Cửa sổ admin. Chuẩn bị sân, giá, ưu đãi trước khi khách đặt.</p>
 
-<!-- ============ FLOW 01 ============ -->
-<section id="flow-01">
-  <div class="sec-head">
-    <span class="flowtag">FLOW 01</span>
-    <h2>Service Setup &amp; Sales: chuẩn bị và mở bán</h2>
-    <p>Prepare courts, schedules and membership benefits for customer booking. Đăng nhập <code>admin@gmail.com</code> ở cửa sổ admin.</p>
-    <p class="distinct"><b>DISTINCTIVE</b>pricing by time band and maintenance of individual slots</p>
-  </div>
-  <div class="timeline">
-    <a href="#f1-s1"><span class="n">01 · ADMIN</span><span class="t">Prepare resources</span></a>
-    <a href="#f1-s2"><span class="n">02 · ADMIN + SYSTEM</span><span class="t">Price &amp; schedule</span></a>
-    <a href="#f1-s3"><span class="n">03 · ADMIN</span><span class="t">Configure benefits</span></a>
-    <a href="#f1-s4"><span class="n">04 · CUSTOMER</span><span class="t">View availability</span></a>
-    <a href="#f1-out" class="out"><span class="n">OUTPUT</span><span class="t">Ready to book</span></a>
-  </div>
+<h3>01 · Chuẩn bị tài nguyên</h3>
+<ol class="steps">
+<li><span class="k">Bấm</span> menu trái <b>Sân &amp; bảng giá</b> → tab <b>Danh sách sân (10)</b>.<br>
+<span class="k">Thấy</span> 10 sân chia 3 khu, mỗi sân có mô tả, trạng thái <b>Hoạt động</b>.<br>
+<span class="say">Nói: Đây là danh sách sân theo khu, mô tả và trạng thái khai thác.</span></li>
+<li><span class="k">Bấm</span> <b>Chỉnh sửa</b> ở thẻ Sân A03 → ô trạng thái chọn <b>Bảo trì</b> → <b>Lưu thông tin</b>.<br>
+<span class="k">Thấy</span> thông báo <b>Đã lưu thông tin</b>, thẻ A03 đổi sang <b>Bảo trì</b>.<br>
+<span class="say">Nói: Sân hỏng thì chuyển bảo trì. Khách không chọn được nữa nhưng lịch sử vẫn giữ.</span></li>
+<li><span class="k">Bấm</span> menu <b>Nhân sự</b> → tab <b>Lịch làm việc</b>.<br>
+<span class="k">Thấy</span> ca trực trọng tài, ví dụ <b>TT Nguyễn Hoàng Long · 14:00 – 23:00 · Còn trống 18/18 slot</b>.<br>
+<span class="say">Nói: Lịch trực quyết định khách thuê được trọng tài nào, giờ nào.</span></li>
+</ol>
 
-  <div class="stage" id="f1-s1">
-    <div class="stage-head"><h3>01 · Prepare resources</h3><span class="who">Admin</span><div class="bul"><span>Court details</span><span>Operating status</span><span>Services &amp; staff</span></div></div>
-    <ol class="steps">
-      <li class="step"><span class="num">1</span><span class="screen">Menu trái · Sân &amp; bảng giá</span><label class="tick"><input type="checkbox" id="f1a" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn light">Sân &amp; bảng giá</span> → tab <span class="btn light">Danh sách sân (10)</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>10 sân chia 3 khu (Ngoài trời, Trong nhà, VIP), mỗi sân có mô tả, trạng thái <span class="ui">Hoạt động</span></p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Đây là thông tin sân: khu, mô tả, trạng thái khai thác.</p></div>
-        </div></li>
-      <li class="step"><span class="num">2</span><span class="screen">Thẻ Sân A03</span><label class="tick"><input type="checkbox" id="f1b" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn light">Chỉnh sửa</span> ở Sân A03 → ô trạng thái chọn <span class="ui">Bảo trì</span> → <span class="btn">Lưu thông tin</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Thẻ A03 đổi sang <span class="ui">Bảo trì</span></p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Sân hỏng đèn thì chuyển bảo trì; sân biến khỏi lựa chọn của khách nhưng vẫn giữ lịch sử.</p></div>
-        </div></li>
-      <li class="step"><span class="num">3</span><span class="screen">Menu trái · Dịch vụ trọng tài</span><label class="tick"><input type="checkbox" id="f1c" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn light">Dịch vụ trọng tài</span> → <span class="btn light">Quản lý trọng tài &amp; lịch trực</span> → tab <span class="btn light">Lịch làm việc</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Ca trực gộp theo khối, ví dụ <span class="ui">TT Bùi Quang Minh · 06:00 – 14:00 · Còn trống 16/16 slot</span>, nút <span class="ui">Sửa ca</span>, <span class="ui">Xóa ca</span>. Muốn thêm ca: <span class="btn light">Thêm lịch</span></p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Dịch vụ đi kèm là trọng tài; lịch trực quyết định khách thuê được ai, giờ nào.</p></div>
-        </div></li>
-    </ol>
-  </div>
+<h3>02 · Giá và lịch</h3>
+<ol class="steps">
+<li><span class="k">Bấm</span> <b>Sân &amp; bảng giá</b> → tab <b>Bảng giá theo khu</b> → thẻ <b>Khu A - Ngoài trời</b>.<br>
+<span class="k">Thấy</span> "3 sân hoạt động (1 sân bảo trì)". Hai cột Thứ 2 – Thứ 6 và Thứ 7 &amp; Chủ Nhật, mỗi cột 5 khung giờ.</li>
+<li><span class="k">Bấm</span> ô <b>Đơn giá / giờ</b> của khung <b>17:00 – 22:00</b> ngày thường, đổi 260000 thành <b>300000</b> → <b>Xem trước</b> → <b>Lưu bảng giá</b>.<br>
+<span class="k">Thấy</span> bảng "So sánh bảng giá", rồi thông báo <b>Đã cập nhật bảng giá khu OUTDOOR; đã cập nhật 806 slot còn trống…</b><br>
+<span class="say">Nói: Hệ thống sinh sẵn slot 30 phút. Giá mới áp cho slot còn trống, đơn đã đặt giữ giá cũ.</span></li>
+<li><span class="k">Bấm</span> menu <b>Lịch sân</b> → ô <b>Sân B03 · 13:00</b> (đổi thành "Đã chọn") → nút <b>Bảo trì khung giờ</b> ở cuối.<br>
+<span class="k">Thấy</span> <b>Đã chuyển các khung giờ sang bảo trì.</b> Cột A03 cả ngày ghi "Bảo trì · Tạm ngừng".<br>
+<span class="say">Nói: Không cần đóng cả sân, khóa đúng một khung giờ để sửa lưới.</span></li>
+</ol>
 
-  <div class="stage" id="f1-s2">
-    <div class="stage-head"><h3>02 · Price &amp; schedule</h3><span class="who">Admin + System</span><div class="bul"><span>Day / time tariffs</span><span>Generate 30-minute slots</span><span>Block maintenance slots</span></div></div>
-    <ol class="steps">
-      <li class="step"><span class="num">4</span><span class="screen">Sân &amp; bảng giá · Bảng giá theo khu</span><label class="tick"><input type="checkbox" id="f1d" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Tab <span class="btn light">Bảng giá theo khu</span> → chọn thẻ <span class="ui">Khu A - Ngoài trời</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Thẻ khu ghi <span class="ui">3 sân hoạt động (1 sân bảo trì)</span>. Hai cột Thứ 2 – Thứ 6 và Thứ 7 &amp; Chủ Nhật, mỗi cột 5 khung giờ, có nút Tách / Gộp khung</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Giá theo khung giờ và loại ngày, cấu hình một lần cho cả khu.</p></div>
-        </div></li>
-      <li class="step"><span class="num">5</span><span class="screen">Khung 17:00 – 22:00 ngày thường</span><label class="tick"><input type="checkbox" id="f1e" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Ô <span class="ui">Đơn giá / giờ</span> đổi <code>260000</code> thành <code>300000</code> → <span class="btn light">Xem trước</span> → <span class="btn">Lưu bảng giá</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Bảng <span class="ui">So sánh bảng giá</span>; sau khi lưu: <span class="ui">Đã cập nhật bảng giá khu OUTDOOR; đã cập nhật 807 slot còn trống từ ngày 2026-11-04.</span></p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Hệ thống sinh sẵn slot 30 phút và áp giá mới cho mọi slot còn trống; đơn đã đặt giữ nguyên giá cũ.</p></div>
-        </div></li>
-      <li class="step"><span class="num">6</span><span class="screen">Menu trái · Lịch sân</span><label class="tick"><input type="checkbox" id="f1f" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn light">Lịch sân</span> → bấm ô <span class="ui">Sân B03, 13:00</span> (ô đổi thành <span class="ui">Đã chọn</span>) → cuối bảng bấm <span class="btn light">Bảo trì khung giờ</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Thông báo <span class="ui">Đã chuyển các khung giờ sang bảo trì.</span>; cột A03 cả ngày hiện <span class="ui">Bảo trì · Tạm ngừng</span></p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Không cần đóng cả sân: khóa đúng một khung giờ để sửa lưới.</p></div>
-        </div></li>
-    </ol>
-  </div>
+<h3>03 · Ưu đãi</h3>
+<ol class="steps">
+<li><span class="k">Bấm</span> menu <b>Thành viên &amp; điểm</b> → tab <b>Chính sách 4 Hạng &amp; Đổi thưởng</b>.<br>
+<span class="k">Thấy</span> bảng Rookie / Challenger / Masters / Grand Slam: ngưỡng chi tiêu 12 tháng 0 / 3 / 8 / 20 triệu, giảm tiền sân 0 / 3 / 5 / 8%, hệ số điểm, quà lên hạng, voucher sinh nhật. Bên dưới là danh mục đổi điểm (1 điểm = 100₫).<br>
+<span class="say">Nói: Không bán gói hội viên. Khách chơi càng nhiều thì tự lên hạng, giữ hạng 12 tháng.</span></li>
+<li><span class="k">Bấm</span> menu <b>Khuyến mãi &amp; voucher</b> → <b>Tạo voucher mới</b>. Điền:
+  <ul>
+  <li>Mã voucher <code>GIOVANG20</code>, Phần trăm 20, Giảm tối đa 50000, Đơn tối thiểu 100000</li>
+  <li>Khung giờ 10:00 – 15:00, Áp dụng khu sân: Ngoài trời, Tổng lượt sử dụng 100</li>
+  </ul>
+  → <b>Xác nhận tạo voucher</b>.<br>
+<span class="k">Thấy</span> ô "Xem trước mô tả" ghi đúng điều kiện, rồi <b>Đã tạo voucher GIOVANG20 (trạng thái: ACTIVE)</b>.<br>
+<span class="say">Nói: Voucher có khung giờ, khu sân và hạng tối thiểu. Lễ tân tạo vượt hạn mức thì phải chờ admin duyệt.</span></li>
+</ol>
+<div class="warn"><b>Bỏ qua mục Chiến dịch khuyến mãi.</b> Nút lưu chiến dịch đang báo 403, chưa dùng được.</div>
 
-  <div class="stage" id="f1-s3">
-    <div class="stage-head"><h3>03 · Configure benefits</h3><span class="who">Admin</span><div class="bul"><span>Membership plans</span><span>Eligible discounts</span><span>Advance booking</span></div></div>
-    <ol class="steps">
-      <li class="step"><span class="num">7</span><span class="screen">Menu trái · Membership &amp; hội viên</span><label class="tick"><input type="checkbox" id="f1g" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn light">Membership &amp; hội viên</span> → ở gói Plus bấm <span class="btn light">Sửa gói</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Hộp <span class="ui">Sửa gói Plus</span>: Phí gói 499000, Hiệu lực 30 ngày, <b>Giảm tiền sân thường 15%</b>, <b>Giảm tiền sân VIP 10%</b>, <b>Đặt trước tối đa 21 ngày</b>, Lượt đổi lịch miễn phí 2</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Gói hội viên quy định mức giảm theo loại sân và quyền đặt trước xa hơn khách thường (7 ngày).</p></div>
-        </div></li>
-      <li class="step"><span class="num">8</span><span class="screen">Hộp Sửa gói</span><label class="tick"><input type="checkbox" id="f1h" aria-label="Đã xong"></label>
-        <div class="body"><div class="row"><span class="lbl">Bấm</span><p><span class="btn light">Đóng</span> (không đổi gì). Bên dưới có <span class="ui">Phiếu thu phí membership</span> của 3 hội viên.</p></div></div></li>
-    </ol>
-    <div class="note"><b>Tránh kéo xuống "Danh sách hội viên"</b><p>Bảng này đang trống ("Chưa có dữ liệu") dù đã có 3 hội viên đóng phí. Xem mục Lỗi phát hiện.</p></div>
-  </div>
+<h3>04 · Khách xem lịch trống</h3>
+<ol class="steps">
+<li><span class="k">Bấm</span> cửa sổ khách → menu <b>Bảng giá</b>, tab Sân Ngoài Trời.<br>
+<span class="k">Thấy</span> hàng 17:00 – 22:00 "Cao điểm tối" hiện <b>300.000₫</b> từ Thứ 2 đến Thứ 6.<br>
+<span class="say">Nói: Giá admin vừa lưu đã lên trang khách.</span><br>
+<span class="meta">Không đọc 2 dòng dưới bảng ("tiền cọc 30%", "giảm 10% – 20%"), hai dòng này đang ghi sai.</span></li>
+<li><span class="k">Bấm</span> menu <b>Thành viên</b> (<code>/thanh-vien</code>).<br>
+<span class="k">Thấy</span> 4 thẻ hạng với quyền lợi từng hạng.</li>
+<li><span class="k">Bấm</span> menu <b>Đặt sân</b>.<br>
+<span class="k">Thấy</span> thẻ <b>Sân A03 · Bảo trì</b>, không chọn được.</li>
+</ol>
+<p><b>Đầu ra:</b> sân đang hoạt động, slot còn trống, giá đúng đã sẵn sàng cho khách đặt.</p>
 
-  <div class="stage" id="f1-s4">
-    <div class="stage-head"><h3>04 · View availability</h3><span class="who cus">Customer</span><div class="bul"><span>View courts and prices</span><span>See available times</span><span>Choose eligible slots</span></div></div>
-    <ol class="steps">
-      <li class="step"><span class="num">9</span><span class="screen">Cửa sổ khách · /bang-gia</span><label class="tick"><input type="checkbox" id="f1i" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Menu <span class="btn light">Bảng giá</span>, tab <span class="ui">Sân Ngoài Trời</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Hàng <span class="ui">17:00 – 22:00 Cao điểm tối</span> hiện <b>300.000₫</b> từ Thứ 2 đến Thứ 6</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Giá admin vừa lưu lên trang khách ngay.</p></div>
-        </div></li>
-      <li class="step"><span class="num">10</span><span class="screen">/dat-san</span><label class="tick"><input type="checkbox" id="f1j" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Menu <span class="btn light">Đặt sân</span>, xem sơ đồ sân</p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Thẻ <span class="ui">Sân A03 · Ngoài trời · Bảo trì</span>, không chọn được; khung đã qua hoặc đã đặt hiện <span class="ui">Không khả dụng</span></p></div>
-        </div></li>
-    </ol>
-  </div>
+<!-- ================= FLOW 02 ================= -->
+<h2>Flow 02 · Đặt sân và thanh toán</h2>
+<p class="meta">Hai trường hợp: khách mới đăng ký (cọc tiền mặt tại quầy) và khách thành viên (dùng điểm, thuê trọng tài, cọc VietQR).</p>
 
-  <div class="output" id="f1-out"><h3>Output · Ready to book</h3><ul><li><b>Active court</b>: A03 bảo trì đã ẩn khỏi lựa chọn.</li><li><b>Free slot</b>: chỉ khung còn trống mới bấm được.</li><li><b>Valid price</b>: giá 300.000₫ đã áp cho slot còn trống.</li></ul></div>
-</section>
+<h3>Trường hợp 1 · Khách mới</h3>
+<ol class="steps">
+<li><span class="k">Bấm</span> cửa sổ khách → <b>Đăng nhập</b> → <b>Đăng ký bằng SĐT</b> → nhập số <code>0909 123 456</code> → <b>Tiếp tục / Nhận mã OTP</b>.<br>
+<span class="k">Thấy</span> "Mã xác thực OTP đã được gửi tới số 0909 123 456" và khung <b>Thử nghiệm / Demo SMS OTP</b> hiện sẵn mã 6 số.<br>
+<span class="say">Nói: Thực tế mã gửi qua SMS. Bản demo hiện mã trên màn hình. Số đã có tài khoản sẽ bị chặn ngay ở bước này.</span></li>
+<li><span class="k">Bấm</span> <b>Điền nhanh</b> → <b>Xác nhận mã OTP</b>.<br>
+<span class="k">Thấy</span> <b>Xác thực số điện thoại thành công!</b> và bước 3 "Tạo mật khẩu".</li>
+<li><span class="k">Bấm</span> nhập Họ và tên, Email, Mật khẩu, Nhập lại mật khẩu → <b>Hoàn tất đăng ký &amp; Nhận quà</b>.<br>
+<span class="k">Thấy</span> đăng nhập luôn, banner <b>ƯU ĐÃI CHÀO MỪNG THÀNH VIÊN MỚI · GIẢM 50.000₫ · ✓ Đã áp dụng</b>.</li>
+<li><span class="k">Bấm</span> <b>Sân A01</b> → mốc bắt đầu 18:00 → mốc kết thúc 19:00 (lúc demo chọn giờ gần nhất).<br>
+<span class="k">Thấy</span> khối tiền: <b>Tiền sân 300.000₫ · Voucher (WELCOME) −50.000₫ · Tổng 250.000₫ · Cọc 50% tiền sân 125.000₫</b>.<br>
+<span class="say">Nói: Khách mới chưa có giảm theo hạng, chỉ có voucher chào mừng.</span></li>
+<li><span class="k">Bấm</span> <b>Tiếp tục thanh toán</b> → <b>Tiền mặt tại quầy</b>.<br>
+<span class="k">Thấy</span> trang <b>Đơn của tôi</b>, đơn <code>#CT-XXXXXXXX</code> "Đang giữ chỗ", đồng hồ đếm ngược từ 5:00.<br>
+<span class="say">Nói: Hệ thống khóa slot 5 phút. Quá hạn chưa cọc thì tự nhả sân cho người khác.</span></li>
+<li><span class="k">Bấm</span> cửa sổ lễ tân → <b>Đơn đặt sân</b> → tab <b>Chờ cọc</b> → <b>Chi tiết</b> ở đơn khách mới → <b>Thu cọc tại quầy (125.000 ₫)</b>.<br>
+<span class="k">Thấy</span> hộp "Ghi nhận thu tiền mặt tại quầy".</li>
+<li><span class="k">Bấm</span> ô <b>Số tiền mặt</b> sửa thành <b>125000</b> → <b>Xác nhận đã nhận tiền mặt</b>.<br>
+<span class="k">Thấy</span> <b>Đã ghi nhận thu tiền mặt thành công</b>, đơn chuyển sang tab Đã xác nhận.<br>
+<span class="say">Nói: Tiền chỉ được ghi nhận khi lễ tân xác nhận số thực thu.</span></li>
+</ol>
+<div class="warn"><b>Lưu ý bước 7:</b> ô số tiền điền sẵn 250.000₫ (cả đơn). Phải sửa về 125.000₫ trước khi xác nhận.</div>
 
-<!-- ============ FLOW 02 ============ -->
-<section id="flow-02">
-  <div class="sec-head">
-    <span class="flowtag">FLOW 02</span>
-    <h2>Booking &amp; Payment: đặt sân và thanh toán</h2>
-    <p>New customers and members follow the same protected booking journey. Demo 2 trường hợp: khách mới đăng ký (trả cọc tại quầy) và khách hội viên (trả cọc VietQR, thuê trọng tài).</p>
-    <p class="distinct"><b>DISTINCTIVE</b>member benefits, conflict prevention and verified deposits</p>
-  </div>
-  <div class="timeline">
-    <a href="#f2-s1"><span class="n">01 · CUSTOMER</span><span class="t">Choose a service</span></a>
-    <a href="#f2-s2"><span class="n">02 · SYSTEM</span><span class="t">Calculate the quote</span></a>
-    <a href="#f2-s3"><span class="n">03 · SYSTEM</span><span class="t">Hold the court</span></a>
-    <a href="#f2-s4"><span class="n">04 · STAFF / SYSTEM</span><span class="t">Pay &amp; verify</span></a>
-    <a href="#f2-out" class="out"><span class="n">OUTPUT</span><span class="t">Confirmed</span></a>
-  </div>
+<h3>Trường hợp 2 · Khách thành viên dùng điểm</h3>
+<ol class="steps">
+<li><span class="k">Bấm</span> cửa sổ khách → đăng xuất → đăng nhập <code>demo.hoivien@gmail.com</code> → <b>Đặt sân</b> → <b>Sân A01</b>.<br>
+<span class="k">Thấy</span> mốc 18:00 và 18:30 ghi <b>Không khả dụng</b>, không bấm được.<br>
+<span class="say">Nói: Khách thứ hai thử đúng khung đó và bị chặn. Hai người không thể giữ cùng một slot.</span></li>
+<li><span class="k">Bấm</span> <b>Sân A02</b> → 18:00 → 19:00.<br>
+<span class="k">Thấy</span> <b>Tiền sân 300.000₫ · Ưu đãi hạng Masters (−5%) −15.000₫ · Tổng 285.000₫</b>.</li>
+<li><span class="k">Bấm</span> tick <b>🎁 Dùng điểm thưởng</b> → ô số điểm nhập <b>500</b>.<br>
+<span class="k">Thấy</span> "Số dư: 1500 pts", "Tối đa: 1420 pts", dòng <b>Dùng điểm (500 pts) −50.000₫</b>, tổng còn 235.000₫.<br>
+<span class="say">Nói: 1 điểm = 100₫, dùng tối đa 50% tiền sân còn lại. Thứ tự trừ là giá sân → giảm theo hạng → voucher → điểm.</span></li>
+<li><span class="k">Bấm</span> tick <b>Thêm trọng tài</b> → chọn <b>TT Nguyễn Hoàng Long · 220.000₫ / giờ</b>.<br>
+<span class="k">Thấy</span> <b>Trọng tài 220.000₫ · Tổng tiền 455.000₫ · Cọc 50% tiền sân 117.500₫</b>.<br>
+<span class="say">Nói: Phí trọng tài không được giảm. Cọc tính 50% tiền sân sau khi đã trừ hết ưu đãi.</span></li>
+<li><span class="k">Bấm</span> <b>Tiếp tục thanh toán</b> → <b>Chuyển khoản VietQR</b>.<br>
+<span class="k">Thấy</span> hộp <b>CHUYỂN KHOẢN VIETQR 24/7</b>: mã QR, 117.500₫, MB Bank, nội dung chuyển khoản, giờ hết hạn.</li>
+<li><span class="k">Bấm</span> cuộn cuối hộp → <b>⚡ Công cụ Demo Hội đồng: Giả lập Ngân hàng gửi Webhook</b> → <b>⚡ Giả lập MB Bank chuyển đủ (117.500₫)</b>.<br>
+<span class="k">Thấy</span> <b>GIAO DỊCH THÀNH CÔNG · KHOẢN CHUYỂN ĐÃ XÁC MINH</b>, trạng thái Đã xác nhận.<br>
+<span class="say">Nói: Ngân hàng báo về qua webhook. Tiền về đủ thì đơn tự xác nhận, không ai phải bấm tay.</span></li>
+<li><span class="k">Bấm</span> <b>Xem đơn hàng của tôi</b>.<br>
+<span class="k">Thấy</span> đơn <code>#CT-XXXXXXXX</code> · Đã xác nhận · Trọng tài TT Nguyễn Hoàng Long · <b>✓ Đã đóng 117.500₫</b> · Thanh toán tại quầy 337.500₫ · nút <b>🎫 Xem Vé Điện Tử &amp; Mã QR Check-in</b>. Ghi lại mã đơn cho Flow 03.</li>
+</ol>
+<p><b>Đầu ra:</b> mã đơn và vé QR, tiền cọc đã xác minh, lịch sử thanh toán trong menu tài khoản.</p>
 
-  <div class="stage" id="f2-s1">
-    <div class="stage-head"><h3>01 · Choose a service</h3><span class="who cus">Customer</span><div class="bul"><span>Register / sign in</span><span>View courts / ask AI</span><span>Pick time &amp; extras</span></div></div>
-    <ol class="steps">
-      <li class="step"><span class="num">1</span><span class="screen">Cửa sổ khách · /dat-san</span><label class="tick"><input type="checkbox" id="f2a" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn">Trợ lý AI Courtly</span> (góc phải dưới) → gõ "Tối nay 18h còn sân ngoài trời trống không, giá bao nhiêu?" → Enter</p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Bảng giá 3 khu: <span class="ui">Khu A (Ngoài trời): từ 100.000đ – 300.000đ/h</span>…, ghi chú mức giảm Club 10%, Plus 15%</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">AI chỉ hỗ trợ tra cứu; đặt và thanh toán vẫn qua quy trình kiểm tra của hệ thống.</p></div>
-        </div></li>
-      <li class="step"><span class="num">2</span><span class="screen">Khách mới · Đăng ký</span><label class="tick"><input type="checkbox" id="f2b" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Đóng chatbot → <span class="btn">Đăng nhập</span> → <span class="btn light">Chưa có tài khoản? Đăng ký</span> → nhập Họ tên, SĐT 10 số, Email, Mật khẩu, Nhập lại mật khẩu → <span class="btn">Tạo tài khoản</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p><span class="ui">Mã OTP 6 số đã gửi tới …</span>; khung <span class="ui">Thử nghiệm / Demo</span> hiện sẵn mã OTP, nút <span class="ui">Điền nhanh</span></p></div>
-        </div></li>
-      <li class="step"><span class="num">3</span><span class="screen">Hộp OTP</span><label class="tick"><input type="checkbox" id="f2c" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn">Xác nhận kích hoạt</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Đăng nhập luôn; banner <span class="ui">ƯU ĐÃI CHÀO MỪNG THÀNH VIÊN MỚI</span>, voucher WELCOME −50.000₫ tự áp</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Thực tế OTP gửi qua email; bản demo hiện mã ngay trên màn hình.</p></div>
-        </div></li>
-      <li class="step"><span class="num">4</span><span class="screen">/dat-san · chọn giờ</span><label class="tick"><input type="checkbox" id="f2d" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Ngày chơi: hôm nay → <span class="ui">Sân A01</span> → mốc bắt đầu <span class="btn light">18:00</span> → mốc kết thúc <span class="btn light">19:00</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Khối <span class="ui">BUỔI CHƠI CỦA BẠN</span>: Sân A01 18:00–19:00 (60 phút) · 300.000₫</p></div>
-        </div></li>
-    </ol>
-  </div>
+<!-- ================= FLOW 03 ================= -->
+<h2>Flow 03 · Phục vụ và đánh giá</h2>
+<p class="meta">Cửa sổ lễ tân. Khách đến, chơi, trả sân, rồi để lại đánh giá.</p>
 
-  <div class="stage" id="f2-s2">
-    <div class="stage-head"><h3>02 · Calculate the quote</h3><span class="who sys">System</span><div class="bul"><span>Check membership benefits</span><span>Apply eligible discounts</span><span>Calculate required deposit</span></div></div>
-    <ol class="steps">
-      <li class="step"><span class="num">5</span><span class="screen">Khối tiền · khách mới</span><label class="tick"><input type="checkbox" id="f2e" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Thấy</span><p>Tiền sân 300.000₫ · Voucher (WELCOME) −50.000₫ · <b>Tổng 250.000₫</b> · <b>Cọc 50% 125.000₫</b></p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Khách mới không có ưu đãi hội viên, chỉ có voucher chào mừng.</p></div>
-        </div></li>
-    </ol>
-  </div>
+<h3>01 · Chuẩn bị ca</h3>
+<ol class="steps">
+<li><span class="k">Bấm</span> <b>Việc cần xử lý</b> → bộ lọc <b>Khách sắp đến</b>.<br>
+<span class="k">Thấy</span> 2 đơn vừa đặt, mỗi đơn có sân, giờ, trọng tài, <b>Còn thu</b>, trạng thái Đã xác nhận.<br>
+<span class="say">Nói: Đầu ca lễ tân biết ai sắp đến, còn phải thu bao nhiêu, cần trọng tài nào.</span></li>
+</ol>
 
-  <div class="stage" id="f2-s3">
-    <div class="stage-head"><h3>03 · Hold the court</h3><span class="who sys">System</span><div class="bul"><span>Recheck availability</span><span>Lock selected slots</span><span>Set hold expiry</span></div></div>
-    <ol class="steps">
-      <li class="step"><span class="num">6</span><span class="screen">Khối tiền</span><label class="tick"><input type="checkbox" id="f2f" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn">Tiếp tục thanh toán</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Sang <span class="ui">Đơn của tôi</span>, đơn <b>#CT-XXXXXXXX</b> ở trạng thái <span class="ui">Đang giữ chỗ</span>; hộp <span class="ui">Chọn phương thức thanh toán</span></p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Hệ thống kiểm tra lại sân và khóa slot 5 phút; hết hạn chưa cọc thì tự nhả.</p></div>
-        </div></li>
-    </ol>
-  </div>
+<h3>02 · Check-in</h3>
+<ol class="steps">
+<li><span class="k">Bấm</span> <b>Quét QR Check-in</b> ở thanh trên cùng → tab <b>Nhập mã / Máy quét</b> → gõ mã đơn của khách thành viên → Enter.<br>
+<span class="k">Thấy</span> đúng giờ: <b>CHECK-IN TỰ ĐỘNG THÀNH CÔNG!</b> kèm tên khách, số điện thoại, sân, mã vé, giờ check-in.<br>
+<span class="say">Nói: Máy quét mã vạch USB gõ thẳng vào ô này. Camera và tải ảnh QR cũng dùng được.</span></li>
+<li>Nếu khách đến sớm hơn 30 phút:<br>
+<span class="k">Thấy</span> khung <b>CẦN LÝ DO NGOẠI LỆ CHECK-IN</b>: "Chưa tới giờ check-in (từ 17:30 ngày 05/11). Nhập lý do ngoại lệ để tiếp tục."<br>
+<span class="k">Bấm</span> nhập lý do (ít nhất 5 ký tự, ví dụ "Khách đến sớm, quản lý đồng ý") → <b>⚠️ Check-in ngoại lệ</b>.<br>
+<span class="say">Nói: Ngoài cửa sổ 30 phút thì hệ thống không tự cho vào. Lễ tân phải ghi lý do để quản lý đối soát.</span></li>
+<li><span class="k">Bấm</span> <b>Xem chi tiết đơn</b> → <b>⚡ Gia hạn giờ chơi</b>.<br>
+<span class="k">Thấy</span> "✓ Sân trống ở khung giờ liền kề", lựa chọn <b>+30 phút (19:00 – 19:30) · Ưu đãi hạng Masters −7.500 ₫ · +142.500 ₫</b>.</li>
+<li><span class="k">Bấm</span> <b>Xác nhận gia hạn (+30p)</b>.<br>
+<span class="k">Thấy</span> <b>Đã gia hạn sân thêm 30 phút thành công!</b><br>
+<span class="say">Nói: Gia hạn tại sân vẫn hưởng giảm theo hạng và cộng vào công nợ, thu khi trả sân.</span></li>
+</ol>
 
-  <div class="stage" id="f2-s4">
-    <div class="stage-head"><h3>04 · Pay &amp; verify (trả tại quầy)</h3><span class="who">Staff / System</span><div class="bul"><span>QR or counter payment</span><span>Verify received funds</span><span>Confirm before hold expiry</span></div></div>
-    <ol class="steps">
-      <li class="step"><span class="num">7</span><span class="screen">Hộp phương thức</span><label class="tick"><input type="checkbox" id="f2g" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn light">Tiền mặt tại quầy</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p><span class="ui">Vui lòng thanh toán tại quầy trước khi hết hạn giữ chỗ. Nhân viên sẽ xác nhận số tiền thực thu.</span></p></div>
-        </div></li>
-      <li class="step"><span class="num">8</span><span class="screen">Cửa sổ lễ tân · Đơn đặt sân</span><label class="tick"><input type="checkbox" id="f2h" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Đăng nhập <code>staff@gmail.com</code> → <span class="btn light">Đơn đặt sân</span> → tab <span class="btn light">Chờ cọc (1)</span> → <span class="btn light">Chi tiết</span> → <span class="btn">Thu cọc tại quầy (125.000 ₫)</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Chi tiết đơn ghi <span class="ui">Hạn giữ chỗ 09:41:46</span>; hộp <span class="ui">Ghi nhận thu tiền mặt tại quầy</span></p></div>
-        </div></li>
-      <li class="step"><span class="num">9</span><span class="screen">Hộp thu tiền mặt</span><label class="tick"><input type="checkbox" id="f2i" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Ô <span class="ui">Số tiền mặt</span> <b>sửa thành 125000</b> (form điền sẵn cả đơn 250000) → <span class="btn">Xác nhận đã nhận tiền mặt</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p><span class="ui">Đã ghi nhận thu tiền mặt thành công</span>; tab Chờ cọc về 0, tab Đã xác nhận tăng 1</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Tiền chỉ được ghi nhận khi nhân viên xác nhận số thực thu.</p></div>
-        </div></li>
-    </ol>
-  </div>
+<h3>03 · Chơi và trả sân</h3>
+<ol class="steps">
+<li><span class="k">Bấm</span> <b>Đơn đặt sân</b> → tab <b>Đang chơi</b> → dòng của Nguyễn Minh Khoa (ghi "Đang sử dụng +30p") → <b>Check-out</b>.<br>
+<span class="k">Thấy</span> hộp <b>Thủ tục Check-out &amp; Trả sân</b>: "Lượt chơi có gia hạn thêm giờ", tổng giá trị đơn <b>597.500 ₫</b>, đã thanh toán 117.500 ₫, <b>CÒN THIẾU CẦN THU TẠI QUẦY: 480.000 ₫</b>, khung đỏ "ĐƠN HÀNG CHƯA THANH TOÁN ĐỦ".<br>
+<span class="say">Nói: Quy định CLB là thu đủ 100% tiền sân và phát sinh rồi mới trả sân.</span><br>
+<span class="meta">Chỉ đọc 3 dòng tổng ở trên. Các dòng chi tiết trong bảng kê đang cộng chưa khớp.</span></li>
+<li><span class="k">Bấm</span> <b>💵 Thu đủ tiền mặt 480.000 ₫ &amp; Hoàn tất Check-out</b> (hoặc <b>📱 Mở mã VietQR chuyển khoản</b>).<br>
+<span class="k">Thấy</span> <b>🏁 Đã thu đủ 480.000 ₫ và hoàn tất Check-out cho đơn #…!</b> Đơn sang tab Hoàn tất.</li>
+<li><span class="k">Bấm</span> cửa sổ admin → <b>Thành viên &amp; điểm</b> → dòng Nguyễn Minh Khoa.<br>
+<span class="k">Thấy</span> hạng <b>👑 Grand Slam</b>, chi tiêu 12 tháng vượt 20.000.000₫, điểm tăng thêm 88 điểm của đơn và 1.000 điểm quà.<br>
+<span class="say">Nói: Đơn vừa thu đủ đưa chi tiêu 12 tháng qua 20 triệu. Hệ thống nâng lên Grand Slam ngay: tặng 1.000 điểm, voucher 300.000₫ (mã GS-…, hạn 60 ngày) và thẻ VIP Lounge.</span></li>
+</ol>
 
-  <div class="stage">
-    <div class="stage-head"><h3>Trường hợp 2: khách hội viên, đặt trùng giờ và trả VietQR</h3><span class="who cus">Customer</span></div>
-    <ol class="steps">
-      <li class="step"><span class="num">10</span><span class="screen">Cửa sổ khách</span><label class="tick"><input type="checkbox" id="f2j" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Đăng xuất khách mới → <span class="btn">Đăng nhập</span> <code>demo.hoivien@gmail.com</code> → <span class="btn light">Đặt sân</span> → <span class="ui">Sân A01</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Mốc <b>18:00</b> và <b>18:30</b> hiện <span class="ui">Không khả dụng</span>, không bấm được</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Khách thứ hai thử đúng khung giờ đó và bị chặn; hệ thống không cho hai người cùng giữ một slot.</p></div>
-        </div></li>
-      <li class="step"><span class="num">11</span><span class="screen">Chọn sân khác + trọng tài</span><label class="tick"><input type="checkbox" id="f2k" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="ui">Sân A02</span> → <span class="btn light">18:00</span> → <span class="btn light">19:00</span> → công tắc <span class="ui">Dùng điểm</span>: nhập <b>500</b> điểm → tick <span class="ui">Thêm trọng tài</span> → chọn <span class="ui">TT Nguyễn Hoàng Long · 220.000₫ / giờ</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Tiền sân 260.000₫ · <b>Ưu đãi hạng Masters (−5%) −13.000₫</b> (= 247.000₫) · <b>Dùng 500 điểm −50.000₫</b> (= 197.000₫ tiền sân) · Trọng tài 220.000₫ · Tổng 417.000₫ · <b>Cọc 50% tiền sân 98.500₫</b> · Điểm còn lại: 1.000 điểm</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Thứ tự giảm trừ minh bạch: Giá sân gốc → Ưu đãi hạng Masters (−5%) → Voucher → Điểm thưởng (1đ = 100₫, tối đa 50% tiền sân). Điểm trừ tức thì khi tạo đơn và khoá bi quan chống tiêu trùng.</p></div>
-        </div></li>
-      <li class="step"><span class="num">12</span><span class="screen">Thanh toán VietQR</span><label class="tick"><input type="checkbox" id="f2l" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn">Tiếp tục thanh toán</span> → <span class="btn">Chuyển khoản VietQR</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Hộp <span class="ui">CHUYỂN KHOẢN VIETQR 24/7</span>: mã QR, 98.500₫, ngân hàng MB Bank, nội dung chuyển khoản, giờ hết hạn</p></div>
-        </div></li>
-      <li class="step"><span class="num">13</span><span class="screen">Cuối hộp VietQR</span><label class="tick"><input type="checkbox" id="f2m" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><b>Cuộn chuột trong hộp</b> xuống cuối → bấm dòng <span class="btn light">⚡ Công cụ Demo Hội đồng: Giả lập Ngân hàng gửi Webhook</span> để mở → <span class="btn">⚡ Giả lập MB Bank chuyển đủ (98.500₫)</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p><span class="ui">GIAO DỊCH THÀNH CÔNG · KHOẢN CHUYỂN ĐÃ XÁC MINH</span>, số tiền 98.500₫, trạng thái Đã xác nhận</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Ngân hàng báo về qua webhook; tiền về đủ thì đơn tự xác nhận.</p></div>
-        </div></li>
-      <li class="step"><span class="num">14</span><span class="screen">Hộp xác nhận</span><label class="tick"><input type="checkbox" id="f2n" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn">Xem đơn hàng của tôi</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Mã đơn <b>#CT-XXXXXXXX</b> · <span class="ui">Đã xác nhận</span> · Trọng tài · <span class="ui">✓ Đã đóng 98.500₫</span> · nút <span class="ui">🎫 Xem Vé Điện Tử &amp; Mã QR Check-in</span>. <b>Ghi lại mã đơn</b> cho Flow 03</p></div>
-        </div></li>
-          <li class="step"><span class="num">15</span><span class="screen">Đổi điểm lấy quà &amp; dịch vụ</span><label class="tick"><input type="checkbox" id="f2o" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Menu tài khoản → <span class="btn light">Hạng &amp; điểm của tôi</span> → cuộn tới <span class="ui">Danh mục đổi quà</span> → ở quà <span class="ui">Gia hạn 30 phút (800 điểm)</span> bấm <span class="btn">Đổi quà (800 điểm)</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Thông báo "Đổi quà thành công! Mã voucher: RWD-EXT30-XXXX", điểm trừ còn 200 điểm, voucher mới xuất hiện trong mục <span class="ui">Ưu đãi của tôi</span></p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Khách hàng chủ động đổi điểm tích lũy lấy các voucher dịch vụ gia hạn, giờ vàng hoặc trọng tài.</p></div>
-        </div></li>
-    </ol>
-  </div>
+<h3>04 · Đổi lịch, hủy đơn</h3>
+<ol class="steps">
+<li><span class="k">Bấm</span> cửa sổ khách → đăng nhập lại khách mới → <b>Đơn của tôi</b> → <b>Hủy đơn</b>.<br>
+<span class="k">Thấy</span> hộp <b>Xác nhận hủy đơn đặt sân</b> tự tính tiền hoàn theo giờ còn lại:
+  <ul>
+  <li>Đơn trong ngày, dưới 12 tiếng: giữ 100% cọc, hoàn 0₫.</li>
+  <li>12–24 tiếng: "Giữ 50% tiền cọc, hoàn lại 50%", dự kiến hoàn 62.500₫.</li>
+  <li>Trên 24 tiếng: hoàn 100%.</li>
+  </ul>
+<span class="say">Nói: Hệ thống tự áp 3 mốc hoàn tiền, lễ tân không phải tính tay.</span></li>
+<li><span class="k">Bấm</span> lý do <b>Bận việc đột xuất</b> → <b>Xác nhận hủy sân</b>.<br>
+<span class="k">Thấy</span> đơn đổi sang <b>Đã hủy</b>, khung "Đối soát hoàn tiền &amp; Chính sách", sân được giải phóng ngay.</li>
+</ol>
 
-  <div class="output" id="f2-out"><h3>Output · Confirmed</h3><ul><li><b>Booking ID</b>: mã đơn và vé QR trong Đơn của tôi.</li><li><b>Deposit</b>: "✓ Đã đóng …₫".</li><li><b>History</b>: menu tài khoản → <span class="ui">Lịch sử thanh toán</span>.</li></ul></div>
-</section>
+<h3>Đầu ra · Đánh giá</h3>
+<ol class="steps">
+<li><span class="k">Bấm</span> cửa sổ khách → đăng nhập <code>demo.hoivien@gmail.com</code> → menu <b>Đánh giá &amp; Góp ý</b> (<code>/feedback</code>) → ô "Buổi chơi cần đánh giá" chọn đơn vừa chơi → chọn <b>2 sao</b> → viết "Trọng tài đến trễ 10 phút, phải chờ mới bắt đầu trận." → chủ đề <b>👨‍⚖️ Trọng tài &amp; HLV</b> → <b>🎾 Gửi đánh giá</b>.<br>
+<span class="k">Thấy</span> <b>Cảm ơn bạn! Đánh giá đã được gửi thành công đến Ban Quản Lý Courtly.</b><br>
+<span class="say">Nói: Đánh giá gắn đúng buổi chơi, nên CLB biết chính xác sân nào, ngày nào, trọng tài nào.</span></li>
+<li><span class="k">Bấm</span> cửa sổ lễ tân → <b>Feedback &amp; Đánh giá</b> → tab <b>⚠️ Đánh giá thấp cần xử lý</b> → <b>Xử lý ngay</b> ở dòng Nguyễn Minh Khoa.<br>
+<span class="k">Thấy</span> hộp <b>Quy trình Service Recovery – Xử lý đánh giá thấp</b>: hạn phản hồi 24 giờ, đơn liên quan, sân và ngày chơi.</li>
+<li><span class="k">Bấm</span> <b>Nhận xử lý</b> → mẫu <b>Xin lỗi nhẹ (50.000₫)</b> → <b>🎁 Tặng voucher</b>.<br>
+<span class="k">Thấy</span> <b>Đã tặng voucher SORRY-XXXX cho khách hàng (trạng thái: ACTIVE)!</b> Nút đổi thành "Đã tặng SORRY-XXXX".<br>
+<span class="say">Nói: Mỗi đánh giá chỉ được bù một lần. Lễ tân chỉ có 2 mẫu nhỏ, mẫu "1 giờ sân miễn phí" chỉ admin dùng được.</span></li>
+<li><span class="k">Bấm</span> phân loại nguyên nhân <b>Trọng tài</b> → ô phản hồi viết lời xin lỗi → <b>Hoàn tất &amp; Đóng ca xử lý</b>.<br>
+<span class="k">Thấy</span> <b>Đã hoàn tất xử lý feedback.</b> Dòng đánh giá ghi "🎁 Đã bù: SORRY-XXXX · ✅ Đã giải quyết".</li>
+<li><span class="k">Bấm</span> menu <b>Thông báo đã gửi</b>.<br>
+<span class="k">Thấy</span> các thông báo vừa phát sinh, mỗi loại đi 3 kênh In-app, SMS, Email: <code>COMPENSATION_VOUCHER</code> (mã SORRY) và <code>FEEDBACK_REPLY</code> (lời xin lỗi).<br>
+<span class="say">Nói: SMS khuyến mãi và nhắc lịch không gửi từ 21:00 đến 07:00. Ban đêm sẽ thấy trạng thái "Chờ gửi".</span></li>
+</ol>
 
-<!-- ============ FLOW 03 ============ -->
-<section id="flow-03">
-  <div class="sec-head">
-    <span class="flowtag">FLOW 03</span>
-    <h2>Service &amp; Feedback: phục vụ và đánh giá</h2>
-    <p>Staff deliver the booked service, handle changes and capture customer feedback.</p>
-    <p class="distinct"><b>DISTINCTIVE</b>feedback comes at the end of the service lifecycle, with clear context</p>
-  </div>
-  <div class="timeline">
-    <a href="#f3-s1"><span class="n">01 · STAFF</span><span class="t">Prepare service</span></a>
-    <a href="#f3-s2"><span class="n">02 · STAFF</span><span class="t">Check in</span></a>
-    <a href="#f3-s3"><span class="n">03 · CUSTOMER / STAFF</span><span class="t">Play &amp; check out</span></a>
-    <a href="#f3-s4"><span class="n">04 · SYSTEM</span><span class="t">Handle requests</span></a>
-    <a href="#f3-out" class="out"><span class="n">OUTPUT</span><span class="t">Feedback</span></a>
-  </div>
+<!-- ================= FLOW 04 ================= -->
+<h2>Flow 04 · Đối soát và báo cáo</h2>
+<p class="meta">Cửa sổ admin.</p>
 
-  <div class="stage" id="f3-s1">
-    <div class="stage-head"><h3>01 · Prepare service</h3><span class="who">Staff</span><div class="bul"><span>Sign in as STAFF</span><span>View confirmed bookings</span><span>Review schedule</span></div></div>
-    <ol class="steps">
-      <li class="step"><span class="num">1</span><span class="screen">Cửa sổ lễ tân · Việc cần xử lý</span><label class="tick"><input type="checkbox" id="f3a" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Trang <span class="btn light">Việc cần xử lý</span> → bộ lọc <span class="btn light">Khách sắp đến</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Hai đơn vừa đặt ở Flow 02, mỗi đơn có sân, giờ, <span class="ui">Trọng tài: TT Nguyễn Hoàng Long</span>, <span class="ui">Còn thu: …₫</span>, trạng thái Đã xác nhận</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Đầu ca, lễ tân thấy ngay ai sắp đến, còn phải thu bao nhiêu, cần trọng tài nào.</p></div>
-        </div></li>
-      <li class="step"><span class="num">2</span><span class="screen">Menu trái · Lịch sân</span><label class="tick"><input type="checkbox" id="f3b" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn light">Lịch sân</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Lưới 10 sân × khung 30 phút với các màu Còn trống, Đã đặt, Giữ chỗ, Thi đấu, Bảo trì; thẻ số Công suất sân, Khách đang chơi</p></div>
-        </div></li>
-    </ol>
-  </div>
+<h3>01 · Thu thập dữ liệu</h3>
+<ol class="steps">
+<li><span class="k">Bấm</span> <b>Thu tiền &amp; hoàn tiền</b> (kỳ tính mặc định Tháng 11/2026) → tab <b>Giao dịch</b>.<br>
+<span class="k">Thấy</span> các giao dịch vừa phát sinh nằm trên cùng:
+  <ul>
+  <li><code>CO-…</code> Thanh toán · Tiền mặt · 480.000 ₫ · Lễ tân</li>
+  <li><code>sandbox:…</code> Tiền cọc · Chuyển khoản · 117.500 ₫ · Hệ thống / QR</li>
+  <li><code>CASH-…</code> Tiền cọc · Tiền mặt · 125.000 ₫ · Lễ tân</li>
+  </ul>
+<span class="say">Nói: Mọi khoản thu ở Flow 02 và 03 đã vào sổ, kèm người thu và phương thức.</span></li>
+</ol>
 
-  <div class="stage" id="f3-s2">
-    <div class="stage-head"><h3>02 · Check in</h3><span class="who">Staff</span><div class="bul"><span>Verify booking details</span><span>Check in the customer</span><span>Support extra service</span></div></div>
-    <ol class="steps">
-      <li class="step"><span class="num">3</span><span class="screen">Thanh đầu trang</span><label class="tick"><input type="checkbox" id="f3c" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn light">Quét QR Check-in</span> → tab <span class="btn light">Nhập mã / Máy quét</span> → gõ mã đơn của hội viên → Enter (hoặc <span class="btn">Check-in</span>)</p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Đúng giờ: <span class="ui">CHECK-IN TỰ ĐỘNG THÀNH CÔNG!</span> kèm khách, SĐT, lịch thi đấu, mã vé, giờ check-in</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Lễ tân đối chiếu thông tin trên vé rồi cho vào sân; máy quét mã vạch USB dùng ngay ô này.</p></div>
-        </div></li>
-      <li class="step"><span class="num">4</span><span class="screen">Nếu khách đến sớm hơn 30 phút</span><label class="tick"><input type="checkbox" id="f3d" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Thấy</span><p>Khung vàng <span class="ui">CẦN LÝ DO NGOẠI LỆ CHECK-IN</span>: "Chưa tới giờ check-in (từ 17:30 ngày 04/11). Nhập lý do ngoại lệ để tiếp tục."</p></div>
-          <div class="row"><span class="lbl">Bấm</span><p>Nhập lý do (ít nhất 5 ký tự) → <span class="btn warn">⚠️ Check-in ngoại lệ</span>; hoặc <span class="btn light">Hủy / Quét lượt khác</span></p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Ngoài cửa sổ 30 phút thì hệ thống không tự cho vào; lễ tân phải ghi lý do để quản lý đối soát.</p></div>
-        </div></li>
-      <li class="step"><span class="num">5</span><span class="screen">Kết quả · Xem chi tiết đơn</span><label class="tick"><input type="checkbox" id="f3e" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn light">Xem chi tiết đơn</span> → <span class="btn light">⚡ Gia hạn giờ chơi</span> → chọn <span class="ui">+30 phút (19:00 – 19:30) · +127.500 ₫ · Ưu đãi Plus −22.500 ₫</span> → <span class="btn">Xác nhận gia hạn (+30p)</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p><span class="ui">Đã gia hạn sân thêm 30 phút thành công!</span> Khung có ghi "✓ Sân trống ở khung giờ liền kề"</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Dịch vụ phát sinh tại sân: gia hạn giờ, vẫn hưởng giá hội viên, cộng vào công nợ thu khi check-out. Nút "Chọn trọng tài" dùng nếu khách muốn thêm trọng tài tại chỗ.</p></div>
-        </div></li>
-    </ol>
-  </div>
+<h3>02 · Đối soát</h3>
+<ol class="steps">
+<li><span class="k">Bấm</span> tab <b>Đối soát &amp; Ngoại lệ</b>.<br>
+<span class="k">Thấy</span> 3 nhóm: khách chuyển thừa, đơn hủy còn cọc, tiền vào ngân hàng chưa gán đơn. Dòng "Tất cả giao dịch chuyển khoản đều đã khớp đơn tự động."</li>
+<li><span class="k">Bấm</span> tab <b>Đơn cần hoàn tiền</b> → dòng đơn khách mới vừa hủy → <b>Hoàn tiền ngay</b>.<br>
+<span class="k">Thấy</span> hộp <b>Ghi nhận hoàn tiền</b>: số tiền và lý do điền sẵn theo chính sách.</li>
+<li><span class="k">Bấm</span> <b>Xác nhận đã chuyển khoản / hoàn tiền</b>.<br>
+<span class="k">Thấy</span> <b>Đã ghi nhận hoàn … ₫ thành công!</b> Ô <b>Tổng đã hoàn</b> tăng, <b>Thu ròng</b> giảm đúng số đó.<br>
+<span class="say">Nói: Chỉ admin được duyệt hoàn. Khoản hoàn vào sổ ngay và trừ khỏi thu ròng.</span></li>
+</ol>
 
-  <div class="stage" id="f3-s3">
-    <div class="stage-head"><h3>03 · Play &amp; check out</h3><span class="who">Customer / Staff</span><div class="bul"><span>Customer uses the court</span><span>Staff checks out</span><span>Session ended</span></div></div>
-    <ol class="steps">
-      <li class="step"><span class="num">6</span><span class="screen">Đơn đặt sân · Đang chơi</span><label class="tick"><input type="checkbox" id="f3f" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn light">Đơn đặt sân</span> → tab <span class="btn light">Đang chơi</span> → dòng của hội viên (trạng thái <span class="ui">Đang sử dụng +30p</span>) → <span class="btn">Check-out</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Hộp <span class="ui">Thủ tục Check-out &amp; Trả sân</span>: khung xanh "Lượt chơi có gia hạn thêm giờ", bảng kê, dòng <span class="ui">CÒN THIẾU CẦN THU TẠI QUẦY: 462.250 ₫</span>, khung đỏ "ĐƠN HÀNG CHƯA THANH TOÁN ĐỦ"</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Quy định CLB: thu đủ 100% tiền sân và phát sinh mới trả sân.</p></div>
-        </div></li>
-      <li class="step"><span class="num">7</span><span class="screen">Cuối hộp check-out</span><label class="tick"><input type="checkbox" id="f3g" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Cuộn xuống → <span class="btn">💵 Thu đủ tiền mặt 462.250 ₫ &amp; Hoàn tất Check-out</span> (hoặc <span class="btn light">Mở mã VietQR chuyển khoản</span>)</p></div>
-          <div class="row"><span class="lbl">Thấy</span><p><span class="ui">🏁 Đã thu đủ và hoàn tất Check-out cho đơn #…!</span> Đơn sang tab Hoàn tất</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Đơn thanh toán hoàn tất đưa tổng chi tiêu 12 tháng của <code>demo.hoivien</code> vượt 20.000.000₫. Hệ thống tự động nâng hạng tài khoản lên <b>Grand Slam</b> ngay lập tức, tặng thêm 1.000 điểm thưởng, voucher 300.000₫ và kích hoạt quyền lợi thẻ VIP Lounge!</p></div>
-        </div></li>
-    </ol>
-  </div>
+<h3>03 · Chọn kỳ và 04 · Tính toán</h3>
+<ol class="steps">
+<li><span class="k">Bấm</span> menu <b>Báo cáo</b> → Kỳ báo cáo <b>Theo Tháng</b>, thử thêm <b>Theo Ngày</b>.<br>
+<span class="k">Thấy</span> tiêu đề đổi theo kỳ, các ô số và biểu đồ tính lại.</li>
+<li><span class="k">Thấy</span> ô <b>Tổng thực thu ròng</b> bằng đúng ô <b>Thu ròng</b> ở trang Thu tiền cùng kỳ (lần chạy thử: 7.902.000 ₫ ở cả hai trang).<br>
+<span class="say">Nói: Hai trang cùng kỳ ra cùng một con số.</span></li>
+<li><span class="k">Bấm</span> cuộn xuống.<br>
+<span class="k">Thấy</span> xu hướng doanh thu theo tuần, cơ cấu doanh thu (tiền sân, trọng tài, giải, trừ hoàn), khung giờ cao điểm, công suất từng sân.</li>
+<li><span class="k">Thấy</span> <b>Danh sách đơn hàng trong kỳ</b>: đơn khách thành viên <b>Hoàn tất · 597.500 ₫ · đã thu 597.500 ₫</b>, đơn khách mới <b>Đã hủy</b>.<br>
+<span class="say">Nói: Lần ngược từ báo cáo về đúng các đơn vừa đặt.</span></li>
+<li><span class="k">Thấy</span> cuối trang <b>Báo cáo Thành viên &amp; Điểm thưởng</b>: số thành viên từng hạng, điểm phát ra trong kỳ (+1.088 điểm), điểm đã dùng (500 điểm = 50.000 ₫), tỷ lệ giữ hạng.</li>
+</ol>
+<p><b>Đầu ra:</b> doanh thu thực thu theo kỳ, dòng tiền có trừ hoàn, công suất sân và khung giờ cao điểm, hiệu quả chương trình điểm. Nút <b>Xuất báo cáo CSV</b> ở đầu trang.</p>
 
-  <div class="stage" id="f3-s4">
-    <div class="stage-head"><h3>04 · Handle requests</h3><span class="who sys">System</span><div class="bul"><span>Cancel or reschedule</span><span>Refund per policy</span><span>Update booking status</span></div></div>
-    <ol class="steps">
-      <li class="step"><span class="num">8</span><span class="screen">Cửa sổ khách · khách mới · Đơn của tôi</span><label class="tick"><input type="checkbox" id="f3h" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Đăng nhập lại tài khoản khách mới → <span class="btn light">Đơn của tôi</span> → <span class="btn light">Đổi lịch sân</span> → chọn ngày mai, cùng giờ → <span class="btn">Xem trước đổi lịch</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Đơn chơi hôm nay: <span class="ui">Đã qua hạn đổi/hủy; liên hệ quầy</span> (phải đổi trước 24 tiếng). Bấm <span class="btn light">✕ Hủy đổi lịch • Đặt sân mới</span> để thoát</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Đổi lịch chỉ được trước giờ chơi 24 tiếng, đúng chính sách CLB.</p></div>
-        </div></li>
-      <li class="step"><span class="num">9</span><span class="screen">Đơn của tôi · Hủy đơn</span><label class="tick"><input type="checkbox" id="f3i" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn light">Hủy đơn</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Hộp <span class="ui">Xác nhận hủy đơn đặt sân</span>: "Hủy cận giờ chơi (dưới 12 tiếng): Giữ lại 100% tiền cọc theo chính sách CLB." Tiền cọc đã đóng 125.000₫, dự kiến hoàn 0₫ (0%)</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Hệ thống tự tính hoàn theo 3 mốc: trên 24 tiếng hoàn 100%, 12–24 tiếng 50%, dưới 12 tiếng không hoàn.</p></div>
-        </div></li>
-      <li class="step"><span class="num">10</span><span class="screen">Hộp hủy</span><label class="tick"><input type="checkbox" id="f3j" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Lý do: <span class="ui">Bận việc đột xuất</span> → <span class="btn warn">Xác nhận hủy sân</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Đơn đổi sang <span class="ui">Đã hủy</span>, khung <span class="ui">Đối soát hoàn tiền &amp; Chính sách · GIỮ CỌC</span>, sân được giải phóng</p></div>
-        </div></li>
-    </ol>
-  </div>
-
-  <div class="output" id="f3-out">
-    <h3>Output · Feedback</h3>
-    <ol class="steps">
-      <li class="step"><span class="num">11</span><span class="screen">Customer rating · /feedback</span><label class="tick"><input type="checkbox" id="f3k" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Đăng nhập lại <code>demo.hoivien</code> → menu <span class="btn light">Feedback</span> → <span class="btn light">5 sao</span> → nhập nội dung (ít nhất 10 ký tự) → chủ đề <span class="btn light">👨‍⚖️ Trọng tài &amp; HLV</span> → <b>để nguyên</b> ô "Cho phép hiển thị công khai" (đã tick sẵn) → <span class="btn">🎾 Gửi đánh giá</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p><span class="ui">Cảm ơn bạn! Đánh giá đã được gửi thành công đến Ban Quản Lý Courtly.</span></p></div>
-        </div></li>
-      <li class="step"><span class="num">12</span><span class="screen">Lễ tân / Admin xử lý &amp; tặng voucher bù</span><label class="tick"><input type="checkbox" id="f3l" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Cửa sổ lễ tân (Staff) hoặc Admin: vào <span class="btn light">Feedback &amp; Đánh giá</span> → chọn phản hồi cần hỗ trợ → bấm <span class="btn light">Nhận xử lý</span> → chọn mẫu <span class="btn light">Xin lỗi nhẹ (50k)</span> → bấm <span class="btn">🎁 Tặng voucher</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Mã voucher bồi thường <b>SORRY-XXXX</b> được tạo tự động với nguồn <code>RECOVERY</code> và gửi đến ví ưu đãi của khách; nút đổi thành <span class="ui">Đã tặng SORRY-XXXX</span> chặn tặng trùng; Admin có thêm nút <span class="ui">Thu hồi</span> nếu cần hủy mã chưa dùng</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Staff được quyền xử lý feedback và tặng voucher bồi thường trong hạn mức; quy trình đối soát ghi nhận đúng nguồn bù đắp.</p></div>
-        </div></li>
-    </ol>
-    <p><b>Usage history</b>: khách xem ở menu tài khoản → <span class="ui">Lịch sử đặt sân</span>; admin xem ở <span class="ui">Lịch sử đặt sân</span>.</p>
-  </div>
-</section>
-
-<!-- ============ FLOW 04 ============ -->
-<section id="flow-04">
-  <div class="sec-head">
-    <span class="flowtag">FLOW 04</span>
-    <h2>Reconciliation &amp; Reporting: đối soát và báo cáo</h2>
-    <p>Admins verify collected money and measure how efficiently courts are used. Cửa sổ admin.</p>
-    <p class="distinct"><b>DISTINCTIVE</b>successful transactions from Flow 02 are traced and verified in the reports</p>
-  </div>
-  <div class="timeline">
-    <a href="#f4-s1"><span class="n">01 · SYSTEM</span><span class="t">Collect data</span></a>
-    <a href="#f4-s2"><span class="n">02 · SYSTEM</span><span class="t">Reconcile</span></a>
-    <a href="#f4-s3"><span class="n">03 · ADMIN</span><span class="t">Select period</span></a>
-    <a href="#f4-s4"><span class="n">04 · SYSTEM</span><span class="t">Calculate</span></a>
-    <a href="#f4-out" class="out"><span class="n">OUTPUT</span><span class="t">Business insights</span></a>
-  </div>
-
-  <div class="stage" id="f4-s1">
-    <div class="stage-head"><h3>01 · Collect data</h3><span class="who sys">System</span><div class="bul"><span>Booking</span><span>Payments</span><span>Refund transactions</span></div></div>
-    <ol class="steps">
-      <li class="step"><span class="num">1</span><span class="screen">Menu trái · Thu tiền &amp; hoàn tiền</span><label class="tick"><input type="checkbox" id="f4a" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn light">Thu tiền &amp; hoàn tiền</span> (kỳ tính mặc định <span class="ui">Tháng 11/2026</span>) → tab <span class="btn light">Giao dịch</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Ba giao dịch vừa phát sinh nằm trên cùng: <code>CASH-…</code> Tiền cọc · Tiền mặt · 125.000₫; <code>sandbox:…</code> Tiền cọc · Chuyển khoản · 117.500₫; <code>CO-…</code> Thanh toán · Tiền mặt · 462.250₫. Mỗi dòng ghi thu ngân: Lễ tân hoặc Hệ thống / QR</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Giao dịch ở Flow 02 và 03 đã vào sổ, kèm người thu và phương thức.</p></div>
-        </div></li>
-    </ol>
-  </div>
-
-  <div class="stage" id="f4-s2">
-    <div class="stage-head"><h3>02 · Reconcile</h3><span class="who sys">System</span><div class="bul"><span>Match collected amounts</span><span>Flag unpaid items</span><span>Track refunds</span></div></div>
-    <ol class="steps">
-      <li class="step"><span class="num">2</span><span class="screen">Tab Đối soát &amp; Ngoại lệ</span><label class="tick"><input type="checkbox" id="f4b" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Tab <span class="btn light">Đối soát &amp; Ngoại lệ</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>3 nhóm: Khách chuyển thừa tiền · Đơn đã hủy còn tiền cọc chờ đối soát · Tiền vào ngân hàng chưa gán đơn; dòng "Tất cả giao dịch chuyển khoản đều đã khớp đơn tự động."</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Mỗi khoản chuyển khoản đã khớp đúng đơn, không có tiền treo.</p></div>
-        </div></li>
-      <li class="step"><span class="num">3</span><span class="screen">Việc cần xử lý · Đơn chưa thu tiền</span><label class="tick"><input type="checkbox" id="f4c" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Menu <span class="btn light">Việc cần xử lý</span> → bộ lọc <span class="btn light">Đơn chưa thu tiền (3)</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Banner đỏ "Phát hiện 3 đơn quá hạn chưa thu đủ tiền", danh sách đơn còn nợ</p></div>
-        </div></li>
-      <li class="step"><span class="num">4</span><span class="screen">Thu tiền &amp; hoàn tiền · Đơn cần hoàn tiền</span><label class="tick"><input type="checkbox" id="f4d" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p>Tab <span class="btn light">Đơn cần hoàn tiền (2)</span> → dòng <span class="ui">#91919191 · Vũ Mai Phương · 260.000 ₫</span> → <span class="btn">Hoàn tiền ngay</span> → (số tiền và lý do điền sẵn) → <span class="btn">Xác nhận đã chuyển khoản / hoàn tiền</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p><span class="ui">Đã ghi nhận hoàn 260.000 ₫ thành công!</span>; Tổng đã hoàn tăng lên 390.000₫, Thu ròng giảm tương ứng</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Chỉ admin được duyệt hoàn tiền; khoản hoàn vào sổ ngay và trừ khỏi thu ròng.</p></div>
-        </div></li>
-    </ol>
-  </div>
-
-  <div class="stage" id="f4-s3">
-    <div class="stage-head"><h3>03 · Select period</h3><span class="who">Admin</span><div class="bul"><span>Choose time range</span><span>Apply the filter</span><span>Request the report</span></div></div>
-    <ol class="steps">
-      <li class="step"><span class="num">5</span><span class="screen">Menu trái · Báo cáo</span><label class="tick"><input type="checkbox" id="f4e" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Bấm</span><p><span class="btn light">Báo cáo</span> → <span class="ui">Kỳ báo cáo</span>: <span class="btn light">Theo Tháng</span> (mặc định Tháng 11/2026), thử thêm <span class="btn light">Theo Ngày</span></p></div>
-          <div class="row"><span class="lbl">Thấy</span><p>Tiêu đề đổi theo kỳ, ví dụ "(Ngày 04/11/2026)"; các ô số và biểu đồ tính lại ngay</p></div>
-        </div></li>
-    </ol>
-  </div>
-
-  <div class="stage" id="f4-s4">
-    <div class="stage-head"><h3>04 · Calculate</h3><span class="who sys">System</span><div class="bul"><span>Revenue &amp; bookings</span><span>Court utilization</span><span>Charts &amp; transactions</span></div></div>
-    <ol class="steps">
-      <li class="step"><span class="num">6</span><span class="screen">Báo cáo · Tháng 11/2026</span><label class="tick"><input type="checkbox" id="f4f" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Thấy</span><p><span class="ui">Tổng thực thu ròng 8.113.250 ₫</span>, <b>khớp đúng ô Thu ròng của trang Thu tiền</b> cùng kỳ; Thu ròng đơn sân; Thu giải &amp; Hội viên; Đơn hoàn tất trong kỳ</p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Hai trang cùng kỳ ra cùng một con số.</p></div>
-        </div></li>
-      <li class="step"><span class="num">7</span><span class="screen">Cuộn xuống</span><label class="tick"><input type="checkbox" id="f4g" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Thấy</span><p>Biểu đồ xu hướng doanh thu theo tuần · Cơ cấu doanh thu (tiền sân, trọng tài, giải, hội viên, trừ hoàn) · Phân bố khung giờ cao điểm · <b>Công suất khai thác 10 sân</b> (giờ đã đặt / giờ mở cửa từng sân)</p></div>
-        </div></li>
-      <li class="step"><span class="num">8</span><span class="screen">Danh sách đơn hàng trong kỳ</span><label class="tick"><input type="checkbox" id="f4h" aria-label="Đã xong"></label>
-        <div class="body">
-          <div class="row"><span class="lbl">Thấy</span><p>Đơn của hội viên: <span class="ui">Hoàn tất · 577.000 ₫ · Đã thu 577.000 ₫</span>; đơn khách mới: <span class="ui">Đã hủy · 250.000 ₫ · Đã thu 125.000 ₫</span></p></div>
-          <div class="row"><span class="lbl">Nói</span><p class="say">Lần ngược từ báo cáo về đúng hai đơn đã đặt ở Flow 02.</p></div>
-        </div></li>
-    </ol>
-  </div>
-
-  <div class="output" id="f4-out"><h3>Output · Business insights</h3><ul><li><b>Revenue report</b>: các ô thực thu ròng theo kỳ.</li><li><b>Cash flow</b>: biểu đồ xu hướng và cơ cấu doanh thu, có trừ hoàn.</li><li><b>Court statistic</b>: công suất từng sân, khung giờ cao điểm.</li><li>Nút <span class="ui">Xuất báo cáo CSV</span> và <span class="ui">In / Xuất PDF Báo Cáo</span> ở đầu trang.</li></ul></div>
-</section>
-
-<!-- ============ LỖI ============ -->
-<section id="loi">
-  <div class="sec-head"><h2>Lỗi phát hiện khi chạy thử</h2><p>Chạy trên bản <code>97bc43b</code>. Chưa sửa mục nào.</p></div>
-  <div class="tablebox"><table>
-    <thead><tr><th>Mức</th><th>Luồng</th><th>Lỗi</th><th>Vị trí</th></tr></thead>
-    <tbody>
-      <tr><td><span class="pill bad">Cao</span></td><td>01</td><td>"Danh sách hội viên" báo "Chưa có dữ liệu" dù DB có 3 membership và trang có 3 phiếu thu phí.</td><td><code>pages/MembershipAdminPage.jsx:30</code> (<code>data.memberships</code> rỗng phía admin)</td></tr>
-      <tr><td><span class="pill warn">Trung bình</span></td><td>02</td><td>Nút "Thu cọc tại quầy (125.000 ₫)" mở form điền sẵn 250.000₫ (cả đơn), lễ tân dễ thu nhầm toàn bộ.</td><td>Hộp "Ghi nhận thu tiền mặt tại quầy"</td></tr>
-      <tr><td><span class="pill warn">Trung bình</span></td><td>02–03</td><td>Banner "Nhắc lịch thi đấu hôm nay" ghi "18:00 – 19.5:00".</td><td><code>guest/Portal.jsx:373–384</code></td></tr>
-      <tr><td><span class="pill warn">Trung bình</span></td><td>03</td><td>Bảng kê check-out không cộng khớp: 427.000 + 150.000 − 67.500 ≠ 577.000; thiếu dòng voucher và trọng tài; phí gia hạn ghi +150.000 trong khi hộp gia hạn báo +127.500.</td><td>Hộp "Thủ tục Check-out &amp; Trả sân"</td></tr>
-      <tr><td><span class="pill warn">Trung bình</span></td><td>04</td><td>Tab Đối soát ghi "Ngoại lệ tài chính &amp; Đơn cần xử lý (7)" nhưng 3 nhóm đều 0; nút "Quét đối soát" không báo kết quả.</td><td><code>pages/PaymentsPage.jsx</code></td></tr>
-      <tr><td><span class="pill">Thấp</span></td><td>01</td><td>Trang Bảng giá khách ghi "xem tiền cọc 30%" và "Giảm thêm từ 10% – 20%"; thực tế cọc 50%, gói giảm 10–15%.</td><td>Trang <code>/bang-gia</code></td></tr>
-      <tr><td><span class="pill">Thấp</span></td><td>01</td><td>"So sánh bảng giá: Hiện tại → Dự kiến" chỉ hiện cột giá mới, không có giá hiện tại.</td><td>Sân &amp; bảng giá · Xem trước</td></tr>
-      <tr><td><span class="pill">Thấp</span></td><td>02</td><td>Chatbot trả lời bảng giá chung, không trả lời câu "18h còn sân trống không".</td><td><code>guest/AiChatbox.jsx</code></td></tr>
-      <tr><td><span class="pill">Thấp</span></td><td>03</td><td>Khách vẫn thấy nút "Đổi lịch sân" khi đã quá hạn đổi; chỉ biết bị chặn sau khi chọn xong giờ mới.</td><td>Đơn của tôi</td></tr>
-      <tr><td><span class="pill">Thấp</span></td><td>03</td><td>Form feedback không gắn với đơn vừa chơi, nên admin không biết đánh giá thuộc buổi nào (slide nói "with clear context").</td><td><code>guest/Content.jsx</code> (/feedback)</td></tr>
-      <tr><td><span class="pill">Thấp</span></td><td>03</td><td>Check-in ngoại lệ xong khung vẫn ghi "CHECK-IN TỰ ĐỘNG THÀNH CÔNG!", không hiện lý do.</td><td><code>components/AutoQRCheckInModal.jsx</code></td></tr>
-      <tr><td><span class="pill">Thấp</span></td><td>03</td><td>Đơn mẫu #44444444 lặp mỗi slot 4 lần ở Việc cần xử lý và Dịch vụ trọng tài; thẻ "Khách sắp đến 6" nhưng danh sách có 5.</td><td>OperationsPage, Dịch vụ trọng tài</td></tr>
-      <tr><td><span class="pill">Thấp</span></td><td>04</td><td>Biểu đồ cơ cấu ghi "TỔNG THU 11.918.000 ₫" là giá trị đơn, không phải tiền thực thu (8,5 triệu), dễ bị hỏi.</td><td><code>pages/ReportsPage.jsx</code></td></tr>
-      <tr><td><span class="pill">Thấp</span></td><td>Dữ liệu</td><td>Một số bản ghi mẫu có giờ ở tương lai so với lúc reset (phiếu MEM-PLUS-001 lúc 15:00, feedback Lê Thu Hà 17:00 cùng ngày).</td><td><code>DemoResetService.java</code></td></tr>
-    </tbody>
-  </table></div>
-  <div class="untested"><p><b>Chưa chạy thử trong lần này:</b></p><ul>
-    <li>Quét QR bằng camera và tab "Tải ảnh QR".</li>
-    <li>Nút "Xuất báo cáo CSV" và "In / Xuất PDF" (có tải file).</li>
-    <li>Hủy đơn trước 24 tiếng để xem hoàn 100% từ phía khách (đã thấy kết quả qua đơn mẫu #91919191 ở Flow 04).</li>
-  </ul></div>
-  <div class="reset"><button type="button" id="clear">Bỏ tick tất cả các bước</button></div>
-</section>
-</div>
-
-<script>
-(function(){
-  var KEY='courtly-demo-steps';
-  var saved={};
-  try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){saved={};}
-  var boxes=document.querySelectorAll('.tick input');
-  function paint(b){b.closest('.step').classList.toggle('done',b.checked);}
-  boxes.forEach(function(b){
-    if(saved[b.id]) b.checked=true;
-    paint(b);
-    b.addEventListener('change',function(){
-      saved[b.id]=b.checked; paint(b);
-      try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}
-    });
-  });
-  document.getElementById('clear').addEventListener('click',function(){
-    saved={}; boxes.forEach(function(b){b.checked=false;paint(b);});
-    try{localStorage.removeItem(KEY);}catch(e){}
-  });
-})();
-</script>
+<!-- ================= KNOWN ISSUES ================= -->
+<h2>Tránh khi demo</h2>
+<p class="meta">Phát hiện khi chạy thử 05/11/2026 trên bản mới nhất, chưa sửa.</p>
+<div class="tw"><table>
+<tr><th>Ở đâu</th><th>Hiện tượng</th><th>Cách né</th></tr>
+<tr><td>Chiến dịch khuyến mãi</td><td>Lưu chiến dịch báo 403 (thiếu CSRF token)</td><td>Bỏ qua mục này</td></tr>
+<tr><td>Quét thẻ VIP Lounge</td><td>Nhập mã <code>VIP-…</code> báo "THẺ VIP KHÔNG HỢP LỆ" (cùng lỗi 403)</td><td>Chỉ nói về thẻ VIP, không quét</td></tr>
+<tr><td>Hạng &amp; điểm, Ưu đãi của tôi</td><td>Khách không vào được 2 trang này, nút "Xem hạng &amp; điểm của bạn" mở trang Hồ sơ. Không đổi quà bằng điểm được trên giao diện.</td><td>Chỉ trình bày danh mục đổi quà ở trang admin</td></tr>
+<tr><td>Thu cọc tại quầy</td><td>Ô số tiền điền sẵn cả đơn thay vì tiền cọc</td><td>Sửa số trước khi xác nhận</td></tr>
+<tr><td>Bảng kê check-out</td><td>Dòng tiền sân và phí gia hạn không cộng ra tổng; thiếu dòng trọng tài</td><td>Chỉ đọc 3 dòng tổng</td></tr>
+<tr><td>Đơn của tôi (khách thành viên)</td><td>5 đơn quá khứ hiện "Sân Tennis · ⏰ – · 0₫"</td><td>Chỉ chỉ vào đơn trên cùng</td></tr>
+<tr><td>Banner nhắc lịch</td><td>Giờ ghi "18:00 – 19.5:00"</td><td>Không nhắc tới</td></tr>
+<tr><td>Trang Bảng giá</td><td>Ghi "tiền cọc 30%", "giảm 10% – 20%"; thực tế cọc 50%, giảm theo hạng 3–8%</td><td>Không đọc 2 dòng đó</td></tr>
+<tr><td>Còn sót gói hội viên</td><td>Ô "Thu phí thành viên", "Gói thành viên" trong báo cáo và trang chủ, link "Gói thành viên (Membership)" ở chân trang</td><td>Nếu bị hỏi: đã bỏ gói trả phí, các ô này luôn 0₫</td></tr>
+<tr><td>Check-in ngoại lệ</td><td>Xong vẫn ghi "CHECK-IN TỰ ĐỘNG THÀNH CÔNG!"</td><td>Nói rõ là check-in ngoại lệ có ghi lý do</td></tr>
+<tr><td>Thành viên &amp; điểm</td><td>Danh sách có cả tài khoản admin và lễ tân (hạng Rookie)</td><td>Lọc theo hạng khi trình bày</td></tr>
+<tr><td>Đơn mẫu #44444444</td><td>Lặp mỗi khung giờ 4 lần ở Việc cần xử lý và Dịch vụ trọng tài</td><td>Không mở đơn này</td></tr>
+</table></div>
+<p class="meta">Trang Đơn đặt sân và Lịch sử đặt sân từng trắng màn hình vì các đơn quá khứ không có ngày chơi. Đã sửa trong <code>OrdersPage.jsx</code> và <code>CustomerHistory.jsx</code> (chưa commit) và đã chạy thử lại sau khi sửa.</p>
+</main>
