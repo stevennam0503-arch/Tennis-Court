@@ -580,6 +580,15 @@ public class DemoResetService {
     );
     jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "feedback:" + fb3Id, fb3Json);
 
+    // 4: Feedback ĐÁNH GIÁ THẤP (LOW_RATING - 2 sao, trạng thái NEW, hạn 24h)
+    // Demo quy trình Service Recovery và nút Tặng voucher bù ngay sau reset
+    String fb4Id = UUID.randomUUID().toString();
+    String fb4Json = String.format(
+        "{\"id\": \"%s\", \"topic\": \"COURT\", \"rating\": 2, \"status\": \"PENDING\", \"published\": false, \"lowRating\": true, \"handlingStatus\": \"NEW\", \"dueAt\": \"%sT23:59:59Z\", \"message\": \"Đèn sân B04 chập chờn, trọng tài đến trễ 10 phút.\", \"accountId\": \"%s\", \"displayName\": \"Lê Thu Hà\", \"reply\": null, \"createdAt\": \"%sT09:00:00Z\", \"publishConsent\": true, \"courtNames\": \"Sân B04\", \"visitDate\": \"%s\"}",
+        fb4Id, todayStr, HA_ID, todayStr, yesterdayStr
+    );
+    jdbc.update("INSERT INTO app_documents (document_key, data, version) VALUES (?, ?, 1)", "feedback:" + fb4Id, fb4Json);
+
     // -----------------------------------------------------------------------------------------
     // H. GIẢI ĐẤU (TOURNAMENT) & ĐĂNG KÝ VĐV
     // -----------------------------------------------------------------------------------------

@@ -66,7 +66,7 @@ import VouchersPage from './pages/VouchersPage';
 
 const adminMenu=[['operations',ClipboardList,'Việc cần xử lý'],['history',CalendarDays,'Lịch sử đặt sân'],['payment-history',Wallet,'Lịch sử thanh toán'],['services',Package,'Dịch vụ trọng tài'],['calendar',CalendarDays,'Lịch sân'],['orders',ClipboardList,'Đơn đặt sân'],['payments',Wallet,'Thu tiền & hoàn tiền'],['sent-notifications',Send,'Thông báo đã gửi'],['vouchers',Ticket,'Khuyến mãi & voucher'],['courts',Grid2X2,'Sân & bảng giá'],['membership',Users,'Membership & hội viên'],['staff',Users,'Nhân sự'],['tournaments',Trophy,'Giải đấu'],['accounts',Users,'Tài khoản & phân quyền'],['reports',ChartColumn,'Báo cáo'],['content',MessageSquare,'Nội dung & feedback'],['system',Settings,'Hệ thống & module'],['profile',UserRound,'Hồ sơ của tôi']];
 
-const staffMenu=[['operations',ClipboardList,'Việc cần xử lý'],['calendar',CalendarDays,'Lịch sân'],['orders',ClipboardList,'Đơn đặt sân'],['payments',Wallet,'Thu tiền & hoàn tiền'],['services',Package,'Dịch vụ trọng tài'],['sent-notifications',Send,'Thông báo đã gửi'],['vouchers',Ticket,'Khuyến mãi & voucher'],['history',CalendarDays,'Lịch sử đặt sân'],['profile',UserRound,'Hồ sơ của tôi']];
+const staffMenu=[['operations',ClipboardList,'Việc cần xử lý'],['calendar',CalendarDays,'Lịch sân'],['orders',ClipboardList,'Đơn đặt sân'],['payments',Wallet,'Thu tiền & hoàn tiền'],['services',Package,'Dịch vụ trọng tài'],['sent-notifications',Send,'Thông báo đã gửi'],['vouchers',Ticket,'Khuyến mãi & voucher'],['content',MessageSquare,'Feedback & Đánh giá'],['history',CalendarDays,'Lịch sử đặt sân'],['profile',UserRound,'Hồ sơ của tôi']];
 
 const customerMenu=[['calendar',CalendarDays,'Đặt sân'],['tournaments',Trophy,'Giải đấu']];
 
@@ -270,7 +270,8 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
 
    const feedbackList = club.data.content?.feedback || [];
 
-   const pendingFeedback = feedbackList.filter(f => !f.reply && !f.published).length;
+   const lowRatingCount = feedbackList.filter(f => (f.rating <= 3 || f.lowRating) && f.handlingStatus !== 'RESOLVED' && f.handlingStatus !== 'NO_ACTION').length;
+   const pendingFeedback = feedbackList.filter(f => !f.reply && !f.published).length + lowRatingCount;
 
    const totalAlerts = operationsCount + pendingRefunds + (holdingCount > 0 ? 1 : 0);
 
@@ -312,7 +313,7 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
 
  ]:isStaff?[
 
-  {label:'VẬN HÀNH',ids:['operations','calendar','orders','payments','services','sent-notifications','vouchers']},
+  {label:'VẬN HÀNH',ids:['operations','calendar','orders','payments','services','sent-notifications','vouchers','content']},
 
   {label:'TRA CỨU',ids:['history']}
 

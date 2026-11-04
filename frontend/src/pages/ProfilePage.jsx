@@ -1,4 +1,5 @@
 import MyMembership from './MyMembership';
+import MyVouchers from './MyVouchers';
 import {MyOrders} from './CustomerPage';
 import {MyHistory,MyPayments} from './CustomerHistory';
 import React,{useState,useEffect} from 'react';
@@ -173,10 +174,10 @@ export default function ProfilePage({tab='info',initialPlan}){
    <Tabs
     value={tab}
     onChange={t=>navigate(t==='info'?'profile':'profile-'+t)}
-    options={[["info","Thông tin cá nhân"],["membership","Membership của tôi"],["orders","Đơn của tôi"],["history","Lịch sử đặt sân"],["payments","Lịch sử thanh toán"]]}
+    options={[["info","Thông tin cá nhân"],["vouchers","Ưu đãi của tôi"],["membership","Membership của tôi"],["orders","Đơn của tôi"],["history","Lịch sử đặt sân"],["payments","Lịch sử thanh toán"]]}
    />
    <CourtlyContext.Provider value={{...ctx,data:mine,isAdmin:false}}>
-    {tab==='membership'?<MyMembership initialPlan={initialPlan}/>:tab==='orders'?<MyOrders/>:tab==='history'?<MyHistory/>:tab==='payments'?<MyPayments/>:<PersonalDetails/>}
+    {tab==='vouchers'?<MyVouchers/>:tab==='membership'?<MyMembership initialPlan={initialPlan}/>:tab==='orders'?<MyOrders/>:tab==='history'?<MyHistory/>:tab==='payments'?<MyPayments/>:<PersonalDetails/>}
    </CourtlyContext.Provider>
   </>
  );

@@ -1161,7 +1161,20 @@ export function Feedback() {
   const [currentPage, setCurrentPage] = useState(1);
   const [req, setReq] = useState(requestId);
   const [localSubmissions, setLocalSubmissions] = useState([]);
+  const [eligibleOrders, setEligibleOrders] = useState([]);
+  const [selectedOrderId, setSelectedOrderId] = useState('');
   const reviewsContainerRef = useRef(null);
+
+  useEffect(() => {
+    if (user) {
+      api('/feedback/eligible-orders').then(res => {
+        setEligibleOrders(res || []);
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlOrder = urlParams.get('orderId');
+        if (urlOrder) setSelectedOrderId(urlOrder);
+      }).catch(() => {});
+    }
+  }, [user]);
 
   const PAGE_SIZE = 6;
 
@@ -1201,7 +1214,7 @@ export function Feedback() {
     setBusy(true);
     setError('');
     try {
-      await api('/feedback', 'POST', { rating, message, topic, publishConsent: consent, requestId: req });
+      await api('/feedback', 'POST', { rating, message, topic, publishConsent: consent, orderId: selectedOrderId || null, requestId: req });
 
       const newReview = {
         id: 'local-' + Date.now(),
@@ -1490,6 +1503,26 @@ export function Feedback() {
         </div>
 
         <form onSubmit={submit} style={{ display: 'grid', gap: 16 }}>
+          {/* CHỌN BUỔI CHƠI (SERVICE RECOVERY & ORDER LINKING) */}
+          {user && (
+            <div style={{ background: '#fcfdfa', border: '1px solid #e7ede2', borderRadius: 12, padding: '12px 16px' }}>
+              <label style={{ fontSize: 13, fontWeight: 700, color: '#173c32', display: 'block', marginBottom: 6 }}>
+                {t('Buổi chơi cần đánh giá (trong 14 ngày qua)')}
+              </label>
+              <select
+                value={selectedOrderId}
+                onChange={e => setSelectedOrderId(e.target.value)}
+                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+              >
+                <option value="">{t('Góp ý chung (không gắn buổi chơi cụ thể)')}</option>
+                {eligibleOrders.map(o => (
+                  <option key={o.id} value={o.id}>
+                    {o.orderCode} · {o.courtNames || 'Sân'} ({o.date})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           {/* STAR SELECTOR: BIG, PROMINENT, UNSELECTED BY DEFAULT */}
           <div style={{ background: '#fcfdfa', border: '1px solid #e7ede2', borderRadius: 12, padding: '14px 16px' }}>
             <label style={{ fontSize: 13.5, fontWeight: 700, color: '#173c32', display: 'block', marginBottom: 8 }}>

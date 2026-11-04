@@ -519,6 +519,26 @@ public class VoucherService {
   }
 
   @Transactional
+  public Voucher createCompensationVoucher(UUID targetAccountId, UUID orderId, String feedbackId, Map<String, Object> template, Account actor) {
+    String suffix = randomSuffix(4);
+    String code = "SORRY-" + suffix;
+    while (vouchers.findByCodeIgnoreCase(code).isPresent()) {
+      suffix = randomSuffix(4);
+      code = "SORRY-" + suffix;
+    }
+
+    Map<String, Object> vBody = new HashMap<>(template);
+    vBody.put("code", code);
+    vBody.put("assignedAccountId", targetAccountId);
+    vBody.put("orderId", orderId);
+    vBody.put("feedbackId", feedbackId);
+    vBody.put("source", "FEEDBACK_RECOVERY");
+    vBody.put("usageLimit", 1);
+    vBody.put("perUserLimit", 1);
+    return createVoucher(vBody, actor);
+  }
+
+  @Transactional
   public List<String> batchGenerate(String rawPrefix, int quantity, Map<String, Object> template, Account actor) {
     String prefix = (rawPrefix != null && !rawPrefix.isBlank()) ? rawPrefix.trim().toUpperCase(Locale.ROOT) : "TRIAN";
     int count = Math.min(Math.max(quantity, 1), 100);

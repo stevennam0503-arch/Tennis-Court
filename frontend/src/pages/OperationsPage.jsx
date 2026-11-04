@@ -250,9 +250,43 @@ export default function OperationsPage() {
 
   return (
     <>
-      <Title subtitle="Bảng theo dõi và xử lý nhanh các tác vụ vận hành trong ca làm việc.">
-        Việc cần xử lý
-      </Title>
+      <Title subtitle="Bảng theo dõi và xử lý nhanh các tác vụ vận hành trong ca làm việc.">
+        Việc cần xử lý
+      </Title>
+
+      {((data.content?.feedback || []).filter(f => (f.rating <= 3 || f.lowRating) && f.handlingStatus !== 'RESOLVED' && f.handlingStatus !== 'NO_ACTION')).length > 0 && (() => {
+        const low = (data.content?.feedback || []).filter(f => (f.rating <= 3 || f.lowRating) && f.handlingStatus !== 'RESOLVED' && f.handlingStatus !== 'NO_ACTION');
+        const overdue = low.filter(f => f.dueAt && new Date(f.dueAt) < new Date());
+        return (
+          <div style={{
+            background: overdue.length > 0 ? '#fff1f2' : '#fffbeb',
+            border: `1.5px solid ${overdue.length > 0 ? '#fecdd3' : '#fde68a'}`,
+            borderRadius: 10,
+            padding: '12px 16px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 10
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 22 }}>⚠️</span>
+              <div>
+                <strong style={{ color: overdue.length > 0 ? '#9f1239' : '#92400e', fontSize: 13.5, display: 'block' }}>
+                  ĐÁNH GIÁ THẤP CẦN XỬ LÝ ({low.length} ca){overdue.length > 0 ? ` – Có ${overdue.length} ca quá hạn 24h!` : ''}
+                </strong>
+                <span style={{ fontSize: 12, color: overdue.length > 0 ? '#be123c' : '#78350f' }}>
+                  Khách đánh giá ≤ 3 sao cần xử lý bồi thường và xin lỗi trong 24h.
+                </span>
+              </div>
+            </div>
+            <Button onClick={() => navigate('content')} style={{ background: overdue.length > 0 ? '#e11d48' : '#d97706', color: '#fff', fontSize: 12, padding: '6px 12px' }}>
+              Xem & Xử lý feedback
+            </Button>
+          </div>
+        );
+      })()}
 
       {/* Real-time Urgent Operational Notifications */}
       {groups.gracePeriod.length > 0 && (

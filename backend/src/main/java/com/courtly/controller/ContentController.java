@@ -28,6 +28,28 @@ public class ContentController {
     return content.mine(auth.current(r));
   }
 
+  @GetMapping("/feedback/eligible-orders")
+  public List<Map<String, Object>> eligibleOrders(HttpServletRequest r) {
+    return content.listEligibleOrders(auth.current(r));
+  }
+
+  @PostMapping("/content/feedback/{id}/assign")
+  public Map<String, Object> assignFeedback(@PathVariable String id, HttpServletRequest r) {
+    return content.assignFeedback(id, auth.current(r));
+  }
+
+  @PostMapping("/content/feedback/{id}/resolve")
+  public Map<String, Object> resolveFeedback(
+      @PathVariable String id, @RequestBody Map<String, Object> body, HttpServletRequest r) {
+    return content.resolveFeedback(id, body, auth.current(r));
+  }
+
+  @PostMapping("/content/feedback/{id}/compensate")
+  public Map<String, Object> compensateFeedback(
+      @PathVariable String id, @RequestBody Map<String, Object> body, HttpServletRequest r) {
+    return content.compensateFeedback(id, body, auth.current(r));
+  }
+
   @RequestMapping(
       value = {
         "/feedback",
