@@ -630,7 +630,28 @@ export default function Booking() {
 
 
 
-  const removeVoucher = () => {
+    useEffect(() => {
+    if (user?.id && !appliedVoucher && !voucherInput) {
+      api('/vouchers/my').then(res => {
+        if (Array.isArray(res)) {
+          const wel = res.find(v => {
+            const code = (v.code || '').toUpperCase();
+            const isActive = v.status === 'ACTIVE' || (v.enabled && !v.status);
+            const notExpired = !v.expiresAt || new Date(v.expiresAt) > new Date();
+            const notExhausted = !v.usageLimit || v.usedCount < v.usageLimit;
+            return code.startsWith('WELCOME-') && isActive && notExpired && notExhausted;
+          });
+          const usedKey = `courtly_welcome_used_${user.id}`;
+          if (wel && localStorage.getItem(usedKey) !== 'true') {
+            setVoucherInput(wel.code);
+            applyVoucher(wel.code);
+          }
+        }
+      }).catch(() => {});
+    }
+  }, [user?.id]);
+
+const removeVoucher = () => {
 
     setAppliedVoucher(null);
 

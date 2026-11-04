@@ -140,6 +140,7 @@ export default function Portal({session,onSession,onLogout}){
         [activeVoucherCode,setActiveVoucherCode]=useState(null),
         [showWelcomeBanner,setShowWelcomeBanner]=useState(false),
         [welcomeBannerApplied,setWelcomeBannerApplied]=useState(false),
+        [personalWelcomeVoucher,setPersonalWelcomeVoucher]=useState(null),
         [welcomeBannerDismissed,setWelcomeBannerDismissed]=useState(()=>{
           try {
             const u = session?.user;
@@ -161,6 +162,29 @@ export default function Portal({session,onSession,onLogout}){
           try { return sessionStorage.getItem('courtly_tourney_banner_dismissed') === 'true'; } catch { return false; }
         });
   const [debtBannerDismissed, setDebtBannerDismissed] = useState(false);
+
+    useEffect(() => {
+    if (user?.id) {
+      api('/vouchers/my')
+        .then(res => {
+          if (Array.isArray(res)) {
+            const wel = res.find(v => {
+              const code = (v.code || '').toUpperCase();
+              const isActive = v.status === 'ACTIVE' || (v.enabled && !v.status);
+              const notExpired = !v.expiresAt || new Date(v.expiresAt) > new Date();
+              const notExhausted = !v.usageLimit || v.usedCount < v.usageLimit;
+              return (code.startsWith('WELCOME-') || code === 'WELCOME-50K') && isActive && notExpired && notExhausted;
+            });
+            if (wel) {
+              setPersonalWelcomeVoucher(wel);
+            }
+          }
+        })
+        .catch(() => {});
+    } else {
+      setPersonalWelcomeVoucher(null);
+    }
+  }, [user?.id]);
 
   const serial=useRef(0),timer=useRef();
   const user=session?.authenticated?session.user:null;
@@ -503,6 +527,7 @@ export default function Portal({session,onSession,onLogout}){
 
     // Priority 5: Voucher chào mừng
     if (welcomeBannerVisible) {
+      const personalCode = personalWelcomeVoucher?.code || 'WELCOME-50K';
       list.push({
         key: 'welcome',
         icon: '🎁',
@@ -513,38 +538,60 @@ export default function Portal({session,onSession,onLogout}){
         badge: t('GIẢM 50.000₫'),
         badgeBg: '#def46a',
         badgeColor: '#173c32',
-        desc: `${t('Chào mừng')} ${user.name}! ${t('Tặng bạn Voucher')} WELCOME ${t('giảm 50k cho đơn đặt sân đầu tiên.')}`,
+        desc: `${t('Chào mừng')} ${user.name}! ${t('Tặng bạn Voucher')} ${personalCode} ${t('giảm 50k cho đơn đặt sân đầu tiên.')}`,
         actions: (
-          <button
-            type="button"
-            onClick={() => {
-              setActiveVoucherCode('WELCOME');
-              setWelcomeBannerApplied(true);
-              setShowWelcomeBanner(false);
-              setWelcomeBannerDismissed(true);
-              try {
-                if (user?.id) localStorage.setItem(`courtly_welcome_dismissed_${user.id}`, 'true');
-              } catch {}
-              if (route !== 'booking') navigate('booking');
-              notify(t('Đã kích hoạt Voucher WELCOME (-50.000₫). Vui lòng chọn sân và khung giờ chơi!'));
-            }}
-            style={{
-              background: '#def46a',
-              color: '#173c32',
-              border: 'none',
-              padding: '6px 14px',
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              whiteSpace: 'nowrap'
-            }}
-          >
-            <span>🎾</span> {welcomeBannerApplied ? t('✓ Đã áp dụng') : t('Áp dụng ngay')}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(personalCode);
+                notify(`${t('Đã sao chép mã')} ${personalCode}`);
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.18)',
+                color: '#ffffff',
+                border: '1px solid rgba(255,255,255,0.3)',
+                padding: '6px 10px',
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              📋 {t('Sao chép')}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveVoucherCode(personalCode);
+                setWelcomeBannerApplied(true);
+                setShowWelcomeBanner(false);
+                setWelcomeBannerDismissed(true);
+                try {
+                  if (user?.id) localStorage.setItem(`courtly_welcome_dismissed_${user.id}`, 'true');
+                } catch {}
+                if (route !== 'booking') navigate('booking');
+                notify(`${t('Đã kích hoạt Voucher')} ${personalCode} (-50.000₫). ${t('Vui lòng chọn sân và khung giờ chơi!')}`);
+              }}
+              style={{
+                background: '#def46a',
+                color: '#173c32',
+                border: 'none',
+                padding: '6px 14px',
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <span>🎾</span> {welcomeBannerApplied ? t('✓ Đã áp dụng') : t('Áp dụng ngay')}
+            </button>
+          </div>
         ),
         onDismiss: () => {
           setShowWelcomeBanner(false);
@@ -599,7 +646,7 @@ export default function Portal({session,onSession,onLogout}){
   }, [
     overdueDebtOrder, debtBannerDismissed, pendingPaymentOrder, paymentBannerDismissed,
     todayMatch, bannerDismissed, membershipBannerVisible, welcomeBannerVisible,
-    tournamentBannerVisible, featuredTournament, welcomeBannerApplied, user, route, data?.courts, lang
+    tournamentBannerVisible, featuredTournament, welcomeBannerApplied, personalWelcomeVoucher, user, route, data?.courts, lang
   ]);
 
   return (

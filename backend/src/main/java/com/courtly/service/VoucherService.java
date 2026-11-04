@@ -401,8 +401,27 @@ public class VoucherService {
 
   private void validateVoucherRules(Voucher v, BigDecimal totalAmount, UUID accountId, UUID excludeOrderId, VoucherOrderContext ctx) {
     validateConditions(v, ctx != null ? ctx : new VoucherOrderContext(totalAmount, accountId, List.of()));
+    if ("WELCOME".equalsIgnoreCase(v.getCode()) && (!"ACTIVE".equals(v.getStatus()) || !Boolean.TRUE.equals(v.getEnabled()))) {
+      throw new BusinessException("Mã chào mừng chung 'WELCOME' đã đóng. Vui lòng sử dụng mã voucher cá nhân (WELCOME-XXXX) được tặng trong ví Ưu đãi của bạn.");
+    }
     if (!"ACTIVE".equals(v.getStatus()) && !Boolean.TRUE.equals(v.getEnabled())) {
       throw new BusinessException("Mã voucher '" + v.getCode() + "' hiện đang tạm khóa hoặc đã kết thúc");
+    }
+
+    // Chặn dùng chung CHAOBANMOI và WELCOME-
+    if ("CHAOBANMOI".equalsIgnoreCase(v.getCode()) && accountId != null) {
+      boolean hasWelcome = redemptions.findByAccountId(accountId).stream()
+          .anyMatch(r -> r.getVoucher() != null && r.getVoucher().getCode() != null && r.getVoucher().getCode().toUpperCase(Locale.ROOT).startsWith("WELCOME-"));
+      if (hasWelcome) {
+        throw new BusinessException("Ưu đãi CHAOBANMOI không áp dụng cùng voucher chào mừng cá nhân WELCOME-");
+      }
+    }
+    if (v.getCode() != null && v.getCode().toUpperCase(Locale.ROOT).startsWith("WELCOME-") && accountId != null) {
+      boolean hasChaoBanMoi = redemptions.findByAccountId(accountId).stream()
+          .anyMatch(r -> r.getVoucher() != null && "CHAOBANMOI".equalsIgnoreCase(r.getVoucher().getCode()));
+      if (hasChaoBanMoi) {
+        throw new BusinessException("Voucher chào mừng không áp dụng cùng ưu đãi CHAOBANMOI");
+      }
     }
 
     Instant now = Instant.now();
