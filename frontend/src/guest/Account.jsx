@@ -6,6 +6,8 @@ import {api} from '../services/api';
 
 import {useGuest,Action,State,Empty,money,time,hourLabel,dateToday,requestId} from './context';
 import {labels, formatStaffSummary} from '../utils/format';
+import './profile.css';
+import { useTierPolicy, fmtDiscount, fmtMultiplier, fmtMoney, fmtDate } from '../utils/tierPolicy';
 
 
 
@@ -1363,7 +1365,7 @@ export function Orders({history=false}){
 
                     <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
 
-                      <h3 style={{margin:0,fontSize:17,color:'#173c32',fontWeight:700}}>{courtName}</h3>
+                      <h3 style={{margin:0,fontSize:17,color:'#173c32',fontWeight:700}}>{t(courtName)}</h3>
 
                       {meta.recurringWeeks > 1 && (
 
@@ -2100,9 +2102,10 @@ export function CancelDialog({order,onClose}){
 
 
 export function Membership(){
-  const {t,data,user,login,navigate}=useGuest();
+  const {t,lang,data,user,login,navigate}=useGuest();
+  const { tiers: rules, pending: pendingPolicy } = useTierPolicy();
 
-  const tiers = [
+  const baseTiers = [
     {
       id: 'rookie',
       name: 'Rookie',
@@ -2158,6 +2161,15 @@ export function Membership(){
       premium: true
     }
   ];
+  // Con số quyền lợi lấy từ chính sách hạng hiện hành (admin chỉnh được)
+  const TIER_CODE = { rookie: 'ROOKIE', challenger: 'CHALLENGER', masters: 'MASTERS', grandslam: 'GRAND_SLAM' };
+  const tiers = baseTiers.map(x => {
+    const r = rules[TIER_CODE[x.id]];
+    return { ...x, spend: fmtMoney(r.spend), discount: fmtDiscount(r.discount), multiplier: fmtMultiplier(r.multiplier),
+      advance: lang === 'en' ? `${r.advanceDays} days` : `${r.advanceDays} ngày`,
+      changes: r.changes > 0 ? (lang === 'en' ? `${r.changes} per month` : `${r.changes} lượt`) : '0',
+      gift: t(x.gift), birthday: fmtMoney(r.birthday) };
+  });
 
   return (
     <section className="ct-pad">
@@ -2165,6 +2177,7 @@ export function Membership(){
         <span className="ct-eyebrow">COURTLY LOYALTY TIERS</span>
         <h1>{t('Chơi càng nhiều. Ưu đãi càng lớn.')}</h1>
         <p>{t('Hệ thống 4 hạng thành viên tự động xét hạng dựa trên tổng chi tiêu 12 tháng trượt. Tích điểm đổi giờ sân và nhận quà tặng thăng hạng, voucher sinh nhật độc quyền.')}</p>
+        {pendingPolicy && <p className="gx-notice" style={{ marginTop: 12 }}>📣 {t('Quyền lợi các hạng sẽ được cập nhật từ')} <b>{fmtDate(pendingPolicy.effectiveFrom)}</b>. {t('Hạng hiện tại của bạn được giữ tới kỳ xét hạng.')}</p>}
       </div>
 
       <div
@@ -2196,18 +2209,18 @@ export function Membership(){
             </div>
             
             <div className="ct-price" style={{ margin: '14px 0 16px' }}>
-              <span style={{ fontSize: 11.5, textTransform: 'uppercase', color: '#64748b' }}>Chi tiêu 12 tháng từ</span>
+              <span style={{ fontSize: 11.5, textTransform: 'uppercase', color: '#64748b' }}>{t('Chi tiêu 12 tháng từ')}</span>
               <strong style={{ fontSize: 24 }}>{tr.spend}</strong>
             </div>
 
             <ul style={{ flex: 1, paddingLeft: 18, fontSize: 13, lineHeight: 1.8 }}>
-              <li><b>Giảm giá sân:</b> <span style={{ color: '#16a34a', fontWeight: 700 }}>{tr.discount}</span></li>
-              <li><b>Tích điểm thưởng:</b> <b>{tr.multiplier}</b> (1đ / 10k)</li>
-              <li><b>Đặt trước tối đa:</b> {tr.advance}</li>
-              <li><b>Đổi lịch free/tháng:</b> {tr.changes}</li>
-              <li><b>Quà lên hạng:</b> {tr.gift}</li>
-              <li><b>Voucher sinh nhật:</b> {tr.birthday}</li>
-              {tr.premium && <li style={{ color: '#b45309', fontWeight: 700 }}>👑 Đặc quyền thẻ VIP Lounge</li>}
+              <li><b>{t('Giảm giá sân:')}</b> <span style={{ color: '#16a34a', fontWeight: 700 }}>{tr.discount}</span></li>
+              <li><b>{t('Tích điểm thưởng:')}</b> <b>{tr.multiplier}</b> {t('(1đ / 10k)')}</li>
+              <li><b>{t('Đặt trước tối đa:')}</b> {tr.advance}</li>
+              <li><b>{t('Đổi lịch free/tháng:')}</b> {tr.changes}</li>
+              <li><b>{t('Quà lên hạng:')}</b> {tr.gift}</li>
+              <li><b>{t('Voucher sinh nhật:')}</b> {tr.birthday}</li>
+              {tr.premium && <li style={{ color: '#b45309', fontWeight: 700 }}>👑 {t('Đặc quyền thẻ VIP Lounge')}</li>}
             </ul>
 
             <div style={{ marginTop: 'auto', paddingTop: 16 }}>
@@ -2231,19 +2244,49 @@ export function Membership(){
   );
 }
 
+const PF_TIERS = {
+  ROOKIE: { label: 'Rookie', icon: '🎾', next: 'CHALLENGER', tone: 'rookie' },
+  CHALLENGER: { label: 'Challenger', icon: '⭐', next: 'MASTERS', tone: 'challenger' },
+  MASTERS: { label: 'Masters', icon: '🏆', next: 'GRAND_SLAM', tone: 'masters' },
+  GRAND_SLAM: { label: 'Grand Slam', icon: '👑', next: null, tone: 'grandslam' }
+};
+const pfNum = n => Number(n || 0).toLocaleString('vi-VN');
+const pfInitials = name => String(name || '?').trim().split(/\s+/).slice(-2).map(w => w[0]).join('').toUpperCase();
+
+function PfSwitch({ checked, onChange, disabled, title, desc }) {
+  return (
+    <label className="pf-switch-row">
+      <span className="pf-switch-text">
+        <b>{title}</b>
+        <small>{desc}</small>
+      </span>
+      <input type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={e => onChange(e.target.checked)} />
+      <span className="pf-switch" aria-hidden="true" />
+    </label>
+  );
+}
+
 export function Profile(){
-  const {t,user,data,refresh,notify}=useGuest();
+  const {t,user,data,refresh,notify,navigate}=useGuest();
   const row=data?.accounts?.[0];
   const [name,setName]=useState(user.name),[phone,setPhone]=useState(row?.phone||''),[old,setOld]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false);
   const [notifyEmail, setNotifyEmail] = useState(user.notifyEmail !== false);
-  const [notifySms, setNotifySms] = useState(user.notifySms !== false);
   const [marketingConsent, setMarketingConsent] = useState(Boolean(user.marketingConsent));
   const [savingNotify, setSavingNotify] = useState(false);
+  const [loyalty, setLoyalty] = useState(null);
+  const [loyaltyError, setLoyaltyError] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const { tiers: rules } = useTierPolicy();
+
+  useEffect(() => {
+    let alive = true;
+    api('/loyalty/my').then(j => { if (alive) setLoyalty(j); }).catch(() => { if (alive) setLoyaltyError(true); });
+    return () => { alive = false; };
+  }, [user.id]);
 
   const handleUpdateNotify = async (key, val) => {
-    const next = { notifyEmail, notifySms, marketingConsent, [key]: val };
+    const next = { notifyEmail, marketingConsent, [key]: val };
     if (key === 'notifyEmail') setNotifyEmail(val);
-    if (key === 'notifySms') setNotifySms(val);
     if (key === 'marketingConsent') setMarketingConsent(val);
     setSavingNotify(true);
     try {
@@ -2256,47 +2299,103 @@ export function Profile(){
     }
   };
 
+  const copyReferral = async () => {
+    if (!loyalty?.referralCode) return;
+    try { await navigator.clipboard.writeText(loyalty.referralCode); setCopied(true); setTimeout(() => setCopied(false), 2000); }
+    catch { notify(loyalty.referralCode); }
+  };
+
   const submit=async(e,kind)=>{e.preventDefault();setBusy(true);try{if(kind==='profile')await api('/profile','PATCH',{name,phone});else{await api('/auth/password','POST',{currentPassword:old,newPassword:password});setOld('');setPassword('')}await refresh();notify(t('Đã lưu thông tin'))}catch(e){notify(e.message)}finally{setBusy(false)}};
+
+  const tierCode = loyalty?.tier || 'ROOKIE';
+  const tier = PF_TIERS[tierCode] || PF_TIERS.ROOKIE;
+  const nextTier = tier.next ? PF_TIERS[tier.next] : null;
+  const spend = Number(loyalty?.spend12m || 0);
+  const target = tier.next ? rules[tier.next].spend : rules[tierCode]?.spend || 0; // ngưỡng hạng kế tiếp theo chính sách hiện hành
+  const pct = nextTier ? Math.min(100, Math.floor(spend / target * 100)) : 100;
+  const needed = nextTier ? Math.max(0, target - spend) : 0;
+  const points = Number(loyalty?.pointsBalance || 0);
+  const perks = loyalty ? [
+    loyalty.discountPercent > 0 ? `${t('Giảm')} ${pfNum(loyalty.discountPercent)}% ${t('mỗi đơn')}` : null,
+    `${t('Tích điểm')} ×${String(loyalty.pointMultiplier ?? 1).replace('.', ',')}`,
+    loyalty.bookingWindowDays ? `${t('Đặt trước')} ${loyalty.bookingWindowDays} ${t('ngày')}` : null,
+    loyalty.freeChanges ? `${loyalty.freeChanges} ${t('lần đổi lịch miễn phí')}` : null
+  ].filter(Boolean) : [];
+  const orders = data?.orders || [];
+  const todayStr = dateToday();
+  const upcoming = orders.filter(o => { const d = o.date || o.slots?.[0]?.scheduleDate || ''; return o.status === 'HOLDING' || o.status === 'CHECKED_IN' || (o.status === 'CONFIRMED' && d >= todayStr); }).length;
+
   return (
-    <section className="ct-pad">
-      <div className="gx-heading">
-        <h1>{t('Hồ sơ của tôi')}</h1>
-        <p>{user.email || user.phone}</p>
+    <section className="ct-pad pf-page">
+      <div className={`pf-hero pf-${tier.tone}`}>
+        <div className="pf-id">
+          <div className="pf-avatar" aria-hidden="true">{pfInitials(user.name)}</div>
+          <div className="pf-id-text">
+            <span className="pf-eyebrow">{t('Hồ sơ của tôi')}</span>
+            <h1>{user.name}</h1>
+            <p>{[user.email, row?.phone || user.phone].filter(Boolean).join(' · ')}</p>
+            {loyalty?.tierSince && <p className="pf-muted">{t('Hạng hiện tại từ')} {new Date(loyalty.tierSince).toLocaleDateString('vi-VN')}{loyalty.tierExpiresAt ? ` · ${t('giữ hạng đến')} ${new Date(loyalty.tierExpiresAt).toLocaleDateString('vi-VN')}` : ''}</p>}
+          </div>
+        </div>
+
+        {loyalty ? (
+          <div className="pf-tier">
+            <div className="pf-tier-top">
+              <span className="pf-badge">{tier.icon} {tier.label}</span>
+              <div className="pf-points">
+                <b>{pfNum(points)}</b><span>{t('điểm')}</span>
+                <small>≈ {money(points * 100)}</small>
+              </div>
+            </div>
+            <div className="pf-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+              <span style={{ width: `${pct}%` }} />
+            </div>
+            <p className="pf-progress-text">
+              {nextTier
+                ? <>{t('Chi tiêu 12 tháng')} <b>{money(spend)}</b> / {money(target)} · {t('còn')} <b>{money(needed)}</b> {t('để lên')} {nextTier.icon} {nextTier.label}</>
+                : <>{t('Bạn đang ở hạng cao nhất. Chi tiêu 12 tháng')} <b>{money(spend)}</b></>}
+            </p>
+            {perks.length > 0 && <ul className="pf-perks">{perks.map(p => <li key={p}>{p}</li>)}</ul>}
+          </div>
+        ) : (
+          <div className="pf-tier pf-tier-empty">{loyaltyError ? t('Chưa tải được thông tin hạng thành viên.') : t('Đang tải hạng thành viên…')}</div>
+        )}
       </div>
-      <div className="gx-split">
-        <form className="gx-form" onSubmit={e=>submit(e,'profile')}>
+
+      <div className="pf-quick">
+        <button type="button" onClick={() => navigate('loyalty')}><span>🎁</span><b>{t('Đổi điểm lấy quà')}</b><small>{t('Lịch sử điểm & quà đổi')}</small></button>
+        <button type="button" onClick={() => navigate('vouchers')}><span>🏷️</span><b>{t('Ưu đãi của tôi')}</b><small>{t('Voucher đang có')}</small></button>
+        <button type="button" onClick={() => navigate('orders')}><span>📋</span><b>{t('Đơn hiện tại')}</b><small>{upcoming > 0 ? `${upcoming} ${t('đơn sắp tới')}` : t('Chưa có đơn sắp tới')}</small></button>
+        {loyalty?.referralCode && (
+          <button type="button" onClick={copyReferral}><span>🤝</span><b>{t('Mã giới thiệu')}: {loyalty.referralCode}</b><small>{copied ? t('Đã sao chép') : t('Bấm để sao chép, gửi cho bạn bè')}</small></button>
+        )}
+      </div>
+
+      <div className="pf-grid">
+        <form className="pf-card" onSubmit={e=>submit(e,'profile')}>
+          <h2>{t('Thông tin cá nhân')}</h2>
+          <p className="pf-card-sub">{t('Tên và số điện thoại dùng khi check-in và nhận thông báo.')}</p>
           <label>{t('Họ và tên')}<input required maxLength={100} value={name} onChange={e=>setName(e.target.value)}/></label>
           <label>{t('Điện thoại')}<input type="tel" maxLength={30} value={phone} onChange={e=>setPhone(e.target.value)}/></label>
+          <label>{t('Email')}<input value={user.email || ''} disabled readOnly/></label>
           <Action type="submit" disabled={busy}>{t('Lưu hồ sơ')}</Action>
         </form>
 
-        <form className="gx-form" onSubmit={e=>submit(e,'password')}>
-          <h3>{t('Đổi mật khẩu')}</h3>
+        <form className="pf-card" onSubmit={e=>submit(e,'password')}>
+          <h2>{t('Đổi mật khẩu')}</h2>
+          <p className="pf-card-sub">{t('Từ 6 ký tự, tối đa 72 byte UTF-8.')}</p>
           <label>{t('Mật khẩu hiện tại')}<input type="password" required value={old} onChange={e=>setOld(e.target.value)} autoComplete="current-password"/></label>
           <label>{t('Mật khẩu mới')}<input type="password" required minLength={6} maxLength={72} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="new-password"/></label>
-          <p>{t('Từ 6 ký tự, tối đa 72 byte UTF-8.')}</p>
           <Action type="submit" disabled={busy}>{t('Đổi mật khẩu')}</Action>
         </form>
-      </div>
 
-      <div style={{ marginTop: 28, background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e2e8f0' }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 16, color: '#173c32' }}>{t('Kênh nhận thông báo')}</h3>
-        <p style={{ margin: '0 0 16px', fontSize: 13, color: '#64748b' }}>
-          {t('Tùy chỉnh các kênh bạn muốn nhận tin nhắc lịch chơi và hóa đơn dịch vụ.')}
-        </p>
-        <div style={{ display: 'grid', gap: 12 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-            <input type="checkbox" checked={notifyEmail} onChange={e => handleUpdateNotify('notifyEmail', e.target.checked)} disabled={savingNotify} />
-            <span>{t('Nhận thông báo và hóa đơn qua Email')}</span>
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-            <input type="checkbox" checked={notifySms} onChange={e => handleUpdateNotify('notifySms', e.target.checked)} disabled={savingNotify} />
-            <span>{t('Nhận tin nhắn SMS nhắc lịch thi đấu trước 24h & 2h')}</span>
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-            <input type="checkbox" checked={marketingConsent} onChange={e => handleUpdateNotify('marketingConsent', e.target.checked)} disabled={savingNotify} />
-            <span>{t('Đồng ý nhận tin khuyến mãi & voucher ưu đãi từ Courtly')}</span>
-          </label>
+        <div className="pf-card pf-card-wide">
+          <h2>{t('Kênh nhận thông báo')}</h2>
+          <p className="pf-card-sub">{t('Nhắc lịch, hóa đơn và ưu đãi gửi qua email và chuông thông báo trong ứng dụng.')}</p>
+          <div className="pf-switches">
+            <PfSwitch checked={notifyEmail} disabled={savingNotify} onChange={v => handleUpdateNotify('notifyEmail', v)} title={t('Email')} desc={t('Nhận thông báo và hóa đơn qua Email')} />
+            <PfSwitch checked={marketingConsent} disabled={savingNotify} onChange={v => handleUpdateNotify('marketingConsent', v)} title={t('Khuyến mãi')} desc={t('Đồng ý nhận tin khuyến mãi & voucher ưu đãi từ Courtly')} />
+          </div>
         </div>
       </div>
     </section>

@@ -7,6 +7,7 @@ import { useCourtly } from '../context';
 import { api } from '../services/api';
 import { Title, Button, Modal, Chip } from '../components/UI';
 import { money } from '../utils/format';
+import TierPolicyEditor from '../components/TierPolicyEditor';
 
 const TIER_META = {
   ROOKIE: { label: 'Rookie', color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1', icon: '🎾' },
@@ -422,75 +423,7 @@ export default function LoyaltyAdminPage() {
       {/* TAB 3: TIERS POLICY & REWARDS CATALOGUE */}
       {tab === 'policy' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* 4 TIERS MATRIX */}
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 800, color: '#0f172a' }}>
-              Quy chế 4 Hạng thành viên Courtly
-            </h3>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
-                <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569' }}>
-                    <th style={{ padding: '10px 14px' }}>Hạng</th>
-                    <th style={{ padding: '10px 14px' }}>Chi tiêu 12T</th>
-                    <th style={{ padding: '10px 14px' }}>Giảm tiền sân</th>
-                    <th style={{ padding: '10px 14px' }}>Hệ số điểm</th>
-                    <th style={{ padding: '10px 14px' }}>Đặt trước</th>
-                    <th style={{ padding: '10px 14px' }}>Đổi lịch free/tháng</th>
-                    <th style={{ padding: '10px 14px' }}>Quà khi lên hạng</th>
-                    <th style={{ padding: '10px 14px' }}>Voucher sinh nhật</th>
-                    <th style={{ padding: '10px 14px' }}>Đặc quyền khác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '12px 14px', fontWeight: 700, color: '#64748b' }}>🎾 Rookie</td>
-                    <td style={{ padding: '12px 14px' }}>0₫</td>
-                    <td style={{ padding: '12px 14px' }}>0%</td>
-                    <td style={{ padding: '12px 14px', fontWeight: 700 }}>×1,0</td>
-                    <td style={{ padding: '12px 14px' }}>7 ngày</td>
-                    <td style={{ padding: '12px 14px' }}>0</td>
-                    <td style={{ padding: '12px 14px' }}>Voucher chào mừng 50k</td>
-                    <td style={{ padding: '12px 14px' }}>30.000₫</td>
-                    <td style={{ padding: '12px 14px', color: '#94a3b8' }}>—</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#f0f9ff' }}>
-                    <td style={{ padding: '12px 14px', fontWeight: 700, color: '#0284c7' }}>⭐ Challenger</td>
-                    <td style={{ padding: '12px 14px', fontWeight: 600 }}>3.000.000₫</td>
-                    <td style={{ padding: '12px 14px', fontWeight: 700, color: '#0284c7' }}>−3%</td>
-                    <td style={{ padding: '12px 14px', fontWeight: 700 }}>×1,2</td>
-                    <td style={{ padding: '12px 14px' }}>10 ngày</td>
-                    <td style={{ padding: '12px 14px' }}>1 lượt</td>
-                    <td style={{ padding: '12px 14px' }}>200 điểm thưởng</td>
-                    <td style={{ padding: '12px 14px' }}>60.000₫</td>
-                    <td style={{ padding: '12px 14px', color: '#94a3b8' }}>—</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#faf5ff' }}>
-                    <td style={{ padding: '12px 14px', fontWeight: 700, color: '#7c3aed' }}>🏆 Masters</td>
-                    <td style={{ padding: '12px 14px', fontWeight: 600 }}>8.000.000₫</td>
-                    <td style={{ padding: '12px 14px', fontWeight: 700, color: '#7c3aed' }}>−5%</td>
-                    <td style={{ padding: '12px 14px', fontWeight: 700 }}>×1,5</td>
-                    <td style={{ padding: '12px 14px' }}>14 ngày</td>
-                    <td style={{ padding: '12px 14px' }}>2 lượt</td>
-                    <td style={{ padding: '12px 14px' }}>500 điểm thưởng</td>
-                    <td style={{ padding: '12px 14px' }}>120.000₫</td>
-                    <td style={{ padding: '12px 14px' }}>Đăng ký giải sớm 3 ngày</td>
-                  </tr>
-                  <tr style={{ background: '#fefce8' }}>
-                    <td style={{ padding: '12px 14px', fontWeight: 800, color: '#b45309' }}>👑 Grand Slam</td>
-                    <td style={{ padding: '12px 14px', fontWeight: 700 }}>20.000.000₫</td>
-                    <td style={{ padding: '12px 14px', fontWeight: 800, color: '#b45309' }}>−8%</td>
-                    <td style={{ padding: '12px 14px', fontWeight: 800 }}>×2,0</td>
-                    <td style={{ padding: '12px 14px' }}>21 ngày</td>
-                    <td style={{ padding: '12px 14px' }}>4 lượt</td>
-                    <td style={{ padding: '12px 14px' }}>1.000 điểm + Voucher 300.000₫ + Thẻ VIP Lounge</td>
-                    <td style={{ padding: '12px 14px' }}>250.000₫</td>
-                    <td style={{ padding: '12px 14px', fontWeight: 700, color: '#92400e' }}>Phòng chờ VIP Lounge · Hủy linh hoạt</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <TierPolicyEditor isAdmin={isAdmin} notify={notify} />
 
           {/* REWARDS CATALOGUE */}
           <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>

@@ -1,0 +1,55 @@
+/* Trang Hồ sơ khách hàng (/tai-khoan) */
+#courtly-balanced-amenities .ct-pad.pf-page{display:grid;gap:24px;padding-top:28px}
+#courtly-balanced-amenities .pf-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:28px;align-items:stretch;padding:32px;border-radius:14px;color:#f6f4ee;background:linear-gradient(135deg,#173c32 0%,#0f2a22 100%);box-shadow:0 10px 30px #173c3226}
+#courtly-balanced-amenities .pf-hero.pf-masters{background:linear-gradient(135deg,#173c32 0%,#2e1f52 120%)}
+#courtly-balanced-amenities .pf-hero.pf-grandslam{background:linear-gradient(135deg,#1d2b24 0%,#3d2c0c 120%)}
+#courtly-balanced-amenities .pf-hero.pf-challenger{background:linear-gradient(135deg,#173c32 0%,#0c3a52 120%)}
+#courtly-balanced-amenities .pf-id{display:flex;gap:20px;align-items:center;min-width:0}
+#courtly-balanced-amenities .pf-avatar{flex-shrink:0;width:84px;height:84px;border-radius:50%;display:grid;place-items:center;font-size:30px;font-weight:700;letter-spacing:.5px;color:#173c32;background:#def46a;box-shadow:0 0 0 4px #ffffff22}
+#courtly-balanced-amenities .pf-id-text{min-width:0}
+#courtly-balanced-amenities .pf-eyebrow{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:#def46a}
+#courtly-balanced-amenities .pf-id-text h1{margin:6px 0 6px;font-size:clamp(26px,3vw,36px);line-height:1.15;letter-spacing:-.8px;color:#fff;text-wrap:balance}
+#courtly-balanced-amenities .pf-id-text p{margin:2px 0;font-size:14px;color:#d6dfce}
+#courtly-balanced-amenities .pf-id-text .pf-muted{font-size:12.5px;color:#a9b8a6}
+#courtly-balanced-amenities .pf-tier{background:#ffffff12;border:1px solid #ffffff22;border-radius:12px;padding:20px 22px;display:grid;gap:12px;align-content:start}
+#courtly-balanced-amenities .pf-tier-empty{place-items:center;color:#d6dfce;font-size:13px}
+#courtly-balanced-amenities .pf-tier-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+#courtly-balanced-amenities .pf-badge{display:inline-flex;gap:6px;align-items:center;padding:6px 14px;border-radius:30px;background:#def46a;color:#173c32;font-weight:800;font-size:13px;letter-spacing:.6px;text-transform:uppercase}
+#courtly-balanced-amenities .pf-grandslam .pf-badge{background:#f5c95b}
+#courtly-balanced-amenities .pf-points{display:grid;grid-template-columns:auto auto;align-items:baseline;column-gap:6px;text-align:right}
+#courtly-balanced-amenities .pf-points b{font-size:32px;line-height:1;color:#fff}
+#courtly-balanced-amenities .pf-points span{font-size:13px;color:#d6dfce}
+#courtly-balanced-amenities .pf-points small{grid-column:1/-1;font-size:12px;color:#a9b8a6}
+#courtly-balanced-amenities .pf-progress{height:8px;border-radius:8px;background:#ffffff22;overflow:hidden}
+#courtly-balanced-amenities .pf-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,#def46a,#f5c95b);transition:width .6s ease}
+#courtly-balanced-amenities .pf-progress-text{margin:0;font-size:13px;line-height:1.6;color:#d6dfce}
+#courtly-balanced-amenities .pf-progress-text b{color:#fff}
+#courtly-balanced-amenities .pf-perks{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+#courtly-balanced-amenities .pf-perks li{font-size:12px;padding:5px 11px;border-radius:30px;background:#ffffff18;color:#f6f4ee}
+#courtly-balanced-amenities .pf-quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+#courtly-balanced-amenities .pf-quick button{display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:2px;align-items:center;text-align:left;padding:16px 18px;border:1px solid #d4dacb;border-radius:12px;background:#fffefa;color:#173c32;transition:border-color .15s,transform .15s,box-shadow .15s;min-width:0}
+#courtly-balanced-amenities .pf-quick button:hover{border-color:#173c32;transform:translateY(-2px);box-shadow:0 6px 18px #173c3214}
+#courtly-balanced-amenities .pf-quick span{grid-row:1/3;font-size:24px}
+#courtly-balanced-amenities .pf-quick b{font-size:14px;min-width:0;overflow-wrap:anywhere}
+#courtly-balanced-amenities .pf-quick small{font-size:12px;color:#64705f}
+#courtly-balanced-amenities .pf-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
+#courtly-balanced-amenities .pf-card{display:grid;gap:16px;padding:26px;border:1px solid #d4dacb;border-radius:12px;background:#fffefa}
+#courtly-balanced-amenities .pf-card-wide{grid-column:1/-1}
+#courtly-balanced-amenities .pf-card h2{margin:0;font-size:19px;letter-spacing:-.3px;color:#173c32}
+#courtly-balanced-amenities .pf-card-sub{margin:-10px 0 0;font-size:13px;color:#64705f}
+#courtly-balanced-amenities .pf-card input:disabled{background:#eef0e8;color:#64705f;opacity:1}
+#courtly-balanced-amenities .pf-card .ct-primary{justify-self:start}
+#courtly-balanced-amenities .pf-switches{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+#courtly-balanced-amenities .pf-switch-row{position:relative;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border:1px solid #e1e5da;border-radius:10px;background:#f8f7f1;cursor:pointer}
+#courtly-balanced-amenities .pf-switch-text{display:grid;gap:3px;min-width:0}
+#courtly-balanced-amenities .pf-switch-text b{font-size:14px;color:#173c32}
+#courtly-balanced-amenities .pf-switch-text small{font-size:12px;line-height:1.5;color:#64705f}
+#courtly-balanced-amenities .pf-switch-row input{position:absolute;opacity:0;width:1px;height:1px;min-height:0;padding:0}
+#courtly-balanced-amenities .pf-switch{flex-shrink:0;position:relative;width:42px;height:24px;border-radius:24px;background:#c5ccbd;transition:background .2s}
+#courtly-balanced-amenities .pf-switch::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0003;transition:transform .2s}
+#courtly-balanced-amenities .pf-switch-row input:checked+.pf-switch{background:#173c32}
+#courtly-balanced-amenities .pf-switch-row input:checked+.pf-switch::after{transform:translateX(18px)}
+#courtly-balanced-amenities .pf-switch-row input:focus-visible+.pf-switch{outline:3px solid #a0762d;outline-offset:2px}
+#courtly-balanced-amenities .pf-switch-row input:disabled+.pf-switch{opacity:.6}
+@media(max-width:1000px){#courtly-balanced-amenities .pf-hero{grid-template-columns:1fr}#courtly-balanced-amenities .pf-quick{grid-template-columns:repeat(2,minmax(0,1fr))}#courtly-balanced-amenities .pf-switches{grid-template-columns:1fr}}
+@media(max-width:640px){#courtly-balanced-amenities .pf-hero{padding:22px;gap:20px}#courtly-balanced-amenities .pf-avatar{width:60px;height:60px;font-size:22px}#courtly-balanced-amenities .pf-grid,#courtly-balanced-amenities .pf-quick{grid-template-columns:1fr}#courtly-balanced-amenities .pf-card{padding:20px}#courtly-balanced-amenities .pf-points{text-align:left}}

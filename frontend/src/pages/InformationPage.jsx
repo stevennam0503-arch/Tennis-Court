@@ -4,7 +4,7 @@ import {api} from '../services/api';
 import {Button,Chip} from '../components/UI';
 import {PublicHeader,PublicFooter} from '../components/PublicLayout';
 import {money,labels} from '../utils/format';
-const categories={ALL:'Tất cả',NEWS:'Tin câu lạc bộ',NOTICE:'Thông báo',TOURNAMENT:'Giải đấu'};
+const categories={ALL:'Tất cả',NEWS:'Tin câu lạc bộ',NOTICE:'Thông báo',TOURNAMENT:'Giải đấu',PROMO:'Ưu đãi (chiến dịch)'};
 const topics={COURT:'Chất lượng sân',SERVICE:'Dịch vụ',WEBSITE:'Trải nghiệm website',TOURNAMENT:'Giải đấu',OTHER:'Khác'};
 const safeDecode=value=>{try{return decodeURIComponent(value);}catch{return '';}};
 const dateLabel=value=>value?new Date(value).toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'}):'';

@@ -150,11 +150,13 @@ export default function CourtsPage() {
 
     if (deletingId) return;
 
+    // Giống máy chủ: chỉ đơn có giờ chơi từ hôm nay trở đi mới chặn ngừng khai thác
+    const todayIso = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
     const activeOrders = (data.orders || []).filter(o =>
 
       ['HOLDING', 'CONFIRMED', 'CHECKED_IN'].includes(o.status) &&
 
-      o.slots?.some(s => s.court === court.id)
+      o.slots?.some(s => s.court === court.id && (s.date || '') >= todayIso)
 
     );
 

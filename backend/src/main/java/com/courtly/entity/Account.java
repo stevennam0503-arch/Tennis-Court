@@ -47,9 +47,6 @@ public class Account extends BaseEntity {
   @Column(name = "notify_email")
   private Boolean notifyEmail = true;
 
-  @Column(name = "notify_sms")
-  private Boolean notifySms = true;
-
   @Column(name = "marketing_consent")
   private Boolean marketingConsent = false;
 

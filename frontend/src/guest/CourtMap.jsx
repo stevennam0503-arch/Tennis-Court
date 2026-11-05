@@ -33,7 +33,7 @@ export default function CourtMap({courts, selected, onSelect, availability, rang
             const courtPrices = (data?.prices || []).filter(p => p.court === court.id);
             const minRate = courtPrices.length > 0 ? Math.min(...courtPrices.map(p => Number(p.price))) : court.price;
             return <button key={court.id} type="button" data-court-id={court.name} aria-pressed={chosen || hasRange}
-              aria-label={`${court.name} · ${t(name)} · ${t(status)} · ${t('Từ')} ${money(minRate)} / ${t('giờ')}`}
+              aria-label={`${t(court.name)} · ${t(name)} · ${t(status)} · ${t('Từ')} ${money(minRate)} / ${t('giờ')}`}
               className={`dg-court ${maintenance ? 'gm-maintenance' : busy ? 'gm-busy' : ''} ${chosen ? 'chosen' : ''}`}
               style={hasRange ? {borderColor: '#16a34a', background: '#f0fdf4', boxShadow: '0 0 0 2px rgba(22, 163, 74, 0.2)'} : {}}
               disabled={maintenance} onClick={() => onSelect(court)}>
@@ -46,7 +46,7 @@ export default function CourtMap({courts, selected, onSelect, availability, rang
                 <span className="dg-selected" style={hasRange ? {display: 'flex', background: '#16a34a', color: '#fff'} : {}}><Check/></span>
               </span>
               <span className="dg-court-caption">
-                <strong className="dg-court-id">{court.name}</strong>
+                <strong className="dg-court-id">{t(court.name)}</strong>
                 <span className="gm-court-state" style={hasRange ? {color: '#15803d', fontWeight: 700} : {}}>{t(status)}</span>
               </span>
               <span className="gx-map-price">{t('Từ')} {money(minRate)} <span>/ {t('giờ')}</span></span>

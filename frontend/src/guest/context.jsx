@@ -18,7 +18,10 @@ export const translate=(lang,text)=>{
 
   const str=typeof text==='string'?text:String(text);
 
-  return translations[str]||translations[str.trim()]||str;
+  if(translations[str]||translations[str.trim()])return translations[str]||translations[str.trim()];
+  // Tên sân là dữ liệu ("Sân A01"): bản tiếng Anh hiển thị "Court A01"
+  const court=/^Sân\s+([A-Z]\d{1,3})$/.exec(str.trim());
+  return court?`Court ${court[1]}`:str;
 
 };
 

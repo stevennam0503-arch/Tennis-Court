@@ -96,9 +96,6 @@ public class NotificationController {
     if (body.containsKey("notifyEmail")) {
       me.setNotifyEmail(Boolean.TRUE.equals(body.get("notifyEmail")));
     }
-    if (body.containsKey("notifySms")) {
-      me.setNotifySms(Boolean.TRUE.equals(body.get("notifySms")));
-    }
     if (body.containsKey("marketingConsent")) {
       boolean consent = Boolean.TRUE.equals(body.get("marketingConsent"));
       me.setMarketingConsent(consent);
@@ -110,7 +107,6 @@ public class NotificationController {
     return Map.of(
         "success", true,
         "notifyEmail", me.getNotifyEmail(),
-        "notifySms", me.getNotifySms(),
         "marketingConsent", me.getMarketingConsent()
     );
   }

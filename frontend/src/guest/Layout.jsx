@@ -521,7 +521,7 @@ export function Footer(){
           <address className="ct-footer-address">
             <div className="ct-contact-row">
               <MapPin size={17} className="ct-icon"/>
-              <span>{club.address||'Khu liên hợp thể thao Courtly Tennis Club'}</span>
+              <span>{t(club.address||'Khu liên hợp thể thao Courtly Tennis Club')}</span>
             </div>
             <div className="ct-contact-row">
               <Phone size={17} className="ct-icon"/>

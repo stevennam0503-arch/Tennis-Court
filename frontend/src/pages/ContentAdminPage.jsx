@@ -523,7 +523,7 @@ export default function ContentAdminPage() {
                   </div>
                 ) : (
                   <div style={{ fontSize: 12, color: '#64748b' }}>
-                    Khách hàng đã nhận được mã bồi thường qua Email/SMS và mục "Ưu đãi của tôi".
+                    Khách hàng đã nhận được mã bồi thường qua Email/thông báo và mục "Ưu đãi của tôi".
                   </div>
                 )}
               </div>
@@ -576,7 +576,7 @@ export default function ContentAdminPage() {
             )}
 
             <div className="field">
-              <label htmlFor="review-reply">Phản hồi gửi đến khách hàng (gửi qua Email/SMS)</label>
+              <label htmlFor="review-reply">Phản hồi gửi đến khách hàng (gửi qua Email/thông báo)</label>
               <textarea
                 id="review-reply"
                 rows={3}

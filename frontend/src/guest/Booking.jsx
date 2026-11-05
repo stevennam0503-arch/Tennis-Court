@@ -644,7 +644,8 @@ export default function Booking() {
           const usedKey = `courtly_welcome_used_${user.id}`;
           if (wel && localStorage.getItem(usedKey) !== 'true') {
             setVoucherInput(wel.code);
-            applyVoucher(wel.code);
+            // Chưa chọn giờ thì chưa áp được; để hiệu ứng pendingVoucherCode áp khi đã có tiền sân
+            if (gross > 0) applyVoucher(wel.code); else setPendingVoucherCode(wel.code);
           }
         }
       }).catch(() => {});
@@ -866,7 +867,7 @@ const removeVoucher = () => {
 
         try {
 
-          if (appliedVoucher?.code === 'WELCOME') {
+          if ((appliedVoucher?.code || '').toUpperCase().startsWith('WELCOME')) {
 
             localStorage.setItem('courtly_welcome_used_' + (user?.id || ''), 'true');
 
@@ -1300,7 +1301,7 @@ const removeVoucher = () => {
 
               <span>{t('Khu')} {zone(court)} · {t(zone(court) === 'A' ? 'Ngoài trời' : zone(court) === 'B' ? 'Trong nhà' : 'VIP')}</span>
 
-              <h3>{court?.name || t('Chọn sân')}</h3>
+              <h3>{court?.name ? t(court.name) : t('Chọn sân')}</h3>
 
               <p>{displayDate}</p>
 
@@ -1776,13 +1777,13 @@ const removeVoucher = () => {
 
                               setSuggestedCourts([]);
 
-                              notify(`Đã chuyển sang ${sug.court.name} (${clock(sug.start)}–${clock(sug.end)})`);
+                              notify(`${t('Đã chuyển sang')} ${t(sug.court.name)} (${clock(sug.start)}–${clock(sug.end)})`);
 
                             }}
 
                           >
 
-                            🎾 Chọn {sug.court.name}
+                            🎾 {t('Chọn')} {t(sug.court.name)}
 
                           </button>
 
@@ -1806,7 +1807,7 @@ const removeVoucher = () => {
 
           <span className="ct-eyebrow">{t('BUỔI CHƠI CỦA BẠN')}</span>
 
-          <h2>{selectedCourtEntries.length > 1 ? `${selectedCourtEntries.length} ${t('sân trong đơn')} · Courtly` : court?.name || 'Courtly'}</h2>
+          <h2>{selectedCourtEntries.length > 1 ? `${selectedCourtEntries.length} ${t('sân trong đơn')} · Courtly` : court?.name ? t(court.name) : 'Courtly'}</h2>
 
           <p className="gx-quote-date">{displayDate}</p>
 
@@ -1882,7 +1883,7 @@ const removeVoucher = () => {
 
                     >
 
-                      {sc.court.name} {sc.court.id === court?.id ? `(${t('đang xem')})` : ''}
+                      {t(sc.court.name)} {sc.court.id === court?.id ? `(${t('đang xem')})` : ''}
 
                     </button>
 
@@ -1958,7 +1959,7 @@ const removeVoucher = () => {
 
               <div>
 
-                <strong>{court.name}: {rangeLabel}</strong>
+                <strong>{t(court.name)}: {rangeLabel}</strong>
 
                 <span>{`${end - start} ${t('phút')}`}</span>
 
@@ -2222,7 +2223,7 @@ const removeVoucher = () => {
 
                               <span style={{fontSize: 9.5, color: '#b45309', marginLeft: 2}}>
 
-                                • {vc.newUserOnly ? t('khách mới') : vc.minTier ? `🔒 từ hạng ${vc.minTier === 'GRAND_SLAM' ? 'Grand Slam' : vc.minTier === 'MASTERS' ? 'Masters' : vc.minTier === 'CHALLENGER' ? 'Challenger' : vc.minTier}` : t('chưa đủ đk')}
+                                • {vc.newUserOnly ? t('khách mới') : vc.minTier ? `🔒 ${t('từ hạng')} ${vc.minTier === 'GRAND_SLAM' ? 'Grand Slam' : vc.minTier === 'MASTERS' ? 'Masters' : vc.minTier === 'CHALLENGER' ? 'Challenger' : vc.minTier}` : t('chưa đủ đk')}
 
                               </span>
 

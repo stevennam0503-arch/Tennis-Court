@@ -1,0 +1,82 @@
+/* Trang Đánh giá & góp ý (/feedback) */
+#courtly-balanced-amenities .ct-pad.fb-page{padding-top:40px;display:grid;gap:24px;max-width:820px;margin:0 auto;box-sizing:content-box}
+#courtly-balanced-amenities .fb-head{max-width:640px;margin:0 auto;text-align:center}
+#courtly-balanced-amenities .fb-head h1{margin:8px 0 10px;font-size:clamp(28px,3.4vw,40px);line-height:1.15;letter-spacing:-1px;text-wrap:balance}
+#courtly-balanced-amenities .fb-head p{margin:0;font-size:14px;line-height:1.65;color:#52655a}
+#courtly-balanced-amenities .fb-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+#courtly-balanced-amenities .fb-side{display:grid;gap:16px}
+#courtly-balanced-amenities .fb-card{background:#fffefa;border:1px solid #d4dacb;border-radius:14px;padding:24px}
+#courtly-balanced-amenities .fb-form{display:grid;gap:18px}
+#courtly-balanced-amenities .fb-form h2,#courtly-balanced-amenities .fb-empty-state h2{margin:0;font-size:20px;letter-spacing:-.3px}
+#courtly-balanced-amenities .fb-field{display:grid;gap:8px;font-size:13px;font-weight:600;color:#173c32}
+#courtly-balanced-amenities .fb-field small{font-weight:400;color:#7a8a75}
+#courtly-balanced-amenities .fb-field select,#courtly-balanced-amenities .fb-field textarea{border-radius:8px;font-weight:400;font-size:14px}
+#courtly-balanced-amenities .fb-field textarea{resize:vertical;min-height:110px;line-height:1.55}
+#courtly-balanced-amenities .fb-count{justify-self:end;margin-top:-4px}
+#courtly-balanced-amenities .fb-rate{display:grid;justify-items:center;gap:6px;padding:16px 8px;border-radius:12px;background:#f3f5ec}
+#courtly-balanced-amenities .fb-rate-stars{display:flex;gap:4px}
+#courtly-balanced-amenities .fb-rate-stars button{background:none;border:0;padding:4px;border-radius:8px;line-height:0;transition:transform .12s}
+#courtly-balanced-amenities .fb-rate-stars button:hover{transform:scale(1.12)}
+#courtly-balanced-amenities .fb-rate-text{font-size:14px;font-weight:600;color:#173c32;min-height:20px}
+#courtly-balanced-amenities .fb-chips{display:flex;flex-wrap:wrap;gap:8px}
+#courtly-balanced-amenities .fb-chips button{font-size:12.5px;font-weight:500;padding:7px 12px;border-radius:30px;border:1px solid #cfd7c6;background:#fff;color:#334a3f}
+#courtly-balanced-amenities .fb-chips button.on{background:#173c32;border-color:#173c32;color:#def46a}
+#courtly-balanced-amenities .fb-consent{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:#52655a;cursor:pointer}
+#courtly-balanced-amenities .fb-consent input{width:16px;min-height:16px;margin:2px 0 0;flex-shrink:0;accent-color:#173c32;padding:0}
+#courtly-balanced-amenities .fb-error{margin:0;font-size:13px;color:#9b3a1f;background:#f7e5dc;border-radius:8px;padding:10px 12px}
+#courtly-balanced-amenities .fb-form .ct-primary{width:100%}
+#courtly-balanced-amenities .fb-empty-state{display:grid;gap:12px;justify-items:start}
+#courtly-balanced-amenities .fb-empty-state p{margin:0;font-size:13.5px;line-height:1.6;color:#52655a}
+#courtly-balanced-amenities .fb-big-icon{font-size:30px}
+#courtly-balanced-amenities .fb-mine h3{margin:0 0 12px;font-size:15px}
+#courtly-balanced-amenities .fb-mine ul{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+#courtly-balanced-amenities .fb-mine li{display:grid;gap:4px;padding-bottom:12px;border-bottom:1px solid #e6eadf}
+#courtly-balanced-amenities .fb-mine li:last-child{border-bottom:0;padding-bottom:0}
+#courtly-balanced-amenities .fb-mine p{margin:0;font-size:13px;line-height:1.5;color:#334a3f;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#courtly-balanced-amenities .fb-mine .fb-mine-reply{color:#52655a;font-size:12.5px}
+#courtly-balanced-amenities .fb-mine-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+#courtly-balanced-amenities .fb-st{font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px}
+#courtly-balanced-amenities .fb-st-pending{background:#f4e7bb;color:#6b511b}
+#courtly-balanced-amenities .fb-st-ok{background:#d6e9d7;color:#234f32}
+#courtly-balanced-amenities .fb-st-muted{background:#e8ebe3;color:#5d6b58}
+#courtly-balanced-amenities .fb-stars-static{display:inline-flex;gap:1px;line-height:0}
+#courtly-balanced-amenities .fb-main{display:grid;gap:16px;min-width:0}
+#courtly-balanced-amenities .fb-summary{display:grid;grid-template-columns:auto minmax(0,1fr);gap:28px;align-items:center;padding:20px 24px}
+#courtly-balanced-amenities .fb-score{display:grid;justify-items:center;gap:6px;padding-right:28px;border-right:1px solid #e6eadf}
+#courtly-balanced-amenities .fb-score b{font-size:44px;line-height:1;color:#173c32}
+#courtly-balanced-amenities .fb-score small{font-size:12px;color:#64705f}
+#courtly-balanced-amenities .fb-bars{display:grid;gap:6px}
+#courtly-balanced-amenities .fb-bar-row{display:grid;grid-template-columns:30px minmax(0,1fr) 28px;align-items:center;gap:10px;font-size:12.5px;color:#334a3f}
+#courtly-balanced-amenities .fb-bar{height:7px;border-radius:7px;background:#ebeee4;overflow:hidden}
+#courtly-balanced-amenities .fb-bar i{display:block;height:100%;background:#f5b301;border-radius:7px}
+#courtly-balanced-amenities .fb-bar-n{text-align:right;color:#7a8a75}
+#courtly-balanced-amenities .fb-filters{display:flex;flex-wrap:wrap;gap:8px}
+#courtly-balanced-amenities .fb-filters button{font-size:13px;padding:7px 14px;border-radius:30px;border:1px solid #cfd7c6;background:#fffefa;color:#334a3f}
+#courtly-balanced-amenities .fb-filters button.on{background:#173c32;border-color:#173c32;color:#def46a;font-weight:600}
+#courtly-balanced-amenities .fb-list{display:grid;gap:14px}
+#courtly-balanced-amenities .fb-review{background:#fffefa;border:1px solid #dfe4d7;border-radius:12px;padding:18px 20px;display:grid;gap:10px}
+#courtly-balanced-amenities .fb-review header{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center}
+#courtly-balanced-amenities .fb-review header div{display:grid;gap:2px;min-width:0}
+#courtly-balanced-amenities .fb-review header b{font-size:14px}
+#courtly-balanced-amenities .fb-review header small{font-size:12px;color:#7a8a75}
+#courtly-balanced-amenities .fb-avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#dce4cc;color:#173c32;font-weight:700;font-size:14px}
+#courtly-balanced-amenities .fb-review>p{margin:0;font-size:14px;line-height:1.6;color:#22332b}
+#courtly-balanced-amenities .fb-reply{border-left:3px solid #74944f;background:#f3f5ec;border-radius:0 8px 8px 0;padding:10px 14px;display:grid;gap:4px}
+#courtly-balanced-amenities .fb-reply b{font-size:12px;color:#3d5a2c}
+#courtly-balanced-amenities .fb-reply p{margin:0;font-size:13px;line-height:1.55;color:#334a3f}
+#courtly-balanced-amenities .fb-more{justify-self:center}
+@media(max-width:520px){#courtly-balanced-amenities .fb-summary{grid-template-columns:1fr;gap:16px}#courtly-balanced-amenities .fb-score{border-right:0;padding-right:0}#courtly-balanced-amenities .fb-card{padding:18px}#courtly-balanced-amenities .fb-review header{grid-template-columns:auto minmax(0,1fr)}#courtly-balanced-amenities .fb-review header .fb-stars-static{grid-column:1/-1}}
+#courtly-balanced-amenities .fb-form{grid-template-columns:minmax(0,1fr)}
+#courtly-balanced-amenities .fb-rate{grid-auto-flow:column;justify-content:start;align-items:center;gap:14px;padding:12px 16px}
+#courtly-balanced-amenities .fb-empty-state{grid-template-columns:auto 1fr;align-items:center;column-gap:16px}
+#courtly-balanced-amenities .fb-empty-state .fb-big-icon{grid-row:span 3}
+#courtly-balanced-amenities .fb-empty-state .ct-primary,#courtly-balanced-amenities .fb-empty-state .ct-outline{justify-self:start}
+@media(max-width:560px){#courtly-balanced-amenities .fb-rate{grid-auto-flow:row;justify-items:center}#courtly-balanced-amenities .fb-empty-state{grid-template-columns:1fr}#courtly-balanced-amenities .fb-empty-state .fb-big-icon{grid-row:auto}}
+#courtly-balanced-amenities .fb-simple{gap:14px}
+#courtly-balanced-amenities .fb-simple .fb-rate{background:none;padding:0;justify-content:start}
+#courtly-balanced-amenities .fb-simple textarea{border-radius:10px;min-height:96px;resize:vertical;font-size:14px;line-height:1.55}
+#courtly-balanced-amenities .fb-for{margin:-6px 0 0;font-size:12.5px;color:#64705f}
+#courtly-balanced-amenities .fb-submit-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+#courtly-balanced-amenities .fb-simple .ct-primary{width:auto}
+#courtly-balanced-amenities .fb-consent{align-items:center}
+#courtly-balanced-amenities .fb-consent input{margin:0}

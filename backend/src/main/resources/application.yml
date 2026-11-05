@@ -53,15 +53,6 @@ courtly:
   notify:
     mode: ${NOTIFY_MODE:LOG}
     allowlist: ${NOTIFY_ALLOWLIST:kietdlv@gmail.com,phuongmaiphanqn3@gmail.com,+84769496289,+84377035664,0769496289,0377035664}
-  sms:
-    provider: ${SMS_PROVIDER:LOG}
-    sender: ${SMS_SENDER:Courtly}
-    api-key: ${SMS_API_KEY:}
-    api-secret: ${SMS_API_SECRET:}
-    twilio:
-      account-sid: ${TWILIO_ACCOUNT_SID:}
-      auth-token: ${TWILIO_AUTH_TOKEN:}
-      verify-sid: ${TWILIO_VERIFY_SID:}
 logging:
   level:
     org.hibernate.SQL: warn

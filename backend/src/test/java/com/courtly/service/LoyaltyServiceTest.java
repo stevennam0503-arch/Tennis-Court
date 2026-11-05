@@ -54,7 +54,8 @@ class LoyaltyServiceTest {
         vouchers,
         notificationService,
         auditService,
-        documents
+        documents,
+        new LoyaltyPolicyService(documents, auditService, accounts, notificationService)
     );
   }
 

@@ -21,7 +21,7 @@ public class WebConfig implements WebMvcConfigurer {
     registry
         .addMapping("/api/**")
         .allowedOrigins(allowedOrigin)
-        .allowedMethods("GET", "POST", "PUT", "PATCH", "OPTIONS")
+        .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
         .allowCredentials(true)
         .allowedHeaders("Content-Type", "Idempotency-Key", "X-CSRF-TOKEN");
   }

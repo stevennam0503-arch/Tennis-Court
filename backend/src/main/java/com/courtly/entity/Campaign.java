@@ -41,7 +41,7 @@ public class Campaign {
   private String audienceFilter;
 
   @Column(length = 100)
-  private String channels = "EMAIL,SMS,BANNER";
+  private String channels = "EMAIL,BANNER";
 
   @Column(name = "message_title")
   private String messageTitle;

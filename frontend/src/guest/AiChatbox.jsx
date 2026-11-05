@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { loadTierPolicy, DEFAULT_TIERS, TIER_ORDER, TIER_NAMES } from '../utils/tierPolicy';
 import {
   MessageSquare,
   Send,
@@ -66,13 +67,39 @@ export function buildPricingKnowledge(data, isEn) {
     : `${linesVi.join('\n')}\n- ${refTextVi}`;
 }
 
+// Quyền lợi hạng lấy từ chính sách hiện hành (admin chỉnh được), không viết cứng trong lời nhắc
+let tierRules = DEFAULT_TIERS;
+loadTierPolicy().then(p => { tierRules = p.tiers; });
+const viMoney = v => Number(v).toLocaleString('vi-VN');
+const enMoney = v => Number(v).toLocaleString('en-US');
+const kVi = v => `${Math.round(v / 1000)}k`;
+const multVi = v => Number(v).toFixed(1).replace('.', ',');
+const GIFTS_VI = { ROOKIE: 'voucher chào mừng 50k', CHALLENGER: 'quà thăng hạng 200 điểm', MASTERS: 'quà thăng hạng 500 điểm', GRAND_SLAM: 'quà thăng hạng 1.000 điểm + voucher 300k + thẻ VIP Lounge' };
+const GIFTS_EN = { ROOKIE: '50k welcome gift', CHALLENGER: '200 upgrade pts', MASTERS: '500 upgrade pts', GRAND_SLAM: '1,000 upgrade pts + 300k voucher + VIP Lounge card' };
+function tierLinesVi() {
+  return TIER_ORDER.map(c => { const r = tierRules[c];
+    const perks = c === 'ROOKIE' ? `Tích điểm 1đ/10k, ${GIFTS_VI[c]}` : `Giảm ${String(r.discount).replace('.', ',')}% tiền sân, tích điểm ×${multVi(r.multiplier)}, đặt trước ${r.advanceDays} ngày, ${r.changes} lượt đổi lịch/tháng, ${GIFTS_VI[c]}`;
+    return `    * ${TIER_NAMES[c]} (${viMoney(r.spend)}₫): ${perks}, voucher sinh nhật ${kVi(r.birthday)}.`; }).join(String.fromCharCode(10));
+}
+function tierLinesEn() {
+  return TIER_ORDER.map(c => { const r = tierRules[c];
+    const perks = c === 'ROOKIE' ? `Earn 1 pt / 10k VND, ${GIFTS_EN[c]}` : `${r.discount}% court discount, ${Number(r.multiplier).toFixed(1)}x points, ${r.advanceDays}-day advance booking, ${r.changes} free reschedule(s)/month, ${GIFTS_EN[c]}`;
+    return `    * ${TIER_NAMES[c]} (${enMoney(r.spend)} VND): ${perks}, ${Math.round(r.birthday / 1000)}k birthday voucher.`; }).join(String.fromCharCode(10));
+}
+function tierBulletsVi() {
+  return TIER_ORDER.map(c => { const r = tierRules[c];
+    const perks = c === 'ROOKIE' ? `Tích điểm 1đ/10k, ${GIFTS_VI[c]}` : `Giảm ${String(r.discount).replace('.', ',')}% tiền sân, tích điểm ×${multVi(r.multiplier)}, đặt trước ${r.advanceDays} ngày, ${GIFTS_VI[c].replace('quà thăng hạng ', 'quà ')}`;
+    return `• **${TIER_NAMES[c]} (từ ${viMoney(r.spend)}₫):** ${perks}, voucher sinh nhật ${kVi(r.birthday)}.`; }).join(String.fromCharCode(10));
+}
+
 const COURTLY_RULES_VI = `
 - Giờ mở cửa: 06:00 – 23:00 tất cả các ngày trong tuần (kể cả Thứ 7, Chủ Nhật và ngày lễ). Khung giờ đặt sân theo bước 30 phút.
 - Đặt sân & Giữ chỗ: Khách cần thanh toán tiền cọc 50% trong vòng 5 phút sau khi tạo đơn qua VietQR để khóa slot độc quyền. Phần còn lại thanh toán tại quầy khi đến chơi.
 - Check-in vào sân: Sau khi đặt sân, khách mở vé điện tử QR Check-in trên website, xuất trình tại quầy lễ tân để nhân viên quét camera xác nhận vào sân.
 - Chính sách Hủy & Hoàn tiền cọc:
-  + Hủy trước 24 giờ: Hoàn 100% tiền cọc (vào ví voucher CLB).
-  + Hủy dưới 24 giờ: Không hoàn cọc theo quy định vận hành.
+  + Hủy trước giờ chơi trên 24 tiếng: hoàn 100% tiền cọc.
+  + Hủy trước 12–24 tiếng: hoàn 50% tiền cọc.
+  + Hủy dưới 12 tiếng: không hoàn cọc.
   + Mưa bão: Sân ngoài trời Khu A được đổi sang sân trong nhà Khu B miễn phí hoặc dời lịch 100%.
 - Tiện ích đi kèm miễn phí:
   + Bãi đỗ xe rộng rãi miễn phí cho cả ô tô và xe máy, bảo vệ 24/7.
@@ -81,10 +108,7 @@ const COURTLY_RULES_VI = `
   + Có sẵn vợt tập cho mượn và máy căng cước vợt điện tử Yonex chính xác cao tại quầy.
 - Hạng thành viên & Khách hàng thân thiết (Loyalty Tiers):
   + Tự động xét hạng dựa trên tổng chi tiêu 12 tháng trượt:
-    * Rookie (0₫): Tích điểm 1đ/10k, voucher chào mừng 50k, voucher sinh nhật 30k.
-    * Challenger (3.000.000₫): Giảm 3% tiền sân, tích điểm ×1,2, đặt trước 10 ngày, 1 lượt đổi lịch/tháng, quà thăng hạng 200 điểm, voucher sinh nhật 60k.
-    * Masters (8.000.000₫): Giảm 5% tiền sân, tích điểm ×1,5, đặt trước 14 ngày, 2 lượt đổi lịch/tháng, quà thăng hạng 500 điểm, voucher sinh nhật 120k.
-    * Grand Slam (20.000.000₫): Giảm 8% tiền sân, tích điểm ×2,0, đặt trước 21 ngày, 4 lượt đổi lịch/tháng, quà thăng hạng 1.000 điểm + voucher 300k + thẻ VIP Lounge, voucher sinh nhật 250k.
+@@TIERS_VI@@
   + Dùng điểm: 1 điểm = 100₫ trừ trực tiếp vào tiền sân (tối đa 50% tiền sân còn lại) hoặc đổi voucher dịch vụ (gia hạn, 1h sân giờ vàng, 1h trọng tài).
 `;
 
@@ -93,8 +117,9 @@ const COURTLY_RULES_EN = `
 - Booking & Deposit: 50% deposit required within 5 minutes via VietQR to secure court exclusively. Balance paid at reception upon check-in or check-out.
 - Check-in: Open digital QR ticket on mobile, scan at reception camera upon arrival.
 - Cancellation & Refund Policy:
-  + Over 24 hours notice: 100% refund into club credit/voucher wallet.
-  + Under 24 hours: Non-refundable due to reserved slot.
+  + More than 24 hours before play: 100% deposit refund.
+  + 12–24 hours before: 50% deposit refund.
+  + Under 12 hours: deposit is non-refundable.
   + Weather guarantee: Outdoor Zone A players can transfer to indoor Zone B for free or reschedule without penalty if it rains.
 - Complimentary Amenities:
   + Free spacious parking for cars and motorbikes with 24/7 security.
@@ -103,10 +128,7 @@ const COURTLY_RULES_EN = `
   + Training rackets available to borrow and high-precision Yonex electronic stringing machine at reception.
 - Loyalty Membership Tiers:
   + Automatic progression based on 12-month rolling spend:
-    * Rookie (0 VND): Earn 1 pt / 10k VND, 50k welcome gift, 30k birthday voucher.
-    * Challenger (3,000,000 VND): 3% court discount, 1.2x points, 10-day advance booking, 1 free reschedule/month, 200 upgrade pts, 60k birthday voucher.
-    * Masters (8,000,000 VND): 5% court discount, 1.5x points, 14-day advance booking, 2 free reschedules/month, 500 upgrade pts, 120k birthday voucher.
-    * Grand Slam (20,000,000 VND): 8% court discount, 2.0x points, 21-day advance booking, 4 free reschedules/month, 1,000 upgrade pts + 300k voucher + VIP Lounge card, 250k birthday voucher.
+@@TIERS_EN@@
   + Points: 1 pt = 100 VND discount on court fees (up to 50% of net court total) or redeem service vouchers.
 `;
 
@@ -310,8 +332,9 @@ What specific topic would you like to explore?`;
       raw.includes('reschedule')
     ) {
       return `💸 **Cancellation & Refund Policy:**
-• **24+ hours ahead:** **100% deposit refund** into your voucher wallet.
-• **Within 24 hours:** Deposit is non-refundable.
+• **24+ hours ahead:** **100% deposit refund**.
+• **12–24 hours ahead:** **50% deposit refund**.
+• **Under 12 hours:** deposit is non-refundable.
 • To cancel, open **My Bookings** and click **[Cancel Booking]**.`;
     }
 
@@ -392,8 +415,9 @@ Bạn cần tìm hiểu thông tin cụ thể nào, hãy nhắn cho tôi nhé!`;
       norm.includes('doi gio')
     ) {
       return `💸 **Chính sách Hủy sân & Hoàn cọc:**
-• **Hủy trước 24 giờ:** Hoàn lại **100% tiền cọc** vào ví Voucher tích lũy.
-• **Hủy dưới 24 giờ:** Không hoàn cọc theo quy định vận hành.
+• **Trên 24 tiếng trước giờ chơi:** hoàn **100% tiền cọc**.
+• **12–24 tiếng:** hoàn **50% tiền cọc**.
+• **Dưới 12 tiếng:** không hoàn cọc.
 • Thao tác: Vào mục **Đơn của tôi** bấm **[Hủy đơn]**.`;
     }
 
@@ -433,10 +457,7 @@ Bạn cần tìm hiểu thông tin cụ thể nào, hãy nhắn cho tôi nhé!`;
       norm.includes('grand slam')
     ) {
       return `👑 **4 Hạng thành viên Courtly (xét theo chi tiêu 12 tháng trượt):**
-• **Rookie (từ 0₫):** Tích điểm 1đ/10k, voucher chào mừng 50k, voucher sinh nhật 30k.
-• **Challenger (từ 3.000.000₫):** Giảm 3% tiền sân, tích điểm ×1,2, đặt trước 10 ngày, quà 200 điểm, voucher sinh nhật 60k.
-• **Masters (từ 8.000.000₫):** Giảm 5% tiền sân, tích điểm ×1,5, đặt trước 14 ngày, quà 500 điểm, voucher sinh nhật 120k.
-• **Grand Slam (từ 20.000.000₫):** Giảm 8% tiền sân, tích điểm ×2,0, đặt trước 21 ngày, quà 1.000 điểm + voucher 300k + thẻ VIP Lounge, voucher sinh nhật 250k.
+${tierBulletsVi()}
 *(Dùng điểm: 1 điểm = 100₫ trừ tiền sân tối đa 50% hoặc đổi voucher dịch vụ).*`;
     }
 
@@ -505,7 +526,7 @@ Official Club Knowledge:
 Tariff & Services:
 ${buildPricingKnowledge(data, true)}
 
-${COURTLY_RULES_EN}`
+${COURTLY_RULES_EN.replace('@@TIERS_EN@@', tierLinesEn())}`
       : `Bạn là Chuyên viên Trợ lý AI cao cấp của CLB Quần vợt Courtly (Courtly Tennis Club).
 QUY TẮC BẮT BUỘC VỀ ĐỘ DÀI & NGỮ CẢNH ĐỐI THOẠI:
 - Khung chat là CỬA SỔ POPUP NHỎ trên điện thoại và web.
@@ -517,7 +538,7 @@ Dữ liệu xác thực của CLB:
 Bảng giá niêm yết theo khu & Dịch vụ:
 ${buildPricingKnowledge(data, false)}
 
-${COURTLY_RULES_VI}`;
+${COURTLY_RULES_VI.replace('@@TIERS_VI@@', tierLinesVi())}`;
 
     // Build multi-turn conversational history (up to last 6 turns)
     const historyTurns = messages
@@ -551,8 +572,9 @@ ${COURTLY_RULES_VI}`;
       throw new Error(errData?.error?.message || `API error (${response.status})`);
     }
 
-    const data = await response.json();
-    const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    // Không đặt tên `data`: sẽ che biến `data` (bảng giá) dùng ở systemText phía trên và gây lỗi TDZ
+    const result = await response.json();
+    const replyText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!replyText) throw new Error(isEn ? 'No content returned from AI' : 'Không nhận được nội dung từ AI');
     return replyText;
   };

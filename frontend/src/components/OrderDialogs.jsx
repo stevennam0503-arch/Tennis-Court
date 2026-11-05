@@ -37,7 +37,7 @@ export function OrderDetail({id,onClose,visitDate}) {
     {o.status==='CHECKED_IN'&&<Button className="primary" onClick={()=>show({type:'check-out',id:o.id})}>🏁 Check-out & Hoàn tất</Button>}
     {o.status==='CHECKED_IN'&&<Button onClick={()=>show({type:'extend-order',id})}>⚡ Gia hạn giờ chơi</Button>}
     {['HOLDING','CONFIRMED'].includes(o.status)&&<Button onClick={()=>show({type:'move',id})}>🔄 Đổi lịch sân</Button>}
-    {['CONFIRMED','HOLDING','CHECKED_IN'].includes(o.status)&&<Button onClick={async()=>{try{await api('/admin/orders/'+id+'/send-reminder','POST');notify('Đã gửi thông báo nhắc lịch tới khách qua Email & SMS!');}catch(e){notify('Lỗi gửi nhắc: '+e.message);}}}>🔔 Gửi nhắc ngay</Button>}
+    {['CONFIRMED','HOLDING','CHECKED_IN'].includes(o.status)&&<Button onClick={async()=>{try{await api('/admin/orders/'+id+'/send-reminder','POST');notify('Đã gửi thông báo nhắc lịch tới khách qua Email và thông báo trong ứng dụng!');}catch(e){notify('Lỗi gửi nhắc: '+e.message);}}}>🔔 Gửi nhắc ngay</Button>}
     {active(o)&&o.paid<o.total&&o.status!=='HOLDING'&&<Button className="lime" onClick={()=>show({type:'payment',id,mode:'BALANCE'})}>Thu nốt tiền ({money(o.total-o.paid)})</Button>}
     {!['HOLDING','CANCELLED','EXPIRED'].includes(o.status)&&<Button onClick={async()=>{await doAction('invoice');show({type:'invoice',id});}}>In phiếu thu</Button>}
     <Button onClick={onClose}>Đóng</Button>
@@ -954,7 +954,7 @@ export function ExtendOrderDialog({id, onClose}) {
                     />
                     <div>
                       <strong>+{opt.duration} phút ({opt.startTime} – {opt.endTime})</strong>
-                      {opt.planName && <small style={{display: 'block', color: '#15803d'}}>★ Ưu đãi {opt.planName}: -{money(opt.discount)}</small>}
+                      {opt.planName && <small style={{display: 'block', color: '#15803d'}}>★ {opt.planName}: −{money(opt.discount)}</small>}
                     </div>
                   </div>
                   <b>+{money(opt.total)}</b>
@@ -1102,7 +1102,7 @@ export function CheckOutDialog({id, onClose}) {
 
         {tierDiscount > 0 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13.5, color: '#16a34a' }}>
-            <span>Giảm theo hạng ({tierPlanName}):</span>
+            <span>{tierPlanName}:</span>
             <b>–{money(tierDiscount)}</b>
           </div>
         )}

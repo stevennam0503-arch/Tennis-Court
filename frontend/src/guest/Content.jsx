@@ -27,6 +27,9 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useGuest, Action, Empty, requestId } from './context';
+import './feedback.css';
+
+const ARTICLE_CATEGORY = { NEWS: 'Tin tức', NOTICE: 'Thông báo', TOURNAMENT: 'Giải đấu', PROMO: 'Ưu đãi' };
 
 // ==========================================
 // ARTICLE READER COMPONENT (CHẾ ĐỘ ĐỌC BÁO THỰC THỤ)
@@ -184,7 +187,7 @@ export function ArticleReader({ article: a, onBack, onSelectArticle, allArticles
         <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.2, color: '#173c32', marginBottom: 14 }}>
           <span>COURTLY JOURNAL</span>
           <span style={{ margin: '0 8px', color: '#a3b2a2' }}>/</span>
-          <span style={{ color: '#047857' }}>{t(a.category || 'TIN TỨC')}</span>
+          <span style={{ color: '#047857' }}>{t(ARTICLE_CATEGORY[a.category] || a.category || 'Tin tức')}</span>
         </div>
 
         {/* HEADLINE */}
@@ -527,7 +530,7 @@ export function ArticleReader({ article: a, onBack, onSelectArticle, allArticles
                   />
                   <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: '#047857', textTransform: 'uppercase', marginBottom: 6 }}>
-                      {t(item.category || 'TIN TỨC')}
+                      {t(ARTICLE_CATEGORY[item.category] || item.category || 'Tin tức')}
                     </span>
                     <h3 style={{ fontSize: 15, fontWeight: 700, color: '#173c32', margin: '0 0 8px', lineHeight: 1.4 }}>
                       {item.title}
@@ -650,7 +653,7 @@ export function News() {
       {/* HEADING */}
       <div className="gx-heading" style={{ marginBottom: 32 }}>
         <span className="ct-eyebrow" style={{ color: '#173c32', letterSpacing: 2 }}>
-          COURTLY JOURNAL · BẢNG TIN QUẦN VỢT
+          {t('COURTLY JOURNAL · BẢNG TIN QUẦN VỢT')}
         </span>
         <h1 style={{ fontSize: 34, margin: '10px 0 14px', color: '#173c32' }}>
           {t('Những câu chuyện ngoài sân bóng')}
@@ -821,7 +824,7 @@ export function News() {
                       borderRadius: 12
                     }}
                   >
-                    {t(a.category || 'TIN TỨC')}
+                    {t(ARTICLE_CATEGORY[a.category] || a.category || 'Tin tức')}
                   </span>
                 </div>
 
@@ -900,7 +903,7 @@ export function Contact() {
                   <I />
                   {t(k)}
                 </dt>
-                <dd>{v || t('Đang cập nhật')}</dd>
+                <dd>{v ? t(v) : t('Đang cập nhật')}</dd>
               </div>
             ))}
             <div>
@@ -1147,1041 +1150,241 @@ const INITIAL_SHOWCASE_FEEDBACKS = [
 // ==========================================
 // FEEDBACK MAIN COMPONENT (PAGINATION + FILTERS)
 // ==========================================
+const FB_TOPICS = [
+  { value: 'COURT', label: 'Mặt sân', icon: '🏟️' },
+  { value: 'SERVICE', label: 'Trọng tài & HLV', icon: '👨‍⚖️' },
+  { value: 'FACILITY', label: 'Tiện ích', icon: '🚿' },
+  { value: 'WEBSITE', label: 'Đặt sân online', icon: '💻' },
+  { value: 'TOURNAMENT', label: 'Giải đấu', icon: '🏆' },
+  { value: 'OTHER', label: 'Khác', icon: '💬' }
+];
+const FB_RATING_TEXT = ['', 'Rất tệ', 'Chưa hài lòng', 'Bình thường', 'Hài lòng', 'Tuyệt vời'];
+const FB_STATUS = { PENDING: { label: 'Chờ duyệt', cls: 'fb-st-pending' }, PUBLISHED: { label: 'Đã đăng', cls: 'fb-st-ok' }, PRIVATE: { label: 'Đã xem, không công khai', cls: 'fb-st-muted' } };
+
+function FbStars({ value, size = 16 }) {
+  return (
+    <span className="fb-stars-static" aria-label={`${value} / 5`}>
+      {[1, 2, 3, 4, 5].map(s => <Star key={s} size={size} fill={s <= value ? '#f5b301' : 'none'} color={s <= value ? '#e0a100' : '#cbd5c4'} strokeWidth={1.5} />)}
+    </span>
+  );
+}
+
 export function Feedback() {
-  const { t, user, login, content, refresh, notify, navigate } = useGuest();
-  const [rating, setRating] = useState(0); // 0 = unselected by default
-  const [hoverRating, setHoverRating] = useState(0);
+  const { t, user, login, content, refresh, notify } = useGuest();
+  const [rating, setRating] = useState(0);
+  const [hover, setHover] = useState(0);
   const [message, setMessage] = useState('');
-  const [topic, setTopic] = useState('COURT');
   const [consent, setConsent] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [filterTopic, setFilterTopic] = useState('ALL');
-  const [sortBy, setSortBy] = useState('NEWEST');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [sent, setSent] = useState(false);
   const [req, setReq] = useState(requestId);
-  const [localSubmissions, setLocalSubmissions] = useState([]);
   const [eligibleOrders, setEligibleOrders] = useState([]);
-  const [selectedOrderId, setSelectedOrderId] = useState('');
-  const reviewsContainerRef = useRef(null);
+  const [orderId, setOrderId] = useState('');
+  const [mine, setMine] = useState([]);
+  const [filter, setFilter] = useState('ALL');
+  const [visible, setVisible] = useState(6);
+
+  const loadMine = () => api('/feedback/mine').then(r => setMine(Array.isArray(r) ? r : [])).catch(() => {});
 
   useEffect(() => {
-    if (user) {
-      api('/feedback/eligible-orders').then(res => {
-        setEligibleOrders(res || []);
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlOrder = urlParams.get('orderId');
-        if (urlOrder) setSelectedOrderId(urlOrder);
-      }).catch(() => {});
-    }
+    if (!user) return;
+    api('/feedback/eligible-orders').then(res => {
+      const list = res || [];
+      setEligibleOrders(list);
+      const urlOrder = new URLSearchParams(window.location.search).get('orderId');
+      setOrderId(urlOrder || list[0]?.id || '');
+    }).catch(() => {});
+    loadMine();
   }, [user]);
 
-  const PAGE_SIZE = 6;
-
-  const ratingDescriptions = {
-    0: t('(Chạm vào ngôi sao để chọn từ 1 đến 5 sao)'),
-    1: t('1 sao — 😞 Cần cải thiện nhiều'),
-    2: t('2 sao — 🙁 Chưa hài lòng'),
-    3: t('3 sao — 😐 Bình thường / Tạm ổn'),
-    4: t('4 sao — 😊 Hài lòng & Dịch vụ tốt'),
-    5: t('5 sao — 🌟 Tuyệt vời! Rất hài lòng')
-  };
-
-  const topics = [
-    { value: 'COURT', label: t('Cơ sở & Mặt sân'), icon: '🏟️' },
-    { value: 'SERVICE', label: t('Trọng tài & HLV'), icon: '👨‍⚖️' },
-    { value: 'FACILITY', label: t('Tiện ích & Phục vụ'), icon: '🚿' },
-    { value: 'WEBSITE', label: t('Website & Đặt sân'), icon: '💻' },
-    { value: 'TOURNAMENT', label: t('Giải đấu & Sự kiện'), icon: '🏆' },
-    { value: 'OTHER', label: t('Góp ý khác'), icon: '💬' }
-  ];
+  const topicLabel = v => { const tp = FB_TOPICS.find(x => x.value === v); return tp ? `${tp.icon} ${t(tp.label)}` : ''; };
 
   const submit = async e => {
     e.preventDefault();
-    if (!user) {
-      login();
-      return;
-    }
-    if (!rating || rating < 1) {
-      setError(t('Vui lòng chọn số sao đánh giá (từ 1 đến 5 sao).'));
-      return;
-    }
-    if (!message.trim() || message.trim().length < 10) {
-      setError(t('Vui lòng nhập nội dung đánh giá chi tiết (tối thiểu 10 ký tự).'));
-      return;
-    }
-
-    setBusy(true);
-    setError('');
+    if (!user) { login(); return; }
+    if (!rating) { setError(t('Vui lòng chọn số sao.')); return; }
+    if (message.trim().length < 10) { setError(t('Vui lòng viết vài dòng (ít nhất 10 ký tự).')); return; }
+    setBusy(true); setError('');
     try {
-      await api('/feedback', 'POST', { rating, message, topic, publishConsent: consent, orderId: selectedOrderId || null, requestId: req });
-
-      const newReview = {
-        id: 'local-' + Date.now(),
-        userName: user.name || 'Thành viên Courtly',
-        userRole: user.role === 'CUSTOMER' ? 'Khách hàng thân thiết' : 'Thành viên',
-        userInitials: (user.name || 'U').slice(0, 2).toUpperCase(),
-        avatarBg: '#173c32',
-        rating,
-        topic,
-        topicLabel: topics.find(tp => tp.value === topic)?.label || topic,
-        date: 'Vừa xong',
-        message,
-        reply: {
-          adminName: 'Ban Quản Lý Courtly Club',
-          adminRole: 'Phản hồi tự động',
-          date: 'Vừa xong',
-          message:
-            'Cảm ơn bạn đã gửi đánh giá! Ban Quản Lý đã tiếp nhận ý kiến của bạn và sẽ phản hồi chi tiết trong thời gian sớm nhất ạ. 🎾'
-        }
-      };
-
-      setLocalSubmissions(prev => [newReview, ...prev]);
-      setMessage('');
-      setRating(0); // Reset to unselected
-      setCurrentPage(1);
+      await api('/feedback', 'POST', { rating, message: message.trim(), topic: 'OTHER', publishConsent: consent, orderId: orderId || null, requestId: req });
+      setSent(true);
       setReq(requestId());
-      notify(t('Cảm ơn bạn! Đánh giá đã được gửi thành công đến Ban Quản Lý Courtly.'));
-      await refresh().catch(() => {});
-    } catch (e) {
-      setError(e.message);
+      notify(t('Đã gửi đánh giá. Cảm ơn bạn!'));
+      setEligibleOrders(list => list.filter(o => o.id !== orderId));
+      loadMine();
+      refresh().catch(() => {});
+    } catch (err) {
+      setError(err.message);
     } finally {
       setBusy(false);
     }
   };
 
-  // Combine local submissions + server feedbacks + seed showcase feedbacks
-  const serverFeedbacks = (content.feedback || []).map(f => ({
-    id: f.id,
-    userName: f.displayName || 'Thành viên ẩn danh',
-    userRole: 'Khách hàng đã trải nghiệm',
-    userInitials: (f.displayName || 'HV').slice(0, 2).toUpperCase(),
-    avatarBg: '#334155',
-    rating: f.rating || 5,
-    topic: f.topic || 'OTHER',
-    topicLabel: topics.find(tp => tp.value === f.topic)?.label || '💬 Đánh giá',
-    date: f.createdAt ? new Date(f.createdAt).toLocaleDateString('vi-VN') : 'Gần đây',
-    message: f.message,
-    reply: f.reply
-      ? {
-          adminName: 'Ban Quản Lý Courtly Club',
-          adminRole: 'Phản hồi chính thức',
-          date: 'Phản hồi sau kiểm duyệt',
-          message: f.reply
-        }
-      : null
-  }));
+  const reset = () => { setSent(false); setRating(0); setMessage(''); setError(''); setOrderId(eligibleOrders[0]?.id || ''); };
 
-  const allFeedbacks = useMemo(() => {
-    return [...localSubmissions, ...serverFeedbacks, ...INITIAL_SHOWCASE_FEEDBACKS];
-  }, [localSubmissions, serverFeedbacks]);
+  const reviews = useMemo(() => {
+    const server = (content.feedback || []).map(f => ({
+      id: f.id, userName: f.displayName || 'Thành viên Courtly', rating: f.rating || 5, topic: f.topic || 'OTHER',
+      date: f.createdAt ? new Date(f.createdAt).toLocaleDateString('vi-VN') : '', message: f.message, reply: f.reply ? { message: f.reply } : null
+    }));
+    const showcase = INITIAL_SHOWCASE_FEEDBACKS.map(f => ({ ...f, reply: f.reply ? { message: f.reply.message } : null }));
+    return [...server, ...showcase];
+  }, [content.feedback]);
 
-  // Real stats calculated directly from feedbacks (NO FAKE CRITERIA BARS)
   const stats = useMemo(() => {
-    const total = allFeedbacks.length;
-    if (total === 0) return { avg: '5.0', total: 0, counts: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } };
     const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
     let sum = 0;
-    allFeedbacks.forEach(f => {
-      const r = Math.max(1, Math.min(5, Math.round(f.rating || 5)));
-      counts[r] = (counts[r] || 0) + 1;
-      sum += f.rating || 5;
-    });
-    return {
-      avg: (sum / total).toFixed(1),
-      total,
-      counts
-    };
-  }, [allFeedbacks]);
+    reviews.forEach(r => { const s = Math.max(1, Math.min(5, Math.round(r.rating))); counts[s] += 1; sum += r.rating; });
+    return { total: reviews.length, avg: reviews.length ? (sum / reviews.length).toFixed(1) : '0.0', counts };
+  }, [reviews]);
 
-  // Filtered feedbacks
-  const filteredFeedbacks = useMemo(() => {
-    return allFeedbacks
-      .filter(f => {
-        if (filterTopic === 'ALL') return true;
-        if (filterTopic === '5STAR') return f.rating === 5;
-        if (filterTopic === '4STAR') return f.rating === 4;
-        if (filterTopic === '3STAR') return f.rating <= 3;
-        if (filterTopic === 'HAS_REPLY') return Boolean(f.reply);
-        return f.topic === filterTopic;
-      })
-      .sort((a, b) => {
-        if (sortBy === 'RATING_DESC') return b.rating - a.rating;
-        return 0; // Default order (newest first)
-      });
-  }, [allFeedbacks, filterTopic, sortBy]);
-
-  // Pagination calculations
-  const totalItems = filteredFeedbacks.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
-  const paginatedFeedbacks = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredFeedbacks.slice(start, start + PAGE_SIZE);
-  }, [filteredFeedbacks, currentPage, PAGE_SIZE]);
-
-  const handlePageChange = newPage => {
-    if (newPage < 1 || newPage > totalPages) return;
-    setCurrentPage(newPage);
-    if (reviewsContainerRef.current) {
-      reviewsContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-  const handleFilterChange = newFilter => {
-    setFilterTopic(newFilter);
-    setCurrentPage(1);
-  };
-
-  const currentDisplayRating = hoverRating || rating;
+  const filtered = reviews.filter(r => filter === 'ALL' || (filter === 'REPLY' ? Boolean(r.reply) : filter === 'LOW' ? r.rating <= 3 : r.rating === Number(filter)));
+  const shown = filtered.slice(0, visible);
+  const changeFilter = f => { setFilter(f); setVisible(6); };
+  const display = hover || rating;
+  const currentOrder = eligibleOrders.find(o => o.id === orderId);
 
   return (
-    <section className="ct-pad" style={{ maxWidth: 1160, margin: '0 auto', paddingBottom: 60 }}>
-      {/* 1. HEADER SECTION */}
-      <div className="gx-heading" style={{ marginBottom: 24, textAlign: 'center' }}>
-        <span className="ct-eyebrow" style={{ color: '#173c32', letterSpacing: 2 }}>
-          COURTLY · ĐÁNH GIÁ & GÓP Ý
-        </span>
-        <h1 style={{ fontSize: 32, margin: '8px 0 10px', color: '#173c32', letterSpacing: 'normal' }}>
-          {t('Lắng nghe trải nghiệm · Hoàn thiện mỗi ngày')}
-        </h1>
-        <p style={{ fontSize: 14.5, color: '#52655a', maxWidth: 680, margin: '0 auto', lineHeight: 1.65 }}>
-          {t(
-            'Mỗi lượt đánh giá chân thực từ quý khách là cơ sở để Courtly liên tục nâng cao chất lượng sân bãi, dịch vụ trọng tài và tiện ích phục vụ.'
-          )}
-        </p>
-      </div>
+    <section className="ct-pad fb-page">
+      <header className="fb-head">
+        <span className="ct-eyebrow">{t('Đánh giá & góp ý')}</span>
+        <h1>{t('Bạn thấy buổi chơi thế nào?')}</h1>
+        <p>{t('Mỗi đánh giá được quản lý đọc và phản hồi. Đánh giá công khai sẽ hiển thị sau khi được duyệt.')}</p>
+      </header>
 
-      {/* 2. RATING SUMMARY SCORECARD (GENUINE STAR DISTRIBUTION, NO FAKE CRITERIA BARS) */}
-      <div
-        style={{
-          background: '#ffffff',
-          border: '1px solid #dce4d6',
-          borderRadius: 16,
-          padding: '24px 28px',
-          marginBottom: 24,
-          boxShadow: '0 4px 20px rgba(23,60,50,0.04)',
-          display: 'grid',
-          gridTemplateColumns: 'auto 1fr',
-          gap: 36,
-          alignItems: 'center'
-        }}
-      >
-        {/* Overall Score */}
-        <div style={{ textAlign: 'center', paddingRight: 32, borderRight: '1px solid #eef2ea', minWidth: 160 }}>
-          <div style={{ fontSize: 46, fontWeight: 900, lineHeight: 1, color: '#173c32' }}>{stats.avg}</div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 3, margin: '8px 0 6px' }}>
-            {[1, 2, 3, 4, 5].map(s => {
-              const full = s <= Math.round(Number(stats.avg));
-              return (
-                <Star
-                  key={s}
-                  size={20}
-                  fill={full ? '#f59e0b' : '#f1f5f9'}
-                  color={full ? '#d97706' : '#cbd5e1'}
-                  strokeWidth={1}
-                />
-              );
-            })}
-          </div>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#15803d', display: 'block' }}>
-            {t('Chỉ số đánh giá cao')}
-          </span>
-          <span style={{ fontSize: 12, color: '#64748b', marginTop: 2, display: 'block' }}>
-            {stats.total} {t('lượt đánh giá')}
-          </span>
-        </div>
-
-        {/* Real Star Rating Distribution (Clickable to filter) */}
-        <div style={{ display: 'grid', gap: 6 }}>
-          {[5, 4, 3, 2, 1].map(stars => {
-            const count = stats.counts[stars] || 0;
-            const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
-            const isFilterActive = filterTopic === (stars === 5 ? '5STAR' : stars === 4 ? '4STAR' : stars <= 3 ? '3STAR' : 'ALL');
-            return (
-              <div
-                key={stars}
-                onClick={() => handleFilterChange(stars === 5 ? '5STAR' : stars === 4 ? '4STAR' : '3STAR')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  fontSize: 12.5,
-                  cursor: 'pointer',
-                  padding: '3px 6px',
-                  borderRadius: 6,
-                  background: isFilterActive ? '#f0fdf4' : 'transparent',
-                  transition: 'background 0.15s ease'
-                }}
-                title={`Xem các đánh giá ${stars} sao`}
-              >
-                <div style={{ width: 44, fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <span>{stars}</span>
-                  <Star size={13} fill="#f59e0b" color="#d97706" strokeWidth={1} />
-                </div>
-                <div style={{ flex: 1, background: '#f1f5f9', height: 8, borderRadius: 4, overflow: 'hidden' }}>
-                  <div
-                    style={{
-                      background: stars >= 4 ? '#10b981' : stars === 3 ? '#f59e0b' : '#ef4444',
-                      width: `${pct}%`,
-                      height: '100%',
-                      borderRadius: 4
-                    }}
-                  />
-                </div>
-                <div style={{ width: 70, textAlign: 'right', color: '#64748b', fontSize: 12 }}>
-                  <b>{pct}%</b> <span style={{ color: '#94a3b8' }}>({count})</span>
-                </div>
+      <div className="fb-layout">
+        <aside className="fb-side">
+          <div className="fb-card fb-form-card">
+            {!user ? (
+              <div className="fb-empty-state">
+                <span className="fb-big-icon">⭐</span>
+                <h2>{t('Đăng nhập để đánh giá')}</h2>
+                <p>{t('Chỉ khách đã đặt sân mới có thể gửi đánh giá, để mọi nhận xét đều là trải nghiệm thật.')}</p>
+                <Action onClick={() => login('login')}>{t('Đăng nhập')}</Action>
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. INLINE REVIEW COMPOSER (ALWAYS VISIBLE RIGHT HERE, NO EXTRA BUTTON, NO SCROLLING DOWN) */}
-      <div
-        style={{
-          background: '#ffffff',
-          border: '1.5px solid #cfe0cb',
-          borderRadius: 16,
-          padding: '24px 26px',
-          marginBottom: 28,
-          boxShadow: '0 6px 24px rgba(23,60,50,0.06)'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, borderBottom: '1px solid #f1f4ec', paddingBottom: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: '50%',
-                background: user ? '#173c32' : '#e2e8f0',
-                color: user ? '#def46a' : '#64748b',
-                display: 'grid',
-                placeItems: 'center',
-                fontSize: 16,
-                fontWeight: 800
-              }}
-            >
-              {user ? (user.name || 'U').slice(0, 2).toUpperCase() : '👤'}
-            </div>
-            <div>
-              <strong style={{ fontSize: 15, color: '#173c32', display: 'block' }}>
-                {user ? `Xin chào, ${user.name}` : t('Viết đánh giá trải nghiệm của bạn')}
-              </strong>
-              <span style={{ fontSize: 12, color: user ? '#15803d' : '#64748b', fontWeight: user ? 600 : 400 }}>
-                {user ? (
-                  '✓ Tài khoản thành viên đã xác thực'
-                ) : (
-                  <span>
-                    Chưa đăng nhập ·{' '}
-                    <button
-                      type="button"
-                      onClick={() => login('login', { from: 'feedback' })}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#047857',
-                        fontWeight: 700,
-                        textDecoration: 'underline',
-                        cursor: 'pointer',
-                        padding: 0
-                      }}
-                    >
-                      Đăng nhập ngay
-                    </button>{' '}
-                    để hiển thị tích xanh
-                  </span>
-                )}
-              </span>
-            </div>
+            ) : sent ? (
+              <div className="fb-empty-state">
+                <span className="fb-big-icon">✅</span>
+                <h2>{t('Đã gửi đánh giá')}</h2>
+                <p>{t('Quản lý sẽ xem và phản hồi qua email và chuông thông báo. Nếu bạn cho phép công khai, đánh giá sẽ hiện trên trang sau khi được duyệt.')}</p>
+                <button type="button" className="ct-outline" onClick={reset}>{t('Viết đánh giá khác')}</button>
+              </div>
+            ) : (
+              <form onSubmit={submit} className="fb-form fb-simple">
+                <div className="fb-rate" onMouseLeave={() => setHover(0)}>
+                  <div className="fb-rate-stars" role="radiogroup" aria-label={t('Số sao')}>
+                    {[1, 2, 3, 4, 5].map(s => (
+                      <button key={s} type="button" role="radio" aria-checked={rating === s} aria-label={`${s} ${t('sao')}`}
+                        onMouseEnter={() => setHover(s)} onFocus={() => setHover(s)} onBlur={() => setHover(0)}
+                        onClick={() => { setRating(s); setError(''); }}>
+                        <Star size={30} fill={s <= display ? '#f5b301' : 'none'} color={s <= display ? '#e0a100' : '#b9c4b2'} strokeWidth={1.4} />
+                      </button>
+                    ))}
+                  </div>
+                  <span className="fb-rate-text">{display ? t(FB_RATING_TEXT[display]) : t('Chọn số sao')}</span>
+                </div>
+                {currentOrder && <p className="fb-for">{t('Cho buổi chơi')} {currentOrder.courtNames || t('Sân')} · {currentOrder.date}</p>}
+                <textarea rows={3} maxLength={1000} value={message} onChange={e => setMessage(e.target.value)}
+                  aria-label={t('Nội dung đánh giá')} placeholder={t('Chia sẻ trải nghiệm của bạn…')} />
+                {error && <p className="fb-error" role="alert">{error}</p>}
+                <div className="fb-submit-row">
+                  <label className="fb-consent">
+                    <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />
+                    <span>{t('Hiển thị công khai')}</span>
+                  </label>
+                  <Action type="submit" disabled={busy}>{busy ? t('Đang gửi…') : t('Gửi đánh giá')}</Action>
+                </div>
+              </form>
+            )}
           </div>
 
-          <span style={{ fontSize: 12, color: '#64748b', background: '#f8faf6', padding: '4px 10px', borderRadius: 20, border: '1px solid #e2e8dc' }}>
-            💬 Đánh giá công khai
-          </span>
-        </div>
-
-        <form onSubmit={submit} style={{ display: 'grid', gap: 16 }}>
-          {/* CHỌN BUỔI CHƠI (SERVICE RECOVERY & ORDER LINKING) */}
-          {user && (
-            <div style={{ background: '#fcfdfa', border: '1px solid #e7ede2', borderRadius: 12, padding: '12px 16px' }}>
-              <label style={{ fontSize: 13, fontWeight: 700, color: '#173c32', display: 'block', marginBottom: 6 }}>
-                {t('Buổi chơi cần đánh giá (trong 14 ngày qua)')}
-              </label>
-              <select
-                value={selectedOrderId}
-                onChange={e => setSelectedOrderId(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
-              >
-                <option value="">{t('Góp ý chung (không gắn buổi chơi cụ thể)')}</option>
-                {eligibleOrders.map(o => (
-                  <option key={o.id} value={o.id}>
-                    {o.orderCode} · {o.courtNames || 'Sân'} ({o.date})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          {/* STAR SELECTOR: BIG, PROMINENT, UNSELECTED BY DEFAULT */}
-          <div style={{ background: '#fcfdfa', border: '1px solid #e7ede2', borderRadius: 12, padding: '14px 16px' }}>
-            <label style={{ fontSize: 13.5, fontWeight: 700, color: '#173c32', display: 'block', marginBottom: 8 }}>
-              {t('Bạn chấm mấy sao cho buổi chơi tại Courtly?')} <span style={{ color: '#dc2626' }}>*</span>
-            </label>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', gap: 6 }} onMouseLeave={() => setHoverRating(0)}>
-                {[1, 2, 3, 4, 5].map(s => {
-                  const isFilled = s <= currentDisplayRating;
+          {user && mine.length > 0 && (
+            <div className="fb-card fb-mine">
+              <h3>{t('Đánh giá của bạn')}</h3>
+              <ul>
+                {mine.slice().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, 4).map(m => {
+                  const st = FB_STATUS[m.status] || FB_STATUS.PENDING;
                   return (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => {
-                        setRating(s);
-                        setError('');
-                      }}
-                      onMouseEnter={() => setHoverRating(s)}
-                      aria-label={`${s} sao`}
-                      style={{
-                        background: isFilled ? '#fef3c7' : '#ffffff',
-                        border: isFilled ? '2px solid #f59e0b' : '1.5px solid #cbd5e1',
-                        borderRadius: 10,
-                        padding: '6px 10px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transform: currentDisplayRating === s ? 'scale(1.1)' : 'scale(1)',
-                        boxShadow: isFilled ? '0 2px 8px rgba(245,158,11,0.25)' : 'none'
-                      }}
-                    >
-                      <Star
-                        size={28}
-                        fill={isFilled ? '#f59e0b' : '#f8fafc'}
-                        color={isFilled ? '#d97706' : '#94a3b8'}
-                        strokeWidth={1.5}
-                      />
-                    </button>
+                    <li key={m.id}>
+                      <div className="fb-mine-top">
+                        <FbStars value={m.rating || 0} size={13} />
+                        <span className={`fb-st ${st.cls}`}>{t(st.label)}</span>
+                      </div>
+                      <p>{m.message}</p>
+                      {m.reply && <p className="fb-mine-reply"><b>Courtly:</b> {m.reply}</p>}
+                    </li>
                   );
                 })}
-              </div>
-
-              {/* RATING LABEL (DISSIPATES CONFUSION) */}
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color:
-                    currentDisplayRating === 0
-                      ? '#64748b'
-                      : currentDisplayRating >= 4
-                      ? '#15803d'
-                      : currentDisplayRating === 3
-                      ? '#b45309'
-                      : '#dc2626',
-                  fontStyle: currentDisplayRating === 0 ? 'italic' : 'normal'
-                }}
-              >
-                {ratingDescriptions[currentDisplayRating]}
-              </div>
+              </ul>
             </div>
-          </div>
+          )}
+        </aside>
 
-          {/* MESSAGE TEXTAREA */}
-          <div>
-            <textarea
-              value={message}
-              onChange={e => {
-                setMessage(e.target.value);
-                if (error) setError('');
-              }}
-              required
-              minLength={10}
-              maxLength={2000}
-              rows={3}
-              placeholder={t(
-                'Chia sẻ cảm nhận chi tiết của bạn về chất lượng mặt sân, độ nảy bóng, ánh sáng đèn LED, trọng tài hay tiện ích phòng tắm...'
-              )}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                borderRadius: 10,
-                border: '1.5px solid #cfd7c9',
-                background: '#ffffff',
-                fontSize: 14,
-                lineHeight: 1.6,
-                resize: 'vertical',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, fontSize: 11.5, color: '#78897e' }}>
-              <span>Tối thiểu 10 ký tự</span>
-              <span>{message.length} / 2000 ký tự</span>
+        <div className="fb-main">
+          <div className="fb-card fb-summary">
+            <div className="fb-score">
+              <b>{stats.avg}</b>
+              <FbStars value={Math.round(Number(stats.avg))} size={18} />
+              <small>{stats.total} {t('đánh giá')}</small>
             </div>
-          </div>
-
-          {/* TOPIC SELECTION PILLS */}
-          <div>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#173c32', marginBottom: 6 }}>
-              {t('Chủ đề nhận xét (tùy chọn):')}
-            </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {topics.map(tp => {
-                const active = topic === tp.value;
+            <div className="fb-bars">
+              {[5, 4, 3, 2, 1].map(s => {
+                const c = stats.counts[s];
+                const pct = stats.total ? Math.round(c / stats.total * 100) : 0;
                 return (
-                  <button
-                    key={tp.value}
-                    type="button"
-                    onClick={() => setTopic(tp.value)}
-                    style={{
-                      background: active ? '#173c32' : '#f8faf6',
-                      color: active ? '#def46a' : '#2b4437',
-                      border: active ? '1.5px solid #173c32' : '1px solid #d5dcce',
-                      borderRadius: 20,
-                      padding: '5px 12px',
-                      fontSize: 12,
-                      fontWeight: active ? 700 : 500,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <span>{tp.icon}</span>
-                    <span>{tp.label}</span>
-                  </button>
+                  <div key={s} className="fb-bar-row">
+                    <span>{s}★</span>
+                    <div className="fb-bar"><i style={{ width: `${pct}%` }} /></div>
+                    <span className="fb-bar-n">{c}</span>
+                  </div>
                 );
               })}
             </div>
           </div>
 
-          {/* CONSENT & ERROR */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                cursor: 'pointer',
-                fontSize: 12.5,
-                color: '#475569'
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={consent}
-                onChange={e => setConsent(e.target.checked)}
-                style={{ accentColor: '#173c32' }}
-              />
-              <span>{t('Cho phép hiển thị đánh giá công khai trên trang web của CLB')}</span>
-            </label>
-
-            {/* SUBMIT BUTTON */}
-            <button
-              type="submit"
-              disabled={busy}
-              style={{
-                background: '#173c32',
-                color: '#def46a',
-                border: 'none',
-                padding: '11px 26px',
-                borderRadius: 30,
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: busy ? 'not-allowed' : 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                boxShadow: '0 4px 14px rgba(23,60,50,0.18)',
-                marginLeft: 'auto'
-              }}
-            >
-              <span>🎾</span>
-              <span>
-                {busy
-                  ? t('Đang gửi…')
-                  : user
-                  ? t('Gửi đánh giá')
-                  : t('Đăng nhập để gửi đánh giá')}
-              </span>
-            </button>
+          <div className="fb-filters" role="tablist">
+            {[['ALL', t('Tất cả')], ['5', '5★'], ['4', '4★'], ['LOW', '≤ 3★'], ['REPLY', t('Có phản hồi')]].map(([k, label]) => (
+              <button key={k} type="button" role="tab" aria-selected={filter === k} className={filter === k ? 'on' : ''} onClick={() => changeFilter(k)}>{label}</button>
+            ))}
           </div>
 
-          {error && (
-            <div
-              style={{
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#991b1b',
-                padding: '10px 14px',
-                borderRadius: 8,
-                fontSize: 13
-              }}
-            >
-              ⚠️ {error}
-            </div>
-          )}
-        </form>
-      </div>
-
-      {/* 4. REVIEWS CONTAINER & FILTER TOOLBAR */}
-      <div ref={reviewsContainerRef}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 12,
-            marginBottom: 20
-          }}
-        >
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {[
-              { id: 'ALL', label: `${t('Tất cả')} (${allFeedbacks.length})` },
-              { id: '5STAR', label: `5 ⭐ (${stats.counts[5] || 0})` },
-              { id: '4STAR', label: `4 ⭐ (${stats.counts[4] || 0})` },
-              { id: '3STAR', label: `≤ 3 ⭐ (${(stats.counts[3] || 0) + (stats.counts[2] || 0) + (stats.counts[1] || 0)})` },
-              { id: 'HAS_REPLY', label: '💬 ' + t('Có phản hồi BQL') }
-            ].map(tab => {
-              const active = filterTopic === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => handleFilterChange(tab.id)}
-                  style={{
-                    background: active ? '#173c32' : '#ffffff',
-                    color: active ? '#def46a' : '#394d40',
-                    border: active ? '1px solid #173c32' : '1px solid #d5dcce',
-                    borderRadius: 20,
-                    padding: '6px 14px',
-                    fontSize: 12.5,
-                    fontWeight: active ? 700 : 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* SORTING SELECT */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: '#52655a' }}>
-            <span>{t('Sắp xếp:')}</span>
-            <select
-              value={sortBy}
-              onChange={e => setSortBy(e.target.value)}
-              style={{
-                padding: '6px 10px',
-                borderRadius: 8,
-                border: '1px solid #cfd7c9',
-                background: '#ffffff',
-                fontSize: 12.5,
-                color: '#173c32',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="NEWEST">{t('Mới nhất')}</option>
-              <option value="RATING_DESC">{t('Đánh giá cao nhất')}</option>
-            </select>
-          </div>
-        </div>
-
-        {/* 5. 2-COLUMN RESPONSIVE REVIEWS GRID (BALANCED, CLEAN, CRISP) */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(460px, 1fr))',
-            gap: 18,
-            alignItems: 'stretch'
-          }}
-        >
-          {paginatedFeedbacks.map(item => (
-            <article
-              key={item.id}
-              style={{
-                background: '#ffffff',
-                border: '1px solid #e2e8dc',
-                borderRadius: 14,
-                padding: '22px 24px',
-                boxShadow: '0 3px 14px rgba(23,60,50,0.03)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between'
-              }}
-            >
-              <div>
-                {/* CUSTOMER HEADER */}
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    flexWrap: 'wrap',
-                    gap: 10,
-                    marginBottom: 12
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div
-                      style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: '50%',
-                        background: item.avatarBg || '#173c32',
-                        color: '#ffffff',
-                        display: 'grid',
-                        placeItems: 'center',
-                        fontSize: 15,
-                        fontWeight: 700,
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
-                      }}
-                    >
-                      {item.userInitials || 'HV'}
-                    </div>
+          {shown.length === 0 ? <Empty>{t('Chưa có đánh giá phù hợp.')}</Empty> : (
+            <div className="fb-list">
+              {shown.map(r => (
+                <article key={r.id} className="fb-review">
+                  <header>
+                    <span className="fb-avatar" aria-hidden="true">{String(r.userName || '?').trim().split(/\s+/).slice(-1)[0][0]}</span>
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <strong style={{ fontSize: 14.5, color: '#173c32' }}>{item.userName}</strong>
-                        <span
-                          style={{
-                            background: '#ecfdf5',
-                            color: '#047857',
-                            border: '1px solid #a7f3d0',
-                            fontSize: 10.5,
-                            fontWeight: 700,
-                            padding: '1px 7px',
-                            borderRadius: 10
-                          }}
-                        >
-                          ✓ {item.userRole || t('Đã trải nghiệm')}
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          marginTop: 3,
-                          fontSize: 12,
-                          color: '#637269'
-                        }}
-                      >
-                        <span>{item.date}</span>
-                        <span>·</span>
-                        <span style={{ color: '#173c32', fontWeight: 600 }}>{item.topicLabel}</span>
-                      </div>
+                      <b>{r.userName}</b>
+                      <small>{[r.date, topicLabel(r.topic)].filter(Boolean).join(' · ')}</small>
                     </div>
-                  </div>
-
-                  {/* STARS (CRISP, CLEAR) */}
-                  <div style={{ display: 'flex', gap: 2 }}>
-                    {[1, 2, 3, 4, 5].map(s => {
-                      const filled = s <= item.rating;
-                      return (
-                        <Star
-                          key={s}
-                          size={16}
-                          fill={filled ? '#f59e0b' : '#f1f5f9'}
-                          color={filled ? '#d97706' : '#cbd5e1'}
-                          strokeWidth={1}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* REVIEW MESSAGE */}
-                <p
-                  style={{
-                    fontSize: 14,
-                    color: '#334155',
-                    lineHeight: 1.65,
-                    margin: '0 0 14px',
-                    whiteSpace: 'pre-line'
-                  }}
-                >
-                  "{item.message}"
-                </p>
-              </div>
-
-              {/* ADMIN REPLY BLOCK */}
-              {item.reply && (
-                <div
-                  style={{
-                    background: '#f4f7ee',
-                    borderLeft: '3.5px solid #173c32',
-                    borderRadius: '0 10px 10px 0',
-                    padding: '12px 16px',
-                    marginTop: 10
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                    <div
-                      style={{
-                        width: 22,
-                        height: 22,
-                        borderRadius: '50%',
-                        background: '#173c32',
-                        color: '#def46a',
-                        display: 'grid',
-                        placeItems: 'center',
-                        fontSize: 11
-                      }}
-                    >
-                      🎾
+                    <FbStars value={r.rating} />
+                  </header>
+                  <p>{r.message}</p>
+                  {r.reply && (
+                    <div className="fb-reply">
+                      <b>{t('Phản hồi từ Courtly')}</b>
+                      <p>{r.reply.message}</p>
                     </div>
-                    <strong style={{ fontSize: 12.5, color: '#173c32' }}>{item.reply.adminName}</strong>
-                    <span
-                      style={{
-                        background: '#173c32',
-                        color: '#def46a',
-                        fontSize: 10,
-                        fontWeight: 700,
-                        padding: '1px 5px',
-                        borderRadius: 4
-                      }}
-                    >
-                      {item.reply.adminRole}
-                    </span>
-                    <span style={{ fontSize: 11, color: '#637269', marginLeft: 'auto' }}>
-                      {item.reply.date}
-                    </span>
-                  </div>
-                  <p style={{ fontSize: 13, color: '#27382f', lineHeight: 1.55, margin: 0, fontStyle: 'italic' }}>
-                    {item.reply.message}
-                  </p>
-                </div>
-              )}
-            </article>
-          ))}
-
-          {paginatedFeedbacks.length === 0 && (
-            <div
-              style={{
-                gridColumn: '1 / -1',
-                textAlign: 'center',
-                padding: '48px 20px',
-                background: '#ffffff',
-                borderRadius: 14,
-                border: '1px dashed #cfd7c9',
-                color: '#637269'
-              }}
-            >
-              <span>🔍 {t('Không tìm thấy đánh giá phù hợp với bộ lọc hiện tại.')}</span>
+                  )}
+                </article>
+              ))}
             </div>
           )}
+          {filtered.length > visible && (
+            <button type="button" className="ct-outline fb-more" onClick={() => setVisible(v => v + 6)}>
+              {t('Xem thêm')} ({filtered.length - visible})
+            </button>
+          )}
         </div>
-
-        {/* 6. PAGINATION CONTROLS */}
-        {totalPages > 1 && (
-          <div
-            style={{
-              marginTop: 24,
-              padding: '14px 20px',
-              background: '#ffffff',
-              border: '1px solid #dce2d6',
-              borderRadius: 12,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 12
-            }}
-          >
-            <span style={{ fontSize: 12.5, color: '#52655a' }}>
-              Hiển thị <b>{(currentPage - 1) * PAGE_SIZE + 1}</b> –{' '}
-              <b>{Math.min(currentPage * PAGE_SIZE, totalItems)}</b> trên tổng số <b>{totalItems}</b> đánh giá
-            </span>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {/* PREV BUTTON */}
-              <button
-                type="button"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                style={{
-                  background: '#ffffff',
-                  border: '1px solid #cfd7c9',
-                  borderRadius: 6,
-                  padding: '6px 12px',
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  color: currentPage === 1 ? '#9ca3af' : '#173c32',
-                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4
-                }}
-              >
-                <ChevronLeft size={14} />
-                <span>{t('Trước')}</span>
-              </button>
-
-              {/* NUMBER BUTTONS */}
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(num => {
-                const active = num === currentPage;
-                return (
-                  <button
-                    key={num}
-                    type="button"
-                    onClick={() => handlePageChange(num)}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 6,
-                      border: active ? 'none' : '1px solid #cfd7c9',
-                      background: active ? '#173c32' : '#ffffff',
-                      color: active ? '#def46a' : '#173c32',
-                      fontSize: 12.5,
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {num}
-                  </button>
-                );
-              })}
-
-              {/* NEXT BUTTON */}
-              <button
-                type="button"
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                style={{
-                  background: '#ffffff',
-                  border: '1px solid #cfd7c9',
-                  borderRadius: 6,
-                  padding: '6px 12px',
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  color: currentPage === totalPages ? '#9ca3af' : '#173c32',
-                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4
-                }}
-              >
-                <span>{t('Tiếp')}</span>
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 7. CLUB SERVICE COMMITMENTS & SLA */}
-      <div style={{ marginTop: 48, marginBottom: 24 }}>
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <span className="ct-eyebrow" style={{ color: '#173c32', letterSpacing: 2 }}>
-            COURTLY QUALITY PROMISE
-          </span>
-          <h2 style={{ fontSize: 22, margin: '6px 0 0', color: '#173c32' }}>
-            {t('Cam kết dịch vụ & Chuẩn mực phục vụ')}
-          </h2>
-        </div>
-
-        <div className="gx-promise-grid">
-          {[
-            {
-              icon: '🧹',
-              title: 'Bảo dưỡng mặt sân mỗi ngày',
-              desc: 'Mặt sân được vệ sinh, hút ẩm và kiểm tra độ căng lưới tiêu chuẩn trước 06:00 sáng mỗi ngày.'
-            },
-            {
-              icon: '⚡',
-              title: 'Hỗ trợ sự cố trong 15 phút',
-              desc: 'Mọi vấn đề về ánh sáng LED, bóng, quạt thông gió được kỹ thuật viên có mặt xử lý trong 15 phút.'
-            },
-            {
-              icon: '📞',
-              title: 'Đường dây nóng khiếu nại 24/7',
-              desc: 'Hotline Ban Quản Lý (090.123.4567) tiếp nhận mọi phản ánh chất lượng phục vụ và hoàn tiền nếu có sai sót.'
-            },
-            {
-              icon: '☔',
-              title: 'Chính sách bảo vệ thời tiết',
-              desc: 'Hỗ trợ đổi lịch linh hoạt hoặc bảo lưu 100% tiền cọc khi thời tiết mưa gió bất khả kháng đối với sân ngoài trời.'
-            }
-          ].map((c, i) => (
-            <div
-              key={i}
-              style={{
-                background: '#ffffff',
-                border: '1px solid #dbe2d4',
-                borderRadius: 14,
-                padding: '20px 22px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
-              }}
-            >
-              <div style={{ fontSize: 26, marginBottom: 8 }}>{c.icon}</div>
-              <strong style={{ fontSize: 14.5, color: '#173c32', display: 'block', marginBottom: 5 }}>
-                {c.title}
-              </strong>
-              <p style={{ margin: 0, fontSize: 12.5, color: '#52655a', lineHeight: 1.55 }}>
-                {c.desc}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 8. DIRECT BOOKING CTA BANNER */}
-      <div
-        style={{
-          background: 'linear-gradient(135deg, #13332b 0%, #1e4d40 100%)',
-          borderRadius: 16,
-          padding: '26px 32px',
-          color: '#ffffff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 18,
-          boxShadow: '0 6px 20px rgba(23,60,50,0.12)'
-        }}
-      >
-        <div>
-          <strong style={{ fontSize: 19, display: 'block', color: '#def46a', marginBottom: 4 }}>
-            {t('Bạn đã sẵn sàng bước ra sân thi đấu?')}
-          </strong>
-          <span style={{ fontSize: 13.5, color: '#e2ebd9' }}>
-            {t('Đặt trước khung giờ yêu thích chỉ với 30% cọc và nhận vé điện tử QR check-in tự động.')}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => navigate('booking')}
-          style={{
-            background: '#def46a',
-            color: '#173c32',
-            border: 'none',
-            borderRadius: 30,
-            padding: '12px 26px',
-            fontSize: 14,
-            fontWeight: 800,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            boxShadow: '0 4px 14px rgba(0,0,0,0.2)'
-          }}
-        >
-          <span>🎾</span> {t('Đặt sân ngay')} →
-        </button>
       </div>
     </section>
   );
 }
 
 export function Policies() {
-  const { t, route, navigate } = useGuest();
+  const { t, lang, route } = useGuest();
   const [tab, setTab] = useState(route === 'rules' ? 'rules' : 'privacy');
 
   React.useEffect(() => {
@@ -2249,118 +1452,105 @@ export function Policies() {
         })}
       </div>
 
-      {/* Tab 1: Privacy Policy */}
-      {tab === 'privacy' && (
-        <div
-          style={{
-            background: '#ffffff',
-            border: '1px solid #d5dcce',
-            borderRadius: 12,
-            padding: '32px 36px',
-            lineHeight: 1.8,
-            fontSize: 14,
-            color: '#27382f',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
-          }}
-        >
-          <h2 style={{ fontSize: 20, color: '#173c32', marginBottom: 12 }}>1. Mục đích thu thập thông tin</h2>
-          <p>Câu lạc bộ Courtly thu thập thông tin cá nhân (họ tên, số điện thoại, email) nhằm phục vụ các mục đích chính đáng sau:</p>
-          <ul style={{ paddingLeft: 22, margin: '8px 0 18px' }}>
-            <li>Xác thực và cấp quyền truy cập tài khoản đặt sân trực tuyến.</li>
-            <li>Gửi thông báo xác nhận giữ chỗ, mã vé điện tử QR check-in vào sân.</li>
-            <li>Liên hệ khẩn cấp trong trường hợp thay đổi lịch sân do điều kiện thời tiết hoặc bảo trì kỹ thuật.</li>
-            <li>Gửi thông báo ưu đãi thành viên, voucher và thông tin giải đấu khi người dùng đăng ký nhận tin.</li>
-          </ul>
-
-          <h2 style={{ fontSize: 20, color: '#173c32', margin: '24px 0 12px' }}>2. Phạm vi sử dụng & Bảo mật thông tin</h2>
-          <p>
-            Courtly cam kết bảo mật tuyệt đối thông tin khách hàng bằng các tiêu chuẩn an toàn dữ liệu công nghệ cao (mã hóa SSL/TLS, xác thực JWT phân quyền). Chúng tôi <strong>tuyệt đối không chia sẻ, bán hoặc chuyển giao</strong> thông tin của quý khách cho bất kỳ bên thứ ba nào vì mục đích thương mại, ngoại trừ yêu cầu từ cơ quan có thẩm quyền theo quy định của pháp luật.
-          </p>
-
-          <h2 style={{ fontSize: 20, color: '#173c32', margin: '24px 0 12px' }}>3. Quyền của khách hàng đối với dữ liệu cá nhân</h2>
-          <p>
-            Quý khách có toàn quyền kiểm tra, cập nhật, điều chỉnh hoặc yêu cầu xóa thông tin cá nhân của mình bất kỳ lúc nào thông qua mục <strong>Hồ sơ của tôi</strong> trên website hoặc liên hệ trực tiếp với Ban Quản lý Câu lạc bộ qua email hoặc hotline chính thức.
-          </p>
-        </div>
-      )}
-
-      {/* Tab 2: Club Rules & Regulations */}
-      {tab === 'rules' && (
-        <div
-          style={{
-            background: '#ffffff',
-            border: '1px solid #d5dcce',
-            borderRadius: 12,
-            padding: '32px 36px',
-            lineHeight: 1.8,
-            fontSize: 14,
-            color: '#27382f',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
-          }}
-        >
-          <h2 style={{ fontSize: 20, color: '#173c32', marginBottom: 12 }}>1. Quy định trang phục & Giày thi đấu</h2>
-          <ul style={{ paddingLeft: 22, margin: '8px 0 18px' }}>
-            <li>
-              Người chơi bắt buộc phải mang <strong>giày tennis chuyên dụng (đế non-marking không để lại vết đen)</strong> khi bước vào tất cả các khu sân (Khu A, Khu B và Khu VIP) nhằm bảo vệ lớp sơn đệm tiêu chuẩn thi đấu.
-            </li>
-            <li>Mặc trang phục thể thao lịch sự, phù hợp với thuần phong mỹ tục và hoạt động quần vợt.</li>
-          </ul>
-
-          <h2 style={{ fontSize: 20, color: '#173c32', margin: '24px 0 12px' }}>2. Giữ gìn an ninh & Văn hóa ứng xử trên sân</h2>
-          <ul style={{ paddingLeft: 22, margin: '8px 0 18px' }}>
-            <li>Nghiêm cấm hút thuốc lá, sử dụng chất kích thích hoặc mang đồ ăn nhiều dầu mỡ vào trong khu vực thi đấu.</li>
-            <li>Không xả rác bừa bãi; vỏ chai nước và bóng hỏng phải bỏ đúng thùng rác phân loại đặt cạnh ghế nghỉ.</li>
-            <li>Giữ gìn vệ sinh chung tại khu vực phòng thay đồ, tủ locker và phòng tắm nước nóng.</li>
-            <li>Tôn trọng đối thủ, trọng tài và các người chơi ở sân liền kề; không có hành vi phi thể thao hoặc gây ồn ào ảnh hưởng trận đấu khác.</li>
-          </ul>
-
-          <h2 style={{ fontSize: 20, color: '#173c32', margin: '24px 0 12px' }}>3. Thời gian thi đấu & Bàn giao sân</h2>
-          <ul style={{ paddingLeft: 22, margin: '8px 0 18px' }}>
-            <li>Người chơi vui lòng có mặt trước giờ thi đấu ít nhất 10–15 phút để làm thủ tục check-in tại quầy và khởi động.</li>
-            <li>Khi hết giờ thi đấu, người chơi vui lòng chủ động dọn dẹp bóng, vật dụng cá nhân và bàn giao sân đúng giờ cho lượt khách kế tiếp.</li>
-            <li>Nếu có nhu cầu đánh thêm, vui lòng liên hệ lễ tân hoặc dùng tính năng <strong>Gia hạn giờ chơi</strong> trên website nếu sân còn trống.</li>
-          </ul>
-        </div>
-      )}
-
-      {/* Tab 3: Booking, Deposit & Cancellation Rules */}
-      {tab === 'booking' && (
-        <div
-          style={{
-            background: '#ffffff',
-            border: '1px solid #d5dcce',
-            borderRadius: 12,
-            padding: '32px 36px',
-            lineHeight: 1.8,
-            fontSize: 14,
-            color: '#27382f',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
-          }}
-        >
-          <h2 style={{ fontSize: 20, color: '#173c32', marginBottom: 12 }}>1. Đặt sân & Đặt cọc giữ chỗ</h2>
-          <p>
-            Để đảm bảo tính công bằng và tránh tình trạng đặt giữ chỗ ảo, khách hàng đặt sân trực tuyến cần thanh toán tiền cọc theo quy định (thường là 30% – 50% tổng giá trị đơn) trong vòng <strong>15 phút</strong> kể từ khi tạo đơn. Sau thời gian này, hệ thống sẽ tự động giải phóng khung giờ cho khách hàng khác.
-          </p>
-
-          <h2 style={{ fontSize: 20, color: '#173c32', margin: '24px 0 12px' }}>2. Quy định Hủy đơn & Hoàn tiền cọc</h2>
-          <ul style={{ paddingLeft: 22, margin: '8px 0 18px' }}>
-            <li>
-              <strong>Hủy trước ít nhất 24 giờ so với giờ chơi:</strong> Được hoàn trả 80% – 100% số tiền cọc đã đóng (chuyển khoản về tài khoản gốc hoặc cộng vào số dư điểm thưởng / voucher trên hệ thống Courtly).
-            </li>
-            <li>
-              <strong>Hủy trong vòng dưới 24 giờ so với giờ chơi:</strong> Tiền đặt cọc sẽ không được hoàn lại do sân đã được bố trí độc quyền cho quý khách và không kịp sắp xếp lượt khách thay thế.
-            </li>
-            <li>
-              <strong>Trường hợp bất khả kháng (Mưa lớn đối với sân ngoài trời Khu A, sự cố kỹ thuật):</strong> Ban Quản lý sẽ chủ động liên hệ để hỗ trợ dời lịch chơi sang khung giờ khác hoàn toàn miễn phí hoặc hoàn trả 100% tiền cọc.
-            </li>
-          </ul>
-
-          <h2 style={{ fontSize: 20, color: '#173c32', margin: '24px 0 12px' }}>3. Check-in & Thanh toán phần còn lại</h2>
-          <p>
-            Khi đến sân, người chơi mở vé điện tử trên ứng dụng/website để nhân viên lễ tân quét mã QR xác nhận. Số tiền còn lại của đơn đặt sân (sau khi trừ cọc) sẽ được thanh toán trực tiếp tại quầy bằng tiền mặt hoặc chuyển khoản ngân hàng trước khi vào sân.
-          </p>
-        </div>
-      )}
+      {/* Nội dung 3 tab: dữ liệu song ngữ, mỗi mục là { h: tiêu đề, p?: đoạn văn, li?: danh sách } */}
+      <div
+        style={{
+          background: '#ffffff',
+          border: '1px solid #d5dcce',
+          borderRadius: 12,
+          padding: '32px 36px',
+          lineHeight: 1.8,
+          fontSize: 14,
+          color: '#27382f',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.03)'
+        }}
+      >
+        {(POLICY_TEXT[lang === 'en' ? 'en' : 'vi'][tab] || []).map((sec, i) => (
+          <React.Fragment key={sec.h}>
+            <h2 style={{ fontSize: 20, color: '#173c32', margin: i === 0 ? '0 0 12px' : '24px 0 12px' }}>{sec.h}</h2>
+            {sec.p && <p>{sec.p}</p>}
+            {sec.li && (
+              <ul style={{ paddingLeft: 22, margin: '8px 0 18px' }}>
+                {sec.li.map(item => (
+                  <li key={item}>
+                    {item.includes('::') ? <><strong>{item.split('::')[0]}:</strong>{item.split('::')[1]}</> : item}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
     </section>
   );
 }
+
+// Văn bản chính sách song ngữ. Mốc hoàn cọc khớp với quy tắc hủy đơn ở backend (OrderApplicationService).
+const POLICY_TEXT = {
+  vi: {
+    privacy: [
+      { h: '1. Mục đích thu thập thông tin', p: 'Câu lạc bộ Courtly thu thập thông tin cá nhân (họ tên, số điện thoại, email) nhằm phục vụ các mục đích chính đáng sau:',
+        li: ['Xác thực và cấp quyền truy cập tài khoản đặt sân trực tuyến.', 'Gửi thông báo xác nhận giữ chỗ, mã vé điện tử QR check-in vào sân.',
+          'Liên hệ khẩn cấp trong trường hợp thay đổi lịch sân do điều kiện thời tiết hoặc bảo trì kỹ thuật.',
+          'Gửi thông báo ưu đãi thành viên, voucher và thông tin giải đấu khi người dùng đồng ý nhận tin.'] },
+      { h: '2. Phạm vi sử dụng & Bảo mật thông tin', p: 'Courtly bảo mật thông tin khách hàng bằng các biện pháp an toàn dữ liệu (mã hóa đường truyền SSL/TLS, phân quyền truy cập). Chúng tôi không chia sẻ, bán hoặc chuyển giao thông tin của quý khách cho bên thứ ba vì mục đích thương mại, ngoại trừ yêu cầu từ cơ quan có thẩm quyền theo quy định của pháp luật.' },
+      { h: '3. Quyền của khách hàng đối với dữ liệu cá nhân', p: 'Quý khách có quyền kiểm tra, cập nhật hoặc yêu cầu xóa thông tin cá nhân bất kỳ lúc nào qua mục Hồ sơ của tôi trên website, hoặc liên hệ Ban Quản lý Câu lạc bộ qua email/hotline chính thức. Quý khách có thể tắt nhận tin khuyến mãi trong Hồ sơ hoặc qua liên kết hủy nhận tin ở cuối mỗi email.' }
+    ],
+    rules: [
+      { h: '1. Quy định trang phục & Giày thi đấu', li: [
+        'Giày tennis chuyên dụng::  bắt buộc mang giày đế non-marking (không để lại vết đen) khi vào tất cả các khu sân (Khu A, Khu B và Khu VIP) để bảo vệ lớp sơn đệm mặt sân.',
+        'Mặc trang phục thể thao lịch sự, phù hợp với hoạt động quần vợt.'] },
+      { h: '2. An ninh & Văn hóa ứng xử trên sân', li: [
+        'Nghiêm cấm hút thuốc, sử dụng chất kích thích hoặc mang đồ ăn nhiều dầu mỡ vào khu vực thi đấu.',
+        'Không xả rác; vỏ chai nước và bóng hỏng bỏ đúng thùng rác đặt cạnh ghế nghỉ.',
+        'Giữ gìn vệ sinh chung tại phòng thay đồ, tủ locker và phòng tắm.',
+        'Tôn trọng đối thủ, trọng tài và người chơi ở sân bên cạnh; không gây ồn ào ảnh hưởng trận đấu khác.'] },
+      { h: '3. Thời gian thi đấu & Bàn giao sân', li: [
+        'Có mặt trước giờ chơi 10–15 phút để check-in tại quầy và khởi động.',
+        'Hết giờ, vui lòng dọn bóng, vật dụng cá nhân và bàn giao sân đúng giờ cho lượt khách sau.',
+        'Muốn chơi thêm, liên hệ lễ tân hoặc dùng tính năng Gia hạn giờ chơi trên website nếu sân còn trống.'] }
+    ],
+    booking: [
+      { h: '1. Đặt sân & Đặt cọc giữ chỗ', p: 'Khi đặt sân trực tuyến, khách thanh toán tiền cọc 50% tiền sân trong vòng 5 phút kể từ khi tạo đơn (VietQR) hoặc chọn thanh toán tiền mặt tại quầy. Quá thời gian giữ chỗ, hệ thống tự động mở lại khung giờ cho khách khác.' },
+      { h: '2. Quy định Hủy đơn & Hoàn tiền cọc', li: [
+        'Hủy trước giờ chơi trên 24 tiếng:: hoàn 100% tiền cọc đã đóng.',
+        'Hủy trước giờ chơi từ 12 đến 24 tiếng:: hoàn 50% tiền cọc.',
+        'Hủy dưới 12 tiếng trước giờ chơi:: không hoàn cọc, do sân đã được giữ riêng cho quý khách và không kịp xếp lượt khách khác.',
+        'Trường hợp bất khả kháng (mưa lớn với sân ngoài trời Khu A, sự cố kỹ thuật):: Ban Quản lý liên hệ để dời lịch miễn phí hoặc hoàn 100% tiền cọc.'] },
+      { h: '3. Check-in & Thanh toán phần còn lại', p: 'Khi đến sân, mở vé điện tử trên website để lễ tân quét mã QR. Số tiền còn lại (sau khi trừ cọc) thanh toán tại quầy bằng tiền mặt hoặc chuyển khoản khi check-out.' }
+    ]
+  },
+  en: {
+    privacy: [
+      { h: '1. Why we collect information', p: 'Courtly Tennis Club collects personal information (name, phone number, email) for the following legitimate purposes:',
+        li: ['Verifying your identity and giving you access to your online booking account.', 'Sending booking confirmations and your QR check-in e-ticket.',
+          'Contacting you urgently if your court time changes because of weather or maintenance.',
+          'Sending member offers, vouchers and tournament news when you have opted in.'] },
+      { h: '2. Use & Security of information', p: 'Courtly protects customer information with data security measures (SSL/TLS encryption in transit, role-based access). We do not share, sell or transfer your information to third parties for commercial purposes, except when required by competent authorities under the law.' },
+      { h: '3. Your rights over your personal data', p: 'You can review, update or request deletion of your personal information at any time in My profile on the website, or by contacting the Club Management via our official email/hotline. You can turn off promotional messages in your profile or with the unsubscribe link at the bottom of every email.' }
+    ],
+    rules: [
+      { h: '1. Dress code & Court shoes', li: [
+        'Tennis shoes:: non-marking tennis shoes are required in all court zones (Zone A, Zone B and VIP) to protect the cushioned court surface.',
+        'Wear appropriate sportswear suitable for tennis.'] },
+      { h: '2. Safety & Conduct on court', li: [
+        'No smoking, stimulants or greasy food in the playing area.',
+        'Do not litter; put bottles and dead balls in the bins next to the benches.',
+        'Keep the changing rooms, lockers and showers clean.',
+        'Respect your opponents, referees and players on neighbouring courts; avoid noise that disturbs other matches.'] },
+      { h: '3. Playing time & Court handover', li: [
+        'Arrive 10–15 minutes before your slot to check in at reception and warm up.',
+        'When your time ends, collect your balls and belongings and hand the court over on time for the next booking.',
+        'To keep playing, ask reception or use Extend play time on the website if the court is free.'] }
+    ],
+    booking: [
+      { h: '1. Booking & Deposit', p: 'When booking online, pay a deposit of 50% of the court fee within 5 minutes of creating the booking (VietQR), or choose to pay cash at reception. If the hold expires, the time slot is released to other players automatically.' },
+      { h: '2. Cancellation & Deposit refunds', li: [
+        'More than 24 hours before play:: 100% of the deposit is refunded.',
+        'Between 12 and 24 hours before play:: 50% of the deposit is refunded.',
+        'Less than 12 hours before play:: the deposit is non-refundable, as the court was reserved for you and cannot be re-booked in time.',
+        'Force majeure (heavy rain on outdoor Zone A, technical issues):: Management will contact you to reschedule free of charge or refund 100% of the deposit.'] },
+      { h: '3. Check-in & Remaining balance', p: 'On arrival, open your e-ticket on the website so reception can scan the QR code. The remaining balance (after the deposit) is paid at reception in cash or by bank transfer at check-out.' }
+    ]
+  }
+};

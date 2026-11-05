@@ -3,7 +3,7 @@ import { Title, Panel, Button } from '../components/UI';
 import { api } from '../services/api';
 import { useCourtly } from '../context';
 import { 
-  Bell, Mail, MessageSquare, Smartphone, RefreshCw, 
+  Bell, Mail, MessageSquare, RefreshCw, 
   Search, Filter, CheckCircle2, AlertCircle, Clock, XCircle, ArrowUpRight 
 } from 'lucide-react';
 
@@ -94,7 +94,6 @@ export default function SentNotificationsAdminPage() {
 
   const renderChannelIcon = (ch) => {
     if (ch === 'EMAIL') return <Mail size={16} color="#0284c7" title="Email" />;
-    if (ch === 'SMS') return <Smartphone size={16} color="#16a34a" title="SMS" />;
     return <Bell size={16} color="#d97706" title="In-App" />;
   };
 
@@ -104,7 +103,7 @@ export default function SentNotificationsAdminPage() {
         <div>
           <Title>Thông báo đã gửi</Title>
           <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>
-            Theo dõi nhật ký thông báo tự động (Nhắc lịch, Nhắc nợ, Xác nhận đặt sân) qua Email và SMS.
+            Theo dõi nhật ký thông báo tự động (Nhắc lịch, Nhắc nợ, Xác nhận đặt sân) qua Email và thông báo trong ứng dụng.
           </p>
         </div>
         <Button onClick={loadData} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -131,7 +130,6 @@ export default function SentNotificationsAdminPage() {
         >
           <option value="">Tất cả kênh</option>
           <option value="EMAIL">Email</option>
-          <option value="SMS">SMS</option>
           <option value="IN_APP">In-App Chuông</option>
         </select>
 

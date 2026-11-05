@@ -4,7 +4,6 @@ import com.courtly.entity.Account;
 import com.courtly.entity.Notification;
 import com.courtly.repository.AccountRepository;
 import com.courtly.repository.NotificationRepository;
-import com.courtly.service.sms.SmsService;
 import com.courtly.util.PhoneUtils;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
@@ -25,7 +24,6 @@ public class NotificationService {
   private final NotificationRepository notifications;
   private final AccountRepository accounts;
   private final EmailService emailService;
-  private final SmsService smsService;
   private final JdbcTemplate jdbc;
 
   private static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
@@ -105,13 +103,6 @@ public class NotificationService {
           if (Boolean.FALSE.equals(acc.getNotifyEmail()) || finalRecipient == null || finalRecipient.isBlank()) {
             finalStatus = "SKIPPED";
           }
-        } else if ("SMS".equalsIgnoreCase(channel)) {
-          if (finalRecipient == null || finalRecipient.isBlank()) {
-            finalRecipient = acc.getPhone();
-          }
-          if (Boolean.FALSE.equals(acc.getNotifySms()) || finalRecipient == null || finalRecipient.isBlank()) {
-            finalStatus = "SKIPPED";
-          }
         }
         if ("PROMOTION".equalsIgnoreCase(type) && !Boolean.TRUE.equals(acc.getMarketingConsent())) {
           finalStatus = "SKIPPED";
@@ -120,19 +111,6 @@ public class NotificationService {
     }
 
     Instant finalScheduledAt = scheduledAt != null ? scheduledAt : now();
-
-    // Giờ nghỉ của SMS: 21:00 đến 07:00 ngày hôm sau không gửi SMS (trừ HOLD_EXPIRING)
-    if ("SMS".equalsIgnoreCase(channel) && !"HOLD_EXPIRING".equalsIgnoreCase(type)) {
-      ZonedDateTime zdt = finalScheduledAt.atZone(ZONE);
-      int hour = zdt.getHour();
-      if (hour >= 21) {
-        // Dời sang 07:00 sáng hôm sau
-        finalScheduledAt = zdt.plusDays(1).withHour(7).withMinute(0).withSecond(0).toInstant();
-      } else if (hour < 7) {
-        // Dời sang 07:00 sáng hôm nay
-        finalScheduledAt = zdt.withHour(7).withMinute(0).withSecond(0).toInstant();
-      }
-    }
 
     Notification notif = new Notification();
     notif.setAccountId(accountId);
@@ -226,7 +204,6 @@ public class NotificationService {
   ) {
     String type = "BOOKING_REMINDER_" + window;
     String timeStr = startStr + "–" + endStr + " ngày " + visitDate;
-    String smsBody = "Courtly: Nhac lich " + courtNames + " " + startStr + "-" + endStr + " ngay " + visitDate + ". Ma ve " + orderCode + ". Den som 10p de check-in.";
     String subject = "[Courtly] Nhắc lịch chơi tennis tại " + courtNames + " (" + timeStr + ")";
     String emailHtml = String.format("""
         <div style="font-family:'Segoe UI',sans-serif;max-width:540px;margin:0 auto;padding:24px;background:#fff;border-radius:12px;border:1px solid #dce3df;">
@@ -241,10 +218,6 @@ public class NotificationService {
         </div>
         """, courtNames, timeStr, orderCode);
 
-    // Kênh SMS
-    if (phone != null && !phone.isBlank()) {
-      enqueue(accId, orderId, null, type, "SMS", phone, null, smsBody, now(), dedupeBase + ":SMS");
-    }
     // Kênh EMAIL
     if (email != null && !email.isBlank()) {
       enqueue(accId, orderId, null, type, "EMAIL", email, subject, emailHtml, now(), dedupeBase + ":EMAIL");
@@ -344,13 +317,9 @@ public class NotificationService {
       if (isOverdue) {
         String dedupeBase = "OVERDUE_DEBT:" + orderId + ":" + visitDateIso;
         String formattedDebt = String.format("%,d₫", debt);
-        String smsBody = "Courtly: Don " + orderCode + " con thieu " + formattedDebt + ". Vui long thanh toan tai quay de mo quyen dat san moi.";
         String subject = "[Courtly] Thông báo công nợ đơn đặt sân " + orderCode;
         String emailHtml = "<p>Xin chào quý khách, đơn " + orderCode + " còn số tiền chưa thanh toán là <strong>" + formattedDebt + "</strong>. Vui lòng hoàn tất thanh toán để tiếp tục sử dụng dịch vụ.</p>";
 
-        if (phone != null && !phone.isBlank()) {
-          enqueue(accId, orderId, null, "OVERDUE_DEBT", "SMS", phone, null, smsBody, current, dedupeBase + ":SMS");
-        }
         if (email != null && !email.isBlank()) {
           enqueue(accId, orderId, null, "OVERDUE_DEBT", "EMAIL", email, subject, emailHtml, current, dedupeBase + ":EMAIL");
         }
@@ -397,23 +366,6 @@ public class NotificationService {
               n.setSentAt(current);
             } else {
               handleFailure(n, "SMTP send failed");
-            }
-          }
-          continue;
-        }
-
-        if ("SMS".equalsIgnoreCase(n.getChannel())) {
-          if ("LOG".equalsIgnoreCase(notifyMode)) {
-            log.info("[NOTIFY LOG SMS] To: {} | Body: {}", n.getRecipient(), n.getBody());
-            n.setStatus("SENT (log)");
-            n.setSentAt(current);
-          } else {
-            var res = smsService.send(n.getRecipient(), n.getBody(), n.getType());
-            if (res.success()) {
-              n.setStatus("SENT");
-              n.setSentAt(current);
-            } else {
-              handleFailure(n, res.error());
             }
           }
           continue;
@@ -480,17 +432,10 @@ public class NotificationService {
     String timeStr = startStr + "–" + endStr + " ngày " + visitDate;
 
     String dedupeBase = "MANUAL_REMINDER:" + orderId + ":" + System.currentTimeMillis();
-    String smsBody = "Courtly: Nhac lich " + courtNames + " " + startStr + "-" + endStr + " ngay " + visitDate + ". Ma ve " + orderCode + ". Den som 10p de check-in.";
     String subject = "[Courtly] Nhắc lịch thi đấu tennis tại " + courtNames + " (" + timeStr + ")";
     String emailHtml = "<p>Xin chào quý khách, Courtly xin nhắc lịch chơi tại <strong>" + courtNames + "</strong> (" + timeStr + "). Mã vé: <strong>" + orderCode + "</strong>.</p>";
 
     int count = 0;
-    if ("ALL".equalsIgnoreCase(requestedChannel) || "SMS".equalsIgnoreCase(requestedChannel)) {
-      if (phone != null && !phone.isBlank()) {
-        enqueue(accId, orderId, null, "BOOKING_REMINDER_IMMEDIATE", "SMS", phone, null, smsBody, now(), dedupeBase + ":SMS");
-        count++;
-      }
-    }
     if ("ALL".equalsIgnoreCase(requestedChannel) || "EMAIL".equalsIgnoreCase(requestedChannel)) {
       if (email != null && !email.isBlank()) {
         enqueue(accId, orderId, null, "BOOKING_REMINDER_IMMEDIATE", "EMAIL", email, subject, emailHtml, now(), dedupeBase + ":EMAIL");
@@ -516,12 +461,8 @@ public class NotificationService {
     String dedupe = "BOOKING_CONFIRMED:" + orderId;
     String subject = "[Courtly] Đặt sân thành công – Mã vé " + orderCode;
     String formattedDeposit = String.format("%,d₫", deposit);
-    String sms = "Courtly: Dat san thanh cong " + courtNames + " (" + timeRange + " ngay " + visitDate + "). Ma ve " + orderCode + ". Da coc " + formattedDeposit + ".";
     String html = "<p>Chúc mừng quý khách đã đặt sân thành công tại <strong>" + courtNames + "</strong> (" + timeRange + " ngày " + visitDate + "). Mã vé: <strong>" + orderCode + "</strong>. Đã cọc: <strong>" + formattedDeposit + "</strong>.</p>";
 
-    if (phone != null && !phone.isBlank()) {
-      enqueue(accountId, orderId, null, "BOOKING_CONFIRMED", "SMS", phone, null, sms, now(), dedupe + ":SMS");
-    }
     if (email != null && !email.isBlank()) {
       enqueue(accountId, orderId, null, "BOOKING_CONFIRMED", "EMAIL", email, subject, html, now(), dedupe + ":EMAIL");
     }
@@ -539,12 +480,8 @@ public class NotificationService {
     String dedupe = "REFUND_DONE:" + orderId + ":" + System.currentTimeMillis();
     String formattedAmount = String.format("%,d₫", refundAmount);
     String subject = "[Courtly] Hoàn tiền đơn " + orderCode;
-    String sms = "Courtly: Khoan hoan " + formattedAmount + " cho don " + orderCode + " da duoc thuc hien thanh cong.";
     String html = "<p>Khoản hoàn tiền <strong>" + formattedAmount + "</strong> cho đơn " + orderCode + " đã được xử lý thành công.</p>";
 
-    if (phone != null && !phone.isBlank()) {
-      enqueue(accountId, orderId, null, "REFUND_DONE", "SMS", phone, null, sms, now(), dedupe + ":SMS");
-    }
     if (email != null && !email.isBlank()) {
       enqueue(accountId, orderId, null, "REFUND_DONE", "EMAIL", email, subject, html, now(), dedupe + ":EMAIL");
     }

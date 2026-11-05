@@ -61,7 +61,9 @@ public class ContentService {
           item ->
               !"PUBLISHED".equals(item.get("status"))
                   || (item.get("publishedAt") != null
-                      && Instant.parse((String) item.get("publishedAt")).isAfter(Instant.now())));
+                      && Instant.parse((String) item.get("publishedAt")).isAfter(Instant.now()))
+                  || (item.get("expiresAt") != null
+                      && Instant.parse((String) item.get("expiresAt")).isBefore(Instant.now())));
     for (var item : articles)
       if (item.get("tournamentId") != null)
         tournaments
@@ -296,7 +298,7 @@ public class ContentService {
             var old = docs.get("article:" + id);
             require(parts.length <= 4 || !old.isEmpty(), "Bài viết không tồn tại");
             oneOf((String) b.get("status"), "DRAFT", "PUBLISHED");
-            oneOf((String) b.get("category"), "NEWS", "NOTICE", "TOURNAMENT");
+            oneOf((String) b.get("category"), "NEWS", "NOTICE", "TOURNAMENT", "PROMO");
             String tournament = String.valueOf(b.getOrDefault("tournamentId", ""));
             if (!tournament.isBlank() && !tournament.equals("null")) {
               var t = tournaments.findById(UUID.fromString(tournament)).orElseThrow();
@@ -332,6 +334,10 @@ public class ContentService {
                             ? Instant.now().toString()
                             : old.get("publishedAt"))
                         : null);
+            for (String keep : List.of("campaignId", "expiresAt")) {
+              if (old.get(keep) != null) row.put(keep, old.get(keep));
+            }
+            if ("CAMPAIGN".equals(old.get("source"))) row.put("source", "CAMPAIGN");
             docs.put("article:" + id, row);
             return map("id", id);
           }
@@ -394,10 +400,6 @@ public class ContentService {
             if (target.getEmail() != null) {
               notificationService.enqueue(accId, null, null, "FEEDBACK_REPLY", "EMAIL", target.getEmail(),
                   "[Courtly] Phản hồi đánh giá của bạn", "<p>" + replyText + "</p>", Instant.now(), dedupe + ":EMAIL");
-            }
-            if (target.getPhone() != null) {
-              notificationService.enqueue(accId, null, null, "FEEDBACK_REPLY", "SMS", target.getPhone(),
-                  null, "Courtly tra loi danh gia: " + replyText, Instant.now(), dedupe + ":SMS");
             }
             notificationService.enqueue(accId, null, null, "FEEDBACK_REPLY", "IN_APP", null,
                 "💬 Phản hồi đánh giá", replyText, Instant.now(), dedupe + ":IN_APP");
@@ -580,10 +582,6 @@ public class ContentService {
     if (target.getEmail() != null) {
       notificationService.enqueue(targetAccountId, orderId, null, "COMPENSATION_VOUCHER", "EMAIL", target.getEmail(),
           "[Courtly] Quà xin lỗi & Voucher bồi thường trải nghiệm dịch vụ", "<p>" + sms + "</p>", Instant.now(), dedupe + ":EMAIL");
-    }
-    if (target.getPhone() != null) {
-      notificationService.enqueue(targetAccountId, orderId, null, "COMPENSATION_VOUCHER", "SMS", target.getPhone(),
-          null, sms, Instant.now(), dedupe + ":SMS");
     }
     notificationService.enqueue(targetAccountId, orderId, null, "COMPENSATION_VOUCHER", "IN_APP", null,
         "🎁 Voucher bồi thường trải nghiệm", sms, Instant.now(), dedupe + ":IN_APP");

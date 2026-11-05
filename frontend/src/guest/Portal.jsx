@@ -109,10 +109,6 @@ export default function Portal({session,onSession,onLogout}){
   const [unsubscribeModalOpen, setUnsubscribeModalOpen] = useState(false);
 
   useEffect(() => {
-    api('/public/campaigns/active-banners')
-      .then(data => { if (Array.isArray(data)) setActiveCampaignBanners(data); })
-      .catch(() => {});
-
     if (location.pathname === '/huy-nhan-tin') {
       const params = new URLSearchParams(location.search);
       const token = params.get('token');
@@ -164,6 +160,16 @@ export default function Portal({session,onSession,onLogout}){
         });
   const [debtBannerDismissed, setDebtBannerDismissed] = useState(false);
   const user=session?.authenticated?session.user:null;
+  const [campaignBannerDismissed, setCampaignBannerDismissed] = useState(() => {
+    try { return sessionStorage.getItem('courtly_campaign_banner_dismissed') || ''; } catch { return ''; }
+  });
+
+  // Banner chiến dịch lọc theo nhóm khách của người đang xem (backend tự lọc), nên tải lại khi đổi tài khoản
+  useEffect(() => {
+    api('/public/campaigns/active-banners')
+      .then(data => { if (Array.isArray(data)) setActiveCampaignBanners(data); })
+      .catch(() => {});
+  }, [user?.id]);
 
     useEffect(() => {
     if (user?.id) {
@@ -607,6 +613,33 @@ export default function Portal({session,onSession,onLogout}){
       });
     }
 
+    // Priority 5b: Chiến dịch khuyến mãi đang chạy (kênh BANNER)
+    const campaign = activeCampaignBanners.find(c => c.id !== campaignBannerDismissed);
+    if (campaign) {
+      list.push({
+        key: `campaign-${campaign.id}`,
+        icon: '🎁',
+        accent: '#def46a',
+        bg: 'linear-gradient(90deg, #173c32 0%, #0f2a23 100%)',
+        borderBottom: '1px solid rgba(222, 244, 106, 0.3)',
+        title: campaign.messageTitle || campaign.name,
+        desc: campaign.bannerText,
+        actions: (
+          <button
+            type="button"
+            onClick={() => navigate('booking')}
+            style={{ background: '#def46a', color: '#173c32', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            🎾 {t('Đặt sân ngay')}
+          </button>
+        ),
+        onDismiss: () => {
+          setCampaignBannerDismissed(campaign.id);
+          try { sessionStorage.setItem('courtly_campaign_banner_dismissed', campaign.id); } catch {}
+        }
+      });
+    }
+
     // Priority 6: Giải đấu đang mở
     if (tournamentBannerVisible && !pendingPaymentOrder && featuredTournament) {
       list.push({
@@ -650,7 +683,7 @@ export default function Portal({session,onSession,onLogout}){
   }, [
     overdueDebtOrder, debtBannerDismissed, pendingPaymentOrder, paymentBannerDismissed,
     todayMatch, bannerDismissed, membershipBannerVisible, welcomeBannerVisible,
-    tournamentBannerVisible, featuredTournament, welcomeBannerApplied, personalWelcomeVoucher, user, route, data?.courts, lang
+    tournamentBannerVisible, featuredTournament, activeCampaignBanners, campaignBannerDismissed, welcomeBannerApplied, personalWelcomeVoucher, user, route, data?.courts, lang
   ]);
 
   return (
@@ -740,11 +773,10 @@ export default function Portal({session,onSession,onLogout}){
                   setWelcomeBannerDismissed(false);
                   if (authContext?.targetRoute) { navigate(authContext.targetRoute); } else if (authContext?.from === 'booking' || route === 'booking') {
                     navigate('booking');
-                    setActiveVoucherCode('WELCOME');
                     setWelcomeBannerApplied(true);
-                    notify(t('Chào mừng bạn! Mã ưu đãi WELCOME (-50.000₫) đã được chuẩn bị cho đơn đầu tiên.'));
+                    notify(t('Chào mừng bạn! Voucher chào mừng −50.000₫ đã được thêm vào tài khoản cho đơn đầu tiên.'));
                   } else {
-                    notify(`${t('Chào mừng')} ${s.user.name || t('bạn')}! ${t('Nhận ngay voucher WELCOME giảm 50.000₫ cho đơn đầu tiên.')}`);
+                    notify(`${t('Chào mừng')} ${s.user.name || t('bạn')}! ${t('Voucher chào mừng giảm 50.000₫ đã có trong tài khoản, tự áp dụng cho đơn đầu tiên.')}`);
                   }
                 } else {
                   setShowWelcomeBanner(false);

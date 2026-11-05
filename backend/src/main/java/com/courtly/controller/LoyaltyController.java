@@ -5,6 +5,7 @@ import com.courtly.entity.LoungeVisit;
 import com.courtly.repository.AccountRepository;
 import com.courtly.repository.LoungeVisitRepository;
 import com.courtly.service.AuthService;
+import com.courtly.service.LoyaltyPolicyService;
 import com.courtly.service.LoyaltyService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class LoyaltyController {
 
   private final LoyaltyService loyaltyService;
+  private final LoyaltyPolicyService policyService;
   private final AuthService authService;
   private final AccountRepository accounts;
   private final LoungeVisitRepository loungeVisits;
@@ -42,14 +44,34 @@ public class LoyaltyController {
     return loyaltyService.redeemReward(user.getId(), code);
   }
 
+  /** Chính sách hạng hiện hành (đọc từ dữ liệu, admin chỉnh được). */
   @GetMapping("/public/loyalty/tiers")
   public List<Map<String, Object>> publicTiers() {
-    return List.of(
-        Map.of("tier", "ROOKIE", "name", "Rookie", "spend", 0, "discount", 0, "multiplier", 1.0, "advanceDays", 7, "changes", 0, "gift", "Voucher chào mừng 50k", "birthday", 30000),
-        Map.of("tier", "CHALLENGER", "name", "Challenger", "spend", 3000000, "discount", 3, "multiplier", 1.2, "advanceDays", 10, "changes", 1, "gift", "200 điểm thưởng", "birthday", 60000),
-        Map.of("tier", "MASTERS", "name", "Masters", "spend", 8000000, "discount", 5, "multiplier", 1.5, "advanceDays", 14, "changes", 2, "gift", "500 điểm thưởng", "birthday", 120000, "earlyTournaments", true),
-        Map.of("tier", "GRAND_SLAM", "name", "Grand Slam", "spend", 20000000, "discount", 8, "multiplier", 2.0, "advanceDays", 21, "changes", 4, "gift", "1.000 điểm + Voucher 300k + Thẻ VIP Lounge", "birthday", 250000, "vipLounge", true)
-    );
+    return policyService.publicTiers();
+  }
+
+  /** Chính sách hiện hành + thay đổi sắp có hiệu lực, để giao diện khách hiển thị và báo trước. */
+  @GetMapping("/public/loyalty/policy")
+  public Map<String, Object> publicPolicy() {
+    return policyService.publicPolicy();
+  }
+
+  @GetMapping("/admin/loyalty/policy")
+  @PreAuthorize("hasRole('ADMIN')")
+  public Map<String, Object> adminPolicy() {
+    return policyService.adminView();
+  }
+
+  @PutMapping("/admin/loyalty/policy")
+  @PreAuthorize("hasRole('ADMIN')")
+  public Map<String, Object> schedulePolicy(@RequestBody Map<String, Object> body, HttpServletRequest r) {
+    return policyService.schedule(authService.current(r), body);
+  }
+
+  @DeleteMapping("/admin/loyalty/policy/pending")
+  @PreAuthorize("hasRole('ADMIN')")
+  public Map<String, Object> cancelPendingPolicy(HttpServletRequest r) {
+    return policyService.cancelPending(authService.current(r));
   }
 
   @PostMapping("/loyalty/vip-lounge/scan")

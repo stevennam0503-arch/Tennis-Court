@@ -103,7 +103,7 @@ export default function VouchersPage() {
     }
 
     if (formData.zone) {
-      parts.push(`khu ${formData.zone}`);
+      parts.push(`khu ${({ OUTDOOR: 'Ngoài trời', INDOOR: 'Trong nhà', VIP: 'VIP' })[formData.zone] || formData.zone}`);
     }
 
     if (formData.minTier) {

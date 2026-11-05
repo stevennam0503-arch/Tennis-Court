@@ -10,7 +10,6 @@ import com.courtly.entity.Voucher;
 import com.courtly.exception.BusinessException;
 import com.courtly.repository.AccountRepository;
 import com.courtly.repository.VoucherRepository;
-import com.courtly.service.sms.SmsService;
 import com.courtly.util.PhoneUtils;
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -59,13 +58,12 @@ public class PhoneAuthServiceTest {
     var contexts = mock(HttpSessionSecurityContextRepository.class);
     var documents = mock(DocumentService.class);
     var emails = mock(EmailService.class);
-    var smsService = mock(SmsService.class);
     var demo = mock(DemoAccessPolicy.class);
     var vouchers = mock(VoucherRepository.class);
     var notificationService = mock(NotificationService.class);
 
     var authService = new AuthService(
-        accounts, encoder, contexts, documents, emails, smsService, demo, vouchers, notificationService
+        accounts, encoder, contexts, documents, emails, demo, vouchers, notificationService
     );
 
     var acc = new Account();

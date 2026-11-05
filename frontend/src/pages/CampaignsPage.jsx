@@ -64,29 +64,56 @@ export default function CampaignsPage() {
 
   // Form state
 
-  const [formData, setFormData] = useState({
-
+  const emptyForm = () => ({
     name: '',
-
     description: '',
-
     audience: 'ALL',
-
-    channels: 'EMAIL,SMS,BANNER',
-
+    channels: 'EMAIL,BANNER',
     messageTitle: '',
-
     messageBody: '',
-
     bannerText: '',
-
     budgetLimit: 5000000,
-
     startsAt: '',
-
-    endsAt: ''
-
+    endsAt: '',
+    voucherId: '',
+    news: { enabled: true, title: '', excerpt: '', body: '' }
   });
+  const [formData, setFormData] = useState(emptyForm);
+  const [newsTouched, setNewsTouched] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [showTemplates, setShowTemplates] = useState(false);
+
+  // Tin tức đăng kèm: tự lấy từ tiêu đề/nội dung thông báo cho tới khi người dùng tự sửa
+  const setField = (key, value) => setFormData(prev => {
+    const next = { ...prev, [key]: value };
+    if (!newsTouched && ['messageTitle', 'messageBody', 'bannerText'].includes(key)) {
+      next.news = { ...prev.news, title: next.messageTitle, excerpt: next.bannerText || next.messageTitle, body: next.messageBody };
+    }
+    return next;
+  });
+  const setNews = (key, value) => { setNewsTouched(true); setFormData(prev => ({ ...prev, news: { ...prev.news, [key]: value } })); };
+  const newsRequired = formData.audience === 'ALL';
+
+  const openTemplates = async () => {
+    setShowTemplates(true);
+    if (templates.length === 0) {
+      try { setTemplates(await api('/admin/campaigns/templates')); } catch (err) { notify(err.message); }
+    }
+  };
+  const applyTemplate = tpl => {
+    const voucher = voucherOptions.find(v => v.code === tpl.suggestedVoucher);
+    setFormData({
+      ...emptyForm(),
+      name: tpl.name, description: tpl.description, audience: tpl.audience, audienceFilter: tpl.audienceFilter || '',
+      channels: tpl.channels, messageTitle: tpl.messageTitle, messageBody: tpl.messageBody, bannerText: tpl.bannerText,
+      startsAt: tpl.startsAt, endsAt: tpl.endsAt, voucherId: voucher ? voucher.id : '',
+      news: { ...tpl.news }
+    });
+    setNewsTouched(true);
+    setShowTemplates(false);
+    setShowCreateModal(true);
+  };
+  const openBlank = () => { setFormData(emptyForm()); setNewsTouched(false); setShowCreateModal(true); };
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -155,6 +182,16 @@ export default function CampaignsPage() {
       alert('Vui lòng chọn ít nhất một hạng thành viên áp dụng');
       return;
     }
+    if (formData.startsAt && formData.endsAt && formData.endsAt <= formData.startsAt) {
+      notify('Thời gian kết thúc phải sau thời gian bắt đầu');
+      return;
+    }
+    const news = formData.news || {};
+    const newsOn = newsRequired || news.enabled;
+    if (newsOn && (!news.title?.trim() || !news.excerpt?.trim() || !news.body?.trim())) {
+      notify('Chiến dịch cho tất cả khách cần tin tức đăng kèm: điền đủ tiêu đề, tóm tắt và nội dung tin');
+      return;
+    }
 
 
 
@@ -163,11 +200,9 @@ export default function CampaignsPage() {
       setSubmitting(true);
 
       const payload = {
-
         ...formData,
-
+        news: { ...news, enabled: newsOn },
         status: directRun && isAdmin ? 'RUNNING' : 'DRAFT'
-
       };
 
       await api('/admin/campaigns', 'POST', payload);
@@ -175,30 +210,8 @@ export default function CampaignsPage() {
       notify(`Đã tạo chiến dịch "${formData.name}" thành công`);
 
       setShowCreateModal(false);
-
-      setFormData({
-
-        name: '',
-
-        description: '',
-
-        audience: 'ALL',
-
-        channels: 'EMAIL,SMS,BANNER',
-
-        messageTitle: '',
-
-        messageBody: '',
-
-        bannerText: '',
-
-        budgetLimit: 5000000,
-
-        startsAt: '',
-
-        endsAt: ''
-
-      });
+      setFormData(emptyForm());
+      setNewsTouched(false);
 
       fetchCampaigns();
 
@@ -356,17 +369,18 @@ export default function CampaignsPage() {
 
           <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 13.5 }}>
 
-            Truyền thông quảng bá đa kênh (Email, SMS, Banner), giới hạn ngân sách và đo lường hiệu quả chuyển đổi
+            Truyền thông quảng bá đa kênh (Email, Banner), giới hạn ngân sách và đo lường hiệu quả chuyển đổi
 
           </p>
 
         </div>
 
-        <Button className="primary" onClick={() => setShowCreateModal(true)}>
-
-          <Plus size={16} style={{ display: 'inline', marginRight: 6 }} /> Tạo chiến dịch mới
-
-        </Button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Button onClick={openTemplates}>🗓️ Tạo từ mẫu theo mùa</Button>
+          <Button className="primary" onClick={openBlank}>
+            <Plus size={16} style={{ display: 'inline', marginRight: 6 }} /> Tạo chiến dịch mới
+          </Button>
+        </div>
 
       </div>
 
@@ -380,7 +394,7 @@ export default function CampaignsPage() {
 
         <div>
 
-          <b>Tuân thủ Nghị định 13/2023 & Nghị định 91/2020:</b> Hệ thống tự động chỉ gửi tin cho khách hàng đã đồng ý (marketing consent) và mỗi tin luôn đính kèm liên kết hủy nhận tin. Không gửi tin quảng cáo từ 21:00 đến 07:00.
+          <b>Tuân thủ Nghị định 13/2023 & Nghị định 91/2020:</b> Hệ thống tự động chỉ gửi tin cho khách hàng đã đồng ý (marketing consent) và mỗi tin luôn đính kèm liên kết hủy nhận tin. Chiến dịch có ngày bắt đầu trong tương lai sẽ được lên lịch và tự chạy đúng giờ; hết hạn thì tự kết thúc và gỡ tin tức kèm theo.
 
         </div>
 
@@ -392,7 +406,7 @@ export default function CampaignsPage() {
 
       <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid #e2e8f0', marginBottom: 20, overflowX: 'auto' }}>
 
-        {['ALL', 'RUNNING', 'PENDING_APPROVAL', 'DRAFT', 'ENDED'].map(st => {
+        {['ALL', 'RUNNING', 'SCHEDULED', 'PENDING_APPROVAL', 'DRAFT', 'ENDED'].map(st => {
 
           const count = st === 'ALL' ? campaigns.length : campaigns.filter(c => c.status === st).length;
 
@@ -401,7 +415,7 @@ export default function CampaignsPage() {
             ALL: 'Tất cả',
 
             RUNNING: 'Đang chạy',
-
+            SCHEDULED: 'Đã lên lịch',
             PENDING_APPROVAL: 'Chờ duyệt',
 
             DRAFT: 'Bản nháp',
@@ -518,7 +532,7 @@ export default function CampaignsPage() {
 
                       <div style={{ display: 'flex', gap: 6 }}>
 
-                        {(c.channels || 'EMAIL,SMS,BANNER').split(',').map(ch => (
+                        {(c.channels || 'EMAIL,BANNER').split(',').map(ch => (
 
                           <span key={ch} style={{ fontSize: 11, background: '#f1f5f9', color: '#475569', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>
 
@@ -534,7 +548,7 @@ export default function CampaignsPage() {
 
                     <td style={{ padding: '12px 16px', color: '#334155', fontWeight: 500 }}>
 
-                      {c.audience === 'ALL' ? 'Tất cả khách hàng' : c.audience === 'NEW_CUSTOMERS' ? 'Khách mới (0 đơn)' : c.audience === 'INACTIVE_30D' ? 'Khách chưa chơi 30 ngày' : c.audience === 'NEAR_NEXT_TIER' ? 'Sắp lên hạng (≤ 20%)' : c.audience === 'TIER' ? `Hạng: ${c.audienceFilter || 'Tất cả'}` : c.audience === 'CUSTOM_LIST' ? `Tự chọn (${c.audienceFilter ? c.audienceFilter.split(',').length : 0} người)` : c.audience}
+                      {c.audience === 'ALL' ? 'Tất cả khách hàng' : c.audience === 'NEW_CUSTOMERS' ? 'Khách mới (0 đơn)' : c.audience === 'INACTIVE_30D' ? 'Khách chưa chơi 30 ngày' : c.audience === 'NEAR_NEXT_TIER' ? 'Sắp lên hạng (≤ 20%)' : c.audience === 'TIER' ? `Hạng: ${(c.audienceFilter || '').split(',').filter(Boolean).map(x => ({ ROOKIE: 'Rookie', CHALLENGER: 'Challenger', MASTERS: 'Masters', GRAND_SLAM: 'Grand Slam' })[x.trim()] || x.trim()).join(', ') || 'Tất cả'}` : c.audience === 'CUSTOM_LIST' ? `Tự chọn (${c.audienceFilter ? c.audienceFilter.split(',').length : 0} người)` : c.audience}
 
                     </td>
 
@@ -563,9 +577,18 @@ export default function CampaignsPage() {
                       }}>
 
                         {meta.label}
-
                       </span>
-
+                      {(c.startsAt || c.endsAt) && (
+                        <div style={{ fontSize: 11.5, color: '#64748b', marginTop: 4, minWidth: 150 }}>
+                          {c.status === 'SCHEDULED' ? 'Chạy lúc ' : ''}{c.startsAt ? new Date(c.startsAt).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }) : '…'}
+                          {' → '}{c.endsAt ? new Date(c.endsAt).toLocaleDateString('vi-VN') : 'không giới hạn'}
+                        </div>
+                      )}
+                      {c.news && (
+                        <div style={{ fontSize: 11.5, marginTop: 3, color: c.news.status === 'PUBLISHED' ? '#15803d' : '#64748b' }}>
+                          📰 {c.news.status === 'PUBLISHED' ? 'Tin tức đang hiển thị' : 'Tin tức đăng khi chiến dịch chạy'}
+                        </div>
+                      )}
                     </td>
 
                     <td style={{ padding: '12px 16px', textAlign: 'right' }}>
@@ -802,13 +825,43 @@ export default function CampaignsPage() {
 
       {/* CREATE CAMPAIGN MODAL */}
 
+      {showTemplates && (
+        <Modal onClose={() => setShowTemplates(false)}>
+          <div style={{ minWidth: 460, maxWidth: 620, padding: 8 }}>
+            <h3 style={{ margin: '0 0 6px', fontSize: 17, fontWeight: 800 }}>Mẫu chiến dịch theo mùa</h3>
+            <p style={{ margin: '0 0 14px', fontSize: 13, color: '#64748b' }}>
+              Ngày được tính sẵn cho lần diễn ra tiếp theo. Chọn mẫu để mở form đã điền sẵn nội dung, voucher gợi ý và tin tức; kiểm tra lại rồi lưu và gửi duyệt.
+            </p>
+            {templates.length === 0 ? <p style={{ fontSize: 13 }}>Đang tải mẫu…</p> : (
+              <div style={{ display: 'grid', gap: 10 }}>
+                {templates.map(tpl => (
+                  <button key={tpl.key} type="button" onClick={() => applyTemplate(tpl)}
+                    style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 12, alignItems: 'center', textAlign: 'left', padding: '12px 14px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer' }}>
+                    <span style={{ fontSize: 26 }}>{tpl.icon}</span>
+                    <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+                      <b style={{ fontSize: 14, color: '#0f172a' }}>{tpl.name}</b>
+                      <span style={{ fontSize: 12, color: '#64748b' }}>
+                        {new Date(tpl.startsAt).toLocaleDateString('vi-VN')} → {new Date(tpl.endsAt).toLocaleDateString('vi-VN')}
+                        {' · '}{tpl.audience === 'ALL' ? 'Tất cả khách' : 'Hạng Masters & Grand Slam'}
+                        {tpl.suggestedVoucher ? ` · gợi ý mã ${tpl.suggestedVoucher}` : ''}
+                        {tpl.news?.enabled ? ' · có tin tức' : ''}
+                      </span>
+                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#0369a1' }}>Dùng mẫu →</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
       {showCreateModal && (
 
         <Modal onClose={() => setShowCreateModal(false)}>
 
           <form onSubmit={e => handleCreateSubmit(e, false)} style={{ minWidth: 460, maxWidth: 540, padding: 8 }}>
 
-            <h3 style={{ margin: '0 0 16px', fontSize: 17, fontWeight: 800 }}>Tạo chiến dịch truyền thông mới</h3>
+            <h3 style={{ margin: '0 0 16px', fontSize: 17, fontWeight: 800 }}>{formData.description?.startsWith('Tạo từ mẫu') ? 'Chiến dịch từ mẫu: kiểm tra rồi lưu' : 'Tạo chiến dịch truyền thông mới'}</h3>
 
 
 
@@ -980,8 +1033,22 @@ export default function CampaignsPage() {
 
 
 
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+              <label style={{ display: 'grid', gap: 4, fontSize: 13, fontWeight: 600 }}>
+                Bắt đầu
+                <input type="datetime-local" value={formData.startsAt || ''} onChange={e => setFormData({ ...formData, startsAt: e.target.value })}
+                  style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }} />
+              </label>
+              <label style={{ display: 'grid', gap: 4, fontSize: 13, fontWeight: 600 }}>
+                Kết thúc
+                <input type="datetime-local" value={formData.endsAt || ''} onChange={e => setFormData({ ...formData, endsAt: e.target.value })}
+                  style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }} />
+              </label>
+              <small style={{ gridColumn: '1 / -1', color: '#64748b', fontSize: 12 }}>
+                Để trống "Bắt đầu" thì chạy ngay khi duyệt. Ngày bắt đầu trong tương lai: duyệt xong chiến dịch được lên lịch và tự chạy đúng giờ.
+              </small>
+            </div>
             <div style={{ marginBottom: 12 }}>
-
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Voucher đính kèm chiến dịch (tùy chọn):</label>
 
               <select
@@ -1018,7 +1085,7 @@ export default function CampaignsPage() {
 
               <div style={{ display: 'flex', gap: 14 }}>
 
-                {['EMAIL', 'SMS', 'BANNER'].map(ch => {
+                {['EMAIL', 'BANNER'].map(ch => {
 
                   const checked = formData.channels.includes(ch);
 
@@ -1072,7 +1139,7 @@ export default function CampaignsPage() {
 
                 value={formData.messageTitle}
 
-                onChange={e => setFormData({ ...formData, messageTitle: e.target.value })}
+                onChange={e => setField('messageTitle', e.target.value)}
 
                 style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
 
@@ -1084,7 +1151,7 @@ export default function CampaignsPage() {
 
             <div style={{ marginBottom: 12 }}>
 
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Nội dung thông báo (Email / SMS):</label>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Nội dung thông báo (Email):</label>
 
               <textarea
 
@@ -1094,7 +1161,7 @@ export default function CampaignsPage() {
 
                 value={formData.messageBody}
 
-                onChange={e => setFormData({ ...formData, messageBody: e.target.value })}
+                onChange={e => setField('messageBody', e.target.value)}
 
                 style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
 
@@ -1116,7 +1183,7 @@ export default function CampaignsPage() {
 
                 value={formData.bannerText}
 
-                onChange={e => setFormData({ ...formData, bannerText: e.target.value })}
+                onChange={e => setField('bannerText', e.target.value)}
 
                 style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}
 
@@ -1126,8 +1193,31 @@ export default function CampaignsPage() {
 
 
 
+            <fieldset style={{ border: '1px solid #cfe3d6', background: '#f6fbf7', borderRadius: 10, padding: '12px 14px', margin: '0 0 16px' }}>
+              <legend style={{ fontSize: 13, fontWeight: 700, padding: '0 6px', color: '#14532d' }}>📰 Tin tức đăng kèm trên trang Tin tức</legend>
+              {newsRequired ? (
+                <p style={{ margin: '0 0 10px', fontSize: 12.5, color: '#166534' }}>
+                  Bắt buộc với chiến dịch gửi tới tất cả khách. Tin tự đăng khi chiến dịch bắt đầu chạy và tự gỡ khi kết thúc.
+                </p>
+              ) : (
+                <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5, marginBottom: 10, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={Boolean(formData.news?.enabled)} onChange={e => setNews('enabled', e.target.checked)} />
+                  Đăng tin công khai (ưu đãi riêng cho một nhóm khách thường không cần đăng)
+                </label>
+              )}
+              {(newsRequired || formData.news?.enabled) && (
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <input type="text" maxLength={160} placeholder="Tiêu đề tin" value={formData.news?.title || ''} onChange={e => setNews('title', e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }} />
+                  <input type="text" maxLength={400} placeholder="Tóm tắt (hiện trên thẻ tin)" value={formData.news?.excerpt || ''} onChange={e => setNews('excerpt', e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }} />
+                  <textarea rows={4} maxLength={12000} placeholder="Nội dung bài tin: ưu đãi, thời gian, cách dùng mã…" value={formData.news?.body || ''} onChange={e => setNews('body', e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }} />
+                  {!newsTouched && <small style={{ color: '#64748b', fontSize: 11.5 }}>Đang tự điền từ tiêu đề, banner và nội dung thông báo. Sửa ở đây để viết riêng cho trang tin.</small>}
+                </div>
+              )}
+            </fieldset>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-
               <Button type="button" onClick={() => setShowCreateModal(false)} disabled={submitting}>
 
                 Hủy

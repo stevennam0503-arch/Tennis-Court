@@ -7,6 +7,8 @@ import {
 import { useCourtly } from '../context';
 import { api } from '../services/api';
 import { money } from '../utils/format';
+import { useTierPolicy, fmtDiscount, fmtMultiplier, fmtDate, TIER_NAMES } from '../utils/tierPolicy';
+import { useI18n } from '../utils/i18n';
 
 const TIER_META = {
   ROOKIE: { label: 'Rookie', color: '#64748b', bg: '#f1f5f9', border: '#cbd5e1', icon: '🎾', discount: '0%', multiplier: '×1,0', next: 'CHALLENGER', target: 3000000 },
@@ -24,6 +26,8 @@ export default function MyLoyalty() {
   const [rewards, setRewards] = useState([]);
   const [redeemBusy, setRedeemBusy] = useState(false);
   const [redeemMsg, setRedeemMsg] = useState('');
+  const { tiers: policyTiers, pending: pendingPolicy } = useTierPolicy();
+  const { t, isEn } = useI18n();
 
   useEffect(() => {
     const fetchLoyalty = async () => {
@@ -57,7 +61,7 @@ export default function MyLoyalty() {
     setRedeemMsg('');
     try {
       const resJson = await api(`/loyalty/rewards/${rewardCode}/redeem`, 'POST');
-      setRedeemMsg(`🎉 Đổi thành công! Mã voucher: ${resJson.voucherCode} (Đã trừ ${resJson.pointsSpent} điểm)`);
+      setRedeemMsg(isEn ? `🎉 Redeemed! Voucher code: ${resJson.voucherCode} (${resJson.pointsSpent} points used)` : `🎉 Đổi thành công! Mã voucher: ${resJson.voucherCode} (Đã trừ ${resJson.pointsSpent} điểm)`);
       const lJson = await api('/loyalty/my');
       if (lJson) setData(lJson);
     } catch (err) {
@@ -75,18 +79,31 @@ export default function MyLoyalty() {
   };
 
   if (loading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>Đang tải thông tin thành viên…</div>;
+    return <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>{t('Đang tải thông tin thành viên…')}</div>;
   }
 
   if (!data) {
-    return <div style={{ padding: 40, textAlign: 'center', color: '#ef4444' }}>Không thể kết nối thông tin thành viên.</div>;
+    return <div style={{ padding: 40, textAlign: 'center', color: '#ef4444' }}>{t('Không thể kết nối thông tin thành viên.')}</div>;
   }
 
   const currentTier = data.tier || 'ROOKIE';
-  const meta = TIER_META[currentTier] || TIER_META.ROOKIE;
+  const baseMeta = TIER_META[currentTier] || TIER_META.ROOKIE;
+  // Con số quyền lợi lấy từ chính sách hạng hiện hành (admin chỉnh được), không viết cứng
+  const rule = policyTiers[currentTier] || policyTiers.ROOKIE;
+  const meta = {
+    ...baseMeta,
+    discount: fmtDiscount(rule.discount),
+    multiplier: fmtMultiplier(rule.multiplier),
+    target: baseMeta.next ? policyTiers[baseMeta.next].spend : rule.spend
+  };
+  const pendingRule = pendingPolicy?.tiers?.[currentTier];
+  const pendingNextSpend = baseMeta.next ? pendingPolicy?.tiers?.[baseMeta.next]?.spend : null;
+  // Chỉ báo khi quyền lợi hạng của khách hoặc ngưỡng lên hạng kế tiếp thực sự thay đổi
+  const pendingChanged = Boolean(pendingRule) && (['discount', 'multiplier', 'advanceDays', 'changes', 'birthday'].some(k => Number(pendingRule[k]) !== Number(rule[k]))
+    || (pendingNextSpend != null && Number(pendingNextSpend) !== Number(meta.target)));
   const spend = data.spend12m != null ? data.spend12m : (data.spend12Month || 0);
   const nextTarget = meta.target;
-  const progressPct = meta.next ? Math.min(100, Math.round((spend / nextTarget) * 100)) : 100;
+  const progressPct = meta.next ? Math.min(100, Math.floor((spend / nextTarget) * 100)) : 100;
   const needed = meta.next ? Math.max(0, nextTarget - spend) : 0;
 
   return (
@@ -124,21 +141,21 @@ export default function MyLoyalty() {
               letterSpacing: '0.04em',
               textTransform: 'uppercase'
             }}>
-              <span>{meta.icon}</span> HẠNG THÀNH VIÊN {meta.label}
+              <span>{meta.icon}</span> {t('HẠNG THÀNH VIÊN')} {meta.label}
             </span>
             <h2 style={{ fontSize: 26, fontWeight: 800, margin: '12px 0 4px', color: '#fff' }}>
               {data.name || user?.name}
             </h2>
             <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>
               {data.tierExpiresAt 
-                ? `Hạn giữ hạng: ${new Date(data.tierExpiresAt).toLocaleDateString('vi-VN')}` 
-                : 'Thành viên CLB Tennis Courtly'}
+                ? `${t('Hạn giữ hạng:')} ${new Date(data.tierExpiresAt).toLocaleDateString(isEn ? 'en-GB' : 'vi-VN')}` 
+                : t('Thành viên CLB Tennis Courtly')}
             </p>
           </div>
 
           <div style={{ textAlign: 'right', background: 'rgba(255,255,255,0.1)', padding: '12px 20px', borderRadius: 12 }}>
             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Điểm khả dụng
+              {t('Điểm khả dụng')}
             </span>
             <div style={{ fontSize: 30, fontWeight: 900, color: '#fef08a', marginTop: 2 }}>
               {data.pointsBalance || 0} <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>pts</span>
@@ -152,13 +169,13 @@ export default function MyLoyalty() {
         {/* TIER PERKS SUMMARY PILLS */}
         <div style={{ display: 'flex', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
           <div style={{ background: 'rgba(255,255,255,0.14)', padding: '6px 12px', borderRadius: 8, fontSize: 12.5, fontWeight: 600 }}>
-            🎾 Giảm tiền sân: <b style={{ color: '#86efac' }}>{meta.discount}</b>
+            🎾 {t('Giảm tiền sân:')} <b style={{ color: '#86efac' }}>{meta.discount}</b>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.14)', padding: '6px 12px', borderRadius: 8, fontSize: 12.5, fontWeight: 600 }}>
-            ⭐ Tích điểm: <b style={{ color: '#fef08a' }}>{meta.multiplier}</b>
+            ⭐ {t('Tích điểm:')} <b style={{ color: '#fef08a' }}>{meta.multiplier}</b>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.14)', padding: '6px 12px', borderRadius: 8, fontSize: 12.5, fontWeight: 600 }}>
-            📅 Đặt trước: <b>{meta.label === 'Grand Slam' ? '21 ngày' : meta.label === 'Masters' ? '14 ngày' : meta.label === 'Challenger' ? '10 ngày' : '7 ngày'}</b>
+            📅 {t('Đặt trước:')} <b>{rule.advanceDays} {isEn ? 'days' : 'ngày'}</b>
           </div>
           {currentTier === 'GRAND_SLAM' && (
             <div style={{ background: '#f59e0b', color: '#78350f', padding: '6px 12px', borderRadius: 8, fontSize: 12.5, fontWeight: 800 }}>
@@ -168,15 +185,25 @@ export default function MyLoyalty() {
         </div>
       </div>
 
+      {pendingChanged && (
+        <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 12, padding: '12px 16px', fontSize: 13, color: '#92400e', lineHeight: 1.55 }}>
+          {isEn
+            ? <>📣 From <b>{fmtDate(pendingPolicy.effectiveFrom)}</b>, {TIER_NAMES[currentTier]} benefits will be: {pendingRule.discount}% off court fees, {Number(pendingRule.multiplier).toFixed(1)}x points, book {pendingRule.advanceDays} days ahead, {pendingRule.changes} free reschedule(s)/month.</>
+            : <>📣 Từ <b>{fmtDate(pendingPolicy.effectiveFrom)}</b>, quyền lợi hạng {TIER_NAMES[currentTier]} là: giảm {String(pendingRule.discount).replace('.', ',')}% tiền sân, tích điểm {fmtMultiplier(pendingRule.multiplier)}, đặt trước {pendingRule.advanceDays} ngày, {pendingRule.changes} lần đổi lịch miễn phí/tháng.</>}
+          {' '}{pendingNextSpend != null && Number(pendingNextSpend) !== Number(meta.target) && <>{t('Ngưỡng lên hạng')} {TIER_NAMES[baseMeta.next]}: {money(pendingNextSpend)}. </>}
+          {t('Hạng hiện tại của bạn được giữ tới kỳ xét hạng.')}
+        </div>
+      )}
+
       {/* 2. PROGRESS TO NEXT TIER */}
       {meta.next && (
         <div style={{ background: '#fff', padding: 20, borderRadius: 14, border: '1px solid #e2e8f0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>
-              Tiến độ thăng hạng {TIER_META[meta.next].label}
+              {t('Tiến độ thăng hạng')} {TIER_META[meta.next].label}
             </span>
             <span style={{ fontSize: 13, color: '#64748b' }}>
-              Chi tiêu 12 tháng: <b>{money(spend)}</b> / {money(nextTarget)}
+              {t('Chi tiêu 12 tháng:')} <b>{money(spend)}</b> / {money(nextTarget)}
             </span>
           </div>
           
@@ -193,8 +220,8 @@ export default function MyLoyalty() {
           </div>
 
           <div style={{ fontSize: 13, color: '#475569', display: 'flex', justifyContent: 'space-between' }}>
-            <span>Đã đạt <b>{progressPct}%</b></span>
-            <span>Còn thiếu <b style={{ color: '#dc2626' }}>{money(needed)}</b> để lên hạng {TIER_META[meta.next].label}</span>
+            <span>{t('Đã đạt')} <b>{progressPct}%</b></span>
+            <span>{t('Còn thiếu')} <b style={{ color: '#dc2626' }}>{money(needed)}</b> {t('để lên hạng')} {TIER_META[meta.next].label}</span>
           </div>
         </div>
       )}
@@ -213,17 +240,17 @@ export default function MyLoyalty() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 20 }}>
             <div style={{ flex: 1, minWidth: 260 }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#d97706', color: '#fff', padding: '3px 10px', borderRadius: 12, fontSize: 12, fontWeight: 800 }}>
-                <span>👑</span> ĐẶC QUYỀN GRAND SLAM
+                <span>👑</span> {t('ĐẶC QUYỀN GRAND SLAM')}
               </div>
               <h3 style={{ fontSize: 20, fontWeight: 800, color: '#78350f', margin: '10px 0 6px' }}>
-                Thẻ VIP Lounge Điện Tử
+                {t('Thẻ VIP Lounge Điện Tử')}
               </h3>
               <p style={{ margin: 0, fontSize: 13.5, color: '#92400e', lineHeight: 1.5 }}>
-                Quý khách được sử dụng phòng chờ VIP sang trọng với trà, cà phê và wifi tốc độ cao miễn phí.
+                {t('Quý khách được sử dụng phòng chờ VIP sang trọng với trà, cà phê và wifi tốc độ cao miễn phí.')}
               </p>
               
               <div style={{ marginTop: 16, background: '#fff', padding: '10px 14px', borderRadius: 8, border: '1px solid #fde68a', display: 'inline-block' }}>
-                <div style={{ fontSize: 11.5, color: '#78350f', textTransform: 'uppercase', fontWeight: 600 }}>Mã thẻ VIP</div>
+                <div style={{ fontSize: 11.5, color: '#78350f', textTransform: 'uppercase', fontWeight: 600 }}>{t('Mã thẻ VIP')}</div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', letterSpacing: '0.05em' }}>
                   {data.vipCard.code}
                 </div>
@@ -232,9 +259,9 @@ export default function MyLoyalty() {
 
             {vipQrUrl && (
               <div style={{ textAlign: 'center', background: '#fff', padding: 14, borderRadius: 12, border: '1px solid #fde68a' }}>
-                <img src={vipQrUrl} alt="Mã QR VIP Lounge" style={{ width: 140, height: 140, display: 'block', margin: '0 auto' }} />
+                <img src={vipQrUrl} alt={t('Mã QR VIP Lounge')} style={{ width: 140, height: 140, display: 'block', margin: '0 auto' }} />
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#92400e', display: 'block', marginTop: 6 }}>
-                  Quét QR tại quầy để vào phòng
+                  {t('Quét QR tại quầy để vào phòng')}
                 </span>
               </div>
             )}
@@ -247,7 +274,7 @@ export default function MyLoyalty() {
         <div style={{ background: '#fff7ed', border: '1px solid #fdba74', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, color: '#9a3412' }}>
           <Clock size={20} style={{ flexShrink: 0 }} />
           <div style={{ fontSize: 13.5 }}>
-            Bạn có <b>{data.expiringSoonPoints} điểm</b> sẽ hết hạn trong 30 ngày tới. Hãy sử dụng khi đặt sân hoặc đổi dịch vụ!
+            {isEn ? <>You have <b>{data.expiringSoonPoints} points</b> expiring in the next 30 days. Use them when booking or redeem a reward!</> : <>Bạn có <b>{data.expiringSoonPoints} điểm</b> sẽ hết hạn trong 30 ngày tới. Hãy sử dụng khi đặt sân hoặc đổi dịch vụ!</>}
           </div>
         </div>
       )}
@@ -257,14 +284,14 @@ export default function MyLoyalty() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>🎁</span> Danh mục đổi điểm lấy quà & dịch vụ
+              <span>🎁</span> {t('Danh mục đổi điểm lấy quà & dịch vụ')}
             </h3>
             <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
-              Dùng điểm thưởng tích lũy để đổi các voucher dịch vụ độc quyền (hạn dùng 60 ngày).
+              {t('Dùng điểm thưởng tích lũy để đổi các voucher dịch vụ độc quyền (hạn dùng 60 ngày).')}
             </p>
           </div>
           <div style={{ fontSize: 13, color: '#059669', fontWeight: 700, background: '#ecfdf5', padding: '6px 12px', borderRadius: 20 }}>
-            Điểm của bạn: {data.pointsBalance || 0} pts
+            {t('Điểm của bạn:')} {(data.pointsBalance || 0).toLocaleString('vi-VN')} pts
           </div>
         </div>
 
@@ -314,10 +341,10 @@ export default function MyLoyalty() {
                     </strong>
                   </div>
                   <h4 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 700, color: '#1e293b' }}>
-                    {r.name}
+                    {t(r.name)}
                   </h4>
                   <p style={{ margin: 0, fontSize: 12.5, color: '#64748b', lineHeight: 1.4 }}>
-                    {r.description}
+                    {t(r.description)}
                   </p>
                 </div>
 
@@ -339,7 +366,7 @@ export default function MyLoyalty() {
                     transition: 'all 0.15s'
                   }}
                 >
-                  {redeemBusy ? 'Đang đổi…' : canAfford ? 'Đổi quà ngay' : `Thiếu ${(r.points - (data.pointsBalance || 0)).toLocaleString()} pts`}
+                  {redeemBusy ? t('Đang đổi…') : canAfford ? t('Đổi quà ngay') : `${t('Thiếu')} ${(r.points - (data.pointsBalance || 0)).toLocaleString('vi-VN')} pts`}
                 </button>
               </div>
             );
@@ -352,16 +379,16 @@ export default function MyLoyalty() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h4 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
-              Mã giới thiệu bạn bè
+              {t('Mã giới thiệu bạn bè')}
             </h4>
             <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
-              Tặng bạn bè trải nghiệm và nhận ngay <b>+200 điểm thưởng</b> khi người được giới thiệu hoàn tất buổi chơi đầu tiên!
+              {isEn ? <>Invite friends and get <b>+200 bonus points</b> when they complete their first session!</> : <>Tặng bạn bè trải nghiệm và nhận ngay <b>+200 điểm thưởng</b> khi người được giới thiệu hoàn tất buổi chơi đầu tiên!</>}
             </p>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <code style={{ background: '#f1f5f9', padding: '8px 14px', borderRadius: 8, fontSize: 15, fontWeight: 800, color: '#0f172a' }}>
-              {data.referralCode || 'CHƯA TẠO'}
+              {data.referralCode || t('CHƯA TẠO')}
             </code>
             <button
               type="button"
@@ -380,7 +407,7 @@ export default function MyLoyalty() {
               }}
             >
               {copiedRef ? <Check size={16} color="#16a34a" /> : <Copy size={16} />}
-              {copiedRef ? 'Đã sao chép' : 'Sao chép mã'}
+              {copiedRef ? t('Đã sao chép') : t('Sao chép mã')}
             </button>
           </div>
         </div>
@@ -389,12 +416,12 @@ export default function MyLoyalty() {
       {/* 6. RECENT LEDGER TRANSACTIONS */}
       <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', fontWeight: 700, fontSize: 15, color: '#0f172a' }}>
-          Lịch sử giao dịch điểm gần đây
+          {t('Lịch sử giao dịch điểm gần đây')}
         </div>
         
         {(!data.history || data.history.length === 0) ? (
           <div style={{ padding: 28, textAlign: 'center', color: '#94a3b8', fontSize: 13.5 }}>
-            Chưa có giao dịch tích lũy hoặc đổi điểm nào.
+            {t('Chưa có giao dịch tích lũy hoặc đổi điểm nào.')}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column' }}>

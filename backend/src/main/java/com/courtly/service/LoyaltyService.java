@@ -30,6 +30,7 @@ public class LoyaltyService {
   private final NotificationService notificationService;
   private final AuditService auditService;
   private final DocumentService documents;
+  private final LoyaltyPolicyService policy;
 
   private static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
   private Clock clock = Clock.system(ZONE);
@@ -58,52 +59,23 @@ public class LoyaltyService {
   // =========================================================================
 
   public double getTierDiscountPercent(String rawTier) {
-    String tier = rawTier != null ? rawTier.toUpperCase(Locale.ROOT) : "ROOKIE";
-    return switch (tier) {
-      case "GRAND_SLAM" -> 8.0;
-      case "MASTERS" -> 5.0;
-      case "CHALLENGER" -> 3.0;
-      default -> 0.0;
-    };
+    return policy.num(rawTier, "discount");
   }
 
   public double getTierMultiplier(String rawTier) {
-    String tier = rawTier != null ? rawTier.toUpperCase(Locale.ROOT) : "ROOKIE";
-    return switch (tier) {
-      case "GRAND_SLAM" -> 2.0;
-      case "MASTERS" -> 1.5;
-      case "CHALLENGER" -> 1.2;
-      default -> 1.0;
-    };
+    return policy.num(rawTier, "multiplier");
   }
 
   public int getBookingWindowDays(String rawTier) {
-    String tier = rawTier != null ? rawTier.toUpperCase(Locale.ROOT) : "ROOKIE";
-    return switch (tier) {
-      case "GRAND_SLAM" -> 21;
-      case "MASTERS" -> 14;
-      case "CHALLENGER" -> 10;
-      default -> 7;
-    };
+    return (int) policy.num(rawTier, "advanceDays");
   }
 
   public int getMonthlyFreeChanges(String rawTier) {
-    String tier = rawTier != null ? rawTier.toUpperCase(Locale.ROOT) : "ROOKIE";
-    return switch (tier) {
-      case "GRAND_SLAM" -> 4;
-      case "MASTERS" -> 2;
-      case "CHALLENGER" -> 1;
-      default -> 0;
-    };
+    return (int) policy.num(rawTier, "changes");
   }
 
   public BigDecimal getTierSpendThreshold(String tier) {
-    return switch (tier.toUpperCase(Locale.ROOT)) {
-      case "GRAND_SLAM" -> BigDecimal.valueOf(20_000_000);
-      case "MASTERS" -> BigDecimal.valueOf(8_000_000);
-      case "CHALLENGER" -> BigDecimal.valueOf(3_000_000);
-      default -> BigDecimal.ZERO;
-    };
+    return policy.threshold(tier);
   }
 
   // =========================================================================
@@ -280,14 +252,11 @@ public class LoyaltyService {
 
       // Gửi thông báo TIER_UP
       String dedupe = "TIER_UP:" + account.getId() + ":" + targetTier;
-      String msg = "Chúc mừng bạn đã thăng hạng " + targetTier + "! Bạn nhận được nhiều đặc quyền ưu đãi mới tại Courtly.";
+      String tierName = switch (targetTier) { case "GRAND_SLAM" -> "Grand Slam"; case "MASTERS" -> "Masters"; case "CHALLENGER" -> "Challenger"; default -> "Rookie"; };
+      String msg = "Chúc mừng bạn đã thăng hạng " + tierName + "! Bạn nhận được nhiều đặc quyền ưu đãi mới tại Courtly.";
       if (account.getEmail() != null) {
         notificationService.enqueue(account.getId(), null, null, "TIER_UP", "EMAIL", account.getEmail(),
-            "[Courtly] Chúc mừng bạn đã thăng hạng " + targetTier + "!", "<p>" + msg + "</p>", now(), dedupe + ":EMAIL");
-      }
-      if (account.getPhone() != null) {
-        notificationService.enqueue(account.getId(), null, null, "TIER_UP", "SMS", account.getPhone(),
-            null, "Courtly: Chuc mung ban da thang hang " + targetTier + "! Kiem tra uu dai tai app.", now(), dedupe + ":SMS");
+            "[Courtly] Chúc mừng bạn đã thăng hạng " + tierName + "!", "<p>" + msg + "</p>", now(), dedupe + ":EMAIL");
       }
       notificationService.enqueue(account.getId(), null, null, "TIER_UP", "IN_APP", null,
           "🎉 Thăng hạng thành viên!", msg, now(), dedupe + ":IN_APP");
@@ -718,12 +687,7 @@ public class LoyaltyService {
 
   private void issueBirthdayVoucher(Account a, LocalDate todayDate) {
     String tier = a.getTier() != null ? a.getTier().toUpperCase(Locale.ROOT) : "ROOKIE";
-    int amount = switch (tier) {
-      case "GRAND_SLAM" -> 250_000;
-      case "MASTERS" -> 120_000;
-      case "CHALLENGER" -> 60_000;
-      default -> 30_000;
-    };
+    int amount = (int) policy.num(tier, "birthday");
 
     LocalDate endOfMonth = todayDate.withDayOfMonth(todayDate.lengthOfMonth());
     Instant expiry = endOfMonth.atTime(23, 59, 59).atZone(ZONE).toInstant();

@@ -45,7 +45,9 @@ class CampaignServiceTest {
         redemptions,
         notificationService,
         notificationRepository,
-        auditService
+        auditService,
+        mock(DocumentService.class),
+        new LoyaltyPolicyService(mock(DocumentService.class), auditService, accounts, notificationService)
     );
   }
 
@@ -65,7 +67,8 @@ class CampaignServiceTest {
     Map<String, Object> body = Map.of(
         "name", "Khuyến mãi chào hè",
         "audience", "ALL",
-        "channels", "EMAIL,SMS"
+        "channels", "EMAIL",
+        "news", Map.of("title", "Chào hè", "excerpt", "Ưu đãi hè", "body", "Nội dung tin chào hè")
     );
 
     var res = campaignService.createCampaign(staff, body);
@@ -101,7 +104,7 @@ class CampaignServiceTest {
     c.setId(UUID.randomUUID());
     c.setName("Tri ân khách hàng");
     c.setStatus("PENDING_APPROVAL");
-    c.setChannels("EMAIL,SMS");
+    c.setChannels("EMAIL");
     c.setAudience("ALL");
 
     // Khách A: đã đồng ý nhận tin
@@ -159,5 +162,52 @@ class CampaignServiceTest {
     assertTrue((Boolean) result.get("success"));
     assertFalse(acc.getMarketingConsent());
     assertNull(acc.getMarketingConsentAt());
+  }
+
+  @Test
+  void testPublicCampaignRequiresNews() {
+    Account admin = new Account();
+    admin.setId(UUID.randomUUID());
+    admin.setRole("ADMIN");
+    var ex = assertThrows(BusinessException.class, () -> campaignService.createCampaign(admin,
+        Map.of("name", "Không có tin", "audience", "ALL", "channels", "BANNER", "bannerText", "x")));
+    assertTrue(ex.getMessage().contains("tin tức"));
+  }
+
+  @Test
+  void testApproveWithFutureStartIsScheduledThenAutoStartsAndEnds() {
+    Account admin = new Account();
+    admin.setId(UUID.randomUUID());
+    admin.setRole("ADMIN");
+
+    Campaign c = new Campaign();
+    c.setId(UUID.randomUUID());
+    c.setName("Black Friday");
+    c.setStatus("PENDING_APPROVAL");
+    c.setAudience("ALL");
+    c.setChannels("BANNER");
+    c.setStartsAt(Instant.now().plusSeconds(3600));
+    c.setEndsAt(Instant.now().plusSeconds(7200));
+    when(campaigns.findById(c.getId())).thenReturn(Optional.of(c));
+    when(campaigns.save(any(Campaign.class))).thenAnswer(i -> i.getArgument(0));
+
+    var res = campaignService.approveAndRun(admin, c.getId());
+    assertEquals("SCHEDULED", res.get("status"));
+    verify(notificationService, never()).enqueue(any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+
+    // Tới giờ bắt đầu: tác vụ định kỳ tự chuyển sang RUNNING
+    c.setStartsAt(Instant.now().minusSeconds(5));
+    when(campaigns.findByStatus("SCHEDULED")).thenReturn(List.of(c));
+    when(campaigns.findByStatus("RUNNING")).thenReturn(List.of());
+    campaignService.runSchedule();
+    assertEquals("RUNNING", c.getStatus());
+
+    // Hết hạn: tự kết thúc
+    c.setEndsAt(Instant.now().minusSeconds(1));
+    when(campaigns.findByStatus("SCHEDULED")).thenReturn(List.of());
+    when(campaigns.findByStatus("RUNNING")).thenReturn(List.of(c));
+    when(vouchers.findAll()).thenReturn(List.of());
+    campaignService.runSchedule();
+    assertEquals("ENDED", c.getStatus());
   }
 }

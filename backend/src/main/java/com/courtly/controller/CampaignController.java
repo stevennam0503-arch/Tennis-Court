@@ -23,6 +23,15 @@ public class CampaignController {
     return campaignService.listCampaigns();
   }
 
+  @GetMapping("/admin/campaigns/templates")
+  public List<Map<String, Object>> templates(HttpServletRequest r) {
+    Account actor = authService.current(r);
+    if (!"ADMIN".equalsIgnoreCase(actor.getRole()) && !"STAFF".equalsIgnoreCase(actor.getRole())) {
+      throw new com.courtly.exception.BusinessException("Không có quyền");
+    }
+    return campaignService.templates();
+  }
+
   @GetMapping("/admin/campaigns/{id}")
   @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
   public Map<String, Object> getCampaign(@PathVariable UUID id) {
@@ -71,8 +80,8 @@ public class CampaignController {
   }
 
   @GetMapping("/public/campaigns/active-banners")
-  public List<Map<String, Object>> getActiveBanners() {
-    return campaignService.getActiveBanners();
+  public List<Map<String, Object>> getActiveBanners(HttpServletRequest r) {
+    return campaignService.getActiveBanners(authService.optCurrent(r).map(com.courtly.entity.Account::getId).orElse(null));
   }
 
   @PostMapping("/public/campaigns/unsubscribe")

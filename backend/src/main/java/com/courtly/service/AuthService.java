@@ -10,7 +10,6 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import com.courtly.exception.BusinessException;
 import com.courtly.repository.AccountRepository;
-import com.courtly.service.sms.SmsService;
 import com.courtly.util.PhoneUtils;
 import jakarta.servlet.http.*;
 import java.nio.charset.StandardCharsets;
@@ -41,7 +40,6 @@ public class AuthService {
   private final HttpSessionSecurityContextRepository contexts;
   private final DocumentService documents;
   private final EmailService emails;
-  private final SmsService smsService;
   private final DemoAccessPolicy demo;
   private final VoucherRepository vouchers;
   private final NotificationService notificationService;
@@ -153,7 +151,6 @@ public class AuthService {
     m.put("phoneVerifiedAt", a.getPhoneVerifiedAt());
     m.put("emailVerifiedAt", a.getEmailVerifiedAt());
     m.put("notifyEmail", a.getNotifyEmail());
-    m.put("notifySms", a.getNotifySms());
     m.put("marketingConsent", a.getMarketingConsent());
     m.put("tier", a.getTier() != null ? a.getTier() : "ROOKIE");
     m.put("pointsBalance", a.getPointsBalance() != null ? a.getPointsBalance() : 0);
@@ -223,50 +220,20 @@ public class AuthService {
     }
   }
 
-  public String generatePhoneToken(String e164Phone) {
-    long exp = Instant.now().plusSeconds(600).toEpochMilli();
-    String payload = e164Phone + ":" + exp;
-    String sig = hashHmac(payload);
-    return payload + ":" + sig;
-  }
-
-  public String verifyPhoneToken(String token) {
-    require(token != null && !token.isBlank(), "Mã xác thực số điện thoại không hợp lệ");
-    String[] parts = token.split(":");
-    require(parts.length == 3, "Mã xác thực số điện thoại không đúng định dạng");
-    String e164Phone = parts[0];
-    long exp;
-    try {
-      exp = Long.parseLong(parts[1]);
-    } catch (NumberFormatException e) {
-      throw new BusinessException("Mã xác thực số điện thoại không hợp lệ");
-    }
-    require(System.currentTimeMillis() <= exp, "Mã xác thực số điện thoại đã hết hạn (10 phút). Vui lòng xác thực lại.");
-    String expectedPayload = e164Phone + ":" + exp;
-    String expectedSig = hashHmac(expectedPayload);
-    require(MessageDigest.isEqual(parts[2].getBytes(StandardCharsets.UTF_8), expectedSig.getBytes(StandardCharsets.UTF_8)),
-        "Chữ ký xác thực số điện thoại không hợp lệ");
-    return e164Phone;
-  }
-
+  /**
+   * Mã xác nhận khi nhân viên quầy dùng điểm của khách. Gửi qua email và thông báo trong ứng dụng
+   * (không còn SMS). Chỉ nhân viên/quản trị được gọi.
+   */
   @Transactional
-  public Map<String, Object> sendPhoneOtp(Map<String, Object> b, HttpServletRequest req) {
+  public Map<String, Object> sendPointsOtp(Map<String, Object> b, HttpServletRequest req) {
+    cashier(current(req));
     String rawPhone = (String) b.get("phone");
-    require(rawPhone != null && !rawPhone.isBlank(), "Vui lòng nhập số điện thoại");
+    require(rawPhone != null && !rawPhone.isBlank(), "Vui lòng nhập số điện thoại của khách");
     String e164 = PhoneUtils.normalizeE164(rawPhone);
-    String purpose = String.valueOf(b.getOrDefault("purpose", "REGISTER")).trim().toUpperCase(Locale.ROOT);
+    Account customer = accounts.findByPhone(e164)
+        .orElseThrow(() -> new BusinessException("Số điện thoại chưa được đăng ký tài khoản."));
 
-    if ("REGISTER".equals(purpose)) {
-      if (accounts.findByPhone(e164).isPresent()) {
-        throw new BusinessException("Số điện thoại đã có tài khoản. Hãy đăng nhập hoặc liên hệ quầy.");
-      }
-    } else if ("LOGIN".equals(purpose) || "RESET_PASSWORD".equals(purpose) || "POINTS".equals(purpose)) {
-      if (accounts.findByPhone(e164).isEmpty()) {
-        throw new BusinessException("Số điện thoại chưa được đăng ký tài khoản.");
-      }
-    }
-
-    String otpKey = "otp:phone:" + purpose + ":" + e164;
+    String otpKey = "otp:phone:POINTS:" + e164;
     var existingDoc = documents.lock(otpKey);
     if (existingDoc != null) {
       var info = documents.read(existingDoc);
@@ -288,69 +255,33 @@ public class AuthService {
         map(
             "documentKey", otpKey,
             "phone", e164,
-            "purpose", purpose,
+            "purpose", "POINTS",
             "codeHash", hashOtp(code),
             "attempts", 0,
             "used", false,
             "createdAt", Instant.now().toString(),
             "expiresAt", Instant.now().plusSeconds(300).toString()));
 
-    smsService.sendOtp(e164, code, purpose);
+    String body = "Mã xác nhận dùng điểm tại quầy Courtly: " + code + " (hiệu lực 5 phút). Chỉ đọc mã này cho nhân viên khi bạn đồng ý dùng điểm.";
+    String dedupe = otpKey + ":" + Instant.now().toEpochMilli();
+    notificationService.enqueue(customer.getId(), null, null, "POINTS_OTP", "IN_APP", null,
+        "🔐 Mã xác nhận dùng điểm", body, Instant.now(), dedupe + ":IN_APP");
+    boolean hasEmail = customer.getEmail() != null && !customer.getEmail().isBlank();
+    if (hasEmail) {
+      notificationService.enqueue(customer.getId(), null, null, "POINTS_OTP", "EMAIL", customer.getEmail(),
+          "[Courtly] Mã xác nhận dùng điểm", "<p>" + body + "</p>", Instant.now(), dedupe + ":EMAIL");
+    }
 
     var resp = new LinkedHashMap<String, Object>();
     resp.put("success", true);
     resp.put("phone", PhoneUtils.formatDisplay(e164));
     resp.put("cooldownSeconds", 60);
-    resp.put("message", "Mã xác thực OTP đã được gửi tới số " + PhoneUtils.formatDisplay(e164));
-    if (demo.enabled() && smsService.isLogProvider()) {
+    resp.put("message", hasEmail
+        ? "Đã gửi mã xác nhận tới email và ứng dụng của khách"
+        : "Đã gửi mã xác nhận vào ứng dụng của khách");
+    if (demo.enabled()) {
       resp.put("devCode", code);
     }
-    return resp;
-  }
-
-  @Transactional
-  public Map<String, Object> verifyPhoneOtp(Map<String, Object> b) {
-    String rawPhone = (String) b.get("phone");
-    String code = (String) b.get("code");
-    require(rawPhone != null && !rawPhone.isBlank(), "Vui lòng nhập số điện thoại");
-    require(code != null && !code.isBlank(), "Vui lòng nhập mã xác thực OTP");
-    String e164 = PhoneUtils.normalizeE164(rawPhone);
-    String purpose = String.valueOf(b.getOrDefault("purpose", "REGISTER")).trim().toUpperCase(Locale.ROOT);
-
-    String otpKey = "otp:phone:" + purpose + ":" + e164;
-    var row = documents.lock(otpKey);
-    require(row != null, "Yêu cầu xác thực không tồn tại hoặc đã hết hạn.");
-    var info = documents.read(row);
-
-    int attempts = ((Number) info.getOrDefault("attempts", 0)).intValue();
-    Instant expiresAt = Instant.parse((String) info.get("expiresAt"));
-    if (attempts >= 5 || Instant.now().isAfter(expiresAt) || Boolean.TRUE.equals(info.get("used"))) {
-      throw new BusinessException("Mã OTP đã hết hạn hoặc thử sai quá 5 lần. Vui lòng gửi lại mã mới.");
-    }
-
-    String storedHash = (String) info.get("codeHash");
-    boolean valid = storedHash != null && MessageDigest.isEqual(
-        hashOtp(code.trim()).getBytes(StandardCharsets.UTF_8),
-        storedHash.getBytes(StandardCharsets.UTF_8));
-
-    if (!valid) {
-      info.put("attempts", attempts + 1);
-      documents.save(row, info);
-      int remain = 4 - attempts;
-      if (remain <= 0) {
-        throw new BusinessException("Bạn đã nhập sai 5 lần. Mã OTP đã bị khóa. Vui lòng gửi lại mã mới.");
-      }
-      throw new BusinessException("Mã OTP không đúng (còn " + remain + " lần thử).");
-    }
-
-    info.put("used", true);
-    documents.save(row, info);
-
-    String phoneToken = generatePhoneToken(e164);
-    var resp = new LinkedHashMap<String, Object>();
-    resp.put("success", true);
-    resp.put("phoneToken", phoneToken);
-    resp.put("phone", PhoneUtils.formatDisplay(e164));
     return resp;
   }
 
@@ -460,66 +391,12 @@ public class AuthService {
   }
 
   @Transactional
-  public Map<String, Object> loginWithPhoneOtp(
-      Map<String, Object> b, HttpServletRequest req, HttpServletResponse res) {
-    String rawPhone = (String) b.get("phone");
-    String code = (String) b.get("code");
-    require(rawPhone != null && !rawPhone.isBlank(), "Vui lòng nhập số điện thoại");
-    require(code != null && !code.isBlank(), "Vui lòng nhập mã OTP");
-    String e164 = PhoneUtils.normalizeE164(rawPhone);
-
-    String otpKey = "otp:phone:LOGIN:" + e164;
-    var row = documents.lock(otpKey);
-    require(row != null, "Yêu cầu đăng nhập không tồn tại hoặc đã hết hạn.");
-    var info = documents.read(row);
-
-    int attempts = ((Number) info.getOrDefault("attempts", 0)).intValue();
-    Instant expiresAt = Instant.parse((String) info.get("expiresAt"));
-    if (attempts >= 5 || Instant.now().isAfter(expiresAt) || Boolean.TRUE.equals(info.get("used"))) {
-      throw new BusinessException("Mã OTP đã hết hạn hoặc thử sai quá 5 lần. Vui lòng lấy mã mới.");
-    }
-
-    String storedHash = (String) info.get("codeHash");
-    boolean valid = storedHash != null && MessageDigest.isEqual(
-        hashOtp(code.trim()).getBytes(StandardCharsets.UTF_8),
-        storedHash.getBytes(StandardCharsets.UTF_8));
-
-    if (!valid) {
-      info.put("attempts", attempts + 1);
-      documents.save(row, info);
-      int remain = 4 - attempts;
-      if (remain <= 0) {
-        throw new BusinessException("Bạn đã nhập sai 5 lần. Mã OTP đã bị khóa.");
-      }
-      throw new BusinessException("Mã OTP không đúng (còn " + remain + " lần thử).");
-    }
-
-    info.put("used", true);
-    documents.save(row, info);
-
-    Account a = accounts.findByPhone(e164)
-        .orElseThrow(() -> new BusinessException("Không tìm thấy tài khoản với số điện thoại này."));
-    require("ACTIVE".equals(a.getStatus()), "Tài khoản đã bị khóa hoặc chưa kích hoạt.");
-
-    return signIn(a, req, res);
-  }
-
-  @Transactional
   public Map<String, Object> action(
       String action, Map<String, Object> b, HttpServletRequest req, HttpServletResponse res) {
     if (action.equals("logout")) {
       if (req.getSession(false) != null) req.getSession(false).invalidate();
       SecurityContextHolder.clearContext();
       return map("authenticated", false);
-    }
-    if (action.equals("phone-send-otp")) {
-      return sendPhoneOtp(b, req);
-    }
-    if (action.equals("phone-verify")) {
-      return verifyPhoneOtp(b);
-    }
-    if (action.equals("phone-login")) {
-      return loginWithPhoneOtp(b, req, res);
     }
     if (action.equals("login")) {
       pruneFailures();
@@ -582,38 +459,7 @@ public class AuthService {
       return signIn(found.get(), req, res);
     }
     if (action.equals("register")) {
-      // 1. Luồng đăng ký bằng phoneToken (đã xác minh OTP SMS)
-      if (b.containsKey("phoneToken") && b.get("phoneToken") != null && !String.valueOf(b.get("phoneToken")).isBlank()) {
-        String phoneToken = String.valueOf(b.get("phoneToken"));
-        String e164 = verifyPhoneToken(phoneToken);
-        require(accounts.findByPhone(e164).isEmpty(), "Số điện thoại đã có tài khoản. Hãy đăng nhập.");
-
-        String p = password(b.get("password"));
-        String name = text((String) b.get("name"), "Họ tên");
-
-        String e = null;
-        if (b.get("email") != null && !String.valueOf(b.get("email")).isBlank()) {
-          e = email(b.get("email"));
-          require(accounts.findByEmailIgnoreCase(e).isEmpty(), "Email đã được sử dụng bởi tài khoản khác.");
-        }
-
-        Account a = new Account();
-        a.setFullName(name);
-        a.setPhone(e164);
-        a.setPhoneVerifiedAt(Instant.now());
-        a.setEmail(e);
-        if (e != null) {
-          a.setEmailVerifiedAt(null);
-        }
-        a.setRole("CUSTOMER");
-        a.setStatus("ACTIVE");
-        a.setPasswordHash(encoder.encode(p));
-        accounts.saveAndFlush(a);
-        issueWelcomeVoucherIfEligible(a, e164);
-        return signIn(a, req, res);
-      }
-
-      // 2. Luồng đăng ký truyền thống (email + phone) cho staff hoặc khách quầy
+      // Đăng ký bằng email + SĐT liên hệ; khách tự đăng ký phải nhập mã kích hoạt gửi qua email
       requireEmailDelivery();
       String e = email(b.get("email")), p = password(b.get("password"));
       require(
@@ -624,20 +470,18 @@ public class AuthService {
       if (rawPhone != null && !rawPhone.isBlank()) {
         phone = PhoneUtils.normalizeE164(rawPhone);
         require(accounts.findByPhone(phone).isEmpty(), "Số điện thoại đã có tài khoản.");
-      } else if (Boolean.TRUE.equals(b.get("requireActivation"))) {
+      } else {
         throw new BusinessException("Vui lòng cung cấp số điện thoại liên hệ để đặt sân");
       }
       Account a = new Account();
       a.setFullName(text((String) b.get("name"), "Họ tên"));
       a.setEmail(e);
       a.setPhone(phone);
-      if (!phone.isBlank()) {
-        a.setPhoneVerifiedAt(Instant.now());
-      }
       a.setRole("CUSTOMER");
       a.setPasswordHash(encoder.encode(p));
 
-      boolean requireAct = Boolean.TRUE.equals(b.get("requireActivation"));
+      // Không còn xác thực SĐT qua SMS: mọi tài khoản tự đăng ký đều phải kích hoạt bằng mã gửi qua email
+      boolean requireAct = true;
       if (requireAct) {
         a.setStatus("PENDING_ACTIVATION");
         accounts.saveAndFlush(a);
@@ -723,35 +567,17 @@ public class AuthService {
       require(!idf.isBlank(), "Vui lòng nhập email hoặc số điện thoại");
 
       if (PhoneUtils.isValid(idf)) {
-        String e164 = PhoneUtils.normalizeE164(idf);
-        var found = accounts.findByPhone(e164);
-        String code = null;
-        if (found.isPresent() && "ACTIVE".equals(found.get().getStatus())) {
-          code = String.format("%06d", new java.security.SecureRandom().nextInt(1_000_000));
-          String key = "otp:phone:RESET_PASSWORD:" + e164;
-          documents.put(
-              key,
-              map(
-                  "documentKey", key,
-                  "accountId", found.get().getId().toString(),
-                  "phone", e164,
-                  "codeHash", hashOtp(code),
-                  "attempts", 0,
-                  "used", false,
-                  "expiresAt", Instant.now().plusSeconds(300).toString()));
-          smsService.sendOtp(e164, code, "RESET_PASSWORD");
+        // Không còn SMS: tìm tài khoản theo SĐT rồi gửi mã về email của tài khoản đó
+        var byPhone = accounts.findByPhone(PhoneUtils.normalizeE164(idf));
+        if (byPhone.isPresent() && byPhone.get().getEmail() != null && !byPhone.get().getEmail().isBlank()) {
+          idf = byPhone.get().getEmail();
+        } else {
+          var resp = new LinkedHashMap<String, Object>();
+          resp.put("success", true);
+          resp.put("message", "Nếu số điện thoại này có tài khoản kèm email, mã đặt lại mật khẩu đã được gửi về email đó. Nếu tài khoản không có email, vui lòng liên hệ quầy.");
+          return resp;
         }
-        var resp = new LinkedHashMap<String, Object>();
-        resp.put("success", true);
-        resp.put("message", "Nếu số điện thoại của bạn đã đăng ký, mã xác thực OTP đã được gửi qua tin nhắn SMS.");
-        resp.put("phone", PhoneUtils.formatDisplay(e164));
-        if (demo.enabled() && smsService.isLogProvider() && code != null) {
-          resp.put("code", code);
-          resp.put("devCode", code);
-        }
-        return resp;
       }
-
       requireEmailDelivery();
       String e = email(idf).toLowerCase(Locale.ROOT);
       var found = accounts.findByEmailIgnoreCase(e);
@@ -794,27 +620,12 @@ public class AuthService {
       Map<String, Object> info = null;
       com.courtly.entity.AppDocument row = null;
 
-      if (phoneInput != null && !phoneInput.isBlank()) {
-        String e164 = PhoneUtils.normalizeE164(phoneInput);
-        String key = "otp:phone:RESET_PASSWORD:" + e164;
-        row = documents.lock(key);
-        if (row != null) {
-          info = documents.read(row);
-          int attempts = ((Number) info.getOrDefault("attempts", 0)).intValue();
-          if (attempts >= 5 || !Instant.parse((String) info.get("expiresAt")).isAfter(Instant.now())) {
-            throw new BusinessException("Mã xác nhận đã hết hạn hoặc thử sai quá 5 lần. Vui lòng yêu cầu mã mới.");
-          }
-          String storedHash = (String) info.get("codeHash");
-          boolean valid = storedHash != null && MessageDigest.isEqual(
-              hashOtp(code).getBytes(StandardCharsets.UTF_8),
-              storedHash.getBytes(StandardCharsets.UTF_8));
-          if (!valid) {
-            info.put("attempts", attempts + 1);
-            documents.save(row, info);
-            throw new BusinessException("Mã xác nhận không đúng (còn " + (4 - attempts) + " lần thử).");
-          }
-        }
-      } else if (emailInput != null && !emailInput.isBlank()) {
+      // Mã đặt lại luôn gửi qua email; nếu khách nhập SĐT thì đổi sang email của tài khoản
+      if (phoneInput != null && PhoneUtils.isValid(phoneInput.trim())) {
+        emailInput = accounts.findByPhone(PhoneUtils.normalizeE164(phoneInput))
+            .map(Account::getEmail).orElse(null);
+      }
+      if (emailInput != null && !emailInput.isBlank()) {
         String key = "otp:reset:" + emailInput.trim().toLowerCase(Locale.ROOT);
         row = documents.lock(key);
         if (row != null) {
@@ -893,8 +704,10 @@ public class AuthService {
       Account a =
           accounts.findForUpdate(UUID.fromString((String) info.get("accountId"))).orElseThrow();
       require("ACTIVE".equals(a.getStatus()) || "PENDING_ACTIVATION".equals(a.getStatus()), "Tài khoản đã bị khóa");
-      if ("PENDING_ACTIVATION".equals(a.getStatus())) {
+      boolean firstActivation = "PENDING_ACTIVATION".equals(a.getStatus());
+      if (firstActivation) {
         a.setStatus("ACTIVE");
+        a.setEmailVerifiedAt(Instant.now());
       }
       if (b.containsKey("password") && b.get("password") != null && !String.valueOf(b.get("password")).isBlank()) {
         a.setPasswordHash(encoder.encode(password(b.get("password"))));
@@ -902,6 +715,10 @@ public class AuthService {
       a.setAuthVersion(a.getAuthVersion() + 1);
       info.put("used", true);
       documents.save(row, info);
+      if (firstActivation && a.getPhone() != null && !a.getPhone().isBlank()) {
+        // Voucher chào mừng phát khi email đã được xác minh (mỗi SĐT chỉ nhận 1 lần)
+        issueWelcomeVoucherIfEligible(a, a.getPhone());
+      }
       return signIn(a, req, res);
     }
     if (action.equals("ticket"))

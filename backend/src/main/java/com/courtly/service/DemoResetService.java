@@ -30,6 +30,8 @@ public class DemoResetService {
   private final ScheduleService scheduling;
   private final com.courtly.repository.CourtScheduleRepository courtSchedules;
   private final DemoBaselineService demoBaseline;
+  private final CampaignService campaignService;
+  private final LoyaltyPolicyService loyaltyPolicy;
 
   private static final String ADMIN_ID = "b27fe32c-e9b7-44bf-8149-81bc00b5bbba";
   private static final String STAFF_ID = "f21bd5fa-cf66-4ee4-a009-3a337eebc6fa";
@@ -101,6 +103,8 @@ public class DemoResetService {
     jdbc.execute("DELETE FROM tournament_registrations");
     jdbc.execute("DELETE FROM notifications");
     jdbc.execute("DELETE FROM campaigns"); // chiến dịch tạo khi tập demo không được sót lại
+    loyaltyPolicy.resetToDefaults(); // chính sách hạng về mặc định
+    jdbc.execute("DELETE FROM app_documents WHERE document_key LIKE 'article:campaign-%'"); // tin tức kèm chiến dịch
     jdbc.execute("DELETE FROM tournaments");
     jdbc.execute("DELETE FROM accounts");
 
@@ -793,6 +797,9 @@ public class DemoResetService {
     }
 
     reconcileSeededOrders();
+
+    // Chiến dịch dựng sẵn theo mùa: Black Friday và Giáng sinh đã lên lịch, Tết chờ duyệt
+    campaignService.seedDemoCampaigns(java.util.UUID.fromString(ADMIN_ID));
 
     log.info("Đặt lại toàn bộ dữ liệu mẫu chuẩn Hội đồng (Comprehensive Golden Showcase) thành công 100%!");
   }
