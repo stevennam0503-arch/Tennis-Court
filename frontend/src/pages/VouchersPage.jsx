@@ -228,7 +228,7 @@ export default function VouchersPage() {
       {pendingCount > 0 && isAdmin && (
         <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '12px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#92400e', fontWeight: 600 }}>
-            <ShieldAlert size={20} /> Có {pendingCount} voucher chờ Quản trị viên phê duyệt
+            <ShieldAlert size={20} /> Có {pendingCount} voucher chờ Manager phê duyệt
           </div>
           <Button onClick={() => setStatusFilter('PENDING_APPROVAL')} style={{ fontSize: 13, background: '#d97706', color: '#fff', padding: '4px 12px' }}>
             Xem voucher chờ duyệt
@@ -446,7 +446,7 @@ export default function VouchersPage() {
 
             {!isAdmin && (
               <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#166534', marginBottom: 16 }}>
-                💡 <b>Hạn mức Staff:</b> Tối đa giảm 20% (hoặc 100.000₫), số lượng ≤ 50, hạn ≤ 30 ngày. Vượt hạn mức sẽ chuyển sang Chờ Admin duyệt.
+                💡 <b>Hạn mức Staff:</b> Tối đa giảm 20% (hoặc 100.000₫), số lượng ≤ 50, hạn ≤ 30 ngày. Vượt hạn mức sẽ chuyển sang Chờ Manager duyệt.
               </div>
             )}
 

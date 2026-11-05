@@ -255,6 +255,10 @@ export default function ReportsPage() {
 
   // Occupancy per court (calculated by actual hours using slotHours)
 
+  const activeCourts = (data.courts || []).filter(c => c.status !== 'DELETED');
+  const courtTotal = activeCourts.length;
+  const zoneCount = type => activeCourts.filter(c => c.type === type).length;
+
   const courtOccupancy = useMemo(() => {
 
     const totalPossibleHours = 17 * periodDays;
@@ -853,7 +857,7 @@ export default function ReportsPage() {
 
             <div style={{ fontSize: 22, fontWeight: 800, color: '#173c32', letterSpacing: 0.5 }}>COURTLY TENNIS CLUB</div>
 
-            <div style={{ fontSize: 13, color: '#475569', marginTop: 2, fontWeight: 600 }}>TỔ HỢP QUẦN VỢT TIÊU CHUẨN ATP 10 SÂN</div>
+            <div style={{ fontSize: 13, color: '#475569', marginTop: 2, fontWeight: 600 }}>TỔ HỢP QUẦN VỢT TIÊU CHUẨN ATP {courtTotal} SÂN</div>
 
             <div style={{ fontSize: 12, color: '#64748b' }}>Đ/c: Sân Thể Thao Courtly · Hotline: 0988 123 456 · MST: 0109887766</div>
 
@@ -1323,7 +1327,7 @@ export default function ReportsPage() {
 
             <p style={{ margin: '0 0 16px', fontSize: 12.5, color: '#64748b', lineHeight: 1.5 }}>
 
-              Thống kê mật độ giờ chơi thực tế trên toàn bộ 10 sân để tối ưu nhân sự lễ tân và thời gian bật đèn LED cao áp.
+              Thống kê mật độ giờ chơi thực tế trên toàn bộ {courtTotal} sân để tối ưu nhân sự lễ tân và thời gian bật đèn LED cao áp.
 
             </p>
 
@@ -1393,9 +1397,9 @@ export default function ReportsPage() {
 
 
 
-      {/* BIỂU ĐỒ 4: TRỰC QUAN CÔNG SUẤT 10 SÂN THEO 3 PHÂN KHU */}
+      {/* BIỂU ĐỒ 4: TRỰC QUAN CÔNG SUẤT CÁC SÂN THEO 3 PHÂN KHU */}
 
-      <Panel title={`Biểu đồ Công suất Khai thác 10 Sân (${periodLabel}) · Trung bình ${avgOccupancy}%`} style={{ marginBottom: 24 }}>
+      <Panel title={`Biểu đồ Công suất Khai thác ${courtTotal} Sân (${periodLabel}) · Trung bình ${avgOccupancy}%`} style={{ marginBottom: 24 }}>
 
         <div className="panel-body">
 
@@ -1407,7 +1411,7 @@ export default function ReportsPage() {
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottom: '1px solid #cbd5e1', paddingBottom: 6 }}>
 
-                <strong style={{ fontSize: 13.5, color: '#166534' }}>Khu A · Ngoài trời (4 sân)</strong>
+                <strong style={{ fontSize: 13.5, color: '#166534' }}>Khu A · Ngoài trời ({zoneCount('OUTDOOR')} sân)</strong>
 
                 <span style={{ fontSize: 11.5, color: '#64748b' }}>Đèn LED 500 Lux</span>
 
@@ -1445,13 +1449,13 @@ export default function ReportsPage() {
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottom: '1px solid #cbd5e1', paddingBottom: 6 }}>
 
-                <strong style={{ fontSize: 13.5, color: '#0369a1' }}>Khu B · Trong nhà (4 sân)</strong>
+                <strong style={{ fontSize: 13.5, color: '#0369a1' }}>Khu B · Trong nhà ({zoneCount('INDOOR')} sân)</strong>
 
                 <span style={{ fontSize: 11.5, color: '#64748b' }}>Mái che vòm 12m</span>
 
               </div>
 
-              {courtOccupancy.filter(c => c.type === 'INDOOR' || c.name.startsWith('B')).map(c => (
+              {courtOccupancy.filter(c => c.type === 'INDOOR').map(c => (
 
                 <div key={c.id} style={{ marginBottom: 10 }}>
 
@@ -1483,13 +1487,13 @@ export default function ReportsPage() {
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottom: '1px solid #cbd5e1', paddingBottom: 6 }}>
 
-                <strong style={{ fontSize: 13.5, color: '#a16207' }}>Khu V · VIP Clubhouse (2 sân)</strong>
+                <strong style={{ fontSize: 13.5, color: '#a16207' }}>Khu V · VIP Clubhouse ({zoneCount('VIP')} sân)</strong>
 
                 <span style={{ fontSize: 11.5, color: '#64748b' }}>Lounge thương gia</span>
 
               </div>
 
-              {courtOccupancy.filter(c => c.type === 'VIP' || c.name.startsWith('V')).map(c => (
+              {courtOccupancy.filter(c => c.type === 'VIP').map(c => (
 
                 <div key={c.id} style={{ marginBottom: 10 }}>
 

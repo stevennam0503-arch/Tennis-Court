@@ -14,7 +14,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import tree from './overview.json';
-import { useGuest, Action, dateToday, zone } from './context';
+import { useGuest, Action, dateToday, zone, zoneSummary } from './context';
 import { EventCards } from './Tournaments';
 
 const icons = {
@@ -100,7 +100,15 @@ export default function Overview() {
   );
 
   function render(n, key) {
-    if (typeof n === 'string') return t(n.trim());
+    if (typeof n === 'string') {
+      // Chú thích khu ("A01–A04 · 4 sân") tính từ danh sách sân thật để khớp khi quản lý thêm/sửa sân.
+      const zoneCaption = /^([ABV])\d+–[ABV]\d+ · \d+ sân$/.exec(n.trim());
+      if (zoneCaption && data?.courts) {
+        const { count, range } = zoneSummary(data.courts, zoneCaption[1]);
+        return count ? `${range} · ${count} ${t('sân')}` : t('Chưa có sân trong khu này.');
+      }
+      return t(n.trim());
+    }
     const a = n.attrs || {};
     if (a.class === 'ct-quick-book') return <React.Fragment key={key}>{quick}</React.Fragment>;
     if ('data-overview-events' in a)

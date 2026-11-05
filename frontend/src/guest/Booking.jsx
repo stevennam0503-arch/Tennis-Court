@@ -188,6 +188,24 @@ export default function Booking() {
 
     setError('');
 
+    // Đơn mới bắt đầu sạch: không mang theo trọng tài, điểm, đặt lặp hay voucher chờ áp của đơn trước
+
+    setWantReferee(false);
+
+    setRefStart('');
+
+    setRefEnd('');
+
+    setUsePoints(false);
+
+    setPointsInput('');
+
+    setRecurringWeeks(1);
+
+    setPendingVoucherCode(null);
+
+    if (user?.id) api('/loyalty/my', 'GET').then(setLoyalty).catch(() => {}); // số dư điểm sau đơn vừa đặt
+
   };
 
 
@@ -2720,6 +2738,10 @@ const removeVoucher = () => {
           )}
 
           {error && <div className="gx-error" role="alert">{t(error)}</div>}
+
+
+
+          {user && allChosen.length > 0 && wantReferee && !referee && <p className="gx-quote-note" role="status" style={{ color: '#9a5b06' }}>{t('Chọn một trọng tài, hoặc bỏ tick “Thêm trọng tài” để tiếp tục.')}</p>}
 
 
 

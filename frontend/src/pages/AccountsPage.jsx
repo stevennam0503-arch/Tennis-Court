@@ -39,7 +39,7 @@ export default function AccountsPage() {
       notify(`Đã xóa vĩnh viễn tài khoản "${a.name}" và giải phóng email.`);
     } catch (e) {
       if (e.status === 403 || e.status === 401) {
-        notify('Phiên đăng nhập đã thay đổi hoặc cần quyền Admin. Vui lòng làm mới trang hoặc đăng nhập tài khoản admin@gmail.com.');
+        notify('Phiên đăng nhập đã thay đổi hoặc cần quyền Manager. Vui lòng làm mới trang hoặc đăng nhập tài khoản admin@gmail.com.');
       } else {
         notify(e.message || 'Không thể xóa tài khoản. Vui lòng thử lại.');
       }
@@ -103,7 +103,7 @@ export default function AccountsPage() {
         <Stat title="Tổng tài khoản" value={counts.all} note="Toàn bộ hệ thống" icon={Users} />
         <Stat title="Khách hàng" value={counts.CUSTOMER} note="Khách đặt sân & thành viên" icon={UserCheck} />
         <Stat title="Nhân sự / Staff" value={counts.STAFF} note="Thu ngân & điều hành sân" icon={Shield} />
-        <Stat title="Quản trị viên" value={counts.ADMIN} note="Chủ sân & Admin quản trị" icon={Lock} />
+        <Stat title="Manager" value={counts.ADMIN} note="Chủ sân & Manager" icon={Lock} />
       </div>
 
       <div className="notice" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
@@ -118,7 +118,7 @@ export default function AccountsPage() {
           ['ALL', `Tất cả (${counts.all})`],
           ['CUSTOMER', `Khách hàng (${counts.CUSTOMER})`],
           ['STAFF', `Nhân sự Staff (${counts.STAFF})`],
-          ['ADMIN', `Quản trị Admin (${counts.ADMIN})`],
+          ['ADMIN', `Manager (${counts.ADMIN})`],
           ['LOCKED', `Đang khóa (${counts.LOCKED})`]
         ].map(([r, label]) => (
           <button
@@ -263,7 +263,7 @@ export default function AccountsPage() {
       </Panel>
 
       <div className="notice warn" style={{ marginTop: 20 }}>
-        Admin có thể xóa tài khoản để giải phóng email đăng ký lại khi kiểm thử (các đơn hàng trước đó vẫn được lưu giữ an toàn trên chứng từ và doanh thu). Khóa tài khoản (LOCKED) dùng khi muốn chặn đăng nhập nhưng giữ nguyên liên kết hồ sơ.
+        Manager có thể xóa tài khoản để giải phóng email đăng ký lại khi kiểm thử (các đơn hàng trước đó vẫn được lưu giữ an toàn trên chứng từ và doanh thu). Khóa tài khoản (LOCKED) dùng khi muốn chặn đăng nhập nhưng giữ nguyên liên kết hồ sơ.
       </div>
 
       {ticket && (

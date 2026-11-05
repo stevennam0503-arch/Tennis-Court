@@ -77,18 +77,18 @@ public class PaymentController {
   }
 
   @PostMapping("/{id}/refunds")
-  @PreAuthorize("hasRole('ADMIN')")
+  @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
   public Map<String, Object> refund(
       @PathVariable UUID id, @RequestBody Map<String, Object> b, HttpServletRequest r) {
     var a = auth.current(r);
-    auth.admin(a);
+    auth.cashier(a);
     require(b.get("requestId") instanceof String, "Thiếu mã yêu cầu hoàn tiền");
     return requests.execute(
         a.getId(),
         (String) b.get("requestId"),
         "refund:" + id,
         b,
-        () -> map("id", service.refund(id, dto(b, RefundRequest.class))));
+        () -> map("id", service.refund(id, dto(b, RefundRequest.class), a)));
   }
 
   private <T> T dto(Object value, Class<T> type) {

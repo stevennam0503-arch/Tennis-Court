@@ -141,7 +141,7 @@ public class LoyaltyController {
     int points = ((Number) body.get("points")).intValue();
     String note = (String) body.get("note");
     Account target = accounts.findById(accountId).orElseThrow();
-    loyaltyService.addBonusPoints(target, points, "[ADMIN điều chỉnh] " + note);
+    loyaltyService.addBonusPoints(target, points, "[Manager điều chỉnh] " + note);
     return Map.of("success", true, "newBalance", target.getPointsBalance());
   }
 

@@ -16,17 +16,39 @@ import {
   CreditCard,
   ShieldCheck
 } from 'lucide-react';
-import { useGuest } from './context';
+import { useGuest, zoneSummary } from './context';
+
+/** Số sân, dải tên theo khu và khoảng giá tính từ dữ liệu sân thật (đồng bộ khi quản lý thêm/sửa sân). */
+export function courtStats(data) {
+  const courts = (data?.courts || []).filter(c => c.status !== 'DELETED');
+  const ids = new Set(courts.map(c => c.id));
+  const rates = (data?.prices || []).filter(p => ids.has(p.court)).map(p => Number(p.price));
+  const fallback = courts.map(c => Number(c.price)).filter(x => x > 0);
+  const all = rates.length ? rates : fallback;
+  const zoneLabel = (id, vi) => {
+    const z = zoneSummary(courts, id);
+    if (!z.count) return vi ? 'chưa có sân' : 'no courts yet';
+    return vi ? `${z.count} sân ${z.range}` : `${z.count} court${z.count > 1 ? 's' : ''} ${z.range}`;
+  };
+  return {
+    total: courts.length,
+    min: all.length ? Math.min(...all) : 0,
+    max: all.length ? Math.max(...all) : 0,
+    zoneLabel,
+    range: id => zoneSummary(courts, id).range
+  };
+}
 
 export function buildPricingKnowledge(data, isEn) {
   const courts = data?.courts || [];
   const prices = data?.prices || [];
   const refereeRates = data?.refereeRates || [];
+  const stats = courtStats(data);
 
   const zoneConfig = [
-    { type: 'OUTDOOR', viName: 'Khu A (Ngoài trời · 4 sân A01–A04)', enName: 'Zone A (Outdoor · 4 courts A01–A04)' },
-    { type: 'INDOOR', viName: 'Khu B (Trong nhà có mái che · 4 sân B01–B04)', enName: 'Zone B (Indoor with insulated roof · 4 courts B01–B04)' },
-    { type: 'VIP', viName: 'Khu V (Sân VIP Clubhouse · 2 sân V01–V02)', enName: 'Zone V (VIP Clubhouse · 2 courts V01–V02)' }
+    { type: 'OUTDOOR', viName: `Khu A (Ngoài trời · ${stats.zoneLabel('A', true)})`, enName: `Zone A (Outdoor · ${stats.zoneLabel('A', false)})` },
+    { type: 'INDOOR', viName: `Khu B (Trong nhà có mái che · ${stats.zoneLabel('B', true)})`, enName: `Zone B (Indoor with insulated roof · ${stats.zoneLabel('B', false)})` },
+    { type: 'VIP', viName: `Khu V (Sân VIP Clubhouse · ${stats.zoneLabel('V', true)})`, enName: `Zone V (VIP Clubhouse · ${stats.zoneLabel('V', false)})` }
   ];
 
   const linesVi = [];
@@ -211,6 +233,12 @@ function FormattedMessage({ text, isUser }) {
 export default function AiChatbox() {
   const { t, lang, navigate, user, data } = useGuest();
   const isEn = lang === 'en';
+  const stats = courtStats(data);
+  const courtCountVi = stats.total ? `${stats.total} sân` : 'các sân';
+  const courtCountEn = stats.total ? `${stats.total} ATP courts` : 'ATP courts';
+  const rangeVi = stats.max ? `từ ${stats.min.toLocaleString('vi-VN')}đ – ${stats.max.toLocaleString('vi-VN')}đ/h` : 'theo khung giờ';
+  const rangeEn = stats.max ? `from ${stats.min.toLocaleString('en-US')}đ to ${stats.max.toLocaleString('en-US')}đ/h` : 'by time slot';
+  const zoneBRange = stats.range('B') || 'B';
 
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState(() => [
@@ -219,7 +247,7 @@ export default function AiChatbox() {
       role: 'assistant',
       text: isEn
         ? 'Hello! I am Courtly Tennis Assistant 🎾.\nI can assist you with court rates, schedule availability, referee booking, QR check-in, and loyalty tier benefits and point rewards. How can I help you today?'
-        : 'Xin chào! Tôi là Trợ lý AI của CLB Quần vợt Courtly 🎾.\nTôi có thể hỗ trợ bạn tức thì về bảng giá 10 sân, lịch trống, dịch vụ trọng tài, check-in mã QR hoặc chính sách hạng thành viên & điểm thưởng. Bạn cần tìm hiểu thông tin gì hôm nay?'
+        : `Xin chào! Tôi là Trợ lý AI của CLB Quần vợt Courtly 🎾.\nTôi có thể hỗ trợ bạn tức thì về bảng giá ${courtCountVi}, lịch trống, dịch vụ trọng tài, check-in mã QR hoặc chính sách hạng thành viên & điểm thưởng. Bạn cần tìm hiểu thông tin gì hôm nay?`
     }
   ]);
 
@@ -238,13 +266,13 @@ export default function AiChatbox() {
             role: 'assistant',
             text: isEn
               ? 'Hello! I am Courtly Tennis Assistant 🎾.\nI can assist you with court rates, schedule availability, referee booking, QR check-in, and membership plans. How can I help you today?'
-              : 'Xin chào! Tôi là Trợ lý AI của CLB Quần vợt Courtly 🎾.\nTôi có thể hỗ trợ bạn tức thì về bảng giá 10 sân, lịch trống, dịch vụ trọng tài, check-in mã QR hoặc chính sách thành viên. Bạn cần tìm hiểu thông tin gì hôm nay?'
+              : `Xin chào! Tôi là Trợ lý AI của CLB Quần vợt Courtly 🎾.\nTôi có thể hỗ trợ bạn tức thì về bảng giá ${courtCountVi}, lịch trống, dịch vụ trọng tài, check-in mã QR hoặc chính sách thành viên. Bạn cần tìm hiểu thông tin gì hôm nay?`
           }
         ];
       }
       return prev;
     });
-  }, [isEn]);
+  }, [isEn, courtCountVi]);
 
   // Read API key strictly from environment / built-in backend without exposing UI to users
   const apiKey =
@@ -273,7 +301,7 @@ export default function AiChatbox() {
     ) {
       return `Welcome! 🎾 I am **Courtly AI Assistant**.
 I can quickly help you with:
-• **10 ATP Court Rates** (from 120,000đ to 400,000đ/h)
+• **${courtCountEn} · Rates** (${rangeEn})
 • **Online Booking & VietQR Deposit (30%–50%)**
 • **QR Check-in & Cancellation Refund Policy**
 • **Referee Booking (150k/h) & Membership Plans**
@@ -296,7 +324,7 @@ What specific topic would you like to explore?`;
         const min = Math.min(...p.map(x => Number(x.price))), max = Math.max(...p.map(x => Number(x.price)));
         return min === max ? `${min.toLocaleString('en-US')} VND/h` : `from ${min.toLocaleString('en-US')} – ${max.toLocaleString('en-US')} VND/h`;
       };
-      return `💰 **Courtly Court Rates (10 ATP Courts):**
+      return `💰 **Courtly Court Rates (${courtCountEn}):**
 • **Zone A (Outdoor):** ${zRateEn('OUTDOOR')}
 • **Zone B (Covered Indoor):** ${zRateEn('INDOOR')}
 • **Zone V (VIP Clubhouse):** ${zRateEn('VIP')}
@@ -311,7 +339,7 @@ What specific topic would you like to explore?`;
       raw.includes('wet')
     ) {
       return `🌧️ **Playing in Rainy Weather:**
-• **Zone B (Courts B01–B04)** features a solid 12m roof for all-weather play.
+• **Zone B (Courts ${zoneBRange})** features a solid 12m roof for all-weather play.
 • If you booked outdoor Zone A and it rains, we offer **100% free transfer to indoor Zone B** or free rescheduling.`;
     }
 
@@ -368,7 +396,7 @@ What specific topic would you like to explore?`;
     }
 
     return `Thank you for reaching out! 🎾
-Courtly Tennis Club operates 10 ATP courts daily from **06:00 to 23:00**.
+Courtly Tennis Club operates ${courtCountEn} daily from **06:00 to 23:00**.
 Ask me about court pricing, indoor weather guarantee, referee booking, or loyalty tier benefits!`;
   };
 
@@ -396,7 +424,7 @@ Ask me about court pricing, indoor weather guarantee, referee booking, or loyalt
     ) {
       return `Xin chào bạn! 🎾 Tôi là **Trợ lý AI Courtly**.
 Tôi có thể hỗ trợ nhanh cho bạn về:
-• **Bảng giá 10 sân ATP** (từ 120.000đ – 400.000đ/h)
+• **Bảng giá ${courtCountVi} ATP** (${rangeVi})
 • **Đặt sân & cọc VietQR 30%–50%**
 • **Vé QR Check-in & Chính sách hủy hoàn cọc**
 • **Thuê trọng tài (150k/h) & 4 Hạng thành viên giảm đến 8%**
@@ -441,7 +469,7 @@ Bạn cần tìm hiểu thông tin cụ thể nào, hãy nhắn cho tôi nhé!`;
       norm.includes('khu b')
     ) {
       return `🌧️ **Trời mưa tại CLB Courtly:**
-• **Khu B (Sân B01–B04)** có mái che vòm cao 12m, chơi thoải mái bất chấp mưa bão.
+• **Khu B (Sân ${zoneBRange})** có mái che vòm cao 12m, chơi thoải mái bất chấp mưa bão.
 • Nếu bạn đặt sân ngoài trời Khu A mà gặp mưa to, CLB hỗ trợ **chuyển sang sân trong nhà miễn phí** hoặc dời lịch 100%.`;
     }
 
@@ -491,7 +519,7 @@ ${tierBulletsVi()}
         const min = Math.min(...p.map(x => Number(x.price))), max = Math.max(...p.map(x => Number(x.price)));
         return min === max ? `${min.toLocaleString('vi-VN')}đ/h` : `từ ${min.toLocaleString('vi-VN')}đ – ${max.toLocaleString('vi-VN')}đ/h`;
       };
-      return `💰 **Bảng giá thuê sân Courtly (10 sân ATP):**
+      return `💰 **Bảng giá thuê sân Courtly (${courtCountVi} ATP):**
 • **Khu A (Ngoài trời):** ${zRateVi('OUTDOOR')}
 • **Khu B (Trong nhà mái che):** ${zRateVi('INDOOR')}
 • **Khu V (VIP Clubhouse):** ${zRateVi('VIP')}
@@ -499,7 +527,7 @@ ${tierBulletsVi()}
     }
 
     return `Cảm ơn bạn đã liên hệ! 🎾
-CLB Quần vợt Courtly có **10 sân tiêu chuẩn ATP**, mở cửa hàng ngày từ **06:00 đến 23:00**.
+CLB Quần vợt Courtly có **${courtCountVi} tiêu chuẩn ATP**, mở cửa hàng ngày từ **06:00 đến 23:00**.
 Bạn có thể hỏi tôi về bảng giá sân, dịch vụ trọng tài, check-in QR hoặc quyền lợi các hạng thành viên!`;
   };
 

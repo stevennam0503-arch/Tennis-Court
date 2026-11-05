@@ -18,7 +18,7 @@ import { api } from '../services/api';
 
 export default function PaymentsPage() {
 
-  const { data, show, date, setDate, isAdmin } = useCourtly();
+  const { data, show, date, setDate, isAdmin, isStaff } = useCourtly();
   const inDay = useMemo(() => (data.payments || []).filter((p) => localDate(p.createdAt) === date), [data.payments, date]);
 
   const [tab, setTab] = useState('transactions');
@@ -861,7 +861,7 @@ export default function PaymentsPage() {
 
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
 
-                    {isAdmin ? (
+                    {(isAdmin || isStaff) ? (
 
                       <Button
 
@@ -903,7 +903,7 @@ export default function PaymentsPage() {
 
                       >
 
-                        Chờ Admin duyệt hoàn
+                        Chờ Manager duyệt hoàn
 
                       </span>
 

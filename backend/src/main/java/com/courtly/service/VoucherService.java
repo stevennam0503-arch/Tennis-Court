@@ -692,7 +692,7 @@ public class VoucherService {
   @Transactional
   public Voucher approveVoucher(UUID id, Account actor) {
     if (!"ADMIN".equals(actor.getRole())) {
-      throw new BusinessException("Chỉ Quản trị viên (ADMIN) mới có quyền phê duyệt voucher");
+      throw new BusinessException("Chỉ Manager mới có quyền phê duyệt voucher");
     }
     Voucher v = vouchers.findById(id).orElseThrow();
     v.setStatus("ACTIVE");

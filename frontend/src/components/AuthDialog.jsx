@@ -205,7 +205,7 @@ export default function AuthDialog({ onClose, onSuccess, ownerSetupAvailable = f
           ? `Mã xác nhận 6 số đã được gửi đến ${values.email}. Vui lòng kiểm tra hộp thư đến (hoặc hòm thư rác) và nhập mã bên dưới.`
           : mode === 'owner-activate'
           ? 'Đặt mật khẩu Courtly cho tài khoản chủ Site đã được xác thực.'
-          : 'Nhập mã kích hoạt một lần do quản trị viên cung cấp để đặt mật khẩu.'}
+          : 'Nhập mã kích hoạt một lần do Manager cung cấp để đặt mật khẩu.'}
       </p>
 
       {success && <div className="auth-hint-success" role="status">{success}</div>}

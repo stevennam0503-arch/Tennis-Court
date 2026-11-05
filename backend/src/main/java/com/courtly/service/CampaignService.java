@@ -153,7 +153,7 @@ public class CampaignService {
   @Transactional
   public Map<String, Object> approveAndRun(Account admin, UUID campaignId) {
     if (!"ADMIN".equalsIgnoreCase(admin.getRole())) {
-      throw new BusinessException("Chỉ Quản trị viên (ADMIN) mới có quyền phê duyệt chiến dịch");
+      throw new BusinessException("Chỉ Manager mới có quyền phê duyệt chiến dịch");
     }
     Campaign c = campaigns.findById(campaignId).orElseThrow(() -> new BusinessException("Chiến dịch không tồn tại"));
     if (c.getEndsAt() != null && c.getEndsAt().isBefore(Instant.now())) {
@@ -169,7 +169,7 @@ public class CampaignService {
   @Transactional
   public Map<String, Object> pauseCampaign(Account admin, UUID campaignId) {
     if (!"ADMIN".equalsIgnoreCase(admin.getRole())) {
-      throw new BusinessException("Chỉ Quản trị viên (ADMIN) mới có quyền tạm dừng chiến dịch");
+      throw new BusinessException("Chỉ Manager mới có quyền tạm dừng chiến dịch");
     }
     Campaign c = campaigns.findById(campaignId).orElseThrow(() -> new BusinessException("Chiến dịch không tồn tại"));
     c.setStatus("PAUSED");
@@ -184,7 +184,7 @@ public class CampaignService {
   @Transactional
   public Map<String, Object> endCampaign(Account admin, UUID campaignId) {
     if (!"ADMIN".equalsIgnoreCase(admin.getRole())) {
-      throw new BusinessException("Chỉ Quản trị viên (ADMIN) mới có quyền kết thúc chiến dịch");
+      throw new BusinessException("Chỉ Manager mới có quyền kết thúc chiến dịch");
     }
     Campaign c = campaigns.findById(campaignId).orElseThrow(() -> new BusinessException("Chiến dịch không tồn tại"));
     finish(c);
@@ -607,7 +607,7 @@ public class CampaignService {
       Campaign c = new Campaign();
       c.setName((String) tpl.get("name"));
       c.setDescription("Chiến dịch dựng sẵn theo mùa. " + ("SCHEDULED".equals(status)
-          ? "Đã duyệt, tự chạy khi tới ngày bắt đầu." : "Chờ quản trị viên kiểm tra và duyệt."));
+          ? "Đã duyệt, tự chạy khi tới ngày bắt đầu." : "Chờ Manager kiểm tra và duyệt."));
       c.setAudience((String) tpl.get("audience"));
       c.setAudienceFilter((String) tpl.get("audienceFilter"));
       c.setChannels((String) tpl.get("channels"));

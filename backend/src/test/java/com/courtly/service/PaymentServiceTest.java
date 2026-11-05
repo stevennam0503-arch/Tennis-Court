@@ -128,4 +128,27 @@ class PaymentServiceTest {
     verify(refunds, never()).save(any());
     assertEquals(new BigDecimal("100"), o.getPaidAmount());
   }
+
+  @Test
+  void staffCannotRefundBeyondPolicy() {
+    CustomerOrder o = order();
+    o.setStatus("CONFIRMED");
+    o.setPaidAmount(new BigDecimal("450000")); // thừa 50.000 so với tổng 400.000
+    Payment p = new Payment();
+    p.setId(UUID.randomUUID());
+    p.setOrder(o);
+    p.setAmount(new BigDecimal("450000"));
+    when(payments.findById(p.getId())).thenReturn(Optional.of(p));
+    when(payments.findForUpdate(p.getId())).thenReturn(Optional.of(p));
+    when(orders.findForUpdate(o.getId())).thenReturn(Optional.of(o));
+    when(refunds.findByPaymentId(p.getId())).thenReturn(List.of());
+    Account staff = new Account();
+    staff.setRole("STAFF");
+    staff.setFullName("Lễ tân");
+    var ex = assertThrows(
+        BusinessException.class,
+        () -> service.refund(p.getId(), new RefundRequest(new BigDecimal("60000"), "hoàn thiện chí"), staff));
+    assertTrue(ex.getMessage().contains("Manager"));
+    verify(refunds, never()).save(any());
+  }
 }

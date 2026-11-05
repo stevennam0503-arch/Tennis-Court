@@ -89,7 +89,7 @@ export function getOrderTiming(order, currentToday) {
 }
 
 export default function OperationsPage() {
-  const { data, show, isAdmin, navigate } = useCourtly();
+  const { data, show, isAdmin, isStaff, navigate } = useCourtly();
   const currentToday = today();
 
   const [activeTab, setActiveTab] = useState('all');
@@ -295,7 +295,7 @@ export default function OperationsPage() {
             <span style={{ fontSize: 24 }}>⏰</span>
             <div>
               <strong style={{ color: '#9f1239', fontSize: 14, display: 'block' }}>
-                ĐẾN GIỜ TRẢ SÂN ({groups.gracePeriod.length} ca)! Yêu cầu Admin Check-out & thu tiền trong 15 phút
+                ĐẾN GIỜ TRẢ SÂN ({groups.gracePeriod.length} ca)! Yêu cầu Manager Check-out & thu tiền trong 15 phút
               </strong>
               <span style={{ fontSize: 12.5, color: '#be123c' }}>
                 {groups.gracePeriod.map(o => `${o.name} (${data.courts.find(c => c.id === o.slots?.[0]?.court)?.name || 'Sân'})`).join(' • ')}
@@ -837,7 +837,7 @@ export default function OperationsPage() {
                     )}
 
                     {isCancelled && (o.finance?.refundPending > 0 || (o.cancellationSettlement?.refundAmount > 0 && !o.finance?.refunded)) && (
-                      isAdmin ? (
+                      (isAdmin || isStaff) ? (
                         <Button
                           className="sm"
                           style={{ background: '#fff1f2', color: '#e11d48', borderColor: '#fecdd3', whiteSpace: 'nowrap' }}
@@ -847,7 +847,7 @@ export default function OperationsPage() {
                         </Button>
                       ) : (
                         <span style={{ fontSize: 11.5, fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '3px 8px', borderRadius: 4, border: '1px solid #fde68a', whiteSpace: 'nowrap' }}>
-                          Chờ Admin duyệt hoàn
+                          Chờ Manager duyệt hoàn
                         </span>
                       )
                     )}

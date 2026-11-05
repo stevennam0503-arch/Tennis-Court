@@ -135,6 +135,14 @@ public class PaymentService {
 
   @Transactional
   public UUID refund(UUID id, RefundRequest request) {
+    return refund(id, request, null);
+  }
+
+  /**
+   * Ghi nhận hoàn tiền. Staff chỉ hoàn trong mức chính sách: khoản chờ hoàn của đơn (tính theo mốc hủy)
+   * cộng tiền khách chuyển thừa. Hoàn vượt mức, hoàn thiện chí hoặc hoàn phí giải đấu cần Manager.
+   */
+  public UUID refund(UUID id, RefundRequest request, Account actor) {
     Payment original =
         payments.findById(id).orElseThrow(() -> new BusinessException("Không tìm thấy giao dịch"));
     CustomerOrder order =
@@ -148,6 +156,20 @@ public class PaymentService {
     Payment payment = payments.findForUpdate(id).orElseThrow();
     BigDecimal amount = positive(request.amount());
     require(amount.compareTo(net(payment)) <= 0, "Tổng hoàn vượt số tiền đã thu còn lại");
+    if (actor != null && !"ADMIN".equalsIgnoreCase(actor.getRole())) {
+      require(order != null && reg == null, "Hoàn phí giải đấu cần Manager duyệt");
+      BigDecimal pendingByPolicy = documents == null
+          ? BigDecimal.ZERO
+          : PresentationService.decimal(documents.decode(order.getMetadata()).get("refundPending")).max(BigDecimal.ZERO);
+      BigDecimal total = order.getTotalAmount() != null ? order.getTotalAmount() : BigDecimal.ZERO;
+      BigDecimal paid = order.getPaidAmount() != null ? order.getPaidAmount() : BigDecimal.ZERO;
+      BigDecimal excess = "CANCELLED".equals(order.getStatus()) ? BigDecimal.ZERO : paid.subtract(total).max(BigDecimal.ZERO);
+      BigDecimal allowed = pendingByPolicy.add(excess);
+      require(allowed.signum() > 0, "Đơn không có khoản chờ hoàn theo chính sách. Hoàn ngoài chính sách cần Manager duyệt.");
+      require(amount.compareTo(allowed) <= 0,
+          "Staff chỉ hoàn tối đa " + String.format(Locale.GERMANY, "%,.0f₫", allowed)
+              + " theo chính sách. Khoản vượt mức cần Manager duyệt.");
+    }
     if (reg != null)
       require(
           matches.findByTournamentId(reg.getTournament().getId()).isEmpty()
@@ -176,7 +198,8 @@ public class PaymentService {
       loyalty.refundRedeemedPoints(order);
     }
     if (reg != null) reg.setStatus("PENDING");
-    audit.log("HOÀN TIỀN", refund.getId().toString());
+    audit.log("HOÀN TIỀN", refund.getId() + " · " + amount.toPlainString() + "₫"
+        + (actor != null ? " · " + ("ADMIN".equalsIgnoreCase(actor.getRole()) ? "Manager " : "Staff ") + actor.getFullName() : ""));
     return refund.getId();
   }
 

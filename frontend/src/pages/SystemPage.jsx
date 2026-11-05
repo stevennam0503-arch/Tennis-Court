@@ -22,10 +22,10 @@ const SHOWCASE_ORDERS = [
   { code: 'CT-82828282', court: 'Sân V02', time: 'hôm qua 17:00 - 19:00', customer: 'Đặng Hoàng Long', status: 'CHECKED_IN', desc: 'Có trọng tài, còn nợ phần còn lại; khách bị chặn đặt đơn mới tới khi trả nợ.' },
   { code: 'CT-83838383', court: 'Sân A01', time: '2 ngày trước 18:00 - 20:00', customer: 'Phạm Minh Đức', status: 'CHECKED_IN', desc: 'Đã thu đủ 100% nhưng quên check-out: nằm ở tab cần check-out.' },
   { code: 'CT-55555555', court: 'Sân A02', time: 'hôm qua 17:00 - 19:00', customer: 'Phạm Minh Đức', status: 'COMPLETED', desc: 'Đã hoàn tất, có hóa đơn INV-<ngày hôm qua>-001. Demo in phiếu thu K80/A4.' },
-  { code: 'CT-91919191', court: 'Sân A02', time: 'tuần sau 17:00 - 19:00', customer: 'Vũ Mai Phương', status: 'CANCELLED', desc: 'Hủy trước hơn 24 giờ → chờ hoàn 100% cọc (Admin duyệt chi).' },
+  { code: 'CT-91919191', court: 'Sân A02', time: 'tuần sau 17:00 - 19:00', customer: 'Vũ Mai Phương', status: 'CANCELLED', desc: 'Hủy trước hơn 24 giờ → chờ hoàn 100% cọc (Manager duyệt chi).' },
   { code: 'CT-92929292', court: 'Sân B03', time: 'ngày mai 06:00 - 08:00', customer: 'Đặng Hoàng Long', status: 'CANCELLED', desc: 'Hủy lúc 06:30 hôm nay, 23,5 giờ trước giờ chơi → chờ hoàn 50% cọc.' },
   { code: 'CT-93939393', court: 'Sân A03', time: 'hôm nay 11:00 - 13:00', customer: 'Lê Thu Hà', status: 'CANCELLED', desc: 'Hủy lúc 09:00, 2 giờ trước giờ chơi → không hoàn, CLB giữ 100% cọc.' },
-  { code: 'CT-66666666', court: 'Sân A03', time: '2 ngày trước 18:00 - 20:00', customer: 'Vũ Mai Phương', status: 'CANCELLED', desc: 'Hủy 16 giờ trước giờ chơi → hoàn 50% cọc, Admin đã chi. Thấy dòng hoàn tiền trong Lịch sử thanh toán.' }
+  { code: 'CT-66666666', court: 'Sân A03', time: '2 ngày trước 18:00 - 20:00', customer: 'Vũ Mai Phương', status: 'CANCELLED', desc: 'Hủy 16 giờ trước giờ chơi → hoàn 50% cọc, Manager đã chi. Thấy dòng hoàn tiền trong Lịch sử thanh toán.' }
 ];
 
 export default function SystemPage() {

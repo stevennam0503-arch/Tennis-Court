@@ -254,8 +254,8 @@ public class OrderApplicationService {
                 settlement.put("refundAmount", o.getPaidAmount());
                 settlement.put("retainedAmount", java.math.BigDecimal.ZERO);
                 settlement.put("tier", "ADMIN_100");
-                settlement.put("policyDescription", "Quản trị viên duyệt hoàn 100% tiền cọc (Sự cố sân / thời tiết / bất khả kháng).");
-                settlement.put("description", "Quản trị viên duyệt hoàn 100% tiền cọc (Sự cố sân / thời tiết / bất khả kháng).");
+                settlement.put("policyDescription", "Manager duyệt hoàn 100% tiền cọc (Sự cố sân / thời tiết / bất khả kháng).");
+                settlement.put("description", "Manager duyệt hoàn 100% tiền cọc (Sự cố sân / thời tiết / bất khả kháng).");
                 settlement.put("status", o.getPaidAmount().signum() > 0 ? "REFUND_PENDING" : "NO_REFUND");
               }
               service.cancel(id);

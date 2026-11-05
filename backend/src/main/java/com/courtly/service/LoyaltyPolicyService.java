@@ -195,7 +195,7 @@ public class LoyaltyPolicyService {
   /** Lên lịch chính sách mới. Thay thế bản đang chờ (nếu có). */
   @Transactional
   public Map<String, Object> schedule(Account admin, Map<String, Object> body) {
-    require("ADMIN".equalsIgnoreCase(admin.getRole()), "Chỉ quản trị viên được đổi chính sách hạng");
+    require("ADMIN".equalsIgnoreCase(admin.getRole()), "Chỉ Manager được đổi chính sách hạng");
     String effectiveFrom = String.valueOf(body.getOrDefault("effectiveFrom", "")).trim();
     LocalDate from;
     try {
@@ -283,7 +283,7 @@ public class LoyaltyPolicyService {
 
   @Transactional
   public Map<String, Object> cancelPending(Account admin) {
-    require("ADMIN".equalsIgnoreCase(admin.getRole()), "Chỉ quản trị viên được đổi chính sách hạng");
+    require("ADMIN".equalsIgnoreCase(admin.getRole()), "Chỉ Manager được đổi chính sách hạng");
     var row = docs.lock(KEY);
     Map<String, Object> d = new LinkedHashMap<>(row.getData() == null ? Map.of() : docs.read(row));
     Map<String, Object> p = pendingRaw(d);

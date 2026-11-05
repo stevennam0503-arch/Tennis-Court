@@ -343,7 +343,7 @@ public class ContentService {
           }
 
           if (!Set.of("ADMIN", "STAFF").contains(a.getRole())) {
-            throw new BusinessException("Chỉ Quản trị viên và Nhân viên mới có quyền cập nhật feedback");
+            throw new BusinessException("Chỉ Manager và Nhân viên mới có quyền cập nhật feedback");
           }
           var f = docs.get("feedback:" + parts[4]);
           require(!f.isEmpty(), "Phản hồi không tồn tại");
@@ -364,7 +364,7 @@ public class ContentService {
 
   public Map<String, Object> assignFeedback(String id, Account actor) {
     if (!Set.of("ADMIN", "STAFF").contains(actor.getRole())) {
-      throw new BusinessException("Chỉ Quản trị viên và Nhân viên mới có quyền nhận xử lý feedback");
+      throw new BusinessException("Chỉ Manager và Nhân viên mới có quyền nhận xử lý feedback");
     }
     var f = docs.get("feedback:" + id);
     require(!f.isEmpty(), "Phản hồi không tồn tại");
@@ -377,7 +377,7 @@ public class ContentService {
 
   public Map<String, Object> resolveFeedback(String id, Map<String, Object> body, Account actor) {
     if (!Set.of("ADMIN", "STAFF").contains(actor.getRole())) {
-      throw new BusinessException("Chỉ Quản trị viên và Nhân viên mới có quyền xử lý feedback");
+      throw new BusinessException("Chỉ Manager và Nhân viên mới có quyền xử lý feedback");
     }
     var f = docs.get("feedback:" + id);
     require(!f.isEmpty(), "Phản hồi không tồn tại");
@@ -485,7 +485,7 @@ public class ContentService {
 
   public Map<String, Object> compensateFeedback(String id, Map<String, Object> body, Account actor) {
     if (!Set.of("ADMIN", "STAFF").contains(actor.getRole())) {
-      throw new BusinessException("Chỉ Quản trị viên và Nhân viên mới có quyền tặng voucher bồi thường");
+      throw new BusinessException("Chỉ Manager và Nhân viên mới có quyền tặng voucher bồi thường");
     }
 
     String templateCode = body != null && body.get("templateCode") != null ? String.valueOf(body.get("templateCode")).trim() : "";
@@ -497,7 +497,7 @@ public class ContentService {
 
     if ("CUSTOM".equalsIgnoreCase(templateCode)) {
       if (!"ADMIN".equals(actor.getRole())) {
-        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mẫu tuỳ chỉnh chỉ dành cho Quản trị viên");
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mẫu tuỳ chỉnh chỉ dành cho Manager");
       }
       String reason = body.get("reason") != null ? String.valueOf(body.get("reason")).trim() : "";
       if (reason.length() < 10) {
@@ -530,7 +530,7 @@ public class ContentService {
         throw new BusinessException("Mã mẫu voucher bù không hợp lệ");
       }
       if (!tpl.allowedRoles().contains(actor.getRole())) {
-        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mẫu này cần quản trị viên");
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Mẫu này cần Manager");
       }
 
       template.put("type", tpl.type());
@@ -593,7 +593,7 @@ public class ContentService {
 
   public Map<String, Object> revokeCompensation(String id, Map<String, Object> body, Account actor) {
     if (!"ADMIN".equals(actor.getRole())) {
-      throw new BusinessException("Chỉ Quản trị viên mới có quyền thu hồi voucher bồi thường");
+      throw new BusinessException("Chỉ Manager mới có quyền thu hồi voucher bồi thường");
     }
     String reason = String.valueOf(body.getOrDefault("reason", "")).trim();
     require(reason.length() >= 5, "Lý do thu hồi phải có ít nhất 5 ký tự");

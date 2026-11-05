@@ -125,7 +125,7 @@ public class AuthService {
   public void admin(Account a) {
     if (!"ADMIN".equals(a.getRole()))
       throw new ResponseStatusException(
-          HttpStatus.FORBIDDEN, "Chỉ quản trị viên được thực hiện thao tác này");
+          HttpStatus.FORBIDDEN, "Chỉ Manager được thực hiện thao tác này");
   }
 
   public void cashier(Account a) {

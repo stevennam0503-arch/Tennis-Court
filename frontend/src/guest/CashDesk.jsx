@@ -95,7 +95,7 @@ export default function CashDesk() {
     return (
       <section className="ct-pad">
         <h1>{t('Thu tiền tại quầy')}</h1>
-        <Empty>{t('Chỉ nhân viên thu ngân và quản trị được truy cập.')}</Empty>
+        <Empty>{t('Chỉ nhân viên thu ngân và Manager được truy cập.')}</Empty>
       </section>
     );
 

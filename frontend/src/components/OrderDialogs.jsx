@@ -25,7 +25,7 @@ export {resolveSlots};
 
 export const BookingDialog=BookingFlow;
 export function OrderDetail({id,onClose,visitDate}) {
-  const {data,show,mutate,notify,isAdmin}=useCourtly();
+  const {data,show,mutate,notify,isAdmin,isStaff}=useCourtly();
   const o=data.orders.find(x=>x.id===id);
   if(!o) return null;
   const acc=data.accounts?.find(a=>a.id===o.accountId);
@@ -123,13 +123,13 @@ export function OrderDetail({id,onClose,visitDate}) {
               )}
             </div>
             {hasPending && (
-              isAdmin ? (
+              (isAdmin || isStaff) ? (
                 <Button className="primary sm" style={{ background: '#e11d48', borderColor: '#be123c', color: '#fff' }} onClick={() => show({ type: 'refund', orderId: o.id })}>
                   💳 Thực hiện hoàn tiền ngay
                 </Button>
               ) : (
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '4px 8px', borderRadius: 4, border: '1px solid #fde68a' }}>
-                  Chờ Admin duyệt hoàn
+                  Chờ Manager duyệt hoàn
                 </span>
               )
             )}
@@ -231,7 +231,7 @@ export function OrderCancelDialog({id, onClose}) {
             </div>
 
             <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.5 }}>
-              {fullRefund ? 'Quản trị viên chọn hoàn toàn bộ tiền cho khách do sự cố sân / thời tiết / bất khả kháng.' : (quote?.policyDescription || quote?.description)}
+              {fullRefund ? 'Manager chọn hoàn toàn bộ tiền cho khách do sự cố sân / thời tiết / bất khả kháng.' : (quote?.policyDescription || quote?.description)}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10, paddingTop: 10, borderTop: '1px dashed #cbd5e1', fontSize: 13 }}>
@@ -471,12 +471,12 @@ export function PaymentDialog({id, registrationId, mode, onClose}) {
 }
 
 export function RefundDialog({id, orderId, onClose}) {
-  const {data, mutate, notify, isAdmin} = useCourtly();
-  if (!isAdmin) {
+  const {data, mutate, notify, isAdmin, isStaff} = useCourtly();
+  if (!isAdmin && !isStaff) {
     return (
       <Modal title="Ghi nhận hoàn tiền" onClose={onClose}>
         <div className="notice" style={{ background: '#fef2f2', borderColor: '#fecaca', color: '#b91c1c' }}>
-          Chỉ Quản trị viên (Admin) mới có quyền duyệt hoàn tiền.
+          Chỉ Manager hoặc lễ tân mới có quyền ghi nhận hoàn tiền.
         </div>
       </Modal>
     );
@@ -497,7 +497,19 @@ export function RefundDialog({id, orderId, onClose}) {
     );
   }
 
-  const initialAmount = order?.finance?.refundPending ? Math.min(order.finance.refundPending, p.refundable) : p.refundable;
+  // Staff chỉ hoàn trong mức chính sách (khoản chờ hoàn + tiền thừa); vượt mức cần Manager
+  const policyCap = Number(order?.finance?.refundPending || 0) + Number(order?.finance?.excess || 0);
+  const maxRefund = isAdmin ? p.refundable : Math.min(p.refundable, policyCap);
+  if (!isAdmin && maxRefund <= 0) {
+    return (
+      <Modal title="Ghi nhận hoàn tiền" onClose={onClose}>
+        <div className="notice" style={{ background: '#fef2f2', borderColor: '#fecaca', color: '#b91c1c' }}>
+          Đơn này không có khoản chờ hoàn theo chính sách. Hoàn ngoài chính sách cần Manager duyệt.
+        </div>
+      </Modal>
+    );
+  }
+  const initialAmount = order?.finance?.refundPending ? Math.min(order.finance.refundPending, maxRefund) : maxRefund;
   const initialReason = order?.cancellationSettlement?.policyDescription || order?.cancellationSettlement?.description || 'Hoàn tiền cọc theo chính sách hủy hợp lệ của CLB';
 
   return (
@@ -510,7 +522,7 @@ export function RefundDialog({id, orderId, onClose}) {
         requestId: crypto.randomUUID()
       }}
       fields={[
-        {name: 'amount', label: 'Số tiền hoàn cho khách (₫)', type: 'number', min: 1, max: p.refundable, full: true},
+        {name: 'amount', label: isAdmin ? 'Số tiền hoàn cho khách (₫)' : `Số tiền hoàn cho khách (₫) · tối đa ${money(maxRefund)} theo chính sách`, type: 'number', min: 1, max: maxRefund, full: true},
         {name: 'reason', label: 'Lý do hoàn tiền (hiển thị cho khách và lưu sổ đối soát)', full: true}
       ]}
       onClose={onClose}
@@ -980,7 +992,7 @@ export function ExtendOrderDialog({id, onClose}) {
 }
 
 export function CheckOutDialog({id, onClose}) {
-  const {data, mutate, notify, show, isAdmin} = useCourtly();
+  const {data, mutate, notify, show, isAdmin, isStaff} = useCourtly();
   const o = data.orders.find(x => x.id === id);
   const [submitting, setSubmitting] = useState(false);
   const [showQR, setShowQR] = useState(false);
@@ -1205,13 +1217,13 @@ export function CheckOutDialog({id, onClose}) {
 
         {excess > 0 && (
           <>
-            {isAdmin ? (
+            {(isAdmin || isStaff) ? (
               <Button className="primary" style={{ background: '#e11d48', borderColor: '#be123c' }} onClick={() => { onClose(); show({ type: 'refund', orderId: o.id }); }}>
                 💳 Hoàn trả tiền thừa ({money(excess)})
               </Button>
             ) : (
               <span style={{ fontSize: 12, fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '6px 10px', borderRadius: 6, border: '1px solid #fde68a' }}>
-                Chờ Admin duyệt hoàn tiền thừa ({money(excess)})
+                Chờ Manager duyệt hoàn tiền thừa ({money(excess)})
               </span>
             )}
             <Button className="primary" disabled={submitting} onClick={handlePureCheckOut}>

@@ -235,7 +235,7 @@ export default function CampaignsPage() {
 
       await api(`/admin/campaigns/${id}/submit`, 'POST');
 
-      notify('Đã gửi chiến dịch cho Quản trị viên duyệt');
+      notify('Đã gửi chiến dịch cho Manager duyệt');
 
       fetchCampaigns();
 

@@ -292,6 +292,8 @@ public class CatalogService {
         !renamed || !isArchivedCourtName(id, courtName),
         "Sân '" + courtName + "' đã ngừng khai thác. Hãy mở lại sân này trong mục \"Đã ngừng khai thác\" thay vì tạo sân mới cùng tên.");
     boolean reopening = id != null && "DELETED".equalsIgnoreCase(c.getStatus());
+    boolean zoneChanged = id != null && !reopening && !courtType.equalsIgnoreCase(c.getType());
+    java.math.BigDecimal oldBasePrice = c.getBasePrice();
     c.setName(courtName);
     c.setType(courtType);
     c.setZoneNeedsReview(false);
@@ -348,10 +350,49 @@ public class CatalogService {
             saved, LocalDate.now(ZONE));
       }
       audit.log("MỞ LẠI SÂN", courtName + " (" + courtType + ")");
+    } else if (zoneChanged) {
+      // Đổi khu: bỏ bảng giá khu cũ, lấy bảng giá của khu mới và tính lại giá các slot tương lai.
+      if (jdbc != null) {
+        courts.flush();
+        jdbc.update("DELETE FROM court_prices WHERE court_id = ?", saved);
+      }
+      copyZonePricesIfMissing(saved, courtType);
+      repriceFutureSlots(saved);
+      audit.log("ĐỔI KHU SÂN", courtName + " → " + courtType);
     } else {
       copyZonePricesIfMissing(saved, courtType);
+      if (id != null && (oldBasePrice == null || oldBasePrice.compareTo(c.getBasePrice()) != 0)) {
+        repriceFutureSlots(saved);
+      }
     }
     return saved;
+  }
+
+  /**
+   * Tính lại giá các slot còn trống/bảo trì từ hôm nay trở đi theo bảng giá hiện tại của sân;
+   * khung giờ không có trong bảng giá thì dùng giá gốc. Slot đã có đơn giữ nguyên giá đã chốt.
+   */
+  private void repriceFutureSlots(UUID courtId) {
+    if (jdbc == null) return;
+    courts.flush();
+    jdbc.update(
+        """
+        UPDATE court_schedules cs
+        SET price = COALESCE(
+            (SELECT p.price_per_hour FROM court_prices p
+             WHERE p.court_id = cs.court_id
+               AND p.day_type = CASE WHEN EXTRACT(isodow FROM cs.schedule_date) IN (6, 7) THEN 'WEEKEND' ELSE 'WEEKDAY' END
+               AND cs.start_time >= p.start_time AND cs.start_time < p.end_time
+             LIMIT 1),
+            c.base_price) / 2
+        FROM courts c
+        WHERE c.id = cs.court_id
+          AND cs.court_id = ?
+          AND cs.schedule_date >= ?
+          AND cs.status IN ('AVAILABLE', 'MAINTENANCE')
+          AND NOT EXISTS (SELECT 1 FROM booking_slots bs WHERE bs.schedule_id = cs.id AND bs.released_at IS NULL)
+        """,
+        courtId, LocalDate.now(ZONE));
   }
 
   private boolean isArchivedCourtName(UUID currentCourtId, String rawName) {

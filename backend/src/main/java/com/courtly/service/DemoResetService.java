@@ -100,6 +100,8 @@ public class DemoResetService {
     jdbc.execute("UPDATE vouchers SET used_count = 0");
     jdbc.execute("DELETE FROM vouchers WHERE code LIKE 'SORRY-%'");
     jdbc.execute("DELETE FROM app_documents WHERE document_key LIKE 'feedback:%' OR document_key LIKE 'compensation:%'");
+    // Dấu "SĐT đã nhận voucher chào mừng" của khách đăng ký lúc tập demo: xoá để buổi demo thật vẫn nhận được quà
+    jdbc.execute("DELETE FROM app_documents WHERE document_key LIKE 'welcome:%' OR document_key LIKE 'otp:%'");
     jdbc.execute("DELETE FROM tournament_registrations");
     jdbc.execute("DELETE FROM notifications");
     jdbc.execute("DELETE FROM campaigns"); // chiến dịch tạo khi tập demo không được sót lại

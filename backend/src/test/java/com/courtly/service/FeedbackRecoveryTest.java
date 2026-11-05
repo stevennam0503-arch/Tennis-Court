@@ -145,7 +145,7 @@ class FeedbackRecoveryTest {
     Map<String, Object> body = Map.of("templateCode", "FREE_COURT_1H");
     ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> contentService.compensateFeedback(fbId, body, staff));
     assertEquals(403, ex.getStatusCode().value());
-    assertEquals("Mẫu này cần quản trị viên", ex.getReason());
+    assertEquals("Mẫu này cần Manager", ex.getReason());
   }
 
   @Test

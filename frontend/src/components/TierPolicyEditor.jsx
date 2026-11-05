@@ -146,7 +146,7 @@ export default function TierPolicyEditor({ isAdmin, notify }) {
         <div>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Quy chế 4 hạng thành viên Courtly</h3>
           <p style={{ margin: '4px 0 0', fontSize: 12.5, color: '#64748b', maxWidth: 640 }}>
-            Tên và số hạng cố định. Admin chỉnh được các con số; thay đổi có hiệu lực từ ngày chọn (sớm nhất là ngày mai), không áp dụng ngược.
+            Tên và số hạng cố định. Manager chỉnh được các con số; thay đổi có hiệu lực từ ngày chọn (sớm nhất là ngày mai), không áp dụng ngược.
             Khách đang giữ hạng được giữ tới kỳ xét hạng.
           </p>
         </div>

@@ -37,6 +37,9 @@ export const stamp=n=>`${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60
 
 export const zone=c=>{if(c?.type==='INDOOR')return 'B';if(c?.type==='VIP')return 'V';if(c?.type==='OUTDOOR')return 'A';const name=String(c?.name||'').trim().replace(/^(Sân|San)\s+/i,'');return /^B/i.test(name)?'B':/^V/i.test(name)?'V':'A';};
 
+/** Tóm tắt khu từ dữ liệu sân thật: { count, range: "A01–A05" } (bỏ qua sân đã ngừng khai thác). */
+export const zoneSummary=(courts,id)=>{const names=(courts||[]).filter(c=>c?.status!=='DELETED'&&(!id||zone(c)===id)).map(c=>String(c.name||'').trim().replace(/^(Sân|San)\s+/i,'')).sort((a,b)=>a.localeCompare(b,'vi',{numeric:true}));return {count:names.length,range:names.length>1?`${names[0]}–${names[names.length-1]}`:(names[0]||'')};};
+
 export const money=n=>new Intl.NumberFormat('vi-VN').format(Number(n||0))+'₫';
 
 export const requestId=()=>crypto.randomUUID();

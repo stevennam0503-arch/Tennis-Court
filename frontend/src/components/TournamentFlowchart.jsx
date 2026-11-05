@@ -108,7 +108,7 @@ export default function TournamentFlowchart({ tournament, registrations = [], ma
       }}>
         <Crown size={18} color="#059669" style={{ flexShrink: 0 }} />
         <span>
-          <strong>Hướng dẫn Admin:</strong> Nhấn nút <strong>[ 👑 Chọn thắng ]</strong> ở đội nào thì đội đó sẽ lập tức chiến thắng và tự động nối nhánh tiến lên vòng tiếp theo để gặp đội thắng ở nhánh đối diện!
+          <strong>Hướng dẫn Manager:</strong> Nhấn nút <strong>[ 👑 Chọn thắng ]</strong> ở đội nào thì đội đó sẽ lập tức chiến thắng và tự động nối nhánh tiến lên vòng tiếp theo để gặp đội thắng ở nhánh đối diện!
         </span>
       </div>
 
