@@ -1,168 +1,94 @@
 # Kịch bản demo 4 flow — theo slide "Green Modern Tennis Club Presentation"
 
-Cập nhật trên nhánh `nam-dev` (05/11/2026). Kịch bản bám đúng 4 flow và các chặng trên slide; tên chặng trên slide ghi trong ngoặc vuông, ví dụ **[Prepare resources]**. Tên nút ghi **đúng như trên màn hình**.
+Tên chặng trên slide ghi trong ngoặc vuông, ví dụ **[Prepare resources]**. Tên nút ghi đúng như trên màn hình; câu trong ngoặc kép là thông báo thật của hệ thống (đã chạy thử trên dữ liệu sau reset).
 
-Các bước đã chạy thử qua API trên dữ liệu sau reset ngày 05/11/2026; câu trong ngoặc kép là thông báo thật của hệ thống. Cột **Ràng buộc** ghi luật nghiệp vụ mà bước đó chứng minh.
-
-**Một câu chuyện, một buổi chiều, chạy liên tục:**
-Manager chuẩn bị sân, giá, ca trọng tài; Staff cấu hình voucher → khách thấy ngay (Flow 1) → anh Khoa (hội viên) đặt Sân A02 chiều nay, dùng ưu đãi hạng, voucher và điểm, chuyển khoản; chị Trang đặt B01 tối mai, trả cọc tại quầy (Flow 2) → lễ tân check-in, gia hạn, check-out anh Khoa; chị Trang đổi lịch rồi hủy; anh Khoa chấm 3 sao và được bù voucher (Flow 3) → lễ tân chốt ca; Manager đối soát, duyệt hoàn cọc cho chị Trang và xem báo cáo (Flow 4).
-
----
-
-## 0. Chuẩn bị (trước giờ demo 30 phút)
-
-### Khung giờ được phép demo
-
-Chỉ demo **ngày thường (Thứ 2 – Thứ 6), bắt đầu trong khoảng 16:30 – 20:30**. Lý do: giá mới ở bước 1.5 áp cho khung 17:00–22:00 ngày thường, slot bảo trì ở 1.7 là 22:00, và đơn của anh Khoa phải bắt đầu trong khung giá mới và trong khung check-in.
-
-### Ba cửa sổ cố định, đăng nhập một lần
-
-Mỗi vai đăng nhập **một lần** ở cửa sổ riêng và giữ nguyên đến hết buổi. Xếp 3 cửa sổ cạnh nhau (hoặc 3 màn hình/tab trình chiếu) để chuyển qua lại không cần đăng nhập lại.
-
-| Cửa sổ | Vai | Đăng nhập | Đổi tài khoản trong buổi |
-|---|---|---|---|
-| **Chrome thường** | **Manager** | `admin@gmail.com` | Không |
-| **Edge** (hoặc một profile Chrome khác) | **Staff** (lễ tân / thu ngân) | `staff@gmail.com` | Không |
-| **Chrome ẩn danh** (Ctrl+Shift+N) | **Khách** | Lần lượt: vãng lai → Khoa → Trang → Khoa | 3 lần |
-| **Firefox** *(tùy chọn)* | Khách thứ hai tranh slot | `demo.khach@gmail.com` | Không — chỉ dùng ở 2.6 |
-
-| # | Việc | Ghi chú |
-|---|---|---|
-| 0.1 | Mở Docker Desktop, chạy `docker compose up -d` | Web: `http://localhost:3000`, Admin/Staff: `http://localhost:3000/app` |
-| 0.2 | Chạy `.\reset-demo.ps1` | Đưa dữ liệu mẫu và tài khoản demo về chuẩn |
-| 0.3 | Đăng nhập sẵn Manager (Chrome thường) và Staff (Edge) | Chrome ẩn danh mở `localhost:3000`, **chưa đăng nhập** |
-| 0.4 | Chuẩn bị một chỗ ghi mã vé (giấy / notepad) | Mã vé anh Khoa ở 2.7 dùng lại ở 3.2 mà không phải đổi tài khoản |
-
-### Actor
-
-Mật khẩu đều là `123456` sau reset. Slide gọi Manager là ADMIN ở Flow 4; trong app đây là cùng một vai trò.
-
-| Actor trên slide | Người / hệ thống trong demo | Tài khoản |
-|---|---|---|
-| **MANAGER** (Admin) | Quản lý CLB | `admin@gmail.com` |
-| **STAFF** | Lễ tân / thu ngân | `staff@gmail.com` |
-| **CUSTOMER** | Khách vãng lai (chưa đăng nhập) | — |
-| **CUSTOMER** | Anh **Nguyễn Minh Khoa** — hạng **Masters** (giảm 5%), 2.537 điểm, sắp lên hạng | `demo.hoivien@gmail.com` |
-| **CUSTOMER** | Chị **Phạm Thu Trang** — hạng **Challenger**, sinh nhật tháng này, có voucher `BDAY-CHALLENGER-60K` | `demo.khach@gmail.com` |
-| **SYSTEM** | Courtly (sinh slot, tính giá, khóa slot, đối soát) | — |
-| Dịch vụ ngoài | Ngân hàng (webhook MB Bank giả lập), Email (Gmail), AI (Google Gemini) | — |
-
-### Mốc thời gian (ví dụ bắt đầu 16:30)
-
-| Mốc | Flow | Ghi chú |
-|---|---|---|
-| 16:30 – 16:34 | Flow 1 | |
-| 16:34 – 16:42 | Flow 2 | Khoa đặt khoảng **16:36** cho slot **17:00** |
-| 16:42 – 16:49 | Flow 3 | Check-in lúc khoảng **16:43**, tức 17 phút trước giờ chơi → trong khung check-in |
-| 16:49 – 16:53 | Flow 4 | |
+**Chuẩn bị:**
+- Chạy `docker compose up -d` rồi `.\reset-demo.ps1`. Mật khẩu mọi tài khoản: `123456`.
+- Kịch bản **không gắn với giờ demo cố định**: các mốc giờ chọn theo lúc bắt đầu demo (bước 1.5, 2.2, 2.10). Tổng thời lượng khoảng 23 phút.
+- **Ba cửa sổ cố định**, đăng nhập sẵn một lần:
+  - Chrome thường: Manager `admin@gmail.com`
+  - Edge: Staff `staff@gmail.com`
+  - Chrome ẩn danh: khách, chưa đăng nhập. Lần lượt dùng `demo.hoivien@gmail.com` (anh Nguyễn Minh Khoa, hạng Masters, 2.537 điểm) và `demo.khach@gmail.com` (chị Phạm Thu Trang, hạng Challenger, có voucher `BDAY-CHALLENGER-60K`).
+  - Firefox (tùy chọn): chỉ dùng cho bước tranh slot.
 
 ---
 
 ## FLOW 1 — Court & Service Setup (~4 phút)
 
-*Chuẩn bị sân, giá, hạng thành viên và voucher trước khi khách đặt.* **Actor:** Manager, System, Staff, Customer.
-
 | Actor | Quy trình / bước thực hiện | Ràng buộc |
 |---|---|---|
 | Manager | **[Prepare resources] 1.1** *Chrome thường.* **KINH DOANH → Sân & bảng giá** → tab **Danh sách sân (10)**. | Chỉ Manager được sửa sân, giá, nhân sự. |
-| Manager | **1.2** Thẻ **Sân A03** → **Chỉnh sửa** → **Trạng thái**: **Bảo trì** → **Lưu thông tin**. Toast "Đã lưu thông tin", A03 có nhãn **Bảo trì**. | Chỉ khóa được sân **không còn đơn sắp tới** (đối chiếu ở 2.12). |
-| Manager | **1.3** **Thêm sân** → **Tên sân** nhập `Sân A01` → **Lưu thông tin**. Báo 'Tên sân "Sân A01" đã tồn tại. Vui lòng chọn tên khác.' → **Đóng**. | Tên sân là duy nhất. Để trống tên thì hệ thống tự đặt tên kế tiếp của khu (Sân A05) và sân mới tự nhận bảng giá khu. |
-| Manager | **1.4** **QUẢN TRỊ → Nhân sự** → danh sách trọng tài kèm đơn giá/giờ và **ca trực** 06:00–14:00, 14:00–23:00 cả tuần (10 trọng tài, 70 ca). | Khách chỉ thuê được trọng tài **có ca trực trống** đúng giờ; ca đã được phân công thì không xóa được ("Không thể xóa slot đã được phân công hoặc đang có đơn đặt"). |
-| Manager | **[Price & schedule] 1.5** **Sân & bảng giá** → tab **Bảng giá theo khu** → **Khu A - Ngoài trời** ("3 sân hoạt động (1 sân bảo trì) (Sân A01, Sân A02, Sân A04)"). Khung **17:00 – 22:00** Thứ 2–6: `260000` → `300000`, **Áp dụng từ** hôm nay → **Xem trước** → **Lưu bảng giá**. Toast "Đã cập nhật bảng giá khu OUTDOOR; đã cập nhật N slot còn trống…" | Giá theo **khu × khung giờ × ngày thường/cuối tuần**. Chỉ slot trống/bảo trì nhận giá mới; slot đã có đơn **giữ giá đã chốt**. |
-| System | **1.6** Tự sinh slot **30 phút** (06:00–23:00) cho mọi sân đang khai thác, giá mỗi slot lấy từ bảng giá khu. | Sân mới hoặc ngày mới đều có slot ngay khi được xem; sân ngừng khai thác không sinh slot. |
-| Manager | **1.7** **VẬN HÀNH → Lịch sân** → lọc **Ngoài trời** → bấm ô **Sân A01 22:00** → **Bảo trì khung giờ**. Ô chuyển **Bảo trì**. | Bảo trì **từng slot** chỉ áp cho **khung giờ trống** ("Chỉ có thể đưa khung giờ trống vào bảo trì…"). |
-| Staff | **[Configure benefits] 1.8** *Chuyển sang Edge (Staff).* **Thành viên & điểm**: 4 hạng **Rookie → Challenger → Masters → Grand Slam**, mức giảm và hệ số tích điểm. | Chính sách hạng do Manager chỉnh (hệ số điểm ×1,0–×5,0; đổi lịch miễn phí 0–10 lần; voucher sinh nhật tối đa 1.000.000₫). Staff chỉ xem. |
-| Staff | **1.9** **Khuyến mãi & voucher** → **Tạo voucher mới**: `DEMO15`, giảm **15%** (tối đa 50.000₫), đơn từ 200.000₫, 30 lượt, mỗi khách 1 lần, 14 ngày → lưu. Voucher **kích hoạt ngay**. | Điều kiện voucher: đơn tối thiểu, giảm tối đa, **giới hạn lượt dùng** tổng và theo khách, thời hạn. |
-| Staff | **1.10** Tạo tiếp `DEMO30` giảm **30%** → voucher vào **Chờ duyệt**; Staff không có nút **Duyệt**. | Staff chỉ tự kích hoạt voucher trong hạn mức: giảm ≤ 20% (có giảm tối đa) hoặc ≤ 100.000₫, ≤ 50 lượt, ≤ 30 ngày. |
-| Manager | **1.11** *Chuyển sang Chrome thường (Manager).* **Khuyến mãi & voucher** → lọc **Chờ duyệt** → `DEMO30` → **Duyệt**. | Vượt hạn mức cần **Manager duyệt** ("Chỉ Manager mới có quyền phê duyệt voucher"). |
-| Customer (vãng lai) | **[View availability] 1.12** *Chuyển sang Chrome ẩn danh (chưa đăng nhập).* `localhost:3000/dat-san`: A03 hiện **Bảo trì**, không bấm được; Sân A01 22:00 **Bảo trì**; Sân A02 18:00–20:00 = **600.000₫** (300.000₫/giờ). | Thay đổi của Manager có hiệu lực **ngay**. Giờ đã qua hiện **Không khả dụng**. |
-| Customer → AI | **1.13** **Trợ lý AI Courtly** → hỏi "Chiều nay còn sân ngoài trời nào trống?" | AI trả lời từ giá và số sân thật, **không** thay bước đặt và thanh toán. |
-
-**[Ready to book]** Sân hoạt động · slot trống · giá hợp lệ. *Điểm khác biệt: giá theo khung giờ và bảo trì từng slot.*
+| Manager | **1.2** **Sân A03** → **Chỉnh sửa** → **Trạng thái: Bảo trì** → **Lưu thông tin**. Toast "Đã lưu thông tin", A03 có nhãn **Bảo trì**. | Chỉ khóa được sân **không còn đơn sắp tới** (đối chiếu ở 2.12). |
+| Manager | **1.3** **Thêm sân** → **Tên sân** nhập `Sân A01` → **Lưu thông tin**. Hệ thống báo 'Tên sân "Sân A01" đã tồn tại. Vui lòng chọn tên khác.' → **Đóng**. | Tên sân là duy nhất. Để trống tên thì hệ thống tự đặt tên kế tiếp của khu, và sân mới tự nhận bảng giá khu. |
+| Manager | **1.4** **QUẢN TRỊ → Nhân sự**: 10 trọng tài kèm đơn giá/giờ và 70 ca trực (06:00–14:00, 14:00–23:00, cả tuần). | Khách chỉ thuê được trọng tài **có ca trực trống** đúng giờ. Ca đã phân công không xóa được ("Không thể xóa slot đã được phân công hoặc đang có đơn đặt"). |
+| Manager | **[Price & schedule] 1.5** Tab **Bảng giá theo khu** → **Khu A - Ngoài trời** → chọn khung giá **còn ở phía trước trong hôm nay**, đúng loại ngày demo (Thứ 2–6 hoặc Thứ 7–CN), tăng thêm 40.000₫/giờ (ví dụ khung 17:00–22:00 ngày thường: `260000` → `300000`), **Áp dụng từ** hôm nay → **Xem trước** → **Lưu bảng giá**. Toast "Đã cập nhật bảng giá khu OUTDOOR; đã cập nhật N slot còn trống…" | Giá tính theo **khu × khung giờ × ngày thường/cuối tuần**. Chỉ slot trống hoặc bảo trì nhận giá mới; slot đã có đơn **giữ giá đã chốt**. |
+| System | **1.6** Tự sinh slot **30 phút** (06:00–23:00) cho mọi sân đang khai thác, giá mỗi slot lấy từ bảng giá khu. | Sân mới hoặc ngày mới có slot ngay khi được xem; sân ngừng khai thác không sinh slot. |
+| Manager | **1.7** **VẬN HÀNH → Lịch sân** → lọc **Ngoài trời** → một ô trống cuối ngày, ví dụ **Sân A01 22:00** → **Bảo trì khung giờ**. | Bảo trì từng slot chỉ áp cho **khung giờ trống** ("Chỉ có thể đưa khung giờ trống vào bảo trì…"). |
+| Staff | **[Configure benefits] 1.8** *Edge.* **Thành viên & điểm**: 4 hạng **Rookie → Challenger → Masters → Grand Slam**, kèm mức giảm và hệ số tích điểm. | Chính sách hạng do Manager chỉnh; Staff chỉ xem. |
+| Staff | **1.9** **Khuyến mãi & voucher** → **Tạo voucher mới** `DEMO15`: giảm 15% (tối đa 50.000₫), đơn từ 200.000₫, 30 lượt, mỗi khách 1 lần, hạn 14 ngày. Voucher **kích hoạt ngay**. | Voucher có điều kiện: đơn tối thiểu, giảm tối đa, giới hạn lượt dùng (tổng và theo khách), thời hạn. |
+| Staff | **1.10** Tạo `DEMO30` giảm 30% → voucher vào **Chờ duyệt**; Staff không có nút **Duyệt**. | Staff chỉ tự kích hoạt voucher trong hạn mức: giảm ≤ 20% (có mức tối đa) hoặc ≤ 100.000₫, ≤ 50 lượt, ≤ 30 ngày. |
+| Manager | **1.11** *Chrome thường.* **Khuyến mãi & voucher** → lọc **Chờ duyệt** → `DEMO30` → **Duyệt**. | Voucher vượt hạn mức phải được **Manager duyệt** ("Chỉ Manager mới có quyền phê duyệt voucher"). |
+| Customer (vãng lai) | **[View availability] 1.12** *Chrome ẩn danh.* `localhost:3000/dat-san`: A03 hiện **Bảo trì**, ô vừa bảo trì ở 1.7 hiện **Bảo trì**, Sân A02 ở khung vừa đổi giá hiện **giá mới** (ví dụ 2 giờ = 600.000₫). | Thay đổi của Manager có hiệu lực ngay. Giờ đã qua hiện **Không khả dụng**. |
+| Customer → AI | **1.13** **Trợ lý AI Courtly** → hỏi "Hôm nay còn sân ngoài trời nào trống?" | AI trả lời từ giá và số sân thật, không thay bước đặt và thanh toán. |
+| System | **[Ready to book] 1.14** Sân hoạt động, slot trống, giá hợp lệ: sẵn sàng nhận đặt. | Chỉ slot **AVAILABLE** của sân đang khai thác mới đặt được. |
 
 ---
 
 ## FLOW 2 — Booking & Payment (~8 phút)
 
-*Khách hội viên và khách mới đi cùng một luồng đặt sân được bảo vệ.* **Actor:** Customer, System, Ngân hàng, Staff, Manager.
-
-Làm **hết phần của anh Khoa** (2.1–2.7) rồi mới đến **chị Trang** (2.8–2.10). Từ lúc bấm **Tiếp tục thanh toán** (2.5) đến lúc ngân hàng xác nhận (2.6) **không chen bước nào khác**.
-
-### Anh Khoa — hội viên, chuyển khoản
-
 | Actor | Quy trình / bước thực hiện | Ràng buộc |
 |---|---|---|
-| Customer (Khoa) | **[Choose a service] 2.1** *Chrome ẩn danh.* **Đăng nhập** `demo.hoivien@gmail.com`. Toast chào mừng Nguyễn Minh Khoa, hạng Masters. | Tài khoản không nợ quá hạn (khách nợ quá hạn bị chặn đặt sân). |
-| Customer (Khoa) | **2.2** **Đặt sân** → hôm nay → **Sân A02** → chọn **slot 30 phút gần nhất cách hiện tại 20–30 phút** (ví dụ đặt lúc 16:36 thì chọn **17:00**), giờ kết thúc +1 giờ. Có thể tick **Thuê trọng tài** và chọn trọng tài còn trống. | Giờ trên cùng sân phải **liên tiếp**. Chỉ hiện trọng tài có ca trực trống; mỗi slot một trọng tài. Chọn giờ như vậy để bước 3.2 rơi đúng khung check-in. |
-| Customer → System | **2.3** Thử chọn thêm giờ trên 3 sân khác → khi thêm **sân thứ 4**: "Tối đa 3 sân trong cùng một đơn đặt." → bỏ chọn các sân thử, giữ lại **Sân A02**. | Tối đa **3 sân / đơn**. Làm bước này **trước** khi bấm thanh toán để không ăn vào thời gian giữ chỗ. |
-| System | **[Calculate the quote] 2.4** Chọn voucher **VIP10**, nhập **500 điểm**. Khối tiền (17:00–18:00, không trọng tài): **Tiền sân** 300.000₫ → **Ưu đãi hạng Masters** −15.000₫ → **VIP10** −28.500₫ (10% trên 285.000₫) → **Điểm thưởng** −50.000₫ → **Tổng** 206.500₫; **Cọc 50%**. | Thứ tự cộng dồn: **hạng → voucher → điểm**. 1 điểm = 100₫. VIP10 chỉ cho hội viên ("Đăng nhập để dùng voucher theo hạng"). Cọc = 50%. |
-| System | **[Hold the court] 2.5** **Tiếp tục thanh toán** → **Đơn của tôi**: đơn **Đang giữ chỗ**, đồng hồ **5:00** → chọn **Chuyển khoản VietQR** ngay. | Kiểm tra lại slot lúc tạo đơn, **khóa** slot cho khách này **5 phút**; hết giờ chưa trả thì đơn tự hết hạn, slot được nhả. |
-| Customer (Trang) | *(Tùy chọn — Firefox)* Trang đã mở sẵn đúng slot A02 17:00 từ trước 2.5; ngay sau khi Khoa bấm, Trang bấm **Tiếp tục thanh toán** → "Sân A02 17:00–17:30 vừa được khách khác giữ chỗ. Vui lòng chọn giờ khác." Lưới tự cập nhật, gợi ý sân khác cùng khu. | Hai khách cùng slot: chỉ người khóa trước giữ được (HTTP 409 `SLOT_TAKEN`). |
-| Ngân hàng | **[Pay & verify] 2.6** *Chrome ẩn danh (Khoa).* Trong hộp QR → **⚡ Công cụ Demo Hội đồng: Giả lập Ngân hàng gửi Webhook** → **⚡ Giả lập MB Bank chuyển đủ (…)** → "**KHOẢN CHUYỂN ĐÃ XÁC MINH**". | Webhook phải đúng **chữ ký HMAC**, tài khoản nhận, mã giao dịch, số tiền nguyên dương; giao dịch đã thu đủ không nhận lần hai. Phải trả **trước khi hết giờ giữ chỗ**. |
-| Customer (Khoa) | **[Confirmed] 2.7** **Xem đơn hàng của tôi** → **Đã xác nhận**, "✓ Đã đóng" cọc → **🎫 Xem Vé Điện Tử & Mã QR Check-in** → **ghi lại mã `CT-xxxxxxxx`** (dùng ở 3.2). **Lịch sử thanh toán** có dòng chuyển khoản. | Vé chỉ "✓ SẴN SÀNG CHECK-IN" khi đã đóng cọc. |
-
-### Chị Trang — khách mới, trả cọc tại quầy
-
-| Actor | Quy trình / bước thực hiện | Ràng buộc |
-|---|---|---|
-| Customer (Trang) | **[Choose a service] 2.8** *Chrome ẩn danh:* Khoa **Đăng xuất** → **Đăng nhập** → **Chưa có tài khoản? Đăng ký**: giới thiệu form (họ tên, số điện thoại, email, mật khẩu) và màn **Kích hoạt tài khoản** với mã OTP 6 số. Để tiết kiệm thời gian, quay lại **Đăng nhập** `demo.khach@gmail.com`. | Số điện thoại đã có tài khoản thì không đăng ký lại. Mã sai báo số lần thử còn lại; sai 5 lần phải xin mã mới. **Lưu ý:** slide ghi "Phone OTP", app hiện gửi OTP qua **email**. |
-| Customer (Trang) | **2.9** **Đặt sân** → **ngày mai**, **Sân B01**, 19:00–20:00 → gõ mã **WELCOME** → "Mã chào mừng chung 'WELCOME' đã đóng. Vui lòng sử dụng mã voucher cá nhân (WELCOME-XXXX)…" → chọn **BDAY-CHALLENGER-60K** trong ví → **Tiếp tục thanh toán** → **Tiền mặt tại quầy**. Đồng hồ giữ chỗ 5:00 bắt đầu. | Mã WELCOME chung đã đóng; khách dùng mã cá nhân trong ví. Đơn giữ chỗ 5 phút chờ thu cọc. |
-| Staff | **[Pay & verify] 2.10** *Chuyển ngay sang Edge (Staff, đang đăng nhập sẵn).* **Đơn đặt sân** → đơn của Phạm Thu Trang → thu cọc tiền mặt (lần chạy thử: 134.900₫) → đơn **Đã xác nhận**. | Staff xác nhận **trước khi hết giờ giữ chỗ**; không thu vượt số còn thiếu ("Thu vượt số tiền còn thiếu"). |
-| Manager | **[Confirmed] 2.11** *Chuyển sang Chrome thường (Manager).* **VẬN HÀNH → Lịch sân**: ô A02 17:00 hiện tên anh Khoa; bấm vào mở chi tiết đơn, không chọn để bảo trì được. | Không bảo trì slot đã có khách. |
-| Manager | **2.12** **Sân & bảng giá** → **Sân A02** → **Chỉnh sửa** → **Bảo trì** → **Lưu thông tin** → "Không thể chuyển sân sang trạng thái tạm ngưng: sân còn 1 đơn sắp tới (CT-xxxxxxxx · Nguyễn Minh Khoa · dd/mm). Đổi lịch sang sân khác hoặc hủy và hoàn tiền trước." → **Đóng**. Thử **Ngừng khai thác** → **Xác nhận ngừng** → "Không thể ngừng khai thác Sân A02: …" | Sân đã bán cho khách thì không khóa, không ngừng khai thác; phải đổi lịch hoặc hủy đơn trước. |
-
-**[Confirmed]** Mã đơn & QR · cọc đã xác minh · lịch sử thanh toán. *Điểm khác biệt: giảm theo hạng, điểm thưởng, giữ slot 5 phút và cọc được xác minh.*
+| Customer (Khoa) | **[Choose a service] 2.1** *Chrome ẩn danh.* **Đăng nhập** `demo.hoivien@gmail.com`. Hệ thống chào Nguyễn Minh Khoa, hạng Masters. | Tài khoản nợ quá hạn bị chặn đặt sân. |
+| Customer (Khoa) | **2.2** **Đặt sân** → hôm nay → **Sân A02** → chọn slot gần nhất cách lúc đặt **20–30 phút** (ví dụ đặt lúc 16:36 thì chọn 17:00), kéo thêm 1 giờ. Nếu hôm nay không còn slot như vậy, đặt slot sớm nhất ngày mai. Tùy chọn: tick **Thuê trọng tài**. | Giờ trên cùng sân phải liên tiếp. Chỉ hiện trọng tài có ca trống; mỗi slot một trọng tài. Chọn giờ cách 20–30 phút để bước 3.2 rơi đúng khung check-in. |
+| Customer (Khoa) → System | **2.3** Chọn thêm giờ trên 3 sân khác. Khi thêm sân thứ 4, hệ thống báo "Tối đa 3 sân trong cùng một đơn đặt." → bỏ chọn, chỉ giữ **Sân A02**. | Tối đa **3 sân / đơn**. Làm trước khi giữ chỗ để không tốn thời gian giữ chỗ. |
+| System | **[Calculate the quote] 2.4** Chọn voucher **VIP10**, dùng **500 điểm**. Ví dụ slot giá 300.000₫/giờ: tiền sân 300.000₫ → ưu đãi hạng Masters −15.000₫ → VIP10 −28.500₫ → điểm −50.000₫ → **Tổng 206.500₫**, cọc 50%. | Thứ tự giảm: **hạng → voucher → điểm**. 1 điểm = 100₫. VIP10 chỉ dành cho hội viên. Cọc = 50%. |
+| System | **[Hold the court] 2.5** **Tiếp tục thanh toán** → **Đơn của tôi**: đơn **Đang giữ chỗ**, đồng hồ **5:00** → chọn **Chuyển khoản VietQR** ngay. | Slot bị **khóa 5 phút** cho khách này; quá hạn chưa trả thì đơn hết hạn và nhả slot. |
+| Customer (Trang) | **2.6** *(Tùy chọn, Firefox.)* Chị Trang đã mở sẵn đúng slot A02 anh Khoa chọn và bấm **Tiếp tục thanh toán** ngay sau anh Khoa. Hệ thống báo "Sân A02 hh:mm–hh:mm vừa được khách khác giữ chỗ. Vui lòng chọn giờ khác." và gợi ý sân khác cùng khu. | Hai khách cùng slot: chỉ người giữ trước được (HTTP 409 `SLOT_TAKEN`). |
+| Ngân hàng | **[Pay & verify] 2.7** *Chrome ẩn danh (Khoa).* Trong hộp QR → **⚡ Giả lập MB Bank chuyển đủ (…)** → "**KHOẢN CHUYỂN ĐÃ XÁC MINH**". | Webhook phải đúng chữ ký HMAC, tài khoản nhận, mã giao dịch và số tiền; giao dịch đã thu đủ không nhận lần hai. |
+| Customer (Khoa) | **[Confirmed] 2.8** **Xem đơn hàng của tôi** → **Đã xác nhận** → **🎫 Xem Vé Điện Tử & Mã QR Check-in** → **ghi lại mã `CT-xxxxxxxx`** (dùng ở 3.2). | Vé chỉ "✓ SẴN SÀNG CHECK-IN" khi đã đóng cọc. |
+| Customer (Trang) | **[Choose a service] 2.9** *Chrome ẩn danh:* **Đăng xuất** → **Đăng nhập** → **Chưa có tài khoản? Đăng ký** → giới thiệu form và màn nhập OTP 6 số → quay lại **Đăng nhập** `demo.khach@gmail.com`. | Số điện thoại đã có tài khoản không đăng ký lại được. Nhập sai OTP 5 lần phải xin mã mới. |
+| Customer (Trang) | **2.10** **Đặt sân** → **2 ngày sau ngày demo**, **Sân B01**, 19:00–20:00 → nhập mã **WELCOME**, hệ thống báo "Mã chào mừng chung 'WELCOME' đã đóng…" → chọn **BDAY-CHALLENGER-60K** → **Tiếp tục thanh toán** → **Tiền mặt tại quầy**. | Mã chung đã đóng; khách dùng mã cá nhân trong ví. Đơn giữ chỗ 5 phút chờ thu cọc. Đặt cách hơn 24 giờ để dù demo lúc nào, 3.6–3.7 vẫn được tự đổi lịch và hoàn 100%. |
+| Staff | **[Pay & verify] 2.11** *Edge.* **Đơn đặt sân** → đơn của Phạm Thu Trang → thu cọc tiền mặt 50% (ví dụ 134.900₫) → đơn **Đã xác nhận**. | Phải thu trước khi hết giờ giữ chỗ; không thu vượt số còn thiếu ("Thu vượt số tiền còn thiếu"). |
+| Manager | **[Confirmed] 2.12** *Chrome thường.* **Lịch sân**: ô A02 giờ anh Khoa đặt mang tên anh Khoa. **Sân & bảng giá** → **Sân A02** → **Bảo trì** → **Lưu thông tin**. Hệ thống báo "Không thể chuyển sân sang trạng thái tạm ngưng: sân còn 1 đơn sắp tới (CT-xxxxxxxx · Nguyễn Minh Khoa · dd/mm)…" | Không bảo trì hoặc ngừng khai thác sân đã bán; phải đổi lịch hoặc hủy đơn trước. |
 
 ---
 
 ## FLOW 3 — Order Process & Feedback (~7 phút)
 
-*Lễ tân phục vụ đơn đã đặt, xử lý thay đổi và thu nhận phản hồi.* **Actor:** Staff, Customer, System.
-
-Thứ tự cửa sổ: **Edge (Staff)** phục vụ anh Khoa → **Chrome ẩn danh (vẫn là Trang)** đổi lịch, hủy → **Edge** → **Chrome ẩn danh** đổi sang Khoa để đánh giá → **Edge** xử lý đánh giá.
-
 | Actor | Quy trình / bước thực hiện | Ràng buộc |
 |---|---|---|
-| Staff | **[Prepare service] 3.1** *Edge (Staff).* **Việc cần xử lý**: khách sắp đến (anh Khoa 17:00), đơn chưa thu đủ, trọng tài theo đơn. | Menu Staff không có Sân & bảng giá, Nhân sự, Tài khoản & phân quyền, Hệ thống & module. |
-| Customer (Khoa) → Staff | **[Check in] 3.2** Anh Khoa đến quầy, đưa mã vé đã ghi ở 2.7. **Quét QR Check-in** → **Nhập mã / Máy quét** → `CT-xxxxxxxx` → **Check-in** → "**CHECK-IN TỰ ĐỘNG THÀNH CÔNG!**". Nếu lỡ ngoài khung: "Chưa tới giờ check-in (từ hh:mm ngày dd/mm). Nhập lý do ngoại lệ để tiếp tục." → nhập lý do. | Check-in từ **30 phút trước đến 15 phút sau** giờ bắt đầu; ngoài khung phải nhập lý do (≥ 5 ký tự), được ghi nhật ký. Đơn chưa đủ cọc cũng cần lý do. Đã qua giờ chơi thì không check-in. |
-| Staff | **3.3** Chi tiết đơn → **Gia hạn giờ chơi** → **+30 phút** (giá đã trừ ưu đãi hạng Masters). | Chỉ gia hạn khi slot liền sau **còn trống**; giá gia hạn vẫn áp ưu đãi hạng. |
-| Staff | **[Play & check out] 3.4** *Người trình bày nói: "Giả định anh Khoa đã chơi xong, ra quầy trả sân."* **Thu nốt tiền (…)** → **Xác nhận đã nhận tiền mặt** → **Đơn đặt sân** → **Check-out** → "TRẠNG THÁI CÔNG NỢ: ĐÃ THANH TOÁN ĐỦ 100%" → **🏁 Đã thanh toán đủ • Xác nhận Check-out & Giải phóng sân**. Đơn **Hoàn tất**. | Không thu vượt số còn thiếu; check-out hiện rõ công nợ trước khi giải phóng sân. |
-| System | **3.5** Cộng chi tiêu và điểm cho anh Khoa: **lên hạng Grand Slam** (đã thấy trong lần chạy thử). | Hạng và điểm chỉ cập nhật khi đơn **hoàn tất**. |
-| Customer (Trang) | **[Handle requests] 3.6** *Chrome ẩn danh (vẫn đăng nhập Trang từ 2.8).* **Đơn của tôi** → đơn B01 ngày mai → **Đổi lịch sân** → **Sân B02** 20:00–21:00 → xác nhận. | Khách tự đổi lịch **trước 24 giờ**; muộn hơn: "Đã qua hạn đổi/hủy; liên hệ quầy". Số lần đổi miễn phí theo hạng. Đã check-in thì không đổi. |
-| Customer (Trang) → System | **3.7** **Hủy đơn** → hệ thống hiện mức hoàn: "Hủy trước giờ chơi trên 24 tiếng: Hoàn lại 100% tiền cọc." → **Xác nhận hủy đơn đặt sân**. Đơn **Đã hủy**, khoản **chờ hoàn** 134.900₫ (Manager duyệt chi ở 4.4). | Mức hoàn theo giờ hủy: **> 24 giờ 100%**, **12–24 giờ 50%**, **< 12 giờ 0%**. |
-| Staff | **3.8** *Edge (Staff).* **Thu tiền & hoàn tiền** → **Đơn cần hoàn tiền** → **#92929292** (đã cọc 240.000₫, hủy 23,5 giờ trước) → **Hoàn tiền ngay** → ô ghi "tối đa 120.000₫ theo chính sách"; thử 240.000₫ bị chặn ("Staff chỉ hoàn tối đa 120.000₫ theo chính sách. Khoản vượt mức cần Manager duyệt.") → **Hủy**. | Staff chỉ hoàn **trong chính sách**; vượt mức hoặc hoàn phí giải đấu cần Manager. Đơn hủy muộn (#93939393): "Đơn không có khoản chờ hoàn theo chính sách…". |
-| Customer (Khoa) | **[Feedback] 3.9** *Chrome ẩn danh:* Trang **Đăng xuất** → **Đăng nhập** `demo.hoivien@gmail.com` → `localhost:3000/feedback` → **3 sao** → "Đèn sân A02 hơi tối ở cuối sân, mong CLB kiểm tra." → chọn đơn vừa chơi → **Gửi đánh giá**. | Nội dung ≥ 10 ký tự ("Nội dung cần ít nhất 10 ký tự"); chỉ chọn được đơn **đã hoàn tất** của chính mình. Đánh giá **≤ 3 sao** tự vào hàng **Đánh giá thấp cần xử lý**, hạn xử lý 24 giờ. |
-| Staff | **3.10** *Edge (Staff).* **Feedback & Đánh giá** → lọc **⚠️ Đánh giá thấp cần xử lý** → mở đánh giá của anh Khoa → nhận xử lý → **🎁 Tặng voucher** (mẫu **Xin lỗi nhẹ 50.000₫**) → nhập phản hồi → **Hoàn tất & Đóng ca xử lý**. Toast "Đã tặng voucher SORRY-xxxx cho khách hàng…" | **Service recovery**: đánh giá thấp phải được xử lý (bù voucher hoặc "Đóng ca (Không bù)"). Chỉ Manager/Staff được tặng voucher bồi thường. |
-| Customer (Khoa) | **3.11** *Chrome ẩn danh (Khoa).* Chuông **Thông báo** và **ví Ưu đãi** có voucher `SORRY-xxxx`. | Khách nhận thông báo trạng thái đơn và voucher bù. |
-
-*Điểm khác biệt: check-in ngoại lệ phải có lý do; đánh giá thấp kích hoạt khôi phục dịch vụ.*
+| Staff | **[Prepare service] 3.1** *Edge.* **Việc cần xử lý**: khách sắp đến (anh Khoa), đơn chưa thu đủ, trọng tài theo đơn. | Menu Staff không có Sân & bảng giá, Nhân sự, Tài khoản & phân quyền. |
+| Customer (Khoa) → Staff | **[Check in] 3.2** Anh Khoa đọc mã đã ghi ở 2.8. **Quét QR Check-in** → **Nhập mã / Máy quét** → `CT-xxxxxxxx` → **Check-in** → "**CHECK-IN TỰ ĐỘNG THÀNH CÔNG!**". Nếu ngoài khung giờ, hệ thống báo "Chưa tới giờ check-in (từ hh:mm ngày dd/mm). Nhập lý do ngoại lệ để tiếp tục." | Check-in từ **30 phút trước đến 15 phút sau** giờ bắt đầu; ngoài khung phải nhập lý do (≥ 5 ký tự) và bị ghi nhật ký. Nếu ở 2.2 phải đặt sang ngày mai thì đi đường ngoại lệ này. |
+| Staff | **[Play & check out] 3.3** Khách đang chơi → chi tiết đơn → **Gia hạn giờ chơi** → **+30 phút**. | Chỉ gia hạn khi slot liền sau còn trống; giá gia hạn vẫn áp ưu đãi hạng. |
+| Staff | **3.4** *"Giả định anh Khoa đã chơi xong."* **Thu nốt tiền** → **Xác nhận đã nhận tiền mặt** → **Check-out** → "TRẠNG THÁI CÔNG NỢ: ĐÃ THANH TOÁN ĐỦ 100%" → **Xác nhận Check-out & Giải phóng sân**. Đơn chuyển **Hoàn tất**. | Không thu vượt số còn thiếu; phải thấy rõ công nợ trước khi giải phóng sân. |
+| System | **3.5** Cộng chi tiêu và điểm: anh Khoa **lên hạng Grand Slam**. | Hạng và điểm chỉ cập nhật khi đơn hoàn tất. |
+| Customer (Trang) | **[Handle requests] 3.6** *Chrome ẩn danh (Trang).* **Đơn của tôi** → đơn B01 đặt ở 2.10 → **Đổi lịch sân** → **Sân B02** 20:00–21:00 → xác nhận. | Khách tự đổi lịch **trước 24 giờ**; muộn hơn thì "Đã qua hạn đổi/hủy; liên hệ quầy". Số lần đổi miễn phí theo hạng. |
+| Customer (Trang) → System | **3.7** **Hủy đơn** → "Hủy trước giờ chơi trên 24 tiếng: Hoàn lại 100% tiền cọc." → **Xác nhận hủy**. Đơn **Đã hủy**, **chờ hoàn** toàn bộ tiền cọc. | Mức hoàn: **> 24 giờ 100%**, **12–24 giờ 50%**, **< 12 giờ 0%**. |
+| Staff | **3.8** *Edge.* **Thu tiền & hoàn tiền** → **Đơn cần hoàn tiền** → **#92929292** → **Hoàn tiền ngay** → nhập 240.000₫. Hệ thống chặn: "Staff chỉ hoàn tối đa 120.000₫ theo chính sách. Khoản vượt mức cần Manager duyệt." → **Hủy**. | Staff chỉ hoàn trong chính sách; vượt mức cần Manager duyệt. |
+| Customer (Khoa) | **[Feedback] 3.9** *Chrome ẩn danh:* **Đăng xuất** → **Đăng nhập** `demo.hoivien@gmail.com` → `/feedback` → **3 sao**, nội dung "Đèn sân A02 hơi tối ở cuối sân, mong CLB kiểm tra." → chọn đơn vừa chơi → **Gửi đánh giá**. | Nội dung ≥ 10 ký tự; chỉ đánh giá được đơn đã hoàn tất của chính mình. Đánh giá **≤ 3 sao** vào hàng **Đánh giá thấp cần xử lý**, hạn xử lý 24 giờ. |
+| Staff | **3.10** *Edge.* **Feedback & Đánh giá** → **⚠️ Đánh giá thấp cần xử lý** → mở đánh giá → **🎁 Tặng voucher** (Xin lỗi nhẹ 50.000₫) → phản hồi → **Hoàn tất & Đóng ca xử lý**. Toast "Đã tặng voucher SORRY-xxxx…" | Đánh giá thấp bắt buộc phải xử lý (bù voucher hoặc đóng không bù). Chỉ Manager/Staff được tặng voucher bồi thường. |
+| Customer (Khoa) | **3.11** *Chrome ẩn danh.* Chuông **Thông báo** và **ví Ưu đãi** có `SORRY-xxxx`. | Khách nhận thông báo về đơn và voucher bù. |
 
 ---
 
 ## FLOW 4 — Dashboard & Reporting (~4 phút)
 
-*Đối chiếu tiền đã thu và đo hiệu quả khai thác sân.* **Actor:** Staff, System, Manager (Admin).
-
 | Actor | Quy trình / bước thực hiện | Ràng buộc |
 |---|---|---|
-| Staff | **[Collect data] 4.1** *Edge (Staff, đang đăng nhập).* Mở `localhost:3000/quay-thu` → **Chốt ca thu ngân** → nhập tiền đầu ca và tiền thực đếm → chốt. Phiếu chốt ca hiện tiền mặt đã thu trong ca (cọc của chị Trang, tiền thu nốt và gia hạn của anh Khoa) và chênh lệch. | Chỉ thu ngân và Manager vào được quầy thu; tiền mặt tính theo **người thu** trong ngày. |
-| System | **4.2** Gom đơn, thanh toán tiền mặt và chuyển khoản, giao dịch hoàn tiền vào sổ. | Mỗi giao dịch ghi đúng nguồn (chuyển khoản qua QR / tiền mặt tại quầy) và người thu. |
-| Manager | **[Reconcile] 4.3** *Chrome thường (Manager).* **VẬN HÀNH → Thu tiền & hoàn tiền** → **Đối soát & Ngoại lệ**: **tiền thu thừa / không khớp** và **đơn đã hủy còn giữ cọc** (đơn của chị Trang 134.900₫, #91919191, #92929292). | Khoản thừa và khoản chờ hoàn đều phải được xử lý, không để treo. |
-| Manager | **4.4** **Đơn cần hoàn tiền** → đơn của chị Trang → **Hoàn tiền ngay** (đề xuất 100% = 134.900₫) → **Xác nhận đã chuyển khoản / hoàn tiền**. Làm tiếp **#92929292** (120.000₫, 50% — đơn Staff bị chặn hoàn vượt ở 3.8). | **Admin duyệt chi hoàn tiền**; tổng hoàn không vượt số đã thu còn lại; mỗi lần hoàn ghi nhật ký người duyệt. |
-| Manager | **[Select period] 4.5** Bộ chọn kỳ (mặc định **Tháng này**) → thử **Theo Ngày** / **Khoảng ngày** → áp dụng. 4 ô **Tổng đã thu**, **Tổng đã hoàn**, **Thu phí hội viên**, **Thu ròng** gắn nhãn kỳ. | Mọi số tiền gắn rõ kỳ tính. |
-| System | **[Calculate] 4.6** **TRA CỨU → Báo cáo**: **Tổng thực thu ròng** (sau hoàn) khớp từng đồng với **Thu ròng** ở 4.5; **Phân bố Khung giờ Cao điểm**; **Biểu đồ Công suất Khai thác 10 Sân**; **Danh sách đơn hàng trong kỳ** và báo cáo thành viên. | Báo cáo và trang thu tiền dùng chung cách tính kỳ (`period.mjs`); số sân đếm theo dữ liệu thật. |
-| Manager | **[Business insights] 4.7** Tìm đơn của anh Khoa (**Hoàn tất**, đã thu đủ) và đơn của chị Trang (**Đã hủy**, đã hoàn) trong danh sách → **Xuất báo cáo CSV** hoặc **In / Xuất PDF Báo Cáo**. | Tiền từ Flow 2 và Flow 3 truy vết được tới báo cáo. |
-| Manager | **4.8** *(Tùy chọn)* **Tài khoản & phân quyền** → `admin@gmail.com` → đổi quyền thành Staff → lưu → "Không được tự khóa/hạ quyền hoặc thay quyền chủ hệ thống". | Manager không tự khóa/hạ quyền chính mình. |
-
-*Điểm khác biệt: tiền từ Flow 02 và Flow 03 được truy vết và đối chiếu trong báo cáo.*
+| Staff | **[Collect data] 4.1** *Edge.* `localhost:3000/quay-thu` → **Chốt ca thu ngân** → nhập tiền đầu ca và tiền thực đếm → chốt. Phiếu hiện tiền mặt đã thu trong ca và chênh lệch. | Chỉ thu ngân và Manager vào được quầy thu; tiền mặt tính theo người thu. |
+| System | **4.2** Gom đơn, thanh toán tiền mặt và chuyển khoản, giao dịch hoàn tiền vào sổ. | Mỗi giao dịch ghi đúng nguồn và người thu. |
+| Manager | **[Reconcile] 4.3** *Chrome thường.* **Thu tiền & hoàn tiền** → **Đối soát & Ngoại lệ**: tiền thu thừa / không khớp, đơn đã hủy còn giữ cọc (đơn chị Trang, #91919191, #92929292). | Khoản thừa và khoản chờ hoàn phải được xử lý, không để treo. |
+| Manager | **4.4** **Đơn cần hoàn tiền** → đơn chị Trang → **Hoàn tiền ngay** (đề xuất 100% tiền cọc) → **Xác nhận đã chuyển khoản / hoàn tiền**. Làm tiếp **#92929292** (120.000₫). | Manager duyệt chi hoàn tiền; tổng hoàn không vượt số đã thu; mỗi lần hoàn có ghi nhật ký. |
+| Manager | **[Select period] 4.5** Bộ chọn kỳ **Tháng này** → thử **Theo Ngày** / **Khoảng ngày**. Các ô **Tổng đã thu**, **Tổng đã hoàn**, **Thu phí hội viên**, **Thu ròng** gắn nhãn kỳ. | Mọi số tiền đều ghi rõ kỳ tính. |
+| System | **[Calculate] 4.6** **TRA CỨU → Báo cáo**: **Tổng thực thu ròng** khớp **Thu ròng** ở 4.5; khung giờ cao điểm; công suất 10 sân; danh sách đơn trong kỳ; báo cáo thành viên. | Báo cáo và trang thu tiền dùng chung cách tính kỳ; số sân lấy từ dữ liệu thật. |
+| Manager | **[Business insights] 4.7** Tìm đơn anh Khoa (**Hoàn tất**) và đơn chị Trang (**Đã hủy**, đã hoàn) → **Xuất báo cáo CSV** hoặc **In / Xuất PDF Báo Cáo**. | Tiền từ Flow 2 và Flow 3 truy vết được đến báo cáo. |
+| Manager | **4.8** *(Tùy chọn.)* **Tài khoản & phân quyền** → `admin@gmail.com` → đổi quyền thành Staff → lưu. Hệ thống báo "Không được tự khóa/hạ quyền hoặc thay quyền chủ hệ thống". | Manager không tự khóa hoặc hạ quyền chính mình. |
 
 ---
 
-## Sau khi demo / tập dượt
+**Sau khi demo:** chạy `.\reset-demo.ps1` (hoặc **Hệ thống & module** → **Đặt lại dữ liệu mẫu Hội đồng**).
 
-Chạy `.\reset-demo.ps1`, hoặc Manager vào **Hệ thống & module** → **Đặt lại dữ liệu mẫu Hội đồng**. Reset trả lại giá khu A, trạng thái Sân A03, slot bảo trì, xóa đơn, voucher và tài khoản tự tạo.
-
-## Bảng theo dõi lỗi & tiến độ sửa chữa
+## Phụ lục — Bảng theo dõi lỗi đã sửa
 
 | Mức | Lỗi | Vị trí | Trạng thái | Commit |
 |---|---|---|---|---|
