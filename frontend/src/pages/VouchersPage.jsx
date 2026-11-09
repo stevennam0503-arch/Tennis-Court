@@ -137,6 +137,7 @@ export default function VouchersPage() {
       notify(`Đã tạo voucher ${res.code} (trạng thái: ${res.status})`);
       setShowCreateModal(false);
       loadData();
+      window.dispatchEvent(new Event('courtly-approvals-changed'));
     } catch (e) {
       notify('Lỗi tạo voucher: ' + e.message);
     }
@@ -147,6 +148,7 @@ export default function VouchersPage() {
       await api(`/admin/vouchers/${id}/${action}`, 'POST');
       notify(`Thao tác ${action} voucher thành công`);
       loadData();
+      window.dispatchEvent(new Event('courtly-approvals-changed'));
     } catch (e) {
       notify(`Lỗi thao tác ${action}: ` + e.message);
     }

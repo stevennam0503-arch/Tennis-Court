@@ -32,11 +32,43 @@ export default function CalendarPage() {
       .filter((r) => localDate(r.createdAt) === date && data.payments.find((p) => p.id === r.paymentId)?.orderId)
       .reduce((a, r) => a + r.amount, 0);
 
+  // Khung giờ đã bắt đầu (theo giờ Việt Nam) không đặt / bảo trì được nữa — backend cũng chặn ("Chọn khung giờ chưa bắt đầu").
+  const [nowTick, setNowTick] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 60000);
+    return () => clearInterval(t);
+  }, []);
+  const nowMinutes = useMemo(() => {
+    const [h, m] = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false })
+      .format(new Date(nowTick))
+      .split(':')
+      .map(Number);
+    return (h % 24) * 60 + m;
+  }, [nowTick]);
+  const isPast = (slot) => {
+    if (!slot) return false;
+    const day = today();
+    if (date < day) return true;
+    if (date > day) return false;
+    const start = slot.start ? Number(slot.start.slice(0, 2)) * 60 + Number(slot.start.slice(3, 5)) : Math.round(slot.hour * 60);
+    return start <= nowMinutes;
+  };
+
+  // Bỏ khỏi lựa chọn những khung giờ vừa trôi qua trong lúc đang chọn.
+  useEffect(() => {
+    setSelected((prev) => {
+      const next = prev.filter((id) => !isPast(data.schedules.find((s) => s.id === id)));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [nowMinutes, date, data.schedules]);
+
   const choose = (id) =>
     setSelected((previous) => (previous.includes(id) ? previous.filter((x) => x !== id) : [...previous, id]));
 
   const create = () => {
     if (!selected.length) return notify('Chọn các khung giờ trống trước.');
+    if (data.schedules.some((s) => selected.includes(s.id) && isPast(s)))
+      return notify('Có khung giờ đã bắt đầu hoặc đã qua. Hãy bỏ chọn và chọn khung giờ chưa bắt đầu.');
     const hasMaintenance = data.schedules.some((s) => selected.includes(s.id) && s.status === 'MAINTENANCE');
     if (hasMaintenance) return notify('Không thể đặt khung giờ đang bảo trì. Hãy bỏ chọn hoặc mở lại khung giờ.');
     show({ type: 'booking', scheduleIds: selected, onCreated: () => setSelected([]) });
@@ -188,10 +220,11 @@ export default function CalendarPage() {
                   );
                   const courtDisabled = c.status !== 'ACTIVE' || !slot;
                   const isMaintenance = slot?.status === 'MAINTENANCE';
+                  const past = !order && !match && isPast(slot);
 
                   const status = selected.includes(slot?.id)
                     ? 'selected'
-                    : isMaintenance || courtDisabled
+                    : isMaintenance || courtDisabled || past
                     ? 'maintenance'
                     : slot?.status === 'LOCKED'
                     ? 'holding'
@@ -205,7 +238,8 @@ export default function CalendarPage() {
                     <div className="slot-wrap" key={c.id}>
                       <button
                         className={`slot ${status}`}
-                        disabled={courtDisabled}
+                        disabled={courtDisabled || past}
+                        title={past ? 'Khung giờ đã bắt đầu hoặc đã qua' : undefined}
                         aria-pressed={!!slot && selected.includes(slot.id)}
                         aria-label={`${c.name} ${hour} giờ`}
                         onClick={() => {
@@ -221,6 +255,8 @@ export default function CalendarPage() {
                         <span>
                           {courtDisabled
                             ? labels[c.status]
+                            : past
+                            ? 'Đã qua'
                             : order?.name ||
                               match?.roundName ||
                               (selected.includes(slot?.id)
@@ -232,6 +268,8 @@ export default function CalendarPage() {
                         <small>
                           {courtDisabled
                             ? 'Tạm ngừng'
+                            : past
+                            ? 'Không khả dụng'
                             : isMaintenance
                             ? 'Tạm ngưng phục vụ'
                             : order

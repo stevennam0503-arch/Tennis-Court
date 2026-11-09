@@ -114,6 +114,17 @@ function tierBulletsVi() {
     return `• **${TIER_NAMES[c]} (từ ${viMoney(r.spend)}₫):** ${perks}, voucher sinh nhật ${kVi(r.birthday)}.`; }).join(String.fromCharCode(10));
 }
 
+// Lưới an toàn: AI không có quyền đặt sân. Nếu câu trả lời vẫn tự nhận đã tạo đơn / giữ chỗ,
+// thay bằng hướng dẫn tự đặt để khách không tưởng đã có đơn.
+const BOOKING_CLAIM_VI = /(đã|vừa)\s+(tạo|giữ|khóa|chốt)\s+(được\s+)?(đơn|sân|chỗ|slot|lịch)|(đã|vừa)\s+(đặt|xác\s*nhận)\s+[^.!?\n]{0,40}cho\s+(anh|chị|bạn|quý\s*khách)|(em|mình|tôi|courtly)\s+(sẽ\s+)?(tạo|gửi)\s+(đơn|mã)|(em|mình|tôi)\s+(xin\s+phép\s+)?hỗ\s*trợ\s+[^.!?\n]{0,20}(giữ|đặt|chốt)\s*(chỗ|sân|slot)|để\s+(em|mình|tôi)\s+(tạo|gửi|giữ|đặt|chốt)|chốt\s+slot/i;
+const BOOKING_CLAIM_EN = /\b(i('| ha)ve|we('| ha)ve|has been|have been)\s+(created|booked|reserved|held|locked|confirmed)\b|\b(create|send)\s+(the|your|a)\s+(booking|order|qr)|confirm\s+(so|and)\s+i/i;
+export function guardBookingClaims(text, isEn) {
+  if (!(isEn ? BOOKING_CLAIM_EN : BOOKING_CLAIM_VI).test(text)) return text;
+  return isEn
+    ? 'Note: the assistant cannot create or hold bookings, so no order has been made. Please book on the **Book a court** page: choose the court and time, then press **Continue to payment** — the 5-minute hold and the 50% deposit start there.'
+    : 'Lưu ý: Trợ lý AI **không thể tạo đơn hay giữ sân** giúp bạn, nên chưa có đơn nào được tạo. Bạn vui lòng tự đặt ở trang **Đặt sân**: chọn sân, chọn giờ rồi bấm **Tiếp tục thanh toán** — thời gian giữ chỗ 5 phút và cọc 50% bắt đầu từ bước đó.';
+}
+
 const COURTLY_RULES_VI = `
 - Giờ mở cửa: 06:00 – 23:00 tất cả các ngày trong tuần (kể cả Thứ 7, Chủ Nhật và ngày lễ). Khung giờ đặt sân theo bước 30 phút.
 - Đặt sân & Giữ chỗ: Khách cần thanh toán tiền cọc 50% trong vòng 5 phút sau khi tạo đơn qua VietQR để khóa slot độc quyền. Phần còn lại thanh toán tại quầy khi đến chơi.
@@ -550,6 +561,13 @@ CRITICAL FORMATTING & CONTEXT RULES:
 - ALWAYS MAINTAIN CONVERSATIONAL CONTEXT: If the customer asks a follow-up query (e.g. "tell me more details", "does it have a roof?"), you MUST follow up directly on the previous topic discussed without asking them to clarify from scratch.
 - Answer only what the user specifically asked. Use bold for key numbers (prices, hours).
 
+WHAT YOU CAN AND CANNOT DO (MANDATORY):
+- You are an information assistant only. You CANNOT create, hold, confirm, reschedule or cancel bookings, cannot lock courts, cannot generate VietQR codes and cannot take payments. You have no access to the booking system.
+- NEVER say or imply that a booking/order was created, a court is held/reserved for the customer, or that a QR code was sent. Never ask the customer to "confirm" so you can book.
+- When the customer wants to book: you may summarize the court, time and estimated price from the tariff above, then tell them to book themselves on the "Book a court" page (choose court, time, then "Continue to payment"); the hold and the 50% deposit start only there.
+- Do not claim a slot is free right now: you do not see live availability; tell them the "Book a court" page shows real-time free slots.
+- Only quote prices listed above; never invent prices or opening hours.
+
 Official Club Knowledge:
 Tariff & Services:
 ${buildPricingKnowledge(data, true)}
@@ -561,6 +579,13 @@ QUY TẮC BẮT BUỘC VỀ ĐỘ DÀI & NGỮ CẢNH ĐỐI THOẠI:
 - Trả lời CỰC KỲ NGẮN GỌN, SÚC TÍCH, THÂN THIỆN (tối đa 3 đến 5 dòng).
 - BẮT BUỘC HIỂU NGỮ CẢNH: Khi khách hỏi tiếp nối (ví dụ: "chỉ mình chi tiết hơn", "sân đó có mái che không", "hủy thì sao"), bạn phải giải thích ĐÚNG nội dung vừa trao đổi ở tin nhắn trước, tuyệt đối không hỏi lại từ đầu làm cụt hứng khách.
 - Dùng in đậm cho số tiền hoặc giờ giấc quan trọng.
+
+GIỚI HẠN QUYỀN HẠN (BẮT BUỘC):
+- Bạn CHỈ tư vấn thông tin. Bạn KHÔNG THỂ tạo, giữ chỗ, xác nhận, đổi lịch hay hủy đơn; không khóa sân; không tạo mã VietQR; không nhận thanh toán. Bạn không có quyền truy cập hệ thống đặt sân.
+- TUYỆT ĐỐI KHÔNG nói hoặc ngụ ý rằng đã tạo đơn, đã giữ sân/giữ chỗ cho khách, hay đã gửi mã QR. Không mời khách "xác nhận" hoặc "chốt slot" để bạn đặt hộ.
+- Khi khách muốn đặt: có thể tóm tắt sân, khung giờ và giá ước tính theo bảng giá trên, rồi hướng dẫn khách TỰ đặt ở trang "Đặt sân" (chọn sân, chọn giờ, bấm "Tiếp tục thanh toán"); việc giữ chỗ 5 phút và cọc 50% chỉ bắt đầu ở bước đó.
+- Không khẳng định sân đang trống: bạn không thấy lịch trống thời gian thực; hãy nói trang "Đặt sân" hiển thị giờ trống chính xác.
+- Chỉ báo giá theo bảng giá ở trên; không tự bịa giá hay giờ mở cửa.
 
 Dữ liệu xác thực của CLB:
 Bảng giá niêm yết theo khu & Dịch vụ:
@@ -604,7 +629,7 @@ ${COURTLY_RULES_VI.replace('@@TIERS_VI@@', tierLinesVi())}`;
     const result = await response.json();
     const replyText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!replyText) throw new Error(isEn ? 'No content returned from AI' : 'Không nhận được nội dung từ AI');
-    return replyText;
+    return guardBookingClaims(replyText, isEn);
   };
 
   const handleSend = async (textToSend) => {

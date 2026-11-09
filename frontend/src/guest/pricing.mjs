@@ -1,16 +1,41 @@
 const stamp = n => `${String(Math.floor(n)).padStart(2, '0')}:${String(Math.round((n % 1) * 60)).padStart(2, '0')}`;
 
 // Segment both calendars at every tariff boundary; gaps use the court's base price.
+// Mỗi ô còn mang khung giá thật của loại ngày đó (tier) để giao diện gộp các dòng cùng khung:
+// khung 15:00–22:00 ngày thường không bị tách chỉ vì cuối tuần có mốc 17:00.
 export function tariffRows(court, prices) {
   const rates = (prices || []).filter(p => p.court === court?.id);
   const boundaries = [...new Set([6, 23, ...rates.flatMap(p => [Number(p.start), Number(p.end)]).filter(n => n > 6 && n < 23)])].sort((a, b) => a - b);
-  const price = (day, start) => rates.find(p => p.dayType === day && Number(p.start) <= start && Number(p.end) > start)?.price ?? court?.price;
-  return boundaries.slice(0, -1).map((start, i) => ({
-    start: stamp(start),
-    end: stamp(boundaries[i + 1]),
-    weekday: price('WEEKDAY', start),
-    weekend: price('WEEKEND', start)
-  }));
+  const rate = (day, start) => rates.find(p => p.dayType === day && Number(p.start) <= start && Number(p.end) > start);
+  const tier = (day, start) => {
+    const r = rate(day, start);
+    if (r) return { key: `${day}-${r.start}-${r.end}`, start: stamp(Number(r.start)), end: stamp(Number(r.end)), price: r.price ?? court?.price };
+    return { key: `${day}-base-${start}`, start: stamp(start), end: null, price: court?.price };
+  };
+  return boundaries.slice(0, -1).map((start, i) => {
+    const weekdayTier = tier('WEEKDAY', start), weekendTier = tier('WEEKEND', start);
+    if (!weekdayTier.end) weekdayTier.end = stamp(boundaries[i + 1]);
+    if (!weekendTier.end) weekendTier.end = stamp(boundaries[i + 1]);
+    return {
+      start: stamp(start),
+      end: stamp(boundaries[i + 1]),
+      weekday: weekdayTier.price,
+      weekend: weekendTier.price,
+      weekdayTier,
+      weekendTier
+    };
+  });
+}
+
+// Số dòng mỗi ô cần gộp theo cột ngày: 0 = ô bị gộp vào ô phía trên (không vẽ).
+export function rowSpans(matrix, dayKey) {
+  const spans = matrix.map(() => 1);
+  for (let i = 0; i < matrix.length; i++) {
+    if (!spans[i]) continue;
+    let j = i + 1;
+    while (j < matrix.length && matrix[j].days[dayKey]?.tierKey === matrix[i].days[dayKey]?.tierKey) { spans[i]++; spans[j] = 0; j++; }
+  }
+  return spans;
 }
 
 export const WEEK_DAYS = [
@@ -68,11 +93,15 @@ export function getCourtMatrix(court, prices) {
     WEEK_DAYS.forEach(d => {
       const isWeekend = d.dayType === 'WEEKEND';
       const p = isWeekend ? r.weekend : r.weekday;
-      const type = isWeekend ? 'weekend' : (startH >= 17 ? 'peak' : 'normal');
+      const tier = isWeekend ? r.weekendTier : r.weekdayTier;
+      const tierStartH = Number(tier.start.slice(0, 2));
+      const type = isWeekend ? 'weekend' : (tierStartH >= 17 ? 'peak' : 'normal');
       days[d.key] = {
         price: p,
         type,
-        dayLabel: d.label
+        dayLabel: d.label,
+        tierKey: tier.key,
+        time: `${tier.start} – ${tier.end}`
       };
     });
     return {

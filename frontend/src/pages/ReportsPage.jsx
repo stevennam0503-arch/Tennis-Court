@@ -489,21 +489,58 @@ export default function ReportsPage() {
 
 
 
-    // Default 5 sample chunks for custom / all
+    // Khoảng ngày / Toàn bộ: chia thành các kỳ có ngày thật (không chia tỷ lệ giả).
+    // Toàn bộ thời gian = từ ngày phát sinh giao dịch hoặc đơn sớm nhất đến hôm nay.
+    // Độ dài ≤ 14 ngày → theo ngày; ≤ 92 ngày → theo tuần (7 ngày tính từ ngày bắt đầu); dài hơn → theo tháng.
+    const payDate = p => localDate(p.paidAt || p.createdAt);
+    const refundDate = r => localDate(r.refundedAt || r.createdAt);
+    let rangeStart = startDate, rangeEnd = endDate;
+    if (periodType !== 'custom') {
+      const dates = [
+        ...data.payments.map(payDate),
+        ...(data.membershipPayments || []).map(payDate),
+        ...data.refunds.map(refundDate),
+        ...data.orders.map(o => o.date)
+      ].filter(Boolean).sort();
+      const now = today();
+      rangeStart = dates[0] && dates[0] < now ? dates[0] : now;
+      rangeEnd = dates.length && dates[dates.length - 1] > now ? dates[dates.length - 1] : now;
+    }
+    if (!rangeStart || !rangeEnd || rangeStart > rangeEnd) return [];
+    const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+    const dm = iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+    const spanDays = Math.round((new Date(rangeEnd + 'T00:00:00Z') - new Date(rangeStart + 'T00:00:00Z')) / 86400000) + 1;
+    const buckets = [];
+    if (spanDays <= 14) {
+      for (let d = rangeStart; d <= rangeEnd; d = addDays(d, 1)) buckets.push({ label: dm(d), start: d, end: d });
+    } else if (spanDays <= 92) {
+      for (let d = rangeStart; d <= rangeEnd; d = addDays(d, 7)) {
+        const e = addDays(d, 6) < rangeEnd ? addDays(d, 6) : rangeEnd;
+        buckets.push({ label: `${dm(d)}–${dm(e)}`, start: d, end: e });
+      }
+    } else {
+      let [y, m] = rangeStart.slice(0, 7).split('-').map(Number);
+      while (`${y}-${String(m).padStart(2, '0')}` <= rangeEnd.slice(0, 7)) {
+        const mStr = `${y}-${String(m).padStart(2, '0')}`;
+        const first = `${mStr}-01`, last = `${mStr}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
+        buckets.push({ label: `Tháng ${m}/${y}`, start: first < rangeStart ? rangeStart : first, end: last > rangeEnd ? rangeEnd : last });
+        m++; if (m > 12) { m = 1; y++; }
+      }
+      // Nhiều tháng thì rút gọn nhãn ("T11/2026") cho vừa trục
+      if (buckets.length > 6) buckets.forEach(b => { b.label = b.label.replace('Tháng ', 'T'); });
+    }
+    return buckets.map(b => {
+      const inB = d => d >= b.start && d <= b.end;
+      const rev = [...data.payments, ...(data.membershipPayments || [])].filter(p => inB(payDate(p))).reduce((a, p) => a + Number(p.amount || 0), 0)
+        - data.refunds.filter(r => inB(refundDate(r))).reduce((a, r) => a + Number(r.amount || 0), 0);
+      return {
+        label: b.label,
+        revenue: Math.max(0, rev),
+        orders: data.orders.map(o => orderInPeriod(o, b.start, b.end)).filter(Boolean).length
+      };
+    });
 
-    return [
-
-      { label: 'Kỳ 1', revenue: Math.round(totalNetCash * 0.18), orders: Math.round(ordersInPeriod.length * 0.2) },
-
-      { label: 'Kỳ 2', revenue: Math.round(totalNetCash * 0.22), orders: Math.round(ordersInPeriod.length * 0.22) },
-
-      { label: 'Kỳ 3', revenue: Math.round(totalNetCash * 0.28), orders: Math.round(ordersInPeriod.length * 0.28) },
-
-      { label: 'Kỳ 4', revenue: Math.round(totalNetCash * 0.32), orders: Math.round(ordersInPeriod.length * 0.3) }
-
-    ];
-
-  }, [periodType, selectedMonth, monthlyBreakdown, data.orders, data.payments, data.refunds, data.membershipPayments, validOrders, totalNetCash, ordersInPeriod.length]);
+  }, [periodType, selectedMonth, monthlyBreakdown, data.orders, data.payments, data.refunds, data.membershipPayments, validOrders, startDate, endDate]);
 
 
 
@@ -1005,7 +1042,7 @@ export default function ReportsPage() {
 
           <svg
 
-            viewBox="0 0 800 240"
+            viewBox="0 0 800 248"
 
             style={{ width: '100%', minWidth: 600, height: 230, overflow: 'visible' }}
 
@@ -1143,7 +1180,7 @@ export default function ReportsPage() {
 
                     textAnchor="middle"
 
-                    fontSize="11.5"
+                    fontSize={slotWidth < 60 ? '10' : '11.5'}
 
                     fill="#475569"
 
@@ -1151,7 +1188,11 @@ export default function ReportsPage() {
 
                   >
 
-                    {p.label}
+                    {slotWidth < 90 && /^\d\d\/\d\d–\d\d\/\d\d$/.test(p.label)
+                      ? p.label.split('–').map((part, i) => (
+                          <tspan key={i} x={xCenter} dy={i ? 11 : 0}>{i ? `–${part}` : part}</tspan>
+                        ))
+                      : p.label}
 
                   </text>
 
@@ -1163,7 +1204,7 @@ export default function ReportsPage() {
 
                     x={xCenter}
 
-                    y="228"
+                    y={slotWidth < 90 && /^\d\d\/\d\d–/.test(p.label) ? 238 : 228}
 
                     textAnchor="middle"
 

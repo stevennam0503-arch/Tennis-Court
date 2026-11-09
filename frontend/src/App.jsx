@@ -87,6 +87,26 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
 
  useEffect(()=>()=>clearTimeout(toastTimer.current),[]);
 
+ // Manager: đếm voucher / chiến dịch Staff gửi lên đang chờ duyệt để hiện chấm đỏ và báo khi có yêu cầu mới.
+ const [approvals,setApprovals]=useState({vouchers:0,campaigns:0});const approvalsSeen=useRef(null);
+ useEffect(()=>{
+  if(!isAdmin)return;
+  let alive=true;
+  const load=async()=>{
+   try{
+    const [v,c]=await Promise.all([api('/admin/vouchers?status=PENDING_APPROVAL').catch(()=>[]),api('/admin/campaigns').catch(()=>[])]);
+    if(!alive)return;
+    const next={vouchers:(v||[]).filter(x=>x.status==='PENDING_APPROVAL').length,campaigns:(c||[]).filter(x=>x.status==='PENDING_APPROVAL').length};
+    const prev=approvalsSeen.current;
+    if(prev&&(next.vouchers>prev.vouchers||next.campaigns>prev.campaigns))notify(next.vouchers>prev.vouchers?`Có voucher mới chờ Manager duyệt (${next.vouchers}).`:`Có chiến dịch mới chờ Manager duyệt (${next.campaigns}).`);
+    approvalsSeen.current=next;setApprovals(next);
+   }catch{}
+  };
+  load();const timer=setInterval(load,30000);
+  window.addEventListener('courtly-approvals-changed',load);
+  return()=>{alive=false;clearInterval(timer);window.removeEventListener('courtly-approvals-changed',load);};
+ },[isAdmin,notify]);
+
  useEffect(()=>{setDialog(null);},[user.role]);
 
  const navigate=useCallback((r,replace=false)=>{
@@ -221,7 +241,7 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
 
    const urgentOperationsCount = urgentOperationsSet.size;
 
-   const urgentCount = urgentOperationsCount + pendingRefunds;
+   const urgentCount = urgentOperationsCount + pendingRefunds + approvals.vouchers + approvals.campaigns;
 
 
 
@@ -272,7 +292,7 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
    const lowRatingCount = feedbackList.filter(f => (f.rating <= 3 || f.lowRating) && f.handlingStatus !== 'RESOLVED' && f.handlingStatus !== 'NO_ACTION').length;
    const pendingFeedback = feedbackList.filter(f => !f.reply && !f.published).length + lowRatingCount;
 
-   const totalAlerts = operationsCount + pendingRefunds + (holdingCount > 0 ? 1 : 0);
+   const totalAlerts = operationsCount + pendingRefunds + (holdingCount > 0 ? 1 : 0) + approvals.vouchers + approvals.campaigns;
 
 
 
@@ -286,6 +306,10 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
 
      content: pendingFeedback,
 
+     vouchers: approvals.vouchers,
+
+     campaigns: approvals.campaigns,
+
      totalAlerts,
 
      urgentCount,
@@ -296,7 +320,7 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
 
    };
 
- }, [club.data]);
+ }, [club.data, approvals]);
 
 
 
@@ -360,7 +384,7 @@ export function AuthenticatedApp({session,onAccessError,onLogout,pending,onConsu
 
   const badge = badges[id] || 0;
 
-  const isUrgent = (id === 'payments' && badges.urgentPaymentsCount > 0) || (id === 'operations' && badges.urgentOperationsCount > 0);
+  const isUrgent = (id === 'payments' && badges.urgentPaymentsCount > 0) || (id === 'operations' && badges.urgentOperationsCount > 0) || (isAdmin && (id === 'vouchers' || id === 'campaigns') && badge > 0);
 
   const isOrders = id === 'orders';
 

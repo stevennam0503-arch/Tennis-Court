@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Sun, House, Crown, ArrowUpRight, Zap, Clock, ShieldCheck, CheckCircle2, Ticket, Gift, LogIn, AlertCircle, CreditCard, RefreshCw, Scale } from 'lucide-react';
 import { useGuest, Action, Empty, money, zone } from './context';
-import { WEEK_DAYS, getCourtMatrix } from './pricing.mjs';
+import { WEEK_DAYS, getCourtMatrix, rowSpans } from './pricing.mjs';
 
 const TABS = [
   { id: 'A', name: 'Sân Ngoài Trời', Icon: Sun, defaultMin: 120000, baseRate: 160000 },
@@ -43,6 +43,8 @@ export default function Pricing() {
 
   // Calculate pricing matrix for active court
   const matrix = activeCourt ? getCourtMatrix(activeCourt, data?.prices || []) : [];
+  // Gộp ô cùng khung giá trong từng cột ngày (vd. 15:00–22:00 ngày thường thành một ô)
+  const spansByDay = Object.fromEntries(WEEK_DAYS.map(d => [d.key, rowSpans(matrix, d.key)]));
 
   const handleCellClick = (block, dayKey, dayData) => {
     const dayMeta = WEEK_DAYS.find(d => d.key === dayKey);
@@ -52,7 +54,7 @@ export default function Pricing() {
     const depositPrice = Math.round((dayData.price * depositPercent) / 100);
 
     setModalCell({
-      block,
+      block: { ...block, time: dayData.time || block.time },
       dayMeta,
       price: dayData.price,
       origPrice,
@@ -207,6 +209,8 @@ export default function Pricing() {
                   </th>
                   {WEEK_DAYS.map(day => {
                     const dayData = row.days[day.key];
+                    const span = spansByDay[day.key][idx];
+                    if (!span) return null;
                     const isFlash = dayData.type === 'flash';
                     const isPeak = dayData.type === 'peak';
                     const isWeekend = dayData.type === 'weekend';
@@ -228,6 +232,7 @@ export default function Pricing() {
                     return (
                       <td
                         key={day.key}
+                        rowSpan={span}
                         onClick={() => handleCellClick(row, day.key, dayData)}
                         title={t('Bấm để xem chi tiết tiền cọc & giữ chỗ')}
                         style={{
@@ -247,6 +252,9 @@ export default function Pricing() {
                         <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, marginTop: 3, ...badgeStyle }}>
                           {badgeText}
                         </span>
+                        {span > 1 && (
+                          <div style={{ fontSize: 10.5, color: '#52655a', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>{dayData.time}</div>
+                        )}
                       </td>
                     );
                   })}

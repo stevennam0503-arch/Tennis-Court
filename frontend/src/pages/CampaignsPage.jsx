@@ -259,6 +259,8 @@ export default function CampaignsPage() {
 
       fetchCampaigns();
 
+      window.dispatchEvent(new Event('courtly-approvals-changed'));
+
     } catch (err) {
 
       notify(err.message);
