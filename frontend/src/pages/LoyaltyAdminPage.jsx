@@ -451,7 +451,7 @@ export default function LoyaltyAdminPage() {
                   Áp dụng trực tiếp tại sân khi khung giờ tiếp theo còn trống.
                 </div>
                 <div style={{ fontWeight: 800, color: '#2563eb', fontSize: 14 }}>
-                  800 điểm
+                  1.500 điểm
                 </div>
               </div>
 
@@ -463,7 +463,7 @@ export default function LoyaltyAdminPage() {
                   Khu vực sân ngoài trời các ngày trong tuần.
                 </div>
                 <div style={{ fontWeight: 800, color: '#2563eb', fontSize: 14 }}>
-                  1.200 điểm
+                  2.500 điểm
                 </div>
               </div>
 

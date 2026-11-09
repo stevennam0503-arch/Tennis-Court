@@ -312,8 +312,8 @@ export default function MyLoyalty() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
           {(rewards.length > 0 ? rewards : [
-            { code: 'EXT30', name: 'Gia hạn 30 phút', points: 800, description: 'Voucher miễn phí gia hạn thời gian chơi sân thêm 30 phút (hạn 60 ngày)' },
-            { code: 'GOLDEN1H', name: '1 giờ sân giờ vàng (10:00–15:00)', points: 1200, description: 'Voucher 1 giờ sân trong khung giờ vàng 10:00–15:00 (hạn 60 ngày)' },
+            { code: 'EXT30', name: 'Gia hạn 30 phút', points: 1500, description: 'Voucher miễn phí gia hạn thời gian chơi sân thêm 30 phút (hạn 60 ngày)' },
+            { code: 'GOLDEN1H', name: '1 giờ sân giờ vàng (10:00–15:00)', points: 2500, description: 'Voucher 1 giờ sân trong khung giờ vàng 10:00–15:00 (hạn 60 ngày)' },
             { code: 'REF1H', name: '1 giờ trọng tài', points: 2000, description: 'Voucher 1 giờ dịch vụ trọng tài chuyên nghiệp (hạn 60 ngày)' }
           ]).map(r => {
             const canAfford = (data.pointsBalance || 0) >= r.points;

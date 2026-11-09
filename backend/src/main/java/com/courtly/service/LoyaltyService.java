@@ -84,6 +84,16 @@ public class LoyaltyService {
 
   @Transactional
   public int earnOrderPoints(CustomerOrder order, boolean hasGoldenHourSlot) {
+    return earnOrderPoints(order, hasGoldenHourSlot ? 1.0 : 0.0);
+  }
+
+  /**
+   * Tích điểm khi đơn hoàn tất.
+   *
+   * @param goldenShare tỷ trọng tiền sân thuộc khung giờ vàng 10:00–15:00 (0..1). Chỉ phần này được nhân đôi điểm.
+   */
+  @Transactional
+  public int earnOrderPoints(CustomerOrder order, double goldenShare) {
     if (order == null || order.getCustomerAccount() == null) {
       return 0;
     }
@@ -108,10 +118,9 @@ public class LoyaltyService {
     // 1 điểm cho mỗi 10.000₫ thực thu x hệ số hạng
     int basePoints = netCashSpend.divide(BigDecimal.valueOf(10_000), RoundingMode.DOWN).intValue();
     double multiplier = getTierMultiplier(account.getTier());
-    if (hasGoldenHourSlot) {
-      multiplier *= 2.0; // Nhân đôi cho khung giờ vàng 10:00-15:00
-    }
-    int pointsEarned = (int) Math.floor(basePoints * multiplier);
+    // Nhân đôi riêng phần tiền sân rơi vào khung giờ vàng 10:00-15:00
+    double share = Math.max(0.0, Math.min(1.0, goldenShare));
+    int pointsEarned = (int) Math.floor(basePoints * multiplier * (1.0 + share) + 1e-9);
 
     if (pointsEarned > 0) {
       LoyaltyLedger entry = new LoyaltyLedger();
@@ -142,8 +151,19 @@ public class LoyaltyService {
     return pointsEarned;
   }
 
+  /** Thu hồi toàn bộ phần điểm đã tích còn lại của đơn (hủy đơn / hoàn toàn bộ tiền). */
   @Transactional
   public void reverseOrderPoints(CustomerOrder order) {
+    reverseEarnedPoints(order, null);
+  }
+
+  /**
+   * Thu hồi điểm đã tích khi hoàn tiền một đơn đã hoàn tất.
+   *
+   * @param refundAmount số tiền hoàn; null = thu hồi toàn bộ phần còn lại. Hoàn một phần thì thu hồi tỷ lệ tương ứng.
+   */
+  @Transactional
+  public void reverseEarnedPoints(CustomerOrder order, BigDecimal refundAmount) {
     if (order == null || order.getCustomerAccount() == null) return;
     UUID accountId = order.getCustomerAccount().getId();
     Account account = accounts.findById(accountId).orElse(null);
@@ -151,46 +171,86 @@ public class LoyaltyService {
 
     var earnEntry = ledger.findByTypeAndOrderId("EARN", order.getId());
     if (earnEntry.isEmpty()) return;
+    int earned = earnEntry.get().getPoints() != null ? earnEntry.get().getPoints() : 0;
+    BigDecimal earnSpend = earnEntry.get().getSpendAmount() != null ? earnEntry.get().getSpendAmount() : BigDecimal.ZERO;
 
-    // Chặn trừ điểm hai lần nếu đã có REVERSAL âm cho đơn này
-    List<LoyaltyLedger> existingReversals = ledger.findByOrderId(order.getId());
-    if (existingReversals.stream().anyMatch(e -> "REVERSAL".equals(e.getType()) && e.getPoints() != null && e.getPoints() < 0)) {
-      return;
+    // Phần đã thu hồi trước đó (các REVERSAL âm của đơn)
+    int reversedPts = 0;
+    BigDecimal reversedSpend = BigDecimal.ZERO;
+    for (LoyaltyLedger l : ledger.findByOrderId(order.getId())) {
+      if ("REVERSAL".equals(l.getType()) && l.getPoints() != null && l.getPoints() < 0) {
+        reversedPts += -l.getPoints();
+        if (l.getSpendAmount() != null) reversedSpend = reversedSpend.add(l.getSpendAmount().negate());
+      }
+    }
+    int remainingPts = Math.max(0, earned - reversedPts);
+    BigDecimal remainingSpend = earnSpend.subtract(reversedSpend).max(BigDecimal.ZERO);
+    if (remainingPts <= 0 && remainingSpend.signum() <= 0) return;
+
+    int pts;
+    BigDecimal spend;
+    if (refundAmount == null || earnSpend.signum() <= 0 || refundAmount.compareTo(remainingSpend) >= 0) {
+      pts = remainingPts;
+      spend = remainingSpend;
+    } else {
+      if (refundAmount.signum() <= 0) return;
+      spend = refundAmount;
+      pts = BigDecimal.valueOf(earned).multiply(refundAmount)
+          .divide(earnSpend, 0, RoundingMode.DOWN).intValue();
+      pts = Math.min(pts, remainingPts);
     }
 
-    int earned = earnEntry.get().getPoints();
-    BigDecimal spend = earnEntry.get().getSpendAmount();
+    // Không để số dư âm: nếu khách đã tiêu bớt số điểm này thì chỉ thu hồi phần còn lại trong ví
+    int balance = account.getPointsBalance() != null ? account.getPointsBalance() : 0;
+    int actual = Math.min(pts, Math.max(0, balance));
 
     LoyaltyLedger reversal = new LoyaltyLedger();
     reversal.setAccount(account);
     reversal.setType("REVERSAL");
-    reversal.setPoints(-earned);
-    reversal.setSpendAmount(spend != null ? spend.negate() : BigDecimal.ZERO);
+    reversal.setPoints(-actual);
+    reversal.setSpendAmount(spend.negate());
     reversal.setOrder(order);
-    reversal.setNote("Hoàn tác điểm do hủy/hoàn tiền đơn " + order.getId().toString().substring(0, 8));
+    String ref = order.getId().toString().substring(0, 8);
+    reversal.setNote((refundAmount == null ? "Thu hồi điểm do hủy/hoàn tiền đơn " : "Thu hồi điểm do hoàn " + refundAmount.longValue() + "₫ đơn ") + ref
+        + (actual < pts ? " (khách đã dùng " + (pts - actual) + " điểm, chỉ thu hồi số còn lại)" : ""));
     reversal.setCreatedAt(now());
     ledger.save(reversal);
 
-    int newBalance = (account.getPointsBalance() != null ? account.getPointsBalance() : 0) - earned;
-    BigDecimal newSpend = (account.getLifetimeSpend() != null ? account.getLifetimeSpend() : BigDecimal.ZERO)
-        .subtract(spend != null ? spend : BigDecimal.ZERO);
-    account.setPointsBalance(newBalance);
+    BigDecimal newSpend = (account.getLifetimeSpend() != null ? account.getLifetimeSpend() : BigDecimal.ZERO).subtract(spend);
+    account.setPointsBalance(balance - actual);
     account.setLifetimeSpend(newSpend.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : newSpend);
     accounts.save(account);
 
-    auditService.log("REVERSE_POINTS", "Hoàn tác " + earned + " điểm đơn " + order.getId() + " tài khoản " + account.getEmail());
+    auditService.log("REVERSE_POINTS", "Thu hồi " + actual + " điểm đơn " + order.getId() + " tài khoản " + account.getEmail());
   }
 
+  /** Số điểm đã trừ cho đơn mà chưa hoàn lại: tổng REDEEM_ORDER trừ các REVERSAL dương. */
+  private int outstandingRedeemed(CustomerOrder order) {
+    int redeemed = 0;
+    int refunded = 0;
+    boolean hasRedeemEntry = false;
+    for (LoyaltyLedger l : ledger.findByOrderId(order.getId())) {
+      int p = l.getPoints() != null ? l.getPoints() : 0;
+      if ("REDEEM_ORDER".equals(l.getType())) {
+        hasRedeemEntry = true;
+        redeemed += -p;
+      } else if ("REVERSAL".equals(l.getType()) && p > 0) {
+        refunded += p;
+      }
+    }
+    if (!hasRedeemEntry) {
+      // Đơn cũ chưa có dòng sổ REDEEM_ORDER: dựa vào số điểm lưu trên đơn
+      redeemed = order.getPointsRedeemed() != null ? order.getPointsRedeemed() : 0;
+    }
+    return Math.max(0, redeemed - refunded);
+  }
+
+  /** Hoàn lại điểm khách đã dùng cho đơn (hủy đơn / hết hạn giữ chỗ). Gọi nhiều lần vẫn chỉ hoàn phần còn nợ. */
   @Transactional
   public void refundRedeemedPoints(CustomerOrder order) {
     if (order == null || order.getCustomerAccount() == null) return;
-    int redeemed = order.getPointsRedeemed() != null ? order.getPointsRedeemed() : 0;
+    int redeemed = outstandingRedeemed(order);
     if (redeemed <= 0) return;
-
-    // Idempotent: check if reversal for points redemption already recorded for this order
-    boolean alreadyReversed = ledger.findByOrderId(order.getId()).stream()
-        .anyMatch(l -> "REVERSAL".equals(l.getType()) && l.getPoints() > 0);
-    if (alreadyReversed) return;
 
     Account account = accounts.findForUpdate(order.getCustomerAccount().getId())
         .orElse(order.getCustomerAccount());
@@ -212,6 +272,25 @@ public class LoyaltyService {
     auditService.log("REFUND_POINTS", "Hoàn trả " + redeemed + " điểm đã dùng từ đơn " + order.getId() + " tài khoản " + account.getEmail());
   }
 
+  /**
+   * Khôi phục đơn đã hủy/hết hạn: trừ lại số điểm đã hoàn để giữ khoản giảm giá từ điểm.
+   *
+   * @return false nếu khách không còn đủ điểm (khi đó bên gọi phải bỏ khoản giảm giá từ điểm của đơn)
+   */
+  @Transactional
+  public boolean reapplyRedeemedPoints(CustomerOrder order) {
+    if (order == null || order.getCustomerAccount() == null) return true;
+    int redeemed = order.getPointsRedeemed() != null ? order.getPointsRedeemed() : 0;
+    if (redeemed <= 0) return true;
+    if (outstandingRedeemed(order) >= redeemed) return true; // điểm vẫn đang bị trừ cho đơn
+    Account account = accounts.findForUpdate(order.getCustomerAccount().getId()).orElse(order.getCustomerAccount());
+    int balance = account.getPointsBalance() != null ? account.getPointsBalance() : 0;
+    if (balance < redeemed) return false;
+    BigDecimal discount = order.getPointsDiscount() != null ? order.getPointsDiscount() : computePointsDiscount(redeemed);
+    deductPointsForOrder(account, order, redeemed, discount);
+    return true;
+  }
+
   // =========================================================================
   public BigDecimal rolling12MonthSpend(UUID accountId) {
     if (accountId == null) return BigDecimal.ZERO;
@@ -227,13 +306,14 @@ public class LoyaltyService {
   public void checkTierUpgrade(Account account, BigDecimal current12MonthSpend) {
     String currentTier = account.getTier() != null ? account.getTier().toUpperCase(Locale.ROOT) : "ROOKIE";
     String targetTier = "ROOKIE";
+    BigDecimal spend = current12MonthSpend != null ? current12MonthSpend : BigDecimal.ZERO;
 
-    if (current12MonthSpend.compareTo(BigDecimal.valueOf(20_000_000)) >= 0) {
-      targetTier = "GRAND_SLAM";
-    } else if (current12MonthSpend.compareTo(BigDecimal.valueOf(8_000_000)) >= 0) {
-      targetTier = "MASTERS";
-    } else if (current12MonthSpend.compareTo(BigDecimal.valueOf(3_000_000)) >= 0) {
-      targetTier = "CHALLENGER";
+    // Ngưỡng lấy từ chính sách hạng đang hiệu lực (Manager chỉnh được), không cố định trong code
+    for (String t : List.of("GRAND_SLAM", "MASTERS", "CHALLENGER")) {
+      if (spend.compareTo(getTierSpendThreshold(t)) >= 0) {
+        targetTier = t;
+        break;
+      }
     }
 
     int currentRank = rankOrder(currentTier);
@@ -245,8 +325,11 @@ public class LoyaltyService {
       account.setTierSince(now());
       account.setTierExpiresAt(now().plus(Duration.ofDays(365)));
 
-      // Trao quà lên hạng
-      grantTierGift(account, targetTier);
+      // Trao quà cho từng hạng vượt qua (nhảy Rookie → Masters vẫn nhận quà Challenger)
+      List<String> ladder = List.of("ROOKIE", "CHALLENGER", "MASTERS", "GRAND_SLAM");
+      for (int rank = currentRank + 1; rank <= targetRank; rank++) {
+        grantTierGift(account, ladder.get(rank - 1));
+      }
 
       accounts.save(account);
 
@@ -425,14 +508,14 @@ public class LoyaltyService {
         Map.of(
             "code", "EXT30",
             "name", "Gia hạn 30 phút",
-            "points", 800,
+            "points", 1500,
             "description", "Voucher miễn phí gia hạn thời gian chơi sân thêm 30 phút (hạn 60 ngày)",
             "category", "COURT"
         ),
         Map.of(
             "code", "GOLDEN1H",
             "name", "1 giờ sân giờ vàng (10:00–15:00)",
-            "points", 1200,
+            "points", 2500,
             "description", "Voucher miễn phí 1 giờ sân trong khung giờ vàng 10:00–15:00 (hạn 60 ngày)",
             "category", "COURT"
         ),
@@ -674,7 +757,14 @@ public class LoyaltyService {
       }
     }
 
-    // 2. Phát voucher sinh nhật vào ngày 1 hàng tháng
+    // 2. Hết hạn điểm (mỗi lần tích/quà có hạn 365 ngày, dùng theo nguyên tắc điểm cũ dùng trước)
+    for (Account a : allAccounts) {
+      if (a.getPointsBalance() != null && a.getPointsBalance() > 0) {
+        expirePoints(a, current);
+      }
+    }
+
+    // 3. Phát voucher sinh nhật vào ngày 1 hàng tháng
     if (todayDate.getDayOfMonth() == 1) {
       int currentMonth = todayDate.getMonthValue();
       for (Account a : allAccounts) {
@@ -683,6 +773,52 @@ public class LoyaltyService {
         }
       }
     }
+  }
+
+  /**
+   * Cho hết hạn phần điểm quá hạn chưa dùng. Điểm tiêu/thu hồi được coi là trừ vào điểm cũ nhất trước (FIFO),
+   * nên số điểm hết hạn = tổng điểm có hạn đã quá hạn − phần đã tiêu ròng − phần đã hết hạn trước đó.
+   *
+   * @return số điểm vừa hết hạn
+   */
+  @Transactional
+  public int expirePoints(Account a, Instant at) {
+    int expiredCredits = 0;
+    int otherNet = 0;
+    int alreadyExpired = 0;
+    for (LoyaltyLedger l : ledger.findByAccountIdOrderByCreatedAtDesc(a.getId())) {
+      int p = l.getPoints() != null ? l.getPoints() : 0;
+      if ("EXPIRE".equals(l.getType())) {
+        alreadyExpired += -p;
+      } else if (p > 0 && l.getExpiresAt() != null) {
+        if (!l.getExpiresAt().isAfter(at)) expiredCredits += p;
+      } else {
+        otherNet += p;
+      }
+    }
+    int consumed = Math.max(0, -otherNet);
+    int balance = a.getPointsBalance() != null ? a.getPointsBalance() : 0;
+    int toExpire = Math.min(balance, Math.max(0, expiredCredits - consumed - alreadyExpired));
+    if (toExpire <= 0) return 0;
+
+    LoyaltyLedger entry = new LoyaltyLedger();
+    entry.setAccount(a);
+    entry.setType("EXPIRE");
+    entry.setPoints(-toExpire);
+    entry.setSpendAmount(BigDecimal.ZERO);
+    entry.setNote("Hết hạn " + toExpire + " điểm (quá 12 tháng chưa sử dụng)");
+    entry.setCreatedAt(at);
+    ledger.save(entry);
+
+    a.setPointsBalance(balance - toExpire);
+    accounts.save(a);
+
+    notificationService.enqueue(a.getId(), null, null, "POINTS_EXPIRED", "IN_APP", null,
+        "⏳ Điểm thưởng đã hết hạn",
+        toExpire + " điểm thưởng của bạn đã hết hạn sau 12 tháng. Số dư hiện tại: " + a.getPointsBalance() + " điểm.",
+        at, "POINTS_EXPIRED:" + a.getId() + ":" + at.atZone(ZONE).toLocalDate());
+    auditService.log("EXPIRE_POINTS", "Hết hạn " + toExpire + " điểm tài khoản " + a.getEmail());
+    return toExpire;
   }
 
   private void issueBirthdayVoucher(Account a, LocalDate todayDate) {
@@ -765,13 +901,23 @@ public class LoyaltyService {
 
     BigDecimal pointsRedeemedValue = BigDecimal.valueOf(pointsRedeemed).multiply(BigDecimal.valueOf(100));
 
+    // Tỷ lệ giữ hạng: trong số khách đang ở hạng trên Rookie, bao nhiêu % có chi tiêu 12 tháng vẫn đạt ngưỡng hạng hiện tại
+    List<Account> holders = all.stream()
+        .filter(a -> !"ROOKIE".equalsIgnoreCase(a.getTier() != null ? a.getTier() : "ROOKIE")).toList();
+    long keeping = holders.stream()
+        .filter(a -> rolling12MonthSpend(a.getId()).compareTo(getTierSpendThreshold(a.getTier())) >= 0).count();
+    Double retentionRate = holders.isEmpty() ? null
+        : Math.round(keeping * 1000.0 / holders.size()) / 10.0;
+
     return map(
         "tierCounts", tierCounts,
         "pointsIssued", pointsIssued,
         "pointsRedeemed", pointsRedeemed,
         "pointsExpired", pointsExpired,
         "pointsRedeemedValue", pointsRedeemedValue,
-        "retentionRate", 92.5
+        "retentionRate", retentionRate,
+        "tierHolders", holders.size(),
+        "tierKeeping", keeping
     );
   }
 

@@ -304,24 +304,24 @@ class LoyaltyServiceTest {
   void testRewardsCatalogAndRedemption() {
     var catalog = loyaltyService.getRewardsCatalog();
     assertEquals(3, catalog.size());
-    assertTrue(catalog.stream().anyMatch(r -> "EXT30".equals(r.get("code")) && ((int) r.get("points")) == 800));
-    assertTrue(catalog.stream().anyMatch(r -> "GOLDEN1H".equals(r.get("code")) && ((int) r.get("points")) == 1200));
+    assertTrue(catalog.stream().anyMatch(r -> "EXT30".equals(r.get("code")) && ((int) r.get("points")) == 1500));
+    assertTrue(catalog.stream().anyMatch(r -> "GOLDEN1H".equals(r.get("code")) && ((int) r.get("points")) == 2500));
     assertTrue(catalog.stream().anyMatch(r -> "REF1H".equals(r.get("code")) && ((int) r.get("points")) == 2000));
 
     UUID accountId = UUID.randomUUID();
     Account acc = new Account();
     acc.setId(accountId);
     acc.setEmail("hoivien@test.com");
-    acc.setPointsBalance(1500);
+    acc.setPointsBalance(2300);
 
     when(accounts.findForUpdate(accountId)).thenReturn(Optional.of(acc));
     when(vouchers.save(any(Voucher.class))).thenAnswer(i -> i.getArgument(0));
 
-    // Redeem EXT30 (800 pts)
+    // Redeem EXT30 (1500 pts)
     var res = loyaltyService.redeemReward(accountId, "EXT30");
     assertTrue((boolean) res.get("success"));
-    assertEquals(700, acc.getPointsBalance());
-    assertEquals(700, res.get("pointsBalance"));
+    assertEquals(800, acc.getPointsBalance());
+    assertEquals(800, res.get("pointsBalance"));
     assertTrue(String.valueOf(res.get("voucherCode")).startsWith("RWD-EXT30-"));
   }
   @Test
@@ -404,5 +404,149 @@ class LoyaltyServiceTest {
     when(documents.read(any(AppDocument.class))).thenReturn(Map.of("voucherCode", "BDAY-TEST"));
     loyaltyService.dailyLoyaltyMaintenance();
     verify(voucherService, times(1)).issuePersonalVoucher(eq(accountId), any()); // still 1
+  }
+
+  // ------------------------------------------------------------------ rà soát điểm 2026-11
+
+  private static LoyaltyLedger entry(String type, int points, BigDecimal spend, Instant expiresAt) {
+    LoyaltyLedger l = new LoyaltyLedger();
+    l.setType(type);
+    l.setPoints(points);
+    l.setSpendAmount(spend);
+    l.setExpiresAt(expiresAt);
+    return l;
+  }
+
+  @Test
+  void testRefundAfterRestoreAndCancelAgain_RefundsOnlyOutstanding() {
+    UUID accountId = UUID.randomUUID();
+    Account acc = new Account();
+    acc.setId(accountId);
+    acc.setPointsBalance(1000);
+    CustomerOrder order = new CustomerOrder();
+    order.setId(UUID.randomUUID());
+    order.setCustomerAccount(acc);
+    order.setPointsRedeemed(300);
+    order.setPointsDiscount(new BigDecimal("30000"));
+    when(accounts.findForUpdate(accountId)).thenReturn(Optional.of(acc));
+
+    // Đã trừ 300 rồi hoàn 300 (hủy lần 1) -> khôi phục phải trừ lại 300
+    List<LoyaltyLedger> rows = new ArrayList<>(List.of(entry("REDEEM_ORDER", -300, null, null), entry("REVERSAL", 300, BigDecimal.ZERO, null)));
+    when(ledger.findByOrderId(order.getId())).thenAnswer(i -> rows);
+    when(ledger.save(any(LoyaltyLedger.class))).thenAnswer(i -> { rows.add(i.getArgument(0)); return i.getArgument(0); });
+
+    assertTrue(loyaltyService.reapplyRedeemedPoints(order));
+    assertEquals(700, acc.getPointsBalance());
+
+    // Hủy lần 2 -> hoàn lại đúng 300, gọi lại lần nữa không hoàn thêm
+    loyaltyService.refundRedeemedPoints(order);
+    loyaltyService.refundRedeemedPoints(order);
+    assertEquals(1000, acc.getPointsBalance());
+  }
+
+  @Test
+  void testReapplyRedeemedPoints_NotEnoughBalance_ReturnsFalse() {
+    UUID accountId = UUID.randomUUID();
+    Account acc = new Account();
+    acc.setId(accountId);
+    acc.setPointsBalance(100);
+    CustomerOrder order = new CustomerOrder();
+    order.setId(UUID.randomUUID());
+    order.setCustomerAccount(acc);
+    order.setPointsRedeemed(300);
+    when(accounts.findForUpdate(accountId)).thenReturn(Optional.of(acc));
+    when(ledger.findByOrderId(order.getId())).thenReturn(List.of(entry("REDEEM_ORDER", -300, null, null), entry("REVERSAL", 300, BigDecimal.ZERO, null)));
+
+    assertFalse(loyaltyService.reapplyRedeemedPoints(order));
+    assertEquals(100, acc.getPointsBalance());
+  }
+
+  @Test
+  void testPartialRefundOfCompletedOrder_ReversesProportionalPoints() {
+    Account acc = new Account();
+    acc.setId(UUID.randomUUID());
+    acc.setPointsBalance(500);
+    acc.setLifetimeSpend(new BigDecimal("1000000"));
+    CustomerOrder order = new CustomerOrder();
+    order.setId(UUID.randomUUID());
+    order.setCustomerAccount(acc);
+    when(accounts.findById(acc.getId())).thenReturn(Optional.of(acc));
+    when(ledger.findByTypeAndOrderId("EARN", order.getId())).thenReturn(Optional.of(entry("EARN", 100, new BigDecimal("1000000"), null)));
+    List<LoyaltyLedger> rows = new ArrayList<>();
+    when(ledger.findByOrderId(order.getId())).thenAnswer(i -> rows);
+    when(ledger.save(any(LoyaltyLedger.class))).thenAnswer(i -> { rows.add(i.getArgument(0)); return i.getArgument(0); });
+
+    loyaltyService.reverseEarnedPoints(order, new BigDecimal("300000")); // hoàn 30%
+    assertEquals(470, acc.getPointsBalance());
+    assertEquals(new BigDecimal("700000"), acc.getLifetimeSpend());
+
+    loyaltyService.reverseEarnedPoints(order, null); // hoàn nốt
+    assertEquals(400, acc.getPointsBalance());
+    assertEquals(0, acc.getLifetimeSpend().signum());
+
+    loyaltyService.reverseEarnedPoints(order, null); // không thu hồi thêm
+    assertEquals(400, acc.getPointsBalance());
+  }
+
+  @Test
+  void testReverseEarnedPoints_NeverNegativeBalance() {
+    Account acc = new Account();
+    acc.setId(UUID.randomUUID());
+    acc.setPointsBalance(20);
+    CustomerOrder order = new CustomerOrder();
+    order.setId(UUID.randomUUID());
+    order.setCustomerAccount(acc);
+    when(accounts.findById(acc.getId())).thenReturn(Optional.of(acc));
+    when(ledger.findByTypeAndOrderId("EARN", order.getId())).thenReturn(Optional.of(entry("EARN", 100, new BigDecimal("1000000"), null)));
+
+    loyaltyService.reverseOrderPoints(order);
+    assertEquals(0, acc.getPointsBalance());
+  }
+
+  @Test
+  void testTierUpgradeSkipsTier_GrantsEveryGift() {
+    Account acc = new Account();
+    acc.setId(UUID.randomUUID());
+    acc.setTier("ROOKIE");
+    acc.setPointsBalance(0);
+
+    loyaltyService.checkTierUpgrade(acc, new BigDecimal("9000000"));
+
+    assertEquals("MASTERS", acc.getTier());
+    assertEquals(700, acc.getPointsBalance()); // 200 (Challenger) + 500 (Masters)
+  }
+
+  @Test
+  void testExpirePoints_FifoAfterConsumption() {
+    Instant now = Instant.parse("2026-11-09T02:00:00Z");
+    Account acc = new Account();
+    acc.setId(UUID.randomUUID());
+    acc.setPointsBalance(700);
+    when(ledger.findByAccountIdOrderByCreatedAtDesc(acc.getId())).thenReturn(List.of(
+        entry("EARN", 300, BigDecimal.ZERO, now.minus(Duration.ofDays(1))),   // đã quá hạn
+        entry("EARN", 500, BigDecimal.ZERO, now.plus(Duration.ofDays(100))),  // còn hạn
+        entry("REDEEM_ORDER", -100, BigDecimal.ZERO, null)));                  // đã tiêu 100 (trừ vào điểm cũ)
+
+    assertEquals(200, loyaltyService.expirePoints(acc, now));
+    assertEquals(500, acc.getPointsBalance());
+  }
+
+  @Test
+  void testEarnOrderPoints_GoldenShareDoublesOnlyGoldenPart() {
+    Account acc = new Account();
+    acc.setId(UUID.randomUUID());
+    acc.setTier("ROOKIE");
+    acc.setPointsBalance(0);
+    CustomerOrder order = new CustomerOrder();
+    order.setId(UUID.randomUUID());
+    order.setCustomerAccount(acc);
+    order.setTotalAmount(new BigDecimal("400000"));
+    order.setPaidAmount(new BigDecimal("400000"));
+    when(accounts.findById(acc.getId())).thenReturn(Optional.of(acc));
+    when(ledger.findByTypeAndOrderId("EARN", order.getId())).thenReturn(Optional.empty());
+    when(ledger.sumSpendByAccountIdSince(any(), any())).thenReturn(BigDecimal.ZERO);
+
+    // 40 điểm gốc, một nửa tiền sân thuộc giờ vàng -> 40 × 1,5 = 60
+    assertEquals(60, loyaltyService.earnOrderPoints(order, 0.5));
   }
 }

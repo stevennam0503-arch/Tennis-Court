@@ -1679,9 +1679,9 @@ export default function ReportsPage() {
             <div style={{ background: '#f8fafc', padding: 14, borderRadius: 10, border: '1px solid #e2e8f0' }}>
               <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>TỶ LỆ GIỮ HẠNG / HẾT HẠN</span>
               <div style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', marginTop: 4 }}>
-                {loyaltyReport?.retentionRate || 92.5}%
+                {loyaltyReport?.retentionRate != null ? `${loyaltyReport.retentionRate}%` : '—'}
               </div>
-              <small style={{ color: '#94a3b8' }}>Điểm hết hạn: {loyaltyReport?.pointsExpired || 0} pts</small>
+              <small style={{ color: '#94a3b8' }}>{loyaltyReport?.tierHolders ? `${loyaltyReport.tierKeeping}/${loyaltyReport.tierHolders} hội viên đủ chi tiêu giữ hạng · ` : ''}Điểm hết hạn: {loyaltyReport?.pointsExpired || 0} pts</small>
             </div>
           </div>
         </div>

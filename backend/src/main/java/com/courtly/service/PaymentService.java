@@ -195,7 +195,10 @@ public class PaymentService {
       }
       order.setPaidAmount(order.getPaidAmount().subtract(amount));
       totals.updatePaymentStatus(order);
-      loyalty.refundRedeemedPoints(order);
+      // Đơn đã hoàn tất: hoàn tiền thì thu hồi phần điểm đã tích tương ứng.
+      // Đơn còn hiệu lực vẫn giữ khoản giảm từ điểm nên KHÔNG trả điểm; điểm chỉ hoàn khi đơn bị hủy/hết hạn.
+      if ("COMPLETED".equals(order.getStatus())) loyalty.reverseEarnedPoints(order, amount);
+      else if (Set.of("CANCELLED", "EXPIRED").contains(order.getStatus())) loyalty.refundRedeemedPoints(order);
     }
     if (reg != null) reg.setStatus("PENDING");
     audit.log("HOÀN TIỀN", refund.getId() + " · " + amount.toPlainString() + "₫"

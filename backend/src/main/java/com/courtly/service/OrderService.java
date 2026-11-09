@@ -659,10 +659,19 @@ public class OrderService {
 
     b.setStatus(order.getStatus());
     if (!remaining) {
-      boolean goldenHour = slots.findByBookingId(b.getId()).stream()
-          .anyMatch(s -> s.getSchedule() != null && s.getSchedule().getStartTime() != null 
-              && s.getSchedule().getStartTime().getHour() >= 10 && s.getSchedule().getStartTime().getHour() < 15);
-      loyaltyService.earnOrderPoints(order, goldenHour);
+      // Chỉ phần tiền sân thuộc khung giờ vàng 10:00–15:00 được nhân đôi điểm
+      BigDecimal courtAll = BigDecimal.ZERO;
+      BigDecimal courtGolden = BigDecimal.ZERO;
+      for (var s : slots.findByBookingId(b.getId())) {
+        BigDecimal price = s.getUnitPrice() != null ? s.getUnitPrice()
+            : s.getSchedule() != null && s.getSchedule().getPrice() != null ? s.getSchedule().getPrice() : BigDecimal.ZERO;
+        courtAll = courtAll.add(price);
+        if (s.getSchedule() != null && s.getSchedule().getStartTime() != null
+            && s.getSchedule().getStartTime().getHour() >= 10 && s.getSchedule().getStartTime().getHour() < 15)
+          courtGolden = courtGolden.add(price);
+      }
+      double goldenShare = courtAll.signum() > 0 ? courtGolden.doubleValue() / courtAll.doubleValue() : 0.0;
+      loyaltyService.earnOrderPoints(order, goldenShare);
     }
 
     var meta = documents.decode(order.getMetadata());
@@ -1198,6 +1207,15 @@ public class OrderService {
 
       o.setMetadata(documents.encode(metadata));
 
+    }
+
+    // Điểm đã được hoàn khi hủy: khôi phục đơn thì trừ lại; không đủ điểm thì bỏ khoản giảm từ điểm
+    if (!loyaltyService.reapplyRedeemedPoints(o)) {
+      o.setPointsRedeemed(0);
+      o.setPointsDiscount(BigDecimal.ZERO);
+      var pm = documents.decode(o.getMetadata());
+      pm.remove("pointsBenefit");
+      o.setMetadata(documents.encode(pm));
     }
 
     o.setStatus("HOLDING");

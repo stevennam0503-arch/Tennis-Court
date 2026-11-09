@@ -2584,6 +2584,26 @@ const removeVoucher = () => {
                   </span>
                 </div>
               )}
+              {usePoints && (
+                <div style={{marginTop: 6, fontSize: 11.5, lineHeight: 1.45}}>
+                  {maxPointsUsable < 100 ? (
+                    <div style={{color: '#b91c1c', fontWeight: 600}}>
+                      ⚠️ {t('Chưa thể dùng điểm cho đơn này: cần tối thiểu 100 điểm và không vượt 50% tiền sân.')}
+                    </div>
+                  ) : validRequestedPoints > 0 && validRequestedPoints < 100 ? (
+                    <div style={{color: '#b91c1c', fontWeight: 600}}>
+                      ⚠️ {t('Cần dùng tối thiểu 100 điểm (100 điểm = 10.000₫). Đơn này chưa được giảm từ điểm.')}
+                    </div>
+                  ) : pointsDiscount > 0 ? (
+                    <div style={{color: '#166534', fontWeight: 600}}>
+                      ✓ {t('Dùng')} {effectivePoints} {t('điểm')} → −{money(pointsDiscount)}
+                    </div>
+                  ) : null}
+                  <div style={{color: '#64748b', marginTop: 2}}>
+                    {t('Điểm bị trừ ngay khi đặt; được hoàn lại nếu hủy đơn hoặc hết thời gian giữ chỗ. Vắng mặt (no-show) không được hoàn điểm.')}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
