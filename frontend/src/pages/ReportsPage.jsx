@@ -1296,7 +1296,7 @@ export default function ReportsPage() {
 
                   </span>
 
-                  <strong style={{ fontSize: 14, color: '#173c32', display: 'block', marginTop: 2 }}>
+                  <strong style={{ fontSize: 14, color: '#173c32', display: 'block', marginTop: 2, whiteSpace: 'nowrap' }}>
 
                     {money(totalValue)}
 
@@ -1310,23 +1310,23 @@ export default function ReportsPage() {
 
               {/* Legend with percent pills */}
 
-              <div style={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ flex: '1 1 240px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
 
                 {donutData.slices.map(item => (
 
-                  <div key={item.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#f8fafc', borderRadius: 8 }}>
+                  <div key={item.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '6px 10px', background: '#f8fafc', borderRadius: 8 }}>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
 
-                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: item.color, display: 'inline-block' }} />
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: item.color, display: 'inline-block', flexShrink: 0 }} />
 
-                      <span style={{ fontSize: 13, color: '#334155', fontWeight: 500 }}>{item.name}</span>
+                      <span style={{ fontSize: 13, color: '#334155', fontWeight: 500, lineHeight: 1.35 }}>{item.name}</span>
 
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
 
-                      <b style={{ fontSize: 13, color: '#0f172a' }}>{money(item.value)}</b>
+                      <b style={{ fontSize: 13, color: '#0f172a', whiteSpace: 'nowrap' }}>{money(item.value)}</b>
 
                       <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', background: '#e2e8f0', padding: '1px 6px', borderRadius: 6 }}>
 
@@ -1346,11 +1346,11 @@ export default function ReportsPage() {
 
 
 
-            <div style={{ paddingTop: 12, borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+            <div style={{ paddingTop: 12, borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, fontSize: 13 }}>
 
               <span style={{ color: '#64748b' }}>Trừ tiền hoàn cọc & hủy sân:</span>
 
-              <b style={{ color: '#dc2626' }}>−{money(refundsInPeriod.reduce((a, r) => a + r.amount, 0))}</b>
+              <b style={{ color: '#dc2626', whiteSpace: 'nowrap' }}>−{money(refundsInPeriod.reduce((a, r) => a + r.amount, 0))}</b>
 
             </div>
 
@@ -1380,11 +1380,11 @@ export default function ReportsPage() {
 
                 <div key={group.key}>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, marginBottom: 5 }}>
 
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{group.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#334155', minWidth: 0 }}>{group.label}</span>
 
-                    <span style={{ fontSize: 12.5, fontWeight: 700, color: group.color }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: group.color, whiteSpace: 'nowrap', flexShrink: 0 }}>
 
                       {group.hours} giờ chơi · <strong>{group.percent}%</strong>
 

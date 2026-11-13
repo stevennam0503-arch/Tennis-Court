@@ -29,3 +29,6 @@
 .auth-hint-success{background:#e8f5e9;border:1px solid #a5d6a7;color:#1b5e20;border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.6;margin-bottom:16px}
 .auth-resend{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-top:10px}
 
+
+/* Ẩn/hiện menu dọc (desktop) */
+.topbar .nav-toggle{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;color:var(--green)}.topbar .nav-toggle:hover{background:#eef3ef}.layout.nav-hidden{grid-template-columns:minmax(0,1fr)}.layout.nav-hidden .sidebar{display:none}.layout.nav-hidden .content{grid-column:1}@media(max-width:760px){.topbar .nav-toggle{display:none}.layout.nav-hidden .sidebar.open{display:flex}}@media print{.topbar .nav-toggle{display:none!important}}
